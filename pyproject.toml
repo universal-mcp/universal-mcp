@@ -1,7 +1,7 @@
 [project]
 name = "universal-mcp"
 version = "0.1.0"
-description = "Add your description here"
+description = "Universal MCP acts as a middle ware for your API applications. It can store your credentials, authorize, enable disable apps on the fly and much more."
 readme = "README.md"
 authors = [
     { name = "Manoj Bajaj", email = "manojbajaj95@gmail.com" }

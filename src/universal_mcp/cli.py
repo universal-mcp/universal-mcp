@@ -67,9 +67,9 @@ def install(app_name: str = typer.Argument(..., help="Name of app to install")):
             config = json.load(f)
         if 'mcpServers' not in config:
             config['mcpServers'] = {}
-        config['mcpServers']['agentr'] = {
+        config['mcpServers']['universal_mcp'] = {
             "command": "uvx",
-            "args": ["agentr@latest", "run"],
+            "args": ["universal_mcp@latest", "run"],
             "env": {
                 "AGENTR_API_KEY": api_key
             }
@@ -95,9 +95,9 @@ def install(app_name: str = typer.Argument(..., help="Name of app to install")):
 
         if 'mcpServers' not in config:
             config['mcpServers'] = {}
-        config['mcpServers']['agentr'] = {
+        config['mcpServers']['universal_mcp'] = {
             "command": "uvx",
-            "args": ["agentr@latest", "run"],
+            "args": ["universal_mcp@latest", "run"],
             "env": {
                 "AGENTR_API_KEY": api_key
             }

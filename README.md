@@ -1,6 +1,7 @@
-# AgentR
+# Universal MCP
 
-AgentR is a Python framework for building MCP servers to serve agentic applications and LLM clients. It provides a clean abstraction for incorporating various API services as "applications" into your agent workflow.
+Universal MCP acts as a middle ware for your API applications. It can store your credentials, authorize, enable disable apps on the fly and much more.
+
 
 ## 🌟 Features
 
