@@ -21,6 +21,12 @@ test = [
   "pytest>=8.3.5",
   "pytest-asyncio>=0.26.0",
 ]
+agent = [
+    "langchain-anthropic>=0.3.10",
+    "langchain-mcp-adapters>=0.0.3",
+    "langgraph>=0.3.22",
+    "langsmith>=0.3.22",
+]
 
 [project.scripts]
 universal_mcp = "universal_mcp.cli:app"
@@ -28,4 +34,3 @@ universal_mcp = "universal_mcp.cli:app"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-

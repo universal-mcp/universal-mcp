@@ -21,11 +21,11 @@ def generate(schema_path: Path = typer.Option(..., "--schema", "-s")):
     print(code)
 
 @app.command()
-def run():
+def run(transport: str = typer.Option("stdio", "--transport", "-t")):
     """Run the MCP server"""
     from universal_mcp.servers.server import AgentRServer
     mcp = AgentRServer(name="AgentR Server", description="AgentR Server")
-    mcp.run()
+    mcp.run(transport=transport)
 
 @app.command()
 def install(app_name: str = typer.Argument(..., help="Name of app to install")):

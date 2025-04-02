@@ -16,7 +16,6 @@ class Server(FastMCP, ABC):
     """
     Server is responsible for managing the applications and the store
     It also acts as a router for the applications, and exposed to the client
-
     """
     def __init__(self, name: str, description: str, **kwargs):
         super().__init__(name, description, **kwargs)
