@@ -70,6 +70,24 @@ if __name__ == "__main__":
     server.run()
 ```
 
+## Using Playground
+
+Start MCP Server
+```bash
+universal_mcp run -t sse
+```
+
+Start FastAPI app
+```bash
+fastapi run src/playground
+```
+
+Start Frontend
+```bash
+streamlit run src/playground/streamlit.py
+```
+
+
 ## 🧩 Available Applications
 AgentR comes with several pre-built applications:
 

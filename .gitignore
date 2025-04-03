@@ -15,3 +15,11 @@ wheels/
 
 
 dump/
+
+
+# SQLite database
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal

@@ -21,13 +21,14 @@ test = [
   "pytest>=8.3.5",
   "pytest-asyncio>=0.26.0",
 ]
-agent = [
+playground = [
+    "fastapi[standard]>=0.115.12",
     "langchain-anthropic>=0.3.10",
     "langchain-mcp-adapters>=0.0.3",
-    "langgraph>=0.3.22",
-    "langsmith>=0.3.22",
+    "langgraph>=0.3.24",
+    "langgraph-checkpoint-sqlite>=2.0.6",
+    "streamlit>=1.44.1",
 ]
-
 [project.scripts]
 universal_mcp = "universal_mcp.cli:app"
 
