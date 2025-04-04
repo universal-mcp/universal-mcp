@@ -72,11 +72,6 @@ if __name__ == "__main__":
 
 ## Using Playground
 
-Start MCP Server
-```bash
-universal_mcp run -t sse
-```
-
 Start FastAPI app
 ```bash
 fastapi run src/playground
@@ -86,7 +81,7 @@ Start Frontend
 ```bash
 streamlit run src/playground/streamlit.py
 ```
-
+### Copy you AGENTR_API_KEY from https://agentr.dev and paste it in the sidebar
 
 ## 🧩 Available Applications
 AgentR comes with several pre-built applications:
