@@ -19,6 +19,10 @@ class UserInput(BaseModel):
         default={},
         examples=[{"spicy_level": 0.8}],
     )
+    
+    api_key: str | None = Field(
+        description="API key for dynamic tool loading (e.g., AgentR).", default=None
+    )
 
 
 class StreamInput(UserInput):

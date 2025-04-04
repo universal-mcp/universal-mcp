@@ -64,6 +64,7 @@ class AgentClient:
         model: str | None = None,
         thread_id: str | None = None,
         agent_config: dict[str, Any] | None = None,
+        api_key: str | None = None,
     ) -> ChatMessage:
         """
         Invoke the agent asynchronously. Only the final message is returned.
@@ -82,6 +83,8 @@ class AgentClient:
             request.thread_id = thread_id
         if agent_config:
             request.agent_config = agent_config
+        if api_key:
+                request.api_key = api_key
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.post(
@@ -102,6 +105,7 @@ class AgentClient:
         model: str | None = None,
         thread_id: str | None = None,
         agent_config: dict[str, Any] | None = None,
+        api_key: str | None = None,
     ) -> ChatMessage:
         """
         Invoke the agent synchronously. Only the final message is returned.
@@ -122,6 +126,8 @@ class AgentClient:
             request.model = model
         if agent_config:
             request.agent_config = agent_config
+        if api_key:
+            request.api_key = api_key
         try:
             response = httpx.post(
                 f"{self.base_url}/invoke",
@@ -135,6 +141,7 @@ class AgentClient:
 
         return ChatMessage.model_validate(response.json())
 
+        # In client.py, update the _parse_stream_line method
     def _parse_stream_line(self, line: str) -> ChatMessage | str | None:
         line = line.strip()
         if line.startswith("data: "):
@@ -147,10 +154,12 @@ class AgentClient:
                 raise Exception(f"Error JSON parsing message from server: {e}")
             match parsed["type"]:
                 case "message":
-                    # Convert the JSON formatted message to an AnyMessage
+                    # Convert the JSON formatted message to a ChatMessage
                     try:
                         return ChatMessage.model_validate(parsed["content"])
                     except Exception as e:
+                        # For debugging, print the actual content
+                        print(f"Message validation error: {e}, content: {parsed['content']}")
                         raise Exception(f"Server returned invalid message: {e}")
                 case "token":
                     # Yield the str token directly
@@ -166,6 +175,7 @@ class AgentClient:
         thread_id: str | None = None,
         agent_config: dict[str, Any] | None = None,
         stream_tokens: bool = True,
+        api_key: str | None = None,
     ) -> Generator[ChatMessage | str, None, None]:
         """
         Stream the agent's response synchronously.
@@ -192,6 +202,8 @@ class AgentClient:
             request.model = model
         if agent_config:
             request.agent_config = agent_config
+        if api_key:
+            request.api_key = api_key
         try:
             with httpx.stream(
                 "POST",
@@ -217,6 +229,7 @@ class AgentClient:
         thread_id: str | None = None,
         agent_config: dict[str, Any] | None = None,
         stream_tokens: bool = True,
+        api_key: str | None = None,
     ) -> AsyncGenerator[ChatMessage | str, None]:
         """
         Stream the agent's response asynchronously.
@@ -244,6 +257,8 @@ class AgentClient:
             request.model = model
         if agent_config:
             request.agent_config = agent_config
+        if api_key:
+            request.api_key = api_key
         async with httpx.AsyncClient() as client:
             try:
                 async with client.stream(

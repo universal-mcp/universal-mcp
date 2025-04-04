@@ -49,6 +49,18 @@ async def main() -> None:
         await asyncio.sleep(0.1)
         st.rerun()
 
+     # --- START: API Key Sidebar ---
+    with st.sidebar:
+        st.header("Configuration")
+        api_key = st.text_input(
+            "AgentR API Key",
+            type="password",
+            placeholder="Enter your AgentR API Key",
+            help="Get your API key from agentr.dev",
+            key="api_key_input" # Use a key to easily access the value
+        )
+        # You could add more configuration options here later
+    # --- END: API Key Sidebar ---
     if "agent_client" not in st.session_state:
         load_dotenv()
         agent_url = os.getenv("AGENT_URL")
@@ -98,6 +110,12 @@ async def main() -> None:
 
     # Generate new message if the user provided new input
     if user_input := st.chat_input():
+        # --- START: Check for API Key before processing input ---
+        current_api_key = st.session_state.get("api_key_input") # Read from widget state
+        if not current_api_key:
+            st.warning("Please enter your AgentR API Key in the sidebar to use tools.", icon="⚠️")
+            st.stop() # Stop processing if API key is missing
+        # --- END: Check for API Key ---
         messages.append(ChatMessage(type="human", content=user_input))
         st.chat_message("human").write(user_input)
         try:
@@ -105,12 +123,14 @@ async def main() -> None:
                 stream = agent_client.astream(
                     message=user_input,
                     thread_id=st.session_state.thread_id,
+                    api_key=current_api_key # Pass API key here
                 )
                 await draw_messages(stream, is_new=True)
             else:
                 response = await agent_client.ainvoke(
                     message=user_input,
                     thread_id=st.session_state.thread_id,
+                    api_key=current_api_key # Pass API key here
                 )
                 messages.append(response)
                 st.chat_message("ai").write(response.content)
@@ -261,7 +281,12 @@ async def draw_messages(
                         status = TaskDataStatus()
 
                 status.add_and_draw_task_data(task_data)
-
+                
+            case "tool":
+                if is_new:
+                    st.session_state.messages.append(msg)
+                # Tool responses will be handled when processing the associated tool call
+                pass
             # In case of an unexpected message type, log an error and stop
             case _:
                 st.error(f"Unexpected ChatMessage type: {msg.type}")
