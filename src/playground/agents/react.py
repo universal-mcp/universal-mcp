@@ -37,55 +37,37 @@ async def _fetch_tools_for_request(config: RunnableConfig) -> List[BaseTool]:
     if not api_key:
         return []
 
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{AGENTR_BASE_URL}/api/apps/",
-                headers={"X-API-KEY": api_key},
-                timeout=15.0
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{AGENTR_BASE_URL}/api/apps/",
+            headers={"X-API-KEY": api_key},
+            timeout=15.0
+        )
+        response.raise_for_status()
+        apps_data = response.json()
+
+    app_configs = [AppConfig.model_validate(app_data) for app_data in apps_data]
+
+    for app_config in app_configs:
+        app_name = app_config.name
+
+        integration = AgentRIntegration(name=f"{app_name}", api_key=api_key)
+        AppClass = app_from_name(app_name)
+        app_instance = AppClass(integration=integration)
+
+        tool_functions = app_instance.list_tools()
+
+        for tool_func in tool_functions:
+            tool_name = f"{app_name}_{tool_func.__name__}"
+            tool_description = tool_func.__doc__ or f"Tool from application {app_name}."
+
+            bound_method = getattr(app_instance, tool_func.__name__)
+            langchain_tool = StructuredTool.from_function(
+                func=bound_method,
+                name=tool_name,
+                description=tool_description,
             )
-            response.raise_for_status()
-            apps_data = response.json()
-
-        app_configs = [AppConfig.model_validate(app_data) for app_data in apps_data]
-
-        for app_config in app_configs:
-            app_name = app_config.name
-            try:
-                integration = AgentRIntegration(name=f"{app_name}", api_key=api_key)
-                AppClass = app_from_name(app_name)
-                app_instance = AppClass(integration=integration)
-
-                tool_functions = app_instance.list_tools()
-
-                for tool_func in tool_functions:
-                    tool_name = f"{app_name}_{tool_func.__name__}"
-                    tool_description = tool_func.__doc__ or f"Tool from application {app_name}."
-
-                    bound_method = getattr(app_instance, tool_func.__name__)
-                    langchain_tool = StructuredTool.from_function(
-                        func=bound_method,
-                        name=tool_name,
-                        description=tool_description,
-                    )
-                    fetched_tools.append(langchain_tool)
-
-            except ImportError:
-                # Handle or log error if needed in production
-                pass
-            except Exception as e:
-                # Handle or log error if needed in production
-                pass
-
-    except httpx.RequestError as e:
-        # Handle or log error if needed in production
-        return []
-    except httpx.HTTPStatusError as e:
-        # Handle or log error if needed in production
-        return []
-    except Exception as e:
-        # Handle or log error if needed in production
-        return []
+            fetched_tools.append(langchain_tool)
 
     return fetched_tools
 
@@ -109,20 +91,8 @@ async def tool_executor_node(state: AgentState, config: RunnableConfig) -> dict:
     if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
         return {"messages": []}
 
-    try:
-        tools = await _fetch_tools_for_request(config)
-    except Exception as fetch_err:
-         tool_messages = []
-         for tool_call in last_message.tool_calls:
-             tool_messages.append(
-                 ToolMessage(
-                     content=f"Error: Tool execution failed. Could not load tools. Fetch error: {fetch_err}",
-                     tool_call_id=tool_call['id'],
-                 )
-             )
-         return {"messages": tool_messages}
-
-
+    tools = await _fetch_tools_for_request(config)
+    
     if not tools:
         tool_messages = []
         for tool_call in last_message.tool_calls:
@@ -137,39 +107,24 @@ async def tool_executor_node(state: AgentState, config: RunnableConfig) -> dict:
     tool_executor = ToolNode(tools=tools)
 
     response_messages = []
-    try:
-        result = await tool_executor.ainvoke(last_message.tool_calls)
+    
+    result = await tool_executor.ainvoke(last_message.tool_calls)
 
-        if isinstance(result, dict) and 'messages' in result:
-            if isinstance(result['messages'], list):
-                response_messages = result['messages']
-            else:
-                response_messages = [result['messages']] if result['messages'] else []
-        elif isinstance(result, list):
-            response_messages = result
-        elif isinstance(result, ToolMessage):
-            response_messages = [result]
+    if isinstance(result, dict) and 'messages' in result:
+        if isinstance(result['messages'], list):
+            response_messages = result['messages']
         else:
-            first_call_id = last_message.tool_calls[0]['id']
-            response_messages = [ToolMessage(
-                content=f"Error: Unexpected response type {type(result)} from tool executor.",
-                tool_call_id=first_call_id
-            )]
-
-    except NotAuthorizedError as e:
-         response_messages = []
-         for tool_call in last_message.tool_calls:
-              response_messages.append(ToolMessage(content=f"Authorization Error: {e.message}", tool_call_id=tool_call['id']))
-
-    except Exception as e:
-        response_messages = []
-        for tool_call in last_message.tool_calls:
-             response_messages.append(
-                 ToolMessage(
-                     content=f"Error executing tool '{tool_call['name']}': {type(e).__name__} - {e}. Check service logs.",
-                     tool_call_id=tool_call['id']
-                 )
-             )
+            response_messages = [result['messages']] if result['messages'] else []
+    elif isinstance(result, list):
+        response_messages = result
+    elif isinstance(result, ToolMessage):
+        response_messages = [result]
+    else:
+        first_call_id = last_message.tool_calls[0]['id']
+        response_messages = [ToolMessage(
+            content=f"Error: Unexpected response type {type(result)} from tool executor.",
+            tool_call_id=first_call_id
+        )]
 
     return {"messages": response_messages}
 
@@ -229,43 +184,35 @@ async def main():
                 }
             )
 
-            try:
-                async for event in agent.astream_events({"messages": messages}, config=config, version="v2"):
-                    kind = event["event"]
+            async for event in agent.astream_events({"messages": messages}, config=config, version="v2"):
+                kind = event["event"]
 
-                    if kind == "on_chat_model_stream":
-                        chunk = event["data"].get("chunk")
-                        if chunk and hasattr(chunk, "content"):
-                            print(chunk.content, end="", flush=True)
-                    elif kind == "on_tool_end":
-                        print(f"\n<<< Tool Result ({event['name']}) >>>")
-                        tool_output = event["data"].get("output")
-                        if isinstance(tool_output, list) and tool_output and isinstance(tool_output[0], ToolMessage):
-                             print(tool_output[0].content)
-                        elif isinstance(tool_output, ToolMessage):
-                             print(tool_output.content)
-                        else:
-                             print(tool_output)
-                        print("<<< End Tool Result >>>")
+                if kind == "on_chat_model_stream":
+                    chunk = event["data"].get("chunk")
+                    if chunk and hasattr(chunk, "content"):
+                        print(chunk.content, end="", flush=True)
+                elif kind == "on_tool_end":
+                    print(f"\n<<< Tool Result ({event['name']}) >>>")
+                    tool_output = event["data"].get("output")
+                    if isinstance(tool_output, list) and tool_output and isinstance(tool_output[0], ToolMessage):
+                            print(tool_output[0].content)
+                    elif isinstance(tool_output, ToolMessage):
+                            print(tool_output.content)
+                    else:
+                            print(tool_output)
+                    print("<<< End Tool Result >>>")
 
-                final_state = await agent.ainvoke({"messages": messages}, config=config)
-                messages = final_state['messages']
+            final_state = await agent.ainvoke({"messages": messages}, config=config)
+            messages = final_state['messages']
 
-                if messages and isinstance(messages[-1], AIMessage):
-                    print("\n--- Final AI Message ---")
-                    print(messages[-1].content)
-                    if messages[-1].tool_calls:
-                         print("\n(Agent requested further tools - loop will continue)")
-                    print("------")
-                elif messages and isinstance(messages[-1], ToolMessage):
-                    print("\n(Last message was a tool result - loop should continue to model)")
-
-
-            except Exception as e:
-                print(f"\nERROR: {e}")
-                # Log error properly if needed for production
-                break
-
+            if messages and isinstance(messages[-1], AIMessage):
+                print("\n--- Final AI Message ---")
+                print(messages[-1].content)
+                if messages[-1].tool_calls:
+                        print("\n(Agent requested further tools - loop will continue)")
+                print("------")
+            elif messages and isinstance(messages[-1], ToolMessage):
+                print("\n(Last message was a tool result - loop should continue to model)")
 
 if __name__ == "__main__":
     asyncio.run(main())
