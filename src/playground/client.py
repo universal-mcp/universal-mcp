@@ -24,7 +24,7 @@ class AgentClient:
     def __init__(
         self,
         base_url: str = "http://0.0.0.0",
-        timeout: float | None = None,
+        timeout: float | None = 60.0,
     ) -> None:
         """
         Initialize the client.

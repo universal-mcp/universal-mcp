@@ -1,5 +1,3 @@
-# --- START OF FILE react.py ---
-
 import asyncio
 import operator
 import os
@@ -39,7 +37,6 @@ AGENTR_BASE_URL = os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
 # --- Define the State for the Graph ---
 class AgentState(TypedDict):
     messages: Annotated[Sequence[AnyMessage], operator.add]
-    tools: Optional[List[BaseTool]] # Hold the dynamically fetched tools for this request
 
 
 # --- Helper Function to Fetch and Prepare Tools ---
@@ -79,7 +76,7 @@ async def _fetch_tools_for_request(config: RunnableConfig) -> List[BaseTool]:
             logger.debug(f"Processing app: {app_name}")
             try:
                 # Create integration specifically for this app instance
-                integration = AgentRIntegration(name=f"dynamic_{app_name}", api_key=api_key)
+                integration = AgentRIntegration(name=f"{app_name}", api_key=api_key)
                 AppClass = app_from_name(app_name)
                 app_instance = AppClass(integration=integration)
 
@@ -103,7 +100,7 @@ async def _fetch_tools_for_request(config: RunnableConfig) -> List[BaseTool]:
                         # handle_tool_error=True # Can add robust error handling
                     )
                     fetched_tools.append(langchain_tool)
-                    logger.debug(f"Added tool: {tool_name} to the list.")
+                    # logger.debug(f"Added tool: {tool_name} to the list.")
 
             except ImportError:
                 logger.error(f"Could not import or find application class for '{app_name}'. Skipping.")
@@ -128,104 +125,134 @@ async def _fetch_tools_for_request(config: RunnableConfig) -> List[BaseTool]:
     return fetched_tools
 
 
-# --- Define Graph Nodes ---
-
-async def fetch_tools_node(state: AgentState, config: RunnableConfig) -> dict:
-    """Fetches tools based on config and adds them to the state."""
-    logger.debug("Entering fetch_tools_node...")
-    tools = await _fetch_tools_for_request(config)
-    return {"tools": tools}
-
 async def call_model_node(state: AgentState, config: RunnableConfig):
-    """Invokes the LLM with fetched tools bound."""
+    """Invokes the LLM, fetching and binding tools dynamically."""
     logger.debug("Entering call_model_node...")
     messages = state['messages']
-    tools = state.get('tools') # Get tools fetched by the previous node
+    # tools = state.get('tools') # <--- REMOVE THIS LINE
+
+    # --- ADD TOOL FETCHING LOGIC HERE ---
+    logger.debug("Fetching tools within call_model_node...")
+    tools = await _fetch_tools_for_request(config)
+    # --- END OF ADDED LOGIC ---
 
     if tools:
         logger.debug(f"Binding {len(tools)} tools to LLM call.")
-        # Bind the tool schemas to the LLM
         llm_with_tools = llm.bind_tools(tools)
     else:
         logger.debug("No tools fetched or available. Calling LLM without tools.")
         llm_with_tools = llm # Use the original LLM
 
     logger.debug(f"Calling LLM with {len(messages)} messages.")
-    # system_prompt = "You are a helpful assistant. Use the provided tools when necessary."
-    # messages_with_prompt = [SystemMessage(content=system_prompt)] + list(messages) # Optionally add system prompt
-
-    response = await llm_with_tools.ainvoke(messages, config=config) # Pass message list directly
+    response = await llm_with_tools.ainvoke(messages, config=config)
     logger.debug(f"LLM response received: type={type(response)}, content={response.content[:100]}..., tool_calls={response.tool_calls}")
 
-    # Return the response to be added to the message list
+    # Return ONLY the messages. Do NOT return the fetched tools.
     return {"messages": [response]}
 
-async def tool_executor_node(state: AgentState) -> dict:
-    """Executes tools selected by the LLM."""
+async def tool_executor_node(state: AgentState, config: RunnableConfig) -> dict:
+    """Executes tools selected by the LLM, fetching tools dynamically."""
     logger.debug("Entering tool_executor_node...")
     last_message = state['messages'][-1]
-    tools = state.get('tools') # Get the actual tool objects
 
+    # --- Check if the last message is an AIMessage with tool_calls ---
     if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
-        logger.warning("tool_executor_node called without tool calls in last message.")
+        logger.warning("tool_executor_node called without AIMessage or tool calls in last message.")
+        # Decide how to handle this: maybe return empty messages or raise an error?
+        # Returning empty avoids breaking the loop if somehow called incorrectly.
         return {"messages": []}
 
+    # --- Fetch Tools ---
+    logger.debug("Fetching tools within tool_executor_node...")
+    try:
+        tools = await _fetch_tools_for_request(config) # Use the config passed to the node
+    except Exception as fetch_err:
+         logger.error(f"Failed to fetch tools in tool_executor_node: {fetch_err}", exc_info=True)
+         # Create error messages for all requested calls since tools couldn't be loaded
+         tool_messages = []
+         for tool_call in last_message.tool_calls:
+             tool_messages.append(
+                 ToolMessage(
+                     content=f"Error: Tool execution failed. Could not load tools. Fetch error: {fetch_err}",
+                     tool_call_id=tool_call['id'],
+                 )
+             )
+         return {"messages": tool_messages}
+
+
     if not tools:
-        logger.error("tool_executor_node called but no tools found in state.")
+        logger.error("tool_executor_node: No tools found after fetch attempt.")
         # Create error messages for all requested calls
         tool_messages = []
         for tool_call in last_message.tool_calls:
              tool_messages.append(
                  ToolMessage(
-                     content=f"Error: Tool '{tool_call['name']}' execution failed. Tools could not be loaded for this request.",
+                     content=f"Error: Tool '{tool_call['name']}' execution failed. No tools available for this request.",
                      tool_call_id=tool_call['id'],
                  )
              )
         return {"messages": tool_messages}
 
-    # Instantiate ToolExecutor with the fetched tools
+    # --- Instantiate ToolNode ---
     tool_executor = ToolNode(tools=tools)
 
-    logger.debug(f"Executing tool calls: {last_message.tool_calls}")
-    # The executor returns ToolMessages or raises errors
-    # Use tool_executor.batch for concurrent execution if desired
+    # --- Execute Tools ---
+    logger.debug(f"Executing tool calls from AIMessage: {last_message.tool_calls}")
     response_messages = []
     try:
-        # We need to map tool call IDs to the ToolExecutor invocation if using batch
-        # Simplest is often iterating and calling invoke one by one
-        for tool_call in last_message.tool_calls:
-             # ToolExecutor needs the call structured as {"type": tool_call["name"], "args": tool_call["args"], "id": tool_call["id"]}
-             # Or simply pass the ToolCall object from the AIMessage
-             logger.debug(f"Invoking tool: {tool_call['name']} with id {tool_call['id']}")
-             # LangChain's ToolExecutor expects ToolCall objects directly now
-             tool_message = await tool_executor.ainvoke(tool_call) # Pass the ToolCall dict
-             response_messages.append(tool_message)
-             logger.debug(f"Tool {tool_call['name']} ({tool_call['id']}) executed successfully.")
+        # Invoke the ToolNode with the AIMessage containing the tool_calls.
+        result = await tool_executor.ainvoke(last_message.tool_calls)
+        
+        # Handle the dict with 'messages' key structure that ToolNode is returning
+        if isinstance(result, dict) and 'messages' in result:
+            # Extract the messages from the dict
+            logger.debug(f"ToolNode returned a dict with 'messages' key. Extracting messages.")
+            if isinstance(result['messages'], list):
+                response_messages = result['messages']
+            else:
+                # Handle unexpected case where 'messages' isn't a list
+                response_messages = [result['messages']] if result['messages'] else []
+        elif isinstance(result, list):
+            # Result is already a list
+            response_messages = result
+        elif isinstance(result, ToolMessage):
+            # Single ToolMessage case
+            response_messages = [result]
+        else:
+            # Unexpected return type - log and create fallback message
+            logger.error(f"ToolNode returned unexpected type: {type(result)}. Data: {result}")
+            # Get the first tool call ID for the error message
+            first_call_id = last_message.tool_calls[0]['id']
+            response_messages = [ToolMessage(
+                content=f"Error: Unexpected response type {type(result)} from tool executor.",
+                tool_call_id=first_call_id
+            )]
 
-    # Catch potential NotAuthorizedError if the integration check fails *during* execution
+        logger.debug(f"Tool execution finished. Returning {len(response_messages)} tool messages.")
+
+    # Catch specific errors if needed (like NotAuthorizedError)
     except NotAuthorizedError as e:
          logger.warning(f"Authorization error during tool execution: {e.message}")
-         # Find which tool call failed if possible, or return a general error
-         # For simplicity, append a generic error message, though ideally it maps to the specific failed call
-         # Creating a ToolMessage requires a tool_call_id. This part is tricky if batch fails.
-         # Let's assume the failure relates to the last attempted call for now.
-         failed_call_id = last_message.tool_calls[-1]['id'] # Approximation
-         response_messages.append(ToolMessage(content=f"Authorization Error: {e.message}", tool_call_id=failed_call_id))
+         # ToolNode invocation might fail entirely here. We need error messages
+         # for all the calls that were *supposed* to run.
+         response_messages = []
+         for tool_call in last_message.tool_calls:
+              response_messages.append(ToolMessage(content=f"Authorization Error: {e.message}", tool_call_id=tool_call['id']))
 
     except Exception as e:
-        logger.error(f"Unexpected error during tool execution: {e}", exc_info=True)
-        # Append a generic error ToolMessage
-        failed_call_id = last_message.tool_calls[-1]['id'] # Approximation
-        response_messages.append(
-            ToolMessage(
-                content=f"Error executing tool: {type(e).__name__}. Check service logs.",
-                tool_call_id=failed_call_id
-            )
-        )
+        # This catches the "No message found in input" or any other error during ainvoke
+        logger.error(f"Unexpected error during tool execution via ToolNode.ainvoke: {e}", exc_info=True)
+        # Create error messages for all requested calls
+        response_messages = []
+        for tool_call in last_message.tool_calls:
+             response_messages.append(
+                 ToolMessage(
+                     content=f"Error executing tool '{tool_call['name']}': {type(e).__name__} - {e}. Check service logs.",
+                     tool_call_id=tool_call['id']
+                 )
+             )
 
-    logger.debug(f"Tool execution finished. Returning {len(response_messages)} tool messages.")
     return {"messages": response_messages}
-
 
 # --- Define LLM ---
 llm = ChatAnthropic(model="claude-3-5-sonnet-latest")
@@ -243,17 +270,18 @@ def should_continue(state: AgentState) -> str:
 # --- Create the Agent Graph ---
 @asynccontextmanager
 async def create_agent():
-    logger.info("Creating agent graph (fetch-first approach)...")
+    logger.info("Creating agent graph (dynamic tools per node)...") # Updated comment
     workflow = StateGraph(AgentState)
 
     # Add nodes
-    workflow.add_node("fetch_tools", fetch_tools_node)
+    # workflow.add_node("fetch_tools", fetch_tools_node) # <--- REMOVE THIS LINE
     workflow.add_node("call_model", call_model_node)
-    workflow.add_node("execute_tools", tool_executor_node)
+    # Make sure tool_executor_node receives config by passing the function directly
+    workflow.add_node("execute_tools", tool_executor_node) # Use the function directly
 
     # Define edges
-    workflow.set_entry_point("fetch_tools") # Start by fetching tools
-    workflow.add_edge("fetch_tools", "call_model") # After fetching, call the model
+    workflow.set_entry_point("call_model") # <--- CHANGE ENTRY POINT
+    # workflow.add_edge("fetch_tools", "call_model") # <--- REMOVE THIS LINE
 
     # Conditional edge from model to tools or end
     workflow.add_conditional_edges(
@@ -326,17 +354,7 @@ async def main():
                              # Fallback if structure is different
                              print(tool_output)
                         print("<<< End Tool Result >>>")
-
-
-                    # Update message history based on the final state of the graph run
-                    # Note: 'on_graph_end' event's data might not directly contain the final state in all versions.
-                    # It's safer to rely on the agent state *after* the stream completes or handle state updates from node ends.
-                    # For this testing loop, we'll update `messages` *after* the loop finishes based on the final returned state.
-
-                # Get the final state after streaming completes
-                # Note: astream_events doesn't directly return the final state easily like ainvoke.
-                # For robust history, better to use `agent.ainvoke` or manage state updates carefully from events.
-                # Let's call ainvoke to get the final state for the next turn in this simple test loop.
+                        
                 final_state = await agent.ainvoke({"messages": messages}, config=config)
                 messages = final_state['messages'] # Update message list for next turn
 
@@ -360,5 +378,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-# --- END OF FILE react.py ---

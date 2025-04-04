@@ -72,8 +72,11 @@ async def main() -> None:
             with st.spinner("Connecting to agent service..."):
                 st.session_state.agent_client = AgentClient(base_url=agent_url)
         except AgentClientError as e:
-            st.error(f"Error connecting to agent service at {agent_url}: {e}")
-            st.markdown("The service might be booting up. Try again in a few seconds.")
+            st.error(f"Error generating response: {e}")
+            st.warning("The connection to the agent service was interrupted. Try again or refresh the page.")
+            # Add a button to retry
+            if st.button("Retry Request"):
+                st.rerun()
             st.stop()
     agent_client: AgentClient = st.session_state.agent_client
 
