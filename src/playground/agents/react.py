@@ -54,7 +54,7 @@ async def _fetch_tools_for_request(config: RunnableConfig) -> List[BaseTool]:
         # Alternatively, could raise an error earlier in the flow.
         return []
 
-    logger.debug(f"Fetching apps from {AGENTR_BASE_URL} using API Key.")
+    # logger.debug(f"Fetching apps from {AGENTR_BASE_URL} using API Key.")
 
     try:
         async with httpx.AsyncClient() as client:
@@ -121,18 +121,18 @@ async def _fetch_tools_for_request(config: RunnableConfig) -> List[BaseTool]:
         logger.error(f"Unexpected error fetching or processing tools: {e}", exc_info=True)
         return [] # Proceed without tools on error
 
-    logger.info(f"Successfully prepared {len(fetched_tools)} tools for this request.")
+    # logger.info(f"Successfully prepared {len(fetched_tools)} tools for this request.")
     return fetched_tools
 
 
 async def call_model_node(state: AgentState, config: RunnableConfig):
     """Invokes the LLM, fetching and binding tools dynamically."""
-    logger.debug("Entering call_model_node...")
+    # logger.debug("Entering call_model_node...")
     messages = state['messages']
     # tools = state.get('tools') # <--- REMOVE THIS LINE
 
     # --- ADD TOOL FETCHING LOGIC HERE ---
-    logger.debug("Fetching tools within call_model_node...")
+    # logger.debug("Fetching tools within call_model_node...")
     tools = await _fetch_tools_for_request(config)
     # --- END OF ADDED LOGIC ---
 
@@ -143,16 +143,16 @@ async def call_model_node(state: AgentState, config: RunnableConfig):
         logger.debug("No tools fetched or available. Calling LLM without tools.")
         llm_with_tools = llm # Use the original LLM
 
-    logger.debug(f"Calling LLM with {len(messages)} messages.")
+    # logger.debug(f"Calling LLM with {len(messages)} messages.")
     response = await llm_with_tools.ainvoke(messages, config=config)
-    logger.debug(f"LLM response received: type={type(response)}, content={response.content[:100]}..., tool_calls={response.tool_calls}")
+    # logger.debug(f"LLM response received: type={type(response)}, content={response.content[:100]}..., tool_calls={response.tool_calls}")
 
     # Return ONLY the messages. Do NOT return the fetched tools.
     return {"messages": [response]}
 
 async def tool_executor_node(state: AgentState, config: RunnableConfig) -> dict:
     """Executes tools selected by the LLM, fetching tools dynamically."""
-    logger.debug("Entering tool_executor_node...")
+    # logger.debug("Entering tool_executor_node...")
     last_message = state['messages'][-1]
 
     # --- Check if the last message is an AIMessage with tool_calls ---
@@ -187,7 +187,7 @@ async def tool_executor_node(state: AgentState, config: RunnableConfig) -> dict:
         for tool_call in last_message.tool_calls:
              tool_messages.append(
                  ToolMessage(
-                     content=f"Error: Tool '{tool_call['name']}' execution failed. No tools available for this request.",
+                    #  content=f"Error: Tool '{tool_call['name']}' execution failed. No tools available for this request.",
                      tool_call_id=tool_call['id'],
                  )
              )
@@ -197,12 +197,14 @@ async def tool_executor_node(state: AgentState, config: RunnableConfig) -> dict:
     tool_executor = ToolNode(tools=tools)
 
     # --- Execute Tools ---
-    logger.debug(f"Executing tool calls from AIMessage: {last_message.tool_calls}")
+    # logger.debug(f"Executing tool calls from AIMessage: {last_message.tool_calls}")
     response_messages = []
     try:
         # Invoke the ToolNode with the AIMessage containing the tool_calls.
         result = await tool_executor.ainvoke(last_message.tool_calls)
-        
+            # --- Add detailed logging ---
+        logger.debug(f"ToolNode.ainvoke returned type: {type(result)}")
+        logger.debug(f"ToolNode.ainvoke returned value (raw): {result}")
         # Handle the dict with 'messages' key structure that ToolNode is returning
         if isinstance(result, dict) and 'messages' in result:
             # Extract the messages from the dict
