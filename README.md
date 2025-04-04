@@ -81,7 +81,7 @@ Start Frontend
 ```bash
 streamlit run src/playground/streamlit.py
 ```
-### Copy you AGENTR_API_KEY from https://agentr.dev and paste it in the sidebar
+#### Copy you AGENTR_API_KEY and paste it in the sidebar.
 
 ## 🧩 Available Applications
 AgentR comes with several pre-built applications:
