@@ -14,7 +14,7 @@ dependencies = [
     "mcp>=1.5.0",
     "pyyaml>=6.0.2",
     "typer>=0.15.2",
-    "markitdown>=0.1.1",
+    "markitdown[all]>=0.1.1",
 ]
 
 [project.optional-dependencies]

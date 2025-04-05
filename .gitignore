@@ -23,3 +23,13 @@ dump/
 *.sqlite3
 *.db-shm
 *.db-wal
+
+
+# Pyright
+.pyright
+
+# Ruff
+.ruff_cache
+
+# Pytest
+.pytest_cache
