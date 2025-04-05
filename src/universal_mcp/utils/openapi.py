@@ -2,7 +2,7 @@ import json
 import yaml
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict
 
 
 def convert_to_snake_case(identifier: str) -> str:

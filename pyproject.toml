@@ -14,13 +14,10 @@ dependencies = [
     "mcp>=1.5.0",
     "pyyaml>=6.0.2",
     "typer>=0.15.2",
+    "markitdown>=0.1.1",
 ]
 
 [project.optional-dependencies]
-test = [
-  "pytest>=8.3.5",
-  "pytest-asyncio>=0.26.0",
-]
 playground = [
     "fastapi[standard]>=0.115.12",
     "langchain-anthropic>=0.3.10",
@@ -29,8 +26,11 @@ playground = [
     "langgraph-checkpoint-sqlite>=2.0.6",
     "streamlit>=1.44.1",
 ]
-markitdown = [
-    "markitdown>=0.1.1",
+dev = [
+    "ruff>=0.11.4",
+    "pytest>=8.3.5",
+    "pytest-asyncio>=0.26.0",
+    "pyright>=1.1.398",
 ]
 [project.scripts]
 universal_mcp = "universal_mcp.cli:app"

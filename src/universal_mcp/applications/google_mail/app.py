@@ -502,7 +502,7 @@ class GmailApp(APIApplication):
                 label_id = new_label.get("id", "Unknown")
                 label_name = new_label.get("name", name)
                 
-                result = f"Successfully created new label:\n"
+                result = "Successfully created new label:\n"
                 result += f"- Name: {label_name}\n"
                 result += f"- ID: {label_id}\n"
                 
