@@ -28,11 +28,33 @@ def generate(schema_path: Path = typer.Option(..., "--schema", "-s")):
 
 
 @app.command()
-def run(transport: str = typer.Option("stdio", "--transport", "-t")):
+def run(
+    transport: str = typer.Option("stdio", "--transport", "-t"),
+    server_type: str = typer.Option(
+        "agentr", "--server-type", "-s", help="Server type: local or agentr"
+    ),
+    config_path: Path = typer.Option(
+        "local_config.json", "--config", "-c", help="Path to the config file"
+    ),
+):
     """Run the MCP server"""
-    from universal_mcp.servers.server import AgentRServer
+    from universal_mcp.servers.server import AgentRServer, LocalServer
 
-    mcp = AgentRServer(name="AgentR Server", description="AgentR Server", port=8005)
+    if server_type.lower() == "agentr":
+        mcp = AgentRServer(name="AgentR Server", description="AgentR Server", port=8005)
+    elif server_type.lower() == "local":
+        mcp = LocalServer(
+            name="Local Server",
+            description="Local Server",
+            port=8005,
+            config_path=config_path,
+        )
+    else:
+        typer.echo(
+            f"Invalid server type: {server_type}. Must be 'local' or 'agentr'", err=True
+        )
+        raise typer.Exit(1)
+
     mcp.run(transport=transport)
 
 

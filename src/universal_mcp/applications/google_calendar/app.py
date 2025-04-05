@@ -363,7 +363,7 @@ class GoogleCalendarApp(APIApplication):
         location = event.get("location", "No location specified")
         
         # Format the confirmation message
-        result = f"Successfully created event!\n\n"
+        result = "Successfully created event!\n\n"
         result += f"Summary: {summary}\n"
         result += f"When: {start_formatted}"
         
