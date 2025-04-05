@@ -156,13 +156,11 @@ async def main() -> None:
     if user_input := st.chat_input("Enter message or upload a file and describe task..."):
         final_message_content = user_input
         display_content = user_input
-        uploaded_file_info = None # To hold original filename if uploaded
 
         # --- Handle File Upload Integration ---
         if st.session_state.uploaded_file_obj and not st.session_state.file_processed:
             uploaded_file_obj = st.session_state.uploaded_file_obj
             original_filename = uploaded_file_obj.name
-            uploaded_file_info = original_filename # Store for display message
 
             try:
                 # Determine unique path and save the file
