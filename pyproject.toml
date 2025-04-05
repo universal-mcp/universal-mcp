@@ -29,6 +29,9 @@ playground = [
     "langgraph-checkpoint-sqlite>=2.0.6",
     "streamlit>=1.44.1",
 ]
+markitdown = [
+    "markitdown>=0.1.1",
+]
 [project.scripts]
 universal_mcp = "universal_mcp.cli:app"
 
