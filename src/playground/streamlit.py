@@ -123,7 +123,7 @@ async def main() -> None:
     # Check if a new file has been uploaded or if the uploader was cleared
     if uploaded_file is not None:
         # Check if this is a new file or a different file than the last processed one
-        if (not hasattr(st.session_state, 'last_processed_file') or 
+        if ('last_processed_file' not in st.session_state or 
             st.session_state.get('last_processed_file') != uploaded_file.name):
             
             # Reset the processed state for the new file
@@ -134,8 +134,8 @@ async def main() -> None:
         # User cleared the file uploader, so reset the state
         st.session_state.uploaded_file_obj = None
         st.session_state.file_processed = False
-        if hasattr(st.session_state, 'last_processed_file'):
-            delattr(st.session_state, 'last_processed_file')
+        if 'last_processed_file' in st.session_state:
+            del st.session_state['last_processed_file']
     
     # Draw existing messages
     messages: list[ChatMessage] = st.session_state.messages
