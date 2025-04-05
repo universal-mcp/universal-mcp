@@ -20,7 +20,7 @@ def launch_command_in_new_terminal(command, title="Command Output"):
             applescript_command = f'''
             tell application "Terminal"
                 activate
-                do script "cd '{project_dir}' && echo '--- {title} ---' && {command} ; exec bash"
+                do script "cd {shlex.quote(project_dir)} && echo '--- {title} ---' && {command} ; exec bash"
             end tell
             '''
             subprocess.Popen(['osascript', '-e', applescript_command], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
