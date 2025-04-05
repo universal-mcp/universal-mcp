@@ -44,7 +44,7 @@ def launch_command_in_new_terminal(command, title="Command Output"):
         return True
 
     except FileNotFoundError:
-        print(f"Error: Terminal emulator (e.g., gnome-terminal on Linux, Terminal.app on macOS) not found or osascript failed.")
+        print("Error: Terminal emulator (e.g., gnome-terminal on Linux, Terminal.app on macOS) not found or osascript failed.")
         print(f"Attempted to run: {command}")
         return False
     except Exception as e:
