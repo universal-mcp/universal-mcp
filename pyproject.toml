@@ -16,6 +16,7 @@ dependencies = [
     "typer>=0.15.2",
     "markitdown[all]>=0.1.1",
     "keyring>=25.6.0",
+    "e2b-code-interpreter>=1.2.0",
 ]
 
 [project.optional-dependencies]
