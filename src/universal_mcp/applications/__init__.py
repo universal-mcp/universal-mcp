@@ -7,6 +7,7 @@ from universal_mcp.applications.reddit.app import RedditApp
 from universal_mcp.applications.resend.app import ResendApp
 from universal_mcp.applications.tavily.app import TavilyApp
 from universal_mcp.applications.zenquotes.app import ZenQuoteApp
+from universal_mcp.applications.e2b.app import E2bApp
 
 
 def app_from_name(name: str):
@@ -28,6 +29,8 @@ def app_from_name(name: str):
         return RedditApp
     elif name == "markitdown":
         return MarkitdownApp
+    elif name == "e2b":
+        return E2bApp
     else:
         raise ValueError(f"App {name} not found")
 
