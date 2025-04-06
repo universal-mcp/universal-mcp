@@ -1,8 +1,6 @@
 import typer
 import os
 from pathlib import Path
-import importlib.util
-import inspect
 import ast
 
 from universal_mcp.utils.installation import (

@@ -109,7 +109,7 @@ def generate_api_client(schema):
         tool_name = re.sub(r'\s*v?\d+(\.\d+)*', '', tool_name)
         
         # Remove common words that aren't needed
-        common_words = ['api', 'openapi', 'open' 'swagger', 'spec', 'specification']
+        common_words = ['api', 'openapi', 'open', 'swagger', 'spec', 'specification']
         for word in common_words:
             tool_name = tool_name.replace(word, '')
         

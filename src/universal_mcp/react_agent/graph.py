@@ -1,13 +1,10 @@
 import os
-from typing import Dict, List, Literal, Tuple, cast
+from typing import Literal
 import ast
 import re
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph
-from langgraph.prebuilt import ToolNode
 from langgraph.types import Command
 import asyncio
 
@@ -27,7 +24,8 @@ async def init_node(state: State, config: RunnableConfig) -> Command[Literal["ll
     Returns:
         Command directing to the next node
     """
-    configuration = Configuration.from_runnable_config(config)
+    # Get configuration - not used but kept for consistency with other nodes
+    # configuration = Configuration.from_runnable_config(config)
     
     # Extract the target script path from the configuration
     target_script_path = state.get("target_script_path")
