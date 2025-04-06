@@ -1,5 +1,4 @@
 import typer
-import os
 from pathlib import Path
 import asyncio
 
@@ -42,7 +41,7 @@ def generate(
             # Print to stdout if no output path
             print(result["code"])
         else:
-            typer.echo(f"API client successfully generated and installed.")
+            typer.echo("API client successfully generated and installed.")
             if "app_file" in result:
                 typer.echo(f"Application file: {result['app_file']}")
             if "readme_file" in result and result["readme_file"]:
