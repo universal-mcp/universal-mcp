@@ -15,10 +15,14 @@ app = typer.Typer()
 @app.command()
 def generate(
     schema_path: Path = typer.Option(..., "--schema", "-s"),
-    output_path: Path = typer.Option(None, "--output", "-o", help="Output file path"),
+    output_path: Path = typer.Option(None, "--output", "-o", help="Output file path - should match the API name (e.g., 'twitter.py' for Twitter API)"),
     add_docstrings: bool = typer.Option(True, "--docstrings/--no-docstrings", help="Add docstrings to generated code"),
 ):
-    """Generate API client from OpenAPI schema with optional docstring generation"""
+    """Generate API client from OpenAPI schema with optional docstring generation.
+    
+    The output filename should match the name of the API in the schema (e.g., 'twitter.py' for Twitter API).
+    This name will be used for the folder in applications/ and as a prefix for function names.
+    """
     import asyncio
     
     if not schema_path.exists():
