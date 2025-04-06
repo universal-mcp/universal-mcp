@@ -40,7 +40,7 @@ To easily start all necessary services (MCP Server, FastAPI Backend, Streamlit F
 
     *(Note: If your system uses `python3` to invoke Python 3, use that command instead: `python3 src/playground/__main__.py`)*
 
-After running the command, you should see messages indicating that the components are being launched, and three separate terminal windows should appear, each showing the output for one of the services.
+After running the command, you should see messages indicating that the components are being launched.
 
 ### Manual Startup (Alternative)
 
