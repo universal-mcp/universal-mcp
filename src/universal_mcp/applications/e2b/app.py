@@ -15,18 +15,20 @@ class E2bApp(APIApplication):
         super().__init__(name="e2b", integration=integration)
         self.api_key: Optional[str] = None
 
-        credentials = self.integration.get_credentials()
+        if self.integration is not None:
+            credentials = self.integration.get_credentials()
 
-        if credentials and credentials.get("api_key"):
-            self.api_key = credentials["api_key"]
-            logger.info("E2B API Key successfully retrieved via integration.")
+            if credentials and credentials.get("api_key"):
+                self.api_key = credentials["api_key"]
+                logger.info("E2B API Key successfully retrieved via integration.")
+            else:
+                # This typically means the environment variable was not set or accessible.
+                logger.error(
+                    f"Failed to retrieve E2B API Key using integration '{self.integration.name}'. "
+                    f"Check store configuration (e.g., ensure the correct environment variable is set)."
+                )
         else:
-            # This typically means the environment variable was not set or accessible.
-            logger.error(
-                f"Failed to retrieve E2B API Key using integration '{self.integration.name}'. "
-                f"Check store configuration (e.g., ensure the correct environment variable is set)."
-            )
-
+            logger.error("Integration is None. Cannot retrieve E2B API Key.")
     def _format_execution_output(self, logs) -> str:
         """Helper function to format the E2B execution logs nicely."""
         output_parts = []
