@@ -2202,12 +2202,14 @@ playground = [
     { name = "langchain-mcp-adapters" },
     { name = "langgraph" },
     { name = "langgraph-checkpoint-sqlite" },
+    { name = "python-dotenv" },
     { name = "streamlit" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "fastapi", extras = ["standard"], marker = "extra == 'playground'", specifier = ">=0.115.12" },
+    { name = "langchain-anthropic", marker = "extra == 'playground'", specifier = ">=0.1.23" },
     { name = "langchain-anthropic", marker = "extra == 'playground'", specifier = ">=0.3.10" },
     { name = "langchain-mcp-adapters", marker = "extra == 'playground'", specifier = ">=0.0.3" },
     { name = "langgraph", marker = "extra == 'playground'", specifier = ">=0.3.24" },
@@ -2220,6 +2222,7 @@ requires-dist = [
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.398" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.5" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.26.0" },
+    { name = "python-dotenv", marker = "extra == 'playground'", specifier = ">=1.0.1" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.11.4" },
     { name = "streamlit", marker = "extra == 'playground'", specifier = ">=1.44.1" },
