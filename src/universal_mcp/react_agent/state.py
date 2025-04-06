@@ -14,6 +14,7 @@ from typing_extensions import Annotated
 @dataclass(kw_only=True)
 class InputState(TypedDict):
     """Input state for the agent workflow."""
+    target_script_path: str = field(default="")
 
 
 @dataclass(kw_only=True)

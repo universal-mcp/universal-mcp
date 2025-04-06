@@ -29,26 +29,40 @@ async def init_node(state: State, config: RunnableConfig) -> Command[Literal["ll
     """
     configuration = Configuration.from_runnable_config(config)
     
-    # Extract the target script path
-    target_script_path = ("pets.py")
+    # Extract the target script path from the configuration
+    target_script_path = state.get("target_script_path")
     
-    # Read the original script
-    # Read the original script asynchronously
-    original_script = await asyncio.to_thread(lambda: open(target_script_path, "r").read())
-
-    # Extract functions asynchronously (if the function is blocking)
-    extracted_functions = await asyncio.to_thread(extract_functions_from_script, target_script_path)
-
+    if not target_script_path:
+        raise ValueError("No target script path provided. Make sure to pass 'target_script_path' in the input state.")
     
-    return Command(
-        update={
-            "extracted_functions": extracted_functions,
-            "original_script": original_script,
-            "current_function_index": 0,
-            "docstrings": {}
-        },
-        goto="llm_node"
-    )
+    print(f"Processing script: {target_script_path}")
+    
+    # Check if file exists
+    if not os.path.exists(target_script_path):
+        raise FileNotFoundError(f"Script file not found: {target_script_path}")
+    
+    try:
+        # Read the original script asynchronously
+        original_script = await asyncio.to_thread(lambda: open(target_script_path, "r").read())
+        
+        # Extract functions asynchronously
+        extracted_functions = await asyncio.to_thread(extract_functions_from_script, target_script_path)
+        
+        print(f"Extracted {len(extracted_functions)} functions from {target_script_path}")
+        
+        return Command(
+            update={
+                "extracted_functions": extracted_functions,
+                "original_script": original_script,
+                "current_function_index": 0,
+                "docstrings": {},
+                "target_script_path": target_script_path  # Store it in the state for later use
+            },
+            goto="llm_node"
+        )
+    except Exception as e:
+        print(f"Error initializing docstring generation: {e}")
+        raise
     
 async def llm_node(state: State, config: RunnableConfig) -> Command[Literal["tool_node", "__end__"]]:
     """Generate a docstring for the current function using an LLM with structured output.
@@ -110,10 +124,34 @@ async def tool_node(state: State, config: RunnableConfig) -> Command[Literal["ll
     """
     # Process the current function
     current_index = state["current_function_index"] - 1  # The index we just processed
+    
+    # Safety check for empty extracted_functions
+    if not state.get("extracted_functions"):
+        print("Warning: No functions were extracted from the script")
+        return Command(
+            update={
+                "functions_processed": 0
+            },
+            goto="__end__"
+        )
+    
+    # Check if current_index is valid
+    if current_index < 0 or current_index >= len(state["extracted_functions"]):
+        print(f"Warning: Invalid function index {current_index} (total functions: {len(state['extracted_functions'])})")
+        return Command(
+            update={
+                "functions_processed": state.get("functions_processed", 0)
+            },
+            goto="__end__"
+        )
+    
     function_name, function_code = state["extracted_functions"][current_index]
     docstring = state["docstrings"].get(function_name, "")
     
+    print(f"Processing function: {function_name}")
+    
     if not docstring:
+        print(f"Warning: No docstring generated for function {function_name}")
         return Command(
             update={},
             goto="llm_node"
@@ -123,6 +161,7 @@ async def tool_node(state: State, config: RunnableConfig) -> Command[Literal["ll
     function_position = updated_script.find(function_code)
     
     if function_position == -1:
+        print(f"Warning: Could not find function {function_name} in the script")
         return Command(
             update={},
             goto="llm_node"
@@ -136,6 +175,9 @@ async def tool_node(state: State, config: RunnableConfig) -> Command[Literal["ll
             has_docstring = (isinstance(first_element, ast.Expr) and 
                             isinstance(first_element.value, ast.Constant) and 
                             isinstance(first_element.value.value, str))
+            
+            if has_docstring:
+                print(f"Function {function_name} already has a docstring, will replace it")
             
             # Get the function definition line
             function_def_lines = function_code.split('\n', 1)
@@ -196,15 +238,29 @@ async def tool_node(state: State, config: RunnableConfig) -> Command[Literal["ll
                     
                     updated_function = function_def + '\n' + formatted_docstring + function_body
                     
+                    # Replace the function in the script
+                    old_script = updated_script
                     updated_script = updated_script.replace(function_code, updated_function)
+                    
+                    # Check if replacement was successful
+                    if old_script == updated_script:
+                        print(f"Warning: Failed to update function {function_name} in the script")
+                    else:
+                        print(f"Successfully added docstring to function {function_name}")
     except Exception as e:
         print(f"Error processing function {function_name}: {e}")
+        import traceback
+        traceback.print_exc()
     
     is_last_function = state["current_function_index"] >= len(state["extracted_functions"])
     
     if is_last_function:
+        print("Finished processing all functions")
         
-        target_script_path = "pets.py"         #hardcoded output path
+        target_script_path = state.get("target_script_path")
+        
+        if not target_script_path:
+            raise ValueError("No target script path provided")
         
         file_dir = os.path.dirname(target_script_path)
         file_name = os.path.basename(target_script_path)
@@ -212,9 +268,16 @@ async def tool_node(state: State, config: RunnableConfig) -> Command[Literal["ll
         new_file_name = f"{file_name_without_ext}_new{ext}"
         new_file_path = os.path.join(file_dir, new_file_name)
         
-            # Save the updated script asynchronously
+        print(f"Writing docstring-enhanced script to: {new_file_path}")
+        
+        # Save the updated script asynchronously
         async def write_file_async(path, content):
-            await asyncio.to_thread(lambda: open(path, "w").write(content))
+            try:
+                await asyncio.to_thread(lambda: open(path, "w").write(content))
+                print(f"Successfully wrote {len(content)} bytes to {path}")
+            except Exception as e:
+                print(f"Error writing to {path}: {e}")
+                raise
 
         await write_file_async(new_file_path, updated_script)
     

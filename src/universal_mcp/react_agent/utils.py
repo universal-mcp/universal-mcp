@@ -86,6 +86,7 @@ def extract_functions_from_script(file_path: str) -> List[Tuple[str, str]]:
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             source_code = f.read()
+        print(f"Successfully read {len(source_code)} bytes from {file_path}")
     except FileNotFoundError:
         print(f"Error: File not found at {file_path}")
         raise
@@ -96,16 +97,34 @@ def extract_functions_from_script(file_path: str) -> List[Tuple[str, str]]:
     print("Parsing the script into an Abstract Syntax Tree (AST)...")
     try:
         tree = ast.parse(source_code, filename=file_path)
+        print("AST parsing successful!")
     except SyntaxError as e:
         print(f"Error: Invalid Python syntax in {file_path} at line {e.lineno}, offset {e.offset}: {e.msg}")
+        # Try to show the problematic line
+        lines = source_code.splitlines()
+        if 0 <= e.lineno - 1 < len(lines):
+            print(f"Problematic line: {lines[e.lineno - 1]}")
         raise
     except Exception as e:
         print(f"Error parsing {file_path} into AST: {e}")
         raise
 
     print("Extracting functions using AST visitor...")
-    extractor = FunctionExtractor(source_code)
-    extractor.visit(tree)
-
-    print(f"Found {len(extractor.functions)} functions/methods.")
-    return extractor.functions
+    try:
+        extractor = FunctionExtractor(source_code)
+        extractor.visit(tree)
+        
+        print(f"Found {len(extractor.functions)} functions/methods:")
+        for i, (func_name, _) in enumerate(extractor.functions):
+            print(f"  {i+1}. {func_name}")
+            
+        if not extractor.functions:
+            print("Warning: No functions found in the file.")
+        
+        return extractor.functions
+    except Exception as e:
+        print(f"Error during function extraction: {e}")
+        import traceback
+        traceback.print_exc()
+        # Return empty list instead of raising to allow processing to continue
+        return []
