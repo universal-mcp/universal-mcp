@@ -3,6 +3,7 @@ import platform
 import time
 import os
 import shlex
+import textwrap
 
 def launch_command_in_new_terminal(command, title="Command Output"):
     """
