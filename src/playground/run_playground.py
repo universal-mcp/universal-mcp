@@ -18,12 +18,12 @@ def launch_command_in_new_terminal(command, title="Command Output"):
 
     try:
         if system == "Darwin":  # macOS
-            applescript_command = f'''
-            tell application "Terminal"
-                activate
-                do script "cd {shlex.quote(project_dir)} && echo '--- {title} ---' && {command} ; exec bash"
-            end tell
-            '''
+            applescript_command = textwrap.dedent(f'''
+                tell application "Terminal"
+                    activate
+                    do script "cd {shlex.quote(project_dir)} && echo '--- {title} ---' && {command} ; exec bash"
+                end tell
+            ''')
             subprocess.Popen(['osascript', '-e', applescript_command], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         elif system == "Linux":
