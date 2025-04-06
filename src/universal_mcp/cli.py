@@ -1,6 +1,8 @@
 import typer
-from pathlib import Path
 import os
+from pathlib import Path
+import importlib.util
+import inspect
 
 from universal_mcp.utils.installation import (
     get_supported_apps,
@@ -35,16 +37,22 @@ def generate(
     code = generate_api_client(schema)
     
     if output_path:
+        # Determine the folder name for the application
+        folder_name = output_path.stem  # Get filename without extension
+        
+        # Create a temporary file for docstring processing
+        temp_output_path = output_path
+        
         # Save to file if output path is provided
-        with open(output_path, "w") as f:
+        with open(temp_output_path, "w") as f:
             f.write(code)
-        typer.echo(f"Generated API client at: {output_path}")
+        typer.echo(f"Generated API client at: {temp_output_path}")
         
         # Verify the file was written correctly
         try:
-            with open(output_path, "r") as f:
+            with open(temp_output_path, "r") as f:
                 file_content = f.read()
-                typer.echo(f"Successfully wrote {len(file_content)} bytes to {output_path}")
+                typer.echo(f"Successfully wrote {len(file_content)} bytes to {temp_output_path}")
                 
                 # Basic syntax check
                 import ast
@@ -62,7 +70,7 @@ def generate(
             
             async def run_docstring():
                 # Convert output_path to string if it's a Path object
-                script_path = str(output_path)
+                script_path = str(temp_output_path)
                 typer.echo(f"Adding docstrings to {script_path}...")
                 
                 # Debug: Check if the file exists
@@ -99,8 +107,8 @@ def generate(
             
             if result:
                 # Get the path to the file with docstrings (the _new file)
-                output_dir = output_path.parent
-                file_name = output_path.name
+                output_dir = temp_output_path.parent
+                file_name = temp_output_path.name
                 file_name_without_ext, ext = os.path.splitext(file_name)
                 new_file_path = output_dir / f"{file_name_without_ext}_new{ext}"
                 
@@ -108,7 +116,39 @@ def generate(
                     typer.echo(f"Processed {result['functions_processed']} functions")
                 
                 if os.path.exists(new_file_path):
-                    typer.echo(f"API client with docstrings generated at: {new_file_path}")
+                    typer.echo(f"Temporary file with docstrings generated at: {new_file_path}")
+                    
+                    # Now create the application folder structure
+                    
+                    # Get the path to the applications directory
+                    applications_dir = Path(__file__).parent / "applications"
+                    
+                    # Create a new directory for this application
+                    app_dir = applications_dir / folder_name
+                    app_dir.mkdir(exist_ok=True)
+                    
+                    # Create __init__.py if it doesn't exist
+                    init_file = app_dir / "__init__.py"
+                    if not init_file.exists():
+                        with open(init_file, "w") as f:
+                            f.write("")
+                    
+                    # Copy the content to app.py in the new directory
+                    app_file = app_dir / "app.py"
+                    with open(new_file_path, "r") as src, open(app_file, "w") as dest:
+                        app_content = src.read()
+                        dest.write(app_content)
+                    
+                    typer.echo(f"API client installed at: {app_file}")
+                    
+                    # Clean up temporary files if needed
+                    if os.path.exists(temp_output_path):
+                        os.remove(temp_output_path)
+                        typer.echo(f"Temporary file {temp_output_path} removed")
+                    
+                    if os.path.exists(new_file_path):
+                        os.remove(new_file_path)
+                        typer.echo(f"Temporary file {new_file_path} removed")
                 else:
                     typer.echo(f"Error: Expected output file {new_file_path} not found", err=True)
             else:
