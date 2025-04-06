@@ -1,18 +1,23 @@
-from typing import Callable
-from universal_mcp.applications import app_from_name
-from loguru import logger
+from collections.abc import Callable
 
 import pytest
+from loguru import logger
 
-@pytest.mark.parametrize("app_name", [
-    "github",
-    "zenquotes", 
-    "tavily",
-    "google-calendar",
-    "google-mail",
-    "resend",
-    "reddit"
-])
+from universal_mcp.applications import app_from_name
+
+
+@pytest.mark.parametrize(
+    "app_name",
+    [
+        "github",
+        "zenquotes",
+        "tavily",
+        "google-calendar",
+        "google-mail",
+        "resend",
+        "reddit",
+    ],
+)
 def test_application(app_name):
     app = app_from_name(app_name)(integration=None)
     assert app is not None

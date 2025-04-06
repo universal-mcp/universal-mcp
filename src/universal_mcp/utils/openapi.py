@@ -1,8 +1,9 @@
 import json
-import yaml
 import re
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
+
+import yaml
 
 
 def convert_to_snake_case(identifier: str) -> str:
@@ -24,18 +25,15 @@ def convert_to_snake_case(identifier: str) -> str:
 
 
 def load_schema(path: Path):
-    if path.suffix == ".yaml":
-        type = "yaml"
-    else:
-        type = "json"
-    with open(path, "r") as f:
+    type = "yaml" if path.suffix == ".yaml" else "json"
+    with open(path) as f:
         if type == "yaml":
             return yaml.safe_load(f)
         else:
             return json.load(f)
 
 
-def determine_return_type(operation: Dict[str, Any]) -> str:
+def determine_return_type(operation: dict[str, Any]) -> str:
     """
     Determine the return type from the response schema.
 

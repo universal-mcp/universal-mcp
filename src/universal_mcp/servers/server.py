@@ -1,18 +1,23 @@
-from abc import ABC, abstractmethod
-import httpx
-from mcp.server.fastmcp import FastMCP
-from universal_mcp.applications import app_from_name
-from universal_mcp.exceptions import NotAuthorizedError
-from universal_mcp.integrations import ApiKeyIntegration, AgentRIntegration
-from universal_mcp.stores.store import EnvironmentStore, MemoryStore
-from universal_mcp.config import AppConfig, IntegrationConfig, StoreConfig
-from loguru import logger
 import os
+from abc import ABC, abstractmethod
 from typing import Any
-from mcp.types import TextContent
+
+import httpx
+from loguru import logger
+from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
-import json
-from pathlib import Path
+from mcp.types import TextContent
+
+from universal_mcp.applications import app_from_name
+from universal_mcp.config import AppConfig, IntegrationConfig, StoreConfig
+from universal_mcp.exceptions import NotAuthorizedError
+from universal_mcp.integrations import AgentRIntegration, ApiKeyIntegration
+from universal_mcp.stores import store_from_config
+from universal_mcp.stores.store import (
+    EnvironmentStore,
+    KeyringStore,
+    MemoryStore,
+)
 
 
 class Server(FastMCP, ABC):
@@ -21,8 +26,12 @@ class Server(FastMCP, ABC):
     It also acts as a router for the applications, and exposed to the client
     """
 
-    def __init__(self, name: str, description: str, **kwargs):
+    def __init__(
+        self, name: str, description: str, store: StoreConfig | None = None, **kwargs
+    ):
         super().__init__(name, description, **kwargs)
+        logger.info(f"Initializing server: {name} with store: {store}")
+        self.store = store_from_config(store) if store else None
 
     @abstractmethod
     def _load_apps(self):
@@ -48,29 +57,28 @@ class LocalServer(Server):
 
     def __init__(
         self,
-        name: str,
-        description: str,
-        config_path: Path | None = None,
-        apps_list: list[AppConfig] = [],
+        apps_list: list[AppConfig] = None,
         **kwargs,
     ):
-        super().__init__(name, description=description, **kwargs)
-        self.apps_list = apps_list or self.__load_config(config_path)
+        if apps_list is None:
+            apps_list = []
+        super().__init__(**kwargs)
+        self.apps_list = apps_list
         self._load_apps()
 
-    def __load_config(self, config_path: Path):
-        with open(config_path, "r") as f:
-            apps_list = json.load(f)
-        return [AppConfig.model_validate(app) for app in apps_list]
-
-    def _get_store(self, store_config: StoreConfig):
+    def _get_store(self, store_config: StoreConfig | None):
+        logger.info(f"Getting store: {store_config}")
+        if store_config is None:
+            return self.store
         if store_config.type == "memory":
             return MemoryStore()
         elif store_config.type == "environment":
             return EnvironmentStore()
+        elif store_config.type == "keyring":
+            return KeyringStore(app_name=self.name)
         return None
 
-    def _get_integration(self, integration_config: IntegrationConfig):
+    def _get_integration(self, integration_config: IntegrationConfig | None):
         if not integration_config:
             return None
         if integration_config.type == "api_key":
@@ -78,14 +86,6 @@ class LocalServer(Server):
             integration = ApiKeyIntegration(integration_config.name, store=store)
             if integration_config.credentials:
                 integration.set_credentials(integration_config.credentials)
-            return integration
-        elif integration_config.type == "agentr":
-            integration = AgentRIntegration(
-                integration_config.name,
-                api_key=integration_config.credentials.get("api_key")
-                if integration_config.credentials
-                else None,
-            )
             return integration
         return None
 

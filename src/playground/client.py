@@ -56,7 +56,7 @@ class AgentClient:
             )
             response.raise_for_status()
         except httpx.HTTPError as e:
-            raise AgentClientError(f"Error getting service info: {e}")
+            raise AgentClientError(f"Error getting service info: {e}") from e
 
     async def ainvoke(
         self,
@@ -92,7 +92,7 @@ class AgentClient:
                 )
                 response.raise_for_status()
             except httpx.HTTPError as e:
-                raise AgentClientError(f"Error: {e}")
+                raise AgentClientError(f"Error: {e}") from e
 
         return ChatMessage.model_validate(response.json())
 
@@ -131,7 +131,7 @@ class AgentClient:
             )
             response.raise_for_status()
         except httpx.HTTPError as e:
-            raise AgentClientError(f"Error: {e}")
+            raise AgentClientError(f"Error: {e}") from e
 
         return ChatMessage.model_validate(response.json())
 
@@ -144,14 +144,14 @@ class AgentClient:
             try:
                 parsed = json.loads(data)
             except Exception as e:
-                raise Exception(f"Error JSON parsing message from server: {e}")
+                raise Exception(f"Error JSON parsing message from server: {e}") from e
             match parsed["type"]:
                 case "message":
                     # Convert the JSON formatted message to an AnyMessage
                     try:
                         return ChatMessage.model_validate(parsed["content"])
                     except Exception as e:
-                        raise Exception(f"Server returned invalid message: {e}")
+                        raise Exception(f"Server returned invalid message: {e}") from e
                 case "token":
                     # Yield the str token directly
                     return parsed["content"]
@@ -208,7 +208,7 @@ class AgentClient:
                             break
                         yield parsed
         except httpx.HTTPError as e:
-            raise AgentClientError(f"Error: {e}")
+            raise AgentClientError(f"Error: {e}") from e
 
     async def astream(
         self,
@@ -261,7 +261,7 @@ class AgentClient:
                                 break
                             yield parsed
             except httpx.HTTPError as e:
-                raise AgentClientError(f"Error: {e}")
+                raise AgentClientError(f"Error: {e}") from e
 
     def get_history(
         self,
@@ -283,6 +283,6 @@ class AgentClient:
             )
             response.raise_for_status()
         except httpx.HTTPError as e:
-            raise AgentClientError(f"Error: {e}")
+            raise AgentClientError(f"Error: {e}") from e
 
         return ChatHistory.model_validate(response.json())

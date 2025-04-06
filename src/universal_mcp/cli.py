@@ -1,5 +1,6 @@
-import typer
 from pathlib import Path
+
+import typer
 
 from universal_mcp.utils.installation import (
     get_supported_apps,
@@ -22,40 +23,27 @@ def generate(schema_path: Path = typer.Option(..., "--schema", "-s")):
         schema = load_schema(schema_path)
     except Exception as e:
         typer.echo(f"Error loading schema: {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
     code = generate_api_client(schema)
     print(code)
 
 
 @app.command()
 def run(
-    transport: str = typer.Option("stdio", "--transport", "-t"),
-    server_type: str = typer.Option(
-        "agentr", "--server-type", "-s", help="Server type: local or agentr"
-    ),
-    config_path: Path = typer.Option(
-        "local_config.json", "--config", "-c", help="Path to the config file"
+    config_path: Path | None = typer.Option(
+        None, "--config", "-c", help="Path to the config file"
     ),
 ):
     """Run the MCP server"""
-    from universal_mcp.servers.server import AgentRServer, LocalServer
+    from universal_mcp.config import ServerConfig
+    from universal_mcp.servers import server_from_config
 
-    if server_type.lower() == "agentr":
-        mcp = AgentRServer(name="AgentR Server", description="AgentR Server", port=8005)
-    elif server_type.lower() == "local":
-        mcp = LocalServer(
-            name="Local Server",
-            description="Local Server",
-            port=8005,
-            config_path=config_path,
-        )
+    if config_path:
+        config = ServerConfig.model_validate_json(config_path.read_text())
     else:
-        typer.echo(
-            f"Invalid server type: {server_type}. Must be 'local' or 'agentr'", err=True
-        )
-        raise typer.Exit(1)
-
-    mcp.run(transport=transport)
+        config = ServerConfig()
+    server = server_from_config(config)
+    server.run(transport=config.transport)
 
 
 @app.command()
@@ -95,10 +83,7 @@ def install(app_name: str = typer.Argument(..., help="Name of app to install")):
             typer.echo("App installed successfully")
     except Exception as e:
         typer.echo(f"Error installing app: {e}", err=True)
-        import traceback
-
-        traceback.print_exc()
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 if __name__ == "__main__":

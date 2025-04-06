@@ -1,6 +1,8 @@
 import os
 from abc import ABC, abstractmethod
 
+import keyring
+
 
 class Store(ABC):
     @abstractmethod
@@ -15,12 +17,14 @@ class Store(ABC):
     def delete(self, key: str):
         pass
 
+
 class MemoryStore:
     """
     Acts as credential store for the applications.
-    Responsible for storing and retrieving credentials. 
+    Responsible for storing and retrieving credentials.
     Ideally should be a key value store
     """
+
     def __init__(self):
         self.data = {}
 
@@ -38,6 +42,7 @@ class EnvironmentStore(Store):
     """
     Store that uses environment variables to store credentials.
     """
+
     def __init__(self):
         pass
 
@@ -50,22 +55,20 @@ class EnvironmentStore(Store):
     def delete(self, key: str):
         del os.environ[key]
 
-class RedisStore(Store):
+
+class KeyringStore(Store):
     """
-    Store that uses a redis database to store credentials.
+    Store that uses keyring to store credentials.
     """
-    def __init__(self, host: str, port: int, db: int):
-        import redis
-        self.host = host
-        self.port = port
-        self.db = db
-        self.redis = redis.Redis(host=self.host, port=self.port, db=self.db)
+
+    def __init__(self, app_name: str = "universal_mcp"):
+        self.app_name = app_name
 
     def get(self, key: str):
-        return self.redis.get(key)
+        return keyring.get_password(self.app_name, key)
 
     def set(self, key: str, value: str):
-        self.redis.set(key, value)
+        keyring.set_password(self.app_name, key, value)
 
     def delete(self, key: str):
-        self.redis.delete(key)
+        keyring.delete_password(self.app_name, key)

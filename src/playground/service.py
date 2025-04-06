@@ -11,6 +11,7 @@ from langchain_core._api import LangChainBetaWarning
 from langchain_core.messages import AnyMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
+from loguru import logger
 
 from playground.agents.react import create_agent
 from playground.memory import initialize_database
@@ -26,7 +27,6 @@ from playground.utils import (
     langchain_to_chat_message,
     remove_tool_calls,
 )
-from loguru import logger
 
 warnings.filterwarnings("ignore", category=LangChainBetaWarning)
 
@@ -40,13 +40,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     Configurable lifespan that initializes the appropriate database checkpointer based on settings.
     """
     try:
-        async with create_agent() as react_agent:
-            async with initialize_database() as saver:
-                await saver.setup()
-                global agent
-                agent = react_agent
-                agent.checkpointer = saver
-                yield
+        async with create_agent() as react_agent, initialize_database() as saver:
+            await saver.setup()
+            global agent
+            agent = react_agent
+            agent.checkpointer = saver
+            yield
     except Exception as e:
         logger.error(f"Error during database initialization: {e}")
         raise
@@ -102,7 +101,7 @@ async def invoke(user_input: UserInput) -> ChatMessage:
         return output
     except Exception as e:
         logger.error(f"An exception occurred: {e}")
-        raise HTTPException(status_code=500, detail="Unexpected error")
+        raise HTTPException(status_code=500, detail="Unexpected error") from e
 
 
 async def message_generator(user_input: StreamInput) -> AsyncGenerator[str, None]:
@@ -223,7 +222,7 @@ def history(input: ChatHistoryInput) -> ChatHistory:
         return ChatHistory(messages=chat_messages)
     except Exception as e:
         logger.error(f"An exception occurred: {e}")
-        raise HTTPException(status_code=500, detail="Unexpected error")
+        raise HTTPException(status_code=500, detail="Unexpected error") from e
 
 
 @app.get("/health")
