@@ -1,9 +1,10 @@
-import subprocess
-import platform
-import time
 import os
+import platform
 import shlex
+import subprocess
 import textwrap
+import time
+
 
 def launch_command_in_new_terminal(command, title="Command Output"):
     """
