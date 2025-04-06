@@ -34,8 +34,7 @@ def launch_command_in_new_terminal(command, title="Command Output"):
 
         elif system == "Windows":
             full_cmd = f'cd /d "{project_dir}" && echo "--- {title} ---" && {command}'
-            subprocess.Popen(f'start "{title}" cmd /k "{full_cmd}"', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
+            subprocess.Popen(["cmd", "/c", f'start "{title}" cmd /k "{full_cmd}"'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         else:
             print(f"Warning: Unsupported operating system ({system}). Cannot launch in new terminal.")
             return False
