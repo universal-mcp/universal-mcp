@@ -2,7 +2,7 @@
 
 ### Automated Startup (Recommended)
 
-To easily start all necessary services (MCP Server, FastAPI Backend, Streamlit Frontend), you can use the provided Python startup script. This script will attempt to open each service in its own, new terminal window.
+To easily start all necessary services (MCP Server, FastAPI Backend, Streamlit Frontend), you can use the provided Python startup script. This script will attempt to open each service in sequence and ensures they are terminated gracefully upon interruption.
 
 **Prerequisites:**
 
@@ -10,16 +10,22 @@ To easily start all necessary services (MCP Server, FastAPI Backend, Streamlit F
 *   All project dependencies installed (ensure you've run `pip install ...` for all requirements).
 *   **`local_config.json` file:** This configuration file for the MCP server must exist in the **project root directory**. It should contain a JSON array defining the MCP tools to load. For example:
     ```json
-    [
-        {
-            "name": "markitdown"
-        }
-    ]
+    {
+        "name": "Local Server",
+        "description": "Local server for testing",
+        "type": "local",
+        "transport": "sse",
+        "apps": [
+            {
+                "name": "zenquotes"
+            }
+        ]
+    }
     ```
     *(Adapt the content based on the actual MCP tools you intend to use.)*
 *   A compatible terminal environment for the script:
     *   On **macOS**, requires the standard `Terminal.app`.
-    *   On **Linux**, assumes `gnome-terminal` is available (common on Ubuntu/Fedora). You may need to modify `src/playground/run_playground.py` if you use a different terminal like `konsole` or `xfce4-terminal`.
+    *   On **Linux**, assumes `gnome-terminal` is available (common on Ubuntu/Fedora). You may need to modify `src/playground/__main__.py` if you use a different terminal like `konsole` or `xfce4-terminal`.
     *   On **Windows**, requires the standard `cmd.exe`.
 
 **Instructions:**
@@ -29,10 +35,10 @@ To easily start all necessary services (MCP Server, FastAPI Backend, Streamlit F
 3.  Execute the startup script using Python:
 
     ```bash
-    python src/playground/run_playground.py
+    python src/playground/__main__.py
     ```
 
-    *(Note: If your system uses `python3` to invoke Python 3, use that command instead: `python3 src/playground/run_playground.py`)*
+    *(Note: If your system uses `python3` to invoke Python 3, use that command instead: `python3 src/playground/__main__.py`)*
 
 After running the command, you should see messages indicating that the components are being launched, and three separate terminal windows should appear, each showing the output for one of the services.
 
@@ -43,7 +49,7 @@ If you prefer, or if the automated script does not work on your specific system 
 1.  **Terminal 1 (MCP Server):**
     *(Ensure `local_config.json` exists in the project root as described above)*
     ```bash
-    universal_mcp run -s local -c local_config.json -t sse
+    universal_mcp run -c local_config.json
     ```
 2.  **Terminal 2 (FastAPI App):**
     ```bash
