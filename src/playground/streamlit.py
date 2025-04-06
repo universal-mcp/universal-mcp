@@ -10,8 +10,7 @@ from pydantic import ValidationError
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 
 from playground.client import AgentClient, AgentClientError
-from playground.schema import (ChatHistory, ChatMessage, TaskData,
-                               TaskDataStatus)
+from playground.schema import ChatHistory, ChatMessage, TaskData, TaskDataStatus
 from playground.settings import settings
 
 # A Streamlit app for interacting with the langgraph agent via a simple chat interface.
@@ -27,6 +26,7 @@ from playground.settings import settings
 APP_TITLE = "Agent Service Toolkit"
 APP_ICON = "🧰"
 use_streaming = True
+
 
 # --- Function to handle unique filename generation ---
 def get_unique_filepath(upload_dir: Path, filename: str) -> Path:
@@ -44,6 +44,7 @@ def get_unique_filepath(upload_dir: Path, filename: str) -> Path:
         if not new_filepath.exists():
             return new_filepath
         counter += 1
+
 
 async def main() -> None:
     st.set_page_config(
@@ -95,8 +96,10 @@ async def main() -> None:
         dummy_path.touch()
         dummy_path.unlink()
     except OSError as e:
-        st.error(f"Error creating or accessing upload directory ({uploads_dir}): {e}\n"
-                 "Please ensure the application has write permissions to this directory.")
+        st.error(
+            f"Error creating or accessing upload directory ({uploads_dir}): {e}\n"
+            "Please ensure the application has write permissions to this directory."
+        )
         st.stop()
     # --- End Directory Check ---
 
@@ -116,29 +119,37 @@ async def main() -> None:
                 messages = []
         st.session_state.messages = messages
         st.session_state.thread_id = thread_id
-        st.session_state.uploaded_file_obj = None  
-        st.session_state.file_processed = False    
+        st.session_state.uploaded_file_obj = None
+        st.session_state.file_processed = False
 
     # Place it before the chat input for better flow
-    uploaded_file = st.file_uploader("Upload a file (optional)", type=None, key="file_uploader")
+    uploaded_file = st.file_uploader(
+        "Upload a file (optional)", type=None, key="file_uploader"
+    )
 
     # Check if a new file has been uploaded or if the uploader was cleared
     if uploaded_file is not None:
         # Check if this is a new file or a different file than the last processed one
-        if ('last_processed_file' not in st.session_state or 
-            st.session_state.get('last_processed_file') != uploaded_file.name):
-            
+        if (
+            "last_processed_file" not in st.session_state
+            or st.session_state.get("last_processed_file") != uploaded_file.name
+        ):
             # Reset the processed state for the new file
             st.session_state.file_processed = False
             st.session_state.uploaded_file_obj = uploaded_file
-            st.info(f"File '{uploaded_file.name}' ready for processing with your next message.", icon="📄")
-    elif uploaded_file is None and st.session_state.get("uploaded_file_obj") is not None:
+            st.info(
+                f"File '{uploaded_file.name}' ready for processing with your next message.",
+                icon="📄",
+            )
+    elif (
+        uploaded_file is None and st.session_state.get("uploaded_file_obj") is not None
+    ):
         # User cleared the file uploader, so reset the state
         st.session_state.uploaded_file_obj = None
         st.session_state.file_processed = False
-        if 'last_processed_file' in st.session_state:
-            del st.session_state['last_processed_file']
-    
+        if "last_processed_file" in st.session_state:
+            del st.session_state["last_processed_file"]
+
     # Draw existing messages
     messages: list[ChatMessage] = st.session_state.messages
 
@@ -153,9 +164,11 @@ async def main() -> None:
             yield m
 
     await draw_messages(amessage_iter())
-    
+
     # Generate new message if the user provided new input
-    if user_input := st.chat_input("Enter message or upload a file and describe task..."):
+    if user_input := st.chat_input(
+        "Enter message or upload a file and describe task..."
+    ):
         final_message_content = user_input
         display_content = user_input
 
@@ -185,7 +198,9 @@ async def main() -> None:
                 final_message_content = file_metadata_prefix + user_input
 
                 # Prepare display content for chat history
-                display_content = f"[Using uploaded file: {original_filename}]\n\n{user_input}"
+                display_content = (
+                    f"[Using uploaded file: {original_filename}]\n\n{user_input}"
+                )
 
                 # Mark the file as processed to prevent reprocessing
                 st.session_state.last_processed_file = original_filename
@@ -194,7 +209,7 @@ async def main() -> None:
             except OSError as e:
                 st.error(f"Error saving uploaded file '{original_filename}': {e}")
                 # Don't proceed with sending message if file saving failed
-                st.stop() # Stop execution for this run
+                st.stop()  # Stop execution for this run
             except Exception as e:
                 st.error(f"An unexpected error occurred during file handling: {e}")
                 st.stop()
@@ -232,7 +247,9 @@ async def main() -> None:
                 st.error(f"Error generating response: {e}")
                 # Don't stop necessarily, maybe the agent service is down, allow user to retry
             except Exception as e:
-                st.error(f"An unexpected error occurred during agent communication: {e}")
+                st.error(
+                    f"An unexpected error occurred during agent communication: {e}"
+                )
 
     # If messages have been generated, show feedback widget
     if len(messages) > 0 and st.session_state.last_message:
