@@ -1,17 +1,19 @@
 import asyncio
 import os
-from collections.abc import AsyncGenerator
-
 import uuid
-from pathlib import Path 
+from collections.abc import AsyncGenerator
+from pathlib import Path
+
 import streamlit as st
 from dotenv import load_dotenv
 from pydantic import ValidationError
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 
 from playground.client import AgentClient, AgentClientError
-from playground.schema import ChatHistory, ChatMessage, TaskData, TaskDataStatus
+from playground.schema import (ChatHistory, ChatMessage, TaskData,
+                               TaskDataStatus)
 from playground.settings import settings
+
 # A Streamlit app for interacting with the langgraph agent via a simple chat interface.
 # The app has three main functions which are all run async:
 
