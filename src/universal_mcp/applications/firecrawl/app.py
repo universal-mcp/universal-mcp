@@ -1,12 +1,12 @@
-from typing import Optional, Dict, Any, List, Union
-from loguru import logger
-import requests 
+from typing import Any
 
 from firecrawl import FirecrawlApp as FirecrawlApiClient
+from loguru import logger
 
 from universal_mcp.applications.application import APIApplication
-from universal_mcp.integrations import Integration
 from universal_mcp.exceptions import NotAuthorizedError
+from universal_mcp.integrations import Integration
+
 
 class FirecrawlApp(APIApplication):
     """
@@ -16,10 +16,10 @@ class FirecrawlApp(APIApplication):
     (e.g., FIRECRAWL_API_KEY environment variable).
     """
 
-    def __init__(self, integration: Optional[Integration] = None) -> None:
+    def __init__(self, integration: Integration | None = None) -> None:
 
         super().__init__(name="firecrawl", integration=integration)
-        self.api_key: Optional[str] = None
+        self.api_key: str | None = None
         self._attempt_initial_key_load()
 
     def _attempt_initial_key_load(self):
@@ -52,7 +52,7 @@ class FirecrawlApp(APIApplication):
 
         return FirecrawlApiClient(api_key=self.api_key)
 
-    def scrape_url(self, url: str, params: Optional[Dict[str, Any]] = None) -> Union[Dict[str, Any], str]:
+    def scrape_url(self, url: str, params: dict[str, Any] | None = None) -> dict[str, Any] | str:
         """
         Scrapes a single URL using Firecrawl and returns the extracted data.
 
@@ -76,7 +76,7 @@ class FirecrawlApp(APIApplication):
             logger.error(f"Failed to scrape URL {url}: {type(e).__name__} - {e}")
             return f"Error scraping URL {url}: {type(e).__name__} - {e}"
 
-    def search(self, query: str, params: Optional[Dict[str, Any]] = None) -> Union[Dict[str, Any], str]:
+    def search(self, query: str, params: dict[str, Any] | None = None) -> dict[str, Any] | str:
         """
         Performs a web search using Firecrawl's search capability.
 
@@ -103,7 +103,7 @@ class FirecrawlApp(APIApplication):
 
     # --- Asynchronous Job Pattern Tools ---
 
-    def start_crawl(self, url: str, params: Optional[Dict[str, Any]] = None, idempotency_key: Optional[str] = None) -> Union[Dict[str, Any], str]:
+    def start_crawl(self, url: str, params: dict[str, Any] | None = None, idempotency_key: str | None = None) -> dict[str, Any] | str:
         """
         Starts a crawl job for a given URL using Firecrawl. Returns the job ID immediately.
         Use 'check_crawl_status' to monitor progress and retrieve results.
@@ -132,7 +132,7 @@ class FirecrawlApp(APIApplication):
             logger.error(f"Failed to start crawl for URL {url}: {type(e).__name__} - {e}")
             return f"Error starting crawl for URL {url}: {type(e).__name__} - {e}"
 
-    def check_crawl_status(self, job_id: str) -> Union[Dict[str, Any], str]:
+    def check_crawl_status(self, job_id: str) -> dict[str, Any] | str:
         """
         Checks the status of a previously initiated Firecrawl crawl job.
         If the job is completed, this retrieves the results (potentially paginated).
@@ -156,7 +156,7 @@ class FirecrawlApp(APIApplication):
             logger.error(f"Failed to check crawl status for job ID {job_id}: {type(e).__name__} - {e}")
             return f"Error checking crawl status for job ID {job_id}: {type(e).__name__} - {e}"
 
-    def cancel_crawl(self, job_id: str) -> Union[Dict[str, Any], str]:
+    def cancel_crawl(self, job_id: str) -> dict[str, Any] | str:
         """
         Cancels a currently running Firecrawl crawl job.
 
@@ -177,7 +177,7 @@ class FirecrawlApp(APIApplication):
             logger.error(f"Failed to cancel crawl job ID {job_id}: {type(e).__name__} - {e}")
             return f"Error cancelling crawl job ID {job_id}: {type(e).__name__} - {e}"
 
-    def start_batch_scrape(self, urls: List[str], params: Optional[Dict[str, Any]] = None, idempotency_key: Optional[str] = None) -> Union[Dict[str, Any], str]:
+    def start_batch_scrape(self, urls: list[str], params: dict[str, Any] | None = None, idempotency_key: str | None = None) -> dict[str, Any] | str:
         """
         Starts a batch scrape job for multiple URLs using Firecrawl. Returns the job ID immediately.
         Use 'check_batch_scrape_status' to monitor progress and retrieve results.
@@ -208,7 +208,7 @@ class FirecrawlApp(APIApplication):
             logger.error(f"Failed to start batch scrape: {type(e).__name__} - {e}")
             return f"Error starting batch scrape: {type(e).__name__} - {e}"
 
-    def check_batch_scrape_status(self, job_id: str) -> Union[Dict[str, Any], str]:
+    def check_batch_scrape_status(self, job_id: str) -> dict[str, Any] | str:
         """
         Checks the status of a previously initiated Firecrawl batch scrape job.
         If the job is completed, this retrieves the results for all URLs.
@@ -230,7 +230,7 @@ class FirecrawlApp(APIApplication):
             logger.error(f"Failed to check batch scrape status for job ID {job_id}: {type(e).__name__} - {e}")
             return f"Error checking batch scrape status for job ID {job_id}: {type(e).__name__} - {e}"
 
-    def start_extract(self, urls: List[str], params: Optional[Dict[str, Any]] = None, idempotency_key: Optional[str] = None) -> Union[Dict[str, Any], str]:
+    def start_extract(self, urls: list[str], params: dict[str, Any] | None = None, idempotency_key: str | None = None) -> dict[str, Any] | str:
         """
         Starts an extraction job for one or more URLs using Firecrawl. Returns the job ID immediately.
         Use 'check_extract_status' to monitor progress and retrieve results. Requires 'prompt' or 'schema' in params.
@@ -265,7 +265,7 @@ class FirecrawlApp(APIApplication):
             logger.error(f"Failed to start extraction: {type(e).__name__} - {e}")
             return f"Error starting extraction: {type(e).__name__} - {e}"
 
-    def check_extract_status(self, job_id: str) -> Union[Dict[str, Any], str]:
+    def check_extract_status(self, job_id: str) -> dict[str, Any] | str:
         """
         Checks the status of a previously initiated Firecrawl extraction job.
         If the job is completed, this retrieves the extracted data.

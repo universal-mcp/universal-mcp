@@ -16,7 +16,6 @@ dependencies = [
     "typer>=0.15.2",
     "markitdown[all]>=0.1.1",
     "keyring>=25.6.0",
-    "firecrawl-py>=1.15.0",
 ]
 
 [project.optional-dependencies]
@@ -27,6 +26,7 @@ playground = [
     "langgraph>=0.3.24",
     "langgraph-checkpoint-sqlite>=2.0.6",
     "streamlit>=1.44.1",
+    "firecrawl-py>=1.15.0",
 ]
 dev = [
     "ruff>=0.11.4",

@@ -18,7 +18,7 @@ jobs:
         run: uv sync --frozen --all-extras --dev
 
       - name: Run ruff format check
-        run: uv run --no-sync ruff check . --fix
+        run: uv run --no-sync ruff check .
 
   typecheck:
     runs-on: ubuntu-latest
