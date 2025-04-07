@@ -1,4 +1,3 @@
-
 from e2b_code_interpreter import Sandbox
 from loguru import logger
 
@@ -35,8 +34,8 @@ class E2bApp(APIApplication):
 
         if logs.stdout:
             stdout_content = "".join(logs.stdout).strip()
-            if stdout_content: 
-                 output_parts.append(f"\n{stdout_content}")
+            if stdout_content:
+                output_parts.append(f"\n{stdout_content}")
 
         if logs.stderr:
             stderr_content = "".join(logs.stderr).strip()
@@ -46,7 +45,6 @@ class E2bApp(APIApplication):
         if not output_parts:
             return "Execution finished with no output (stdout/stderr)."
         return "\n\n".join(output_parts)
-
 
     def execute_python_code(self, code: str) -> str:
         """
