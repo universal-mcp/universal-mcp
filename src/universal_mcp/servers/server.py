@@ -114,21 +114,30 @@ class LocalServer(Server):
             name="server_set_integration_credential",
             description="Stores an API key credential for a specific integration using its configured persistent store (e.g., keyring)."
         )
-
+        
+        self.add_tool(
+            self.delete_integration_credential,
+            name="server_delete_integration_credential",
+            description="Deletes a stored credential for a specific integration from its configured persistent store (e.g., keyring)."
+        )
+                
     async def set_integration_credential(self, integration_name: str, api_key_value: str) -> str:
-        """
-        Stores the API key for the specified integration name using its configured store.
-
-        Args:
-            integration_name: The name of the integration (e.g., 'E2B_API_KEY').
-            api_key_value: The actual API key string to store.
-        """
+        
         integration = self.integrations_by_name.get(integration_name)
         if not integration:
             return f"Error: Integration '{integration_name}' is not configured on this server."
 
         if isinstance(integration, ApiKeyIntegration):
             integration.set_credentials({"api_key": api_key_value})
+            return f"Successfully stored credential for integration '{integration_name}'."
+
+    async def delete_integration_credential(self, integration_name: str) -> str:
+
+        logger.info(f"Attempting to delete credential for integration: {integration_name}")
+        integration = self.integrations_by_name.get(integration_name)
+        integration.store.delete(integration.name)
+        logger.info(f"Successfully deleted credential for integration: {integration_name}")
+        return f"Successfully deleted stored credential for integration '{integration_name}'."
 
 class AgentRServer(Server):
     """
