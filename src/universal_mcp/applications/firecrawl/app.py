@@ -17,7 +17,6 @@ class FirecrawlApp(APIApplication):
     """
 
     def __init__(self, integration: Integration | None = None) -> None:
-
         super().__init__(name="firecrawl", integration=integration)
         self.api_key: str | None = None
         self._attempt_initial_key_load()
@@ -28,31 +27,47 @@ class FirecrawlApp(APIApplication):
             credentials = self.integration.get_credentials()
             if credentials and credentials.get("api_key"):
                 self.api_key = credentials["api_key"]
-                logger.info("Firecrawl API Key successfully retrieved via integration during init.")
+                logger.info(
+                    "Firecrawl API Key successfully retrieved via integration during init."
+                )
             else:
-                logger.warning("Firecrawl API Key not found in credentials during init. Will try again on first use.")
+                logger.warning(
+                    "Firecrawl API Key not found in credentials during init. Will try again on first use."
+                )
 
     def _get_firecrawl_client(self) -> FirecrawlApiClient:
         """Ensures the API key is available and returns an initialized Firecrawl client."""
         if not self.api_key:
-            logger.debug("Firecrawl API key not loaded, attempting retrieval via integration.")
+            logger.debug(
+                "Firecrawl API key not loaded, attempting retrieval via integration."
+            )
             if not self.integration:
                 raise NotAuthorizedError("Firecrawl integration is not configured.")
-            
+
             credentials = self.integration.get_credentials()
             if credentials and credentials.get("api_key"):
                 self.api_key = credentials["api_key"]
                 logger.info("Firecrawl API Key successfully retrieved via integration.")
             else:
-                action = self.integration.authorize() if hasattr(self.integration, 'authorize') else "Configure API Key"
-                raise NotAuthorizedError(f"Firecrawl API Key not found in provided integration credentials. Action required: {action}")
+                action = (
+                    self.integration.authorize()
+                    if hasattr(self.integration, "authorize")
+                    else "Configure API Key"
+                )
+                raise NotAuthorizedError(
+                    f"Firecrawl API Key not found in provided integration credentials. Action required: {action}"
+                )
 
         if not self.api_key:
-             raise NotAuthorizedError("Firecrawl API Key is missing or could not be loaded.")
+            raise NotAuthorizedError(
+                "Firecrawl API Key is missing or could not be loaded."
+            )
 
         return FirecrawlApiClient(api_key=self.api_key)
 
-    def scrape_url(self, url: str, params: dict[str, Any] | None = None) -> dict[str, Any] | str:
+    def scrape_url(
+        self, url: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any] | str:
         """
         Scrapes a single URL using Firecrawl and returns the extracted data.
 
@@ -76,7 +91,9 @@ class FirecrawlApp(APIApplication):
             logger.error(f"Failed to scrape URL {url}: {type(e).__name__} - {e}")
             return f"Error scraping URL {url}: {type(e).__name__} - {e}"
 
-    def search(self, query: str, params: dict[str, Any] | None = None) -> dict[str, Any] | str:
+    def search(
+        self, query: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any] | str:
         """
         Performs a web search using Firecrawl's search capability.
 
@@ -98,12 +115,19 @@ class FirecrawlApp(APIApplication):
             logger.info(f"Successfully performed search for query: '{query}'")
             return response
         except Exception as e:
-            logger.error(f"Failed to perform search for '{query}': {type(e).__name__} - {e}")
+            logger.error(
+                f"Failed to perform search for '{query}': {type(e).__name__} - {e}"
+            )
             return f"Error performing search for '{query}': {type(e).__name__} - {e}"
 
     # --- Asynchronous Job Pattern Tools ---
 
-    def start_crawl(self, url: str, params: dict[str, Any] | None = None, idempotency_key: str | None = None) -> dict[str, Any] | str:
+    def start_crawl(
+        self,
+        url: str,
+        params: dict[str, Any] | None = None,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any] | str:
         """
         Starts a crawl job for a given URL using Firecrawl. Returns the job ID immediately.
         Use 'check_crawl_status' to monitor progress and retrieve results.
@@ -118,18 +142,28 @@ class FirecrawlApp(APIApplication):
             A dictionary containing the job initiation response (e.g., {'success': bool, 'id': str})
             on success, or a string containing an error message on failure.
         """
-        logger.info(f"Attempting to start crawl job for URL: {url} with params: {params}")
+        logger.info(
+            f"Attempting to start crawl job for URL: {url} with params: {params}"
+        )
         try:
             client = self._get_firecrawl_client()
             # Use the library's async method which returns the job ID response
-            response = client.async_crawl_url(url=url, params=params, idempotency_key=idempotency_key)
-            if response.get('success'):
-                 logger.info(f"Successfully started crawl job for URL: {url}. Job ID: {response.get('id')}")
+            response = client.async_crawl_url(
+                url=url, params=params, idempotency_key=idempotency_key
+            )
+            if response.get("success"):
+                logger.info(
+                    f"Successfully started crawl job for URL: {url}. Job ID: {response.get('id')}"
+                )
             else:
-                 logger.error(f"Failed to start crawl job for URL {url}. Response: {response}")
+                logger.error(
+                    f"Failed to start crawl job for URL {url}. Response: {response}"
+                )
             return response
         except Exception as e:
-            logger.error(f"Failed to start crawl for URL {url}: {type(e).__name__} - {e}")
+            logger.error(
+                f"Failed to start crawl for URL {url}: {type(e).__name__} - {e}"
+            )
             return f"Error starting crawl for URL {url}: {type(e).__name__} - {e}"
 
     def check_crawl_status(self, job_id: str) -> dict[str, Any] | str:
@@ -150,10 +184,14 @@ class FirecrawlApp(APIApplication):
             client = self._get_firecrawl_client()
             # Library method handles pagination for completed jobs
             status = client.check_crawl_status(id=job_id)
-            logger.info(f"Successfully checked status for job ID: {job_id}. Status: {status.get('status', 'unknown')}")
+            logger.info(
+                f"Successfully checked status for job ID: {job_id}. Status: {status.get('status', 'unknown')}"
+            )
             return status
         except Exception as e:
-            logger.error(f"Failed to check crawl status for job ID {job_id}: {type(e).__name__} - {e}")
+            logger.error(
+                f"Failed to check crawl status for job ID {job_id}: {type(e).__name__} - {e}"
+            )
             return f"Error checking crawl status for job ID {job_id}: {type(e).__name__} - {e}"
 
     def cancel_crawl(self, job_id: str) -> dict[str, Any] | str:
@@ -171,13 +209,22 @@ class FirecrawlApp(APIApplication):
         try:
             client = self._get_firecrawl_client()
             response = client.cancel_crawl(id=job_id)
-            logger.info(f"Successfully requested cancellation for job ID: {job_id}. Response: {response}")
+            logger.info(
+                f"Successfully requested cancellation for job ID: {job_id}. Response: {response}"
+            )
             return response
         except Exception as e:
-            logger.error(f"Failed to cancel crawl job ID {job_id}: {type(e).__name__} - {e}")
+            logger.error(
+                f"Failed to cancel crawl job ID {job_id}: {type(e).__name__} - {e}"
+            )
             return f"Error cancelling crawl job ID {job_id}: {type(e).__name__} - {e}"
 
-    def start_batch_scrape(self, urls: list[str], params: dict[str, Any] | None = None, idempotency_key: str | None = None) -> dict[str, Any] | str:
+    def start_batch_scrape(
+        self,
+        urls: list[str],
+        params: dict[str, Any] | None = None,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any] | str:
         """
         Starts a batch scrape job for multiple URLs using Firecrawl. Returns the job ID immediately.
         Use 'check_batch_scrape_status' to monitor progress and retrieve results.
@@ -193,16 +240,24 @@ class FirecrawlApp(APIApplication):
             on success, or a string containing an error message on failure.
         """
         url_count = len(urls)
-        logger.info(f"Attempting to start batch scrape job for {url_count} URLs with params: {params}")
+        logger.info(
+            f"Attempting to start batch scrape job for {url_count} URLs with params: {params}"
+        )
         if not urls:
             return "Error: No URLs provided for batch scrape."
         try:
             client = self._get_firecrawl_client()
-            response = client.async_batch_scrape_urls(urls=urls, params=params, idempotency_key=idempotency_key)
-            if response.get('success'):
-                 logger.info(f"Successfully started batch scrape job for {url_count} URLs. Job ID: {response.get('id')}")
+            response = client.async_batch_scrape_urls(
+                urls=urls, params=params, idempotency_key=idempotency_key
+            )
+            if response.get("success"):
+                logger.info(
+                    f"Successfully started batch scrape job for {url_count} URLs. Job ID: {response.get('id')}"
+                )
             else:
-                 logger.error(f"Failed to start batch scrape job for {url_count} URLs. Response: {response}")
+                logger.error(
+                    f"Failed to start batch scrape job for {url_count} URLs. Response: {response}"
+                )
             return response
         except Exception as e:
             logger.error(f"Failed to start batch scrape: {type(e).__name__} - {e}")
@@ -224,13 +279,22 @@ class FirecrawlApp(APIApplication):
         try:
             client = self._get_firecrawl_client()
             status = client.check_batch_scrape_status(id=job_id)
-            logger.info(f"Successfully checked status for batch scrape job ID: {job_id}. Status: {status.get('status', 'unknown')}")
+            logger.info(
+                f"Successfully checked status for batch scrape job ID: {job_id}. Status: {status.get('status', 'unknown')}"
+            )
             return status
         except Exception as e:
-            logger.error(f"Failed to check batch scrape status for job ID {job_id}: {type(e).__name__} - {e}")
+            logger.error(
+                f"Failed to check batch scrape status for job ID {job_id}: {type(e).__name__} - {e}"
+            )
             return f"Error checking batch scrape status for job ID {job_id}: {type(e).__name__} - {e}"
 
-    def start_extract(self, urls: list[str], params: dict[str, Any] | None = None, idempotency_key: str | None = None) -> dict[str, Any] | str:
+    def start_extract(
+        self,
+        urls: list[str],
+        params: dict[str, Any] | None = None,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any] | str:
         """
         Starts an extraction job for one or more URLs using Firecrawl. Returns the job ID immediately.
         Use 'check_extract_status' to monitor progress and retrieve results. Requires 'prompt' or 'schema' in params.
@@ -247,19 +311,27 @@ class FirecrawlApp(APIApplication):
             A dictionary containing the job initiation response (e.g., {'success': bool, 'id': str})
             on success, or a string containing an error message on failure.
         """
-        logger.info(f"Attempting to start extraction job for URLs: {urls} with params: {params}")
+        logger.info(
+            f"Attempting to start extraction job for URLs: {urls} with params: {params}"
+        )
         if not urls:
             return "Error: No URLs provided for extraction."
-        if not params or (not params.get('prompt') and not params.get('schema')):
-             return "Error: 'params' dictionary must include either a 'prompt' string or a 'schema' definition."
+        if not params or (not params.get("prompt") and not params.get("schema")):
+            return "Error: 'params' dictionary must include either a 'prompt' string or a 'schema' definition."
         try:
             client = self._get_firecrawl_client()
             # Pass params directly; the library handles schema conversion if needed
-            response = client.async_extract(urls=urls, params=params, idempotency_key=idempotency_key)
-            if response.get('success'):
-                 logger.info(f"Successfully started extraction job for URLs. Job ID: {response.get('id')}")
+            response = client.async_extract(
+                urls=urls, params=params, idempotency_key=idempotency_key
+            )
+            if response.get("success"):
+                logger.info(
+                    f"Successfully started extraction job for URLs. Job ID: {response.get('id')}"
+                )
             else:
-                 logger.error(f"Failed to start extraction job for URLs. Response: {response}")
+                logger.error(
+                    f"Failed to start extraction job for URLs. Response: {response}"
+                )
             return response
         except Exception as e:
             logger.error(f"Failed to start extraction: {type(e).__name__} - {e}")
@@ -281,11 +353,17 @@ class FirecrawlApp(APIApplication):
         logger.info(f"Attempting to check status for extraction job ID: {job_id}")
         try:
             client = self._get_firecrawl_client()
-            status = client.get_extract_status(job_id=job_id) # Correct library method name
-            logger.info(f"Successfully checked status for extraction job ID: {job_id}. Status: {status.get('status', 'unknown')}")
+            status = client.get_extract_status(
+                job_id=job_id
+            )  # Correct library method name
+            logger.info(
+                f"Successfully checked status for extraction job ID: {job_id}. Status: {status.get('status', 'unknown')}"
+            )
             return status
         except Exception as e:
-            logger.error(f"Failed to check extraction status for job ID {job_id}: {type(e).__name__} - {e}")
+            logger.error(
+                f"Failed to check extraction status for job ID {job_id}: {type(e).__name__} - {e}"
+            )
             return f"Error checking extraction status for job ID {job_id}: {type(e).__name__} - {e}"
 
     def list_tools(self):

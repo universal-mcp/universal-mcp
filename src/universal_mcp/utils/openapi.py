@@ -99,24 +99,24 @@ def generate_api_client(schema):
         base_name = "".join(word.capitalize() for word in api_title.split())
         clean_name = "".join(c for c in base_name if c.isalnum())
         class_name = f"{clean_name}App"
-        
+
         # Extract tool name - remove spaces and convert to lowercase
         tool_name = api_title.lower()
-        
+
         # Remove version numbers (like 3.0, v1, etc.)
-        tool_name = re.sub(r'\s*v?\d+(\.\d+)*', '', tool_name)
-        
+        tool_name = re.sub(r"\s*v?\d+(\.\d+)*", "", tool_name)
+
         # Remove common words that aren't needed
-        common_words = ['api', 'openapi', 'open', 'swagger', 'spec', 'specification']
+        common_words = ["api", "openapi", "open", "swagger", "spec", "specification"]
         for word in common_words:
-            tool_name = tool_name.replace(word, '')
-        
+            tool_name = tool_name.replace(word, "")
+
         # Remove spaces, hyphens, underscores
         tool_name = tool_name.replace(" ", "").replace("-", "").replace("_", "")
-        
+
         # Remove any non-alphanumeric characters
         tool_name = "".join(c for c in tool_name if c.isalnum())
-        
+
         # If empty (after cleaning), use generic name
         if not tool_name:
             tool_name = "api"
@@ -129,7 +129,9 @@ def generate_api_client(schema):
         for method in path_info:
             if method in ["get", "post", "put", "delete", "patch", "options", "head"]:
                 operation = path_info[method]
-                method_code, func_name = generate_method_code(path, method, operation, tool_name)
+                method_code, func_name = generate_method_code(
+                    path, method, operation, tool_name
+                )
                 methods.append(method_code)
                 method_names.append(func_name)
 
@@ -190,7 +192,7 @@ def generate_method_code(path, method, operation, tool_name=None):
             else:
                 name_parts.append(part)
         func_name = "_".join(name_parts).replace("-", "_").lower()
-    
+
     # Add tool name prefix if provided
     if tool_name:
         func_name = f"{tool_name}_{func_name}"

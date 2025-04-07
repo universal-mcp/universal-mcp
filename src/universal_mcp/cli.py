@@ -1,7 +1,9 @@
-from pathlib import Path
 import asyncio
 import os
+from pathlib import Path
+
 import typer
+
 from universal_mcp.utils.installation import (
     get_supported_apps,
     install_claude,

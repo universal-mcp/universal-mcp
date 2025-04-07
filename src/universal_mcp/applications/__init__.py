@@ -1,9 +1,6 @@
 from universal_mcp.applications.application import APIApplication, Application
-<<<<<<< HEAD
 from universal_mcp.applications.e2b.app import E2bApp
-=======
 from universal_mcp.applications.firecrawl.app import FirecrawlApp
->>>>>>> origin/feat/firecrawl_tool
 from universal_mcp.applications.github.app import GithubApp
 from universal_mcp.applications.google_calendar.app import GoogleCalendarApp
 from universal_mcp.applications.google_mail.app import GmailApp
