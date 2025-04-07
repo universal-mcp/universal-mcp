@@ -13,7 +13,8 @@
                 "name": "E2B_API_KEY",
                 "type": "api_key",
                 "store": {
-                    "type": "environment"
+                    "type": "keyring",
+                    "name": "playground_keys"
                 }
             }
         }

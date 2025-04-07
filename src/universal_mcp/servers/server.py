@@ -11,7 +11,7 @@ from mcp.types import TextContent
 from universal_mcp.applications import app_from_name
 from universal_mcp.config import AppConfig, IntegrationConfig, StoreConfig
 from universal_mcp.exceptions import NotAuthorizedError
-from universal_mcp.integrations import AgentRIntegration, ApiKeyIntegration
+from universal_mcp.integrations import AgentRIntegration, ApiKeyIntegration,Integration
 from universal_mcp.stores import store_from_config
 from universal_mcp.stores.store import (
     EnvironmentStore,
@@ -64,6 +64,7 @@ class LocalServer(Server):
             apps_list = []
         super().__init__(**kwargs)
         self.apps_list = apps_list
+        self.integrations_by_name: dict[str, Integration] = {}
         self._load_apps()
 
     def _get_store(self, store_config: StoreConfig | None):
@@ -84,6 +85,8 @@ class LocalServer(Server):
         if integration_config.type == "api_key":
             store = self._get_store(integration_config.store)
             integration = ApiKeyIntegration(integration_config.name, store=store)
+            logger.info(f"Adding integration to dict: Name='{integration.name}'") # ADD LOGGING HERE
+            self.integrations_by_name[integration.name] = integration
             if integration_config.credentials:
                 integration.set_credentials(integration_config.credentials)
             return integration
@@ -105,7 +108,47 @@ class LocalServer(Server):
                     name = app.name + "_" + tool.__name__
                     description = tool.__doc__
                     self.add_tool(tool, name=name, description=description)
+                    
+        logger.info("Registering server management tools.")
+        self.add_tool(
+            self.set_integration_credential,
+            name="server_set_integration_credential", # The name the agent will use
+            description="Stores an API key credential for a specific integration using its configured persistent store (e.g., keyring)."
+        )
 
+    # --- ADD THIS NEW METHOD ---
+    async def set_integration_credential(self, integration_name: str, api_key_value: str) -> str:
+        """
+        Stores the API key for the specified integration name using its configured store.
+
+        Args:
+            integration_name: The name of the integration (e.g., 'E2B_API_KEY').
+            api_key_value: The actual API key string to store.
+
+        Returns:
+            A confirmation or error message string.
+        """
+        logger.info(f"Attempting to set credential for integration: {integration_name}")
+
+        integration = self.integrations_by_name.get(integration_name)
+
+        if not integration:
+            logger.error(f"Integration '{integration_name}' not found or not loaded by the server.")
+            return f"Error: Integration '{integration_name}' is not configured on this server."
+
+        # Check if it's an integration type we can handle (currently ApiKeyIntegration)
+        if isinstance(integration, ApiKeyIntegration):
+            try:
+                # The set_credentials method for ApiKeyIntegration handles the store interaction
+                integration.set_credentials({"api_key": api_key_value})
+                logger.info(f"Successfully stored API key for {integration_name} via its store.")
+                return f"Successfully stored API key for '{integration_name}'."
+            except Exception as e:
+                logger.error(f"Failed to store API key for {integration_name} using its store: {e}")
+                return f"Error: Failed to store API key for '{integration_name}'. Reason: {e}"
+        else:
+            logger.warning(f"Integration '{integration_name}' is not of type ApiKeyIntegration. Cannot set API key.")
+            return f"Error: Cannot set API key for integration '{integration_name}' (unsupported type: {type(integration).__name__})."
 
 class AgentRServer(Server):
     """
