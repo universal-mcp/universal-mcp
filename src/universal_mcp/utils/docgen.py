@@ -116,14 +116,15 @@ def generate_docstring(function_code: str, model: str = "anthropic/claude-3-sonn
     Returns:
         A DocstringOutput object containing the structured docstring components
     """
-    system_prompt = """You are a helpful AI assistant specialized in writing high-quality Google-style Python docstrings."""
+    system_prompt = """You are a helpful AI assistant specialized in writing high-quality Google-style Python docstrings.
+    You MUST ALWAYS include an Args section, even if there are no arguments (in which case mention 'None')."""
     
     user_prompt = f"""Generate a high-quality Google-style docstring for the following Python function. 
     Analyze the function's name, parameters, return values, and functionality to create a comprehensive docstring.
     
-    The docstring should:
+    The docstring MUST:
     1. Start with a clear, concise summary of what the function does
-    2. Include Args section with description of each parameter
+    2. ALWAYS include Args section with description of each parameter (or 'None' if no parameters)
     3. Include Returns section describing the return value
     4. Be formatted according to Google Python Style Guide
     
@@ -165,19 +166,23 @@ def generate_docstring(function_code: str, model: str = "anthropic/claude-3-sonn
             # Try to parse the whole response as JSON
             parsed_data = json.loads(response_text)
         
+        # Ensure args is never empty
+        if not parsed_data.get("args"):
+            parsed_data["args"] = {"None": "This function takes no arguments"}
+        
         # Create DocstringOutput from parsed data
         return DocstringOutput(
             summary=parsed_data.get("summary", ""),
-            args=parsed_data.get("args", {}),
+            args=parsed_data.get("args", {"None": "This function takes no arguments"}),
             returns=parsed_data.get("returns", "")
         )
         
     except Exception as e:
         print(f"Error generating docstring: {e}")
-        # Return an empty docstring object rather than failing
+        # Return a docstring object with default values
         return DocstringOutput(
             summary="No documentation available",
-            args={},
+            args={"None": "This function takes no arguments"},
             returns="None"
         )
 
