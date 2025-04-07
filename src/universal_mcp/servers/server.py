@@ -85,7 +85,7 @@ class LocalServer(Server):
         if integration_config.type == "api_key":
             store = self._get_store(integration_config.store)
             integration = ApiKeyIntegration(integration_config.name, store=store)
-            logger.info(f"Adding integration to dict: Name='{integration.name}'") # ADD LOGGING HERE
+            logger.info(f"Adding integration to dict: Name='{integration.name}'")
             self.integrations_by_name[integration.name] = integration
             if integration_config.credentials:
                 integration.set_credentials(integration_config.credentials)
