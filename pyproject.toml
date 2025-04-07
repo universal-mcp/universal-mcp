@@ -39,6 +39,9 @@ dev = [
 e2b = [
     "e2b-code-interpreter>=1.2.0",
 ]
+firecrawl=[
+    "firecrawl-py>=1.15.0",
+]
 [project.scripts]
 universal_mcp = "universal_mcp.cli:app"
 
