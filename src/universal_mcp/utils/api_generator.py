@@ -3,9 +3,13 @@ import ast
 import base64
 import importlib.util
 import inspect
-from pathlib import Path
+import json
 import traceback
-from typing import Optional
+from pathlib import Path
+from typing import Optional, Dict, Any
+
+from universal_mcp.utils.openapi import generate_api_client, load_schema
+from universal_mcp.utils.docgen import process_file
 
 def echo(message: str, err: bool = False):
     """Echo a message to the console, with optional error flag."""
@@ -27,42 +31,39 @@ async def generate_api_from_schema(
     Returns:
         dict: A dictionary with information about the generated files
     """
+    # Validate schema file existence
     if not schema_path.exists():
         echo(f"Error: Schema file {schema_path} does not exist", err=True)
         raise FileNotFoundError(f"Schema file {schema_path} does not exist")
     
-    from universal_mcp.utils.openapi import generate_api_client, load_schema
-    
+    # Load and parse the OpenAPI schema
     try:
         schema = load_schema(schema_path)
     except Exception as e:
         echo(f"Error loading schema: {e}", err=True)
         raise
     
+    # Generate API client code from schema
     code = generate_api_client(schema)
     
-    # If no output path is provided, just return the code
+    # Return generated code if no output path specified
     if not output_path:
         return {"code": code}
     
-    # Determine the folder name for the application
-    folder_name = output_path.stem  # Get filename without extension
-    
-    # Create a temporary file for docstring processing
+    folder_name = output_path.stem
     temp_output_path = output_path
     
-    # Save to file if output path is provided
+    # Write generated code to file
     with open(temp_output_path, "w") as f:
         f.write(code)
     echo(f"Generated API client at: {temp_output_path}")
     
-    # Verify the file was written correctly
+    # Verify file contents and perform syntax check
     try:
         with open(temp_output_path, "r") as f:
             file_content = f.read()
             echo(f"Successfully wrote {len(file_content)} bytes to {temp_output_path}")
             
-            # Basic syntax check
             try:
                 ast.parse(file_content)
                 echo("Python syntax check passed")
@@ -71,21 +72,18 @@ async def generate_api_from_schema(
     except Exception as e:
         echo(f"Error verifying output file: {e}", err=True)
     
-    # Add docstrings if requested
+    # Handle docstring generation if enabled
     if add_docstrings:
-        from universal_mcp.utils.docgen import process_file
-        
         async def run_docstring():
-            # Convert output_path to string if it's a Path object
             script_path = str(temp_output_path)
             echo(f"Adding docstrings to {script_path}...")
             
-            # Debug: Check if the file exists
+            # Verify file existence before processing
             if not os.path.exists(script_path):
                 echo(f"Warning: File {script_path} does not exist", err=True)
                 return {"functions_processed": 0}
             
-            # Debug: Try reading the file
+            # Read file content for docstring processing
             try:
                 with open(script_path, "r") as f:
                     content = f.read()
@@ -94,8 +92,8 @@ async def generate_api_from_schema(
                 echo(f"Error reading file for docstring generation: {e}", err=True)
                 return {"functions_processed": 0}
             
+            # Process file to add docstrings
             try:
-                # Process the file using the new docgen module
                 processed = process_file(script_path)
                 return {"functions_processed": processed}
             except Exception as e:
@@ -103,39 +101,32 @@ async def generate_api_from_schema(
                 traceback.print_exc()
                 return {"functions_processed": 0}
         
+        # Execute docstring generation
         result = await run_docstring()
         
         if result:
             if "functions_processed" in result:
                 echo(f"Processed {result['functions_processed']} functions")
-            
-            # With the new docgen module, we directly modify the original file
-            # so we don't need to look for a different file
             source_file = temp_output_path
         else:
             echo("Docstring generation failed", err=True)
-            # Fall back to the original file without docstrings
             source_file = temp_output_path
     else:
-        # Use the original file without docstrings
         source_file = temp_output_path
         echo("Skipping docstring generation as requested")
     
-    # Now create the application folder structure regardless of docstring generation
-    # Get the path to the applications directory
+    # Set up application directory structure
     applications_dir = Path(__file__).parent.parent / "applications"
-    
-    # Create a new directory for this application
     app_dir = applications_dir / folder_name
     app_dir.mkdir(exist_ok=True)
     
-    # Create __init__.py if it doesn't exist
+    # Create __init__.py for Python package
     init_file = app_dir / "__init__.py"
     if not init_file.exists():
         with open(init_file, "w") as f:
             f.write("")
     
-    # Copy the content to app.py in the new directory
+    # Copy generated code to final location
     app_file = app_dir / "app.py"
     with open(source_file, "r") as src, open(app_file, "w") as dest:
         app_content = src.read()
@@ -143,19 +134,17 @@ async def generate_api_from_schema(
     
     echo(f"API client installed at: {app_file}")
     
-    # Generate README.md file with function docs
+    # Generate README.md with API documentation
     readme_file = None
     try:
         echo("Generating README.md from function information...")
         
-        # Import the generated class and inspect it directly
-        
-        # Create a module spec and import the module
+        # Import generated module for inspection
         spec = importlib.util.spec_from_file_location("temp_module", app_file)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         
-        # Find the class in the module
+        # Find the main class in the generated module
         class_name = None
         class_obj = None
         for name, obj in inspect.getmembers(module):
@@ -167,120 +156,58 @@ async def generate_api_from_schema(
         if not class_name:
             class_name = folder_name.capitalize() + "App"
         
-        # Find list_tools method to identify the tools
+        # Collect tool information from the class
         tools = []
         
-        # First attempt: Try to get tools from list_tools method
+        # Method 1: Try to get tools from list_tools method
         if class_obj and hasattr(class_obj, 'list_tools'):
-            # Create an instance of the class to call list_tools
             try:
-                # Try to create an instance without arguments
                 instance = class_obj()
                 tool_list_func = getattr(instance, 'list_tools')
                 tool_list = tool_list_func()
                 
-                # Extract function objects from the list
                 for tool in tool_list:
                     func_name = tool.__name__
                     if func_name.startswith('_') or func_name in ('__init__', 'list_tools'):
                         continue
                     
-                    # Get the docstring
                     doc = tool.__doc__ or f"Function for {func_name.replace('_', ' ')}"
-                    # Get first paragraph as summary
                     summary = doc.split('\n\n')[0].strip()
                     tools.append((func_name, summary))
             except Exception as e:
                 echo(f"Note: Couldn't instantiate class to get tool list: {e}")
         
-        # Second attempt: If no tools found, look at all class methods
+        # Method 2: Fall back to inspecting class methods directly
         if not tools and class_obj:
             for name, method in inspect.getmembers(class_obj, inspect.isfunction):
                 if name.startswith('_') or name in ('__init__', 'list_tools'):
                     continue
                 
-                # Get the docstring
                 doc = method.__doc__ or f"Function for {name.replace('_', ' ')}"
-                # Get first paragraph as summary
                 summary = doc.split('\n\n')[0].strip()
                 tools.append((name, summary))
         
-        # Generate content in HTML format that MarkitdownApp can convert
-        html_content = f"<h1>{folder_name.replace('_', ' ').title()} Tool</h1>"
-        html_content += f"<p>This is generated from openapi schema for the {folder_name.replace('_', ' ').title()} API.</p>"
+        # Generate README content
+        readme_content = f"# {folder_name.replace('_', ' ').title()} Tool\n\n"
+        readme_content += f"This is automatically generated from OpenAPI schema for the {folder_name.replace('_', ' ').title()} API.\n\n"
         
-        # Add Supported Integrations section (before Tool List)
-        html_content += "<h2>Supported Integrations</h2>"
-        html_content += "<p></p>"
+        readme_content += "## Supported Integrations\n\n"
+        readme_content += "This tool can be integrated with any service that supports HTTP requests.\n\n"
         
-        # Add Tools section with table format
-        html_content += "<h2>Tool List</h2>"
+        readme_content += "## Tool List\n\n"
         
-        # Create a table for tools
         if tools:
-            html_content += "<table>"
-            html_content += "<tr><th>Tool</th><th>Description</th></tr>"
+            readme_content += "| Tool | Description |\n"
+            readme_content += "|------|-------------|\n"
             
             for tool_name, tool_desc in tools:
-                html_content += f"<tr><td>{tool_name}</td><td>{tool_desc}</td></tr>"
+                readme_content += f"| {tool_name} | {tool_desc} |\n"
             
-            html_content += "</table>"
+            readme_content += "\n"
         else:
-            html_content += "<p>No tools with documentation were found in this API client.</p>"
+            readme_content += "No tools with documentation were found in this API client.\n\n"
         
-        # Try to use the MarkitdownApp to convert HTML to Markdown
-        from universal_mcp.applications.markitdown.app import MarkitdownApp
-        
-        async def convert_async():
-            try:
-                markitdown = MarkitdownApp()
-                
-                # Create a data URI with the HTML content for MarkitdownApp
-                encoded_html = base64.b64encode(html_content.encode('utf-8')).decode('utf-8')
-                data_uri = f"data:text/html;base64,{encoded_html}"
-                
-                # Check if convert_to_markdown is a coroutine function
-                if inspect.iscoroutinefunction(markitdown.convert_to_markdown):
-                    result = await markitdown.convert_to_markdown(data_uri)
-                else:
-                    # If it's a regular function, just call it
-                    result = markitdown.convert_to_markdown(data_uri)
-                    
-                if isinstance(result, str):
-                    return result
-                return "# Tool Documentation\n\nNo documentation available."
-            except Exception as e:
-                echo(f"Error converting HTML to Markdown: {e}", err=True)
-                
-                # Fallback to direct markdown formatting if MarkitdownApp fails
-                readme_content = f"# {folder_name.replace('_', ' ').title()} Tool\n\n"
-                readme_content += f"This is automatically generated from openapi schema for the {folder_name.replace('_', ' ').title()} API.\n\n"
-                
-                # Add Supported Integrations section (before Tool List)
-                readme_content += "## Supported Integrations\n\n"
-                readme_content += "\n\n"
-                
-                # Add Tools section with table format
-                readme_content += "## Tool List\n\n"
-                
-                if tools:
-                    # Create markdown table for tools
-                    readme_content += "| Tool | Description |\n"
-                    readme_content += "|------|-------------|\n"
-                    
-                    for tool_name, tool_desc in tools:
-                        readme_content += f"| {tool_name} | {tool_desc} |\n"
-                    
-                    readme_content += "\n"
-                else:
-                    readme_content += "No tools with documentation were found in this API client.\n\n"
-                
-                return readme_content
-        
-        # Write HTML content to README if markdown conversion fails
-        readme_content = await convert_async()
-        
-        # Write the README file
+        # Write README file
         readme_file = app_dir / "README.md"
         with open(readme_file, "w") as f:
             f.write(readme_content)
@@ -289,7 +216,7 @@ async def generate_api_from_schema(
     except Exception as e:
         echo(f"Error generating documentation: {e}", err=True)
     
-    # Clean up temporary file if needed
+    # Clean up temporary files
     if output_path != temp_output_path and os.path.exists(temp_output_path):
         try:
             os.remove(temp_output_path)
