@@ -122,21 +122,16 @@ class LocalServer(Server):
         )
                 
     async def set_integration_credential(self, integration_name: str, api_key_value: str) -> str:
-        
         integration = self.integrations_by_name.get(integration_name)
         if not integration:
             return f"Error: Integration '{integration_name}' is not configured on this server."
-
         if isinstance(integration, ApiKeyIntegration):
             integration.set_credentials({"api_key": api_key_value})
             return f"Successfully stored credential for integration '{integration_name}'."
 
     async def delete_integration_credential(self, integration_name: str) -> str:
-
-        logger.info(f"Attempting to delete credential for integration: {integration_name}")
         integration = self.integrations_by_name.get(integration_name)
         integration.store.delete(integration.name)
-        logger.info(f"Successfully deleted credential for integration: {integration_name}")
         return f"Successfully deleted stored credential for integration '{integration_name}'."
 
 class AgentRServer(Server):

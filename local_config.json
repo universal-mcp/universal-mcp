@@ -5,12 +5,20 @@
     "transport": "sse",
     "apps": [
         {
-            "name": "markitdown"
-        },
-        {
             "name": "e2b",
             "integration": {
                 "name": "E2B_API_KEY",
+                "type": "api_key",
+                "store": {
+                    "type": "keyring",
+                    "name": "playground_keys"
+                }
+            }
+        },
+        {
+            "name": "firecrawl",
+            "integration": {
+                "name": "FIRECRAWL_API_KEY",
                 "type": "api_key",
                 "store": {
                     "type": "keyring",

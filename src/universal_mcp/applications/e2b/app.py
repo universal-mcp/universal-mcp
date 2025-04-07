@@ -58,7 +58,7 @@ class E2bApp(APIApplication):
             indicating that the API key is required.
         """
         current_api_key = None
-        integration_name = "E2B" # Default name if no integration
+        integration_name = "E2B_API_KEY"
         if self.integration:
             integration_name = self.integration.name
             credentials = self.integration.get_credentials()
