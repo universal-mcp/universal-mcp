@@ -1,6 +1,7 @@
 import typer
 from pathlib import Path
 import asyncio
+import os
 
 from universal_mcp.utils.installation import (
     get_supported_apps,
@@ -48,6 +49,37 @@ def generate(
                 typer.echo(f"Documentation: {result['readme_file']}")
     except Exception as e:
         typer.echo(f"Error generating API client: {e}", err=True)
+        import traceback
+        traceback.print_exc()
+        raise typer.Exit(1)
+
+
+@app.command()
+def docgen(
+    file_path: Path = typer.Argument(..., help="Path to the Python file to process"),
+    model: str = typer.Option("anthropic/claude-3-sonnet-20240229", "--model", "-m", help="Model to use for generating docstrings"),
+    api_key: str = typer.Option(None, "--api-key", help="Anthropic API key (can also be set via ANTHROPIC_API_KEY environment variable)"),
+):
+    """Generate docstrings for Python files using LLMs.
+    
+    This command uses litellm with structured output to generate high-quality
+    Google-style docstrings for all functions in the specified Python file.
+    """
+    from universal_mcp.utils.docgen import process_file
+    
+    if not file_path.exists():
+        typer.echo(f"Error: File not found: {file_path}", err=True)
+        raise typer.Exit(1)
+    
+    # Set API key if provided
+    if api_key:
+        os.environ["ANTHROPIC_API_KEY"] = api_key
+    
+    try:
+        processed = process_file(str(file_path), model)
+        typer.echo(f"Successfully processed {processed} functions")
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
         import traceback
         traceback.print_exc()
         raise typer.Exit(1)

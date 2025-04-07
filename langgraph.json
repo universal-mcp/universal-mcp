@@ -1,7 +1,0 @@
-{
-  "dependencies": ["."],
-  "graphs": {
-    "agent": "./src/universal_mcp/react_agent/graph.py:graph"
-  },
-  "env": ".env"
-}

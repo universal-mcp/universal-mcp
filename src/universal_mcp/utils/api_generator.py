@@ -73,7 +73,7 @@ async def generate_api_from_schema(
     
     # Add docstrings if requested
     if add_docstrings:
-        from universal_mcp.react_agent.graph import graph
+        from universal_mcp.utils.docgen import process_file
         
         async def run_docstring():
             # Convert output_path to string if it's a Path object
@@ -83,7 +83,7 @@ async def generate_api_from_schema(
             # Debug: Check if the file exists
             if not os.path.exists(script_path):
                 echo(f"Warning: File {script_path} does not exist", err=True)
-                return None
+                return {"functions_processed": 0}
             
             # Debug: Try reading the file
             try:
@@ -92,44 +92,26 @@ async def generate_api_from_schema(
                     echo(f"Successfully read {len(content)} bytes from {script_path}")
             except Exception as e:
                 echo(f"Error reading file for docstring generation: {e}", err=True)
-                return None
-            
-            # Create input state with target_script_path
-            input_state = {"target_script_path": script_path}
-            echo(f"Passing input state: {input_state}")
+                return {"functions_processed": 0}
             
             try:
-                result = await graph.ainvoke(
-                    input_state, 
-                    {"recursion_limit": 100}
-                )
-                return result
+                # Process the file using the new docgen module
+                processed = process_file(script_path)
+                return {"functions_processed": processed}
             except Exception as e:
                 echo(f"Error running docstring generation: {e}", err=True)
                 traceback.print_exc()
-                return None
+                return {"functions_processed": 0}
         
         result = await run_docstring()
         
         if result:
-            # Get the path to the file with docstrings (the _new file)
-            output_dir = temp_output_path.parent
-            file_name = temp_output_path.name
-            file_name_without_ext, ext = os.path.splitext(file_name)
-            new_file_path = output_dir / f"{file_name_without_ext}_new{ext}"
-            
             if "functions_processed" in result:
                 echo(f"Processed {result['functions_processed']} functions")
             
-            if os.path.exists(new_file_path):
-                echo(f"Temporary file with docstrings generated at: {new_file_path}")
-                
-                # Use the file with docstrings for the application
-                source_file = new_file_path
-            else:
-                echo(f"Error: Expected output file {new_file_path} not found", err=True)
-                # Fall back to the original file without docstrings
-                source_file = temp_output_path
+            # With the new docgen module, we directly modify the original file
+            # so we don't need to look for a different file
+            source_file = temp_output_path
         else:
             echo("Docstring generation failed", err=True)
             # Fall back to the original file without docstrings
@@ -138,9 +120,6 @@ async def generate_api_from_schema(
         # Use the original file without docstrings
         source_file = temp_output_path
         echo("Skipping docstring generation as requested")
-        
-        # Ensure new_file_path is defined even when skipping docstrings
-        new_file_path = None
     
     # Now create the application folder structure regardless of docstring generation
     # Get the path to the applications directory
@@ -249,77 +228,76 @@ async def generate_api_from_schema(
         else:
             html_content += "<p>No tools with documentation were found in this API client.</p>"
         
-        # Use MarkitdownApp to convert the HTML to markdown
-        try:
-            from universal_mcp.applications.markitdown.app import MarkitdownApp
-            markitdown_app = MarkitdownApp()
-            
-            # Create a data URI with the HTML content
-            encoded_html = base64.b64encode(html_content.encode('utf-8')).decode('utf-8')
-            data_uri = f"data:text/html;base64,{encoded_html}"
-            
-            # Convert to markdown - handle the async function
-            async def convert_async():
-                return await markitdown_app.convert_to_markdown(data_uri)
-            
-            markdown_content = await convert_async()
-            
-            # Write README.md file
-            readme_file = app_dir / "README.md"
-            with open(readme_file, "w") as f:
-                f.write(markdown_content)
-            
-            echo(f"Documentation generated at: {readme_file} using MarkitdownApp")
-        except Exception as e:
-            echo(f"Error using MarkitdownApp, falling back to direct markdown: {e}")
-            
-            # Fallback to direct markdown formatting if MarkitdownApp fails
-            readme_content = f"# {folder_name.replace('_', ' ').title()} Tool\n\n"
-            readme_content += f"This is automatically generated from openapi schema for the {folder_name.replace('_', ' ').title()} API.\n\n"
-            
-            # Add Supported Integrations section (before Tool List)
-            readme_content += "## Supported Integrations\n\n"
-            readme_content += "\n\n"
-            
-            # Add Tools section with table format
-            readme_content += "## Tool List\n\n"
-            
-            if tools:
-                # Create markdown table for tools
-                readme_content += "| Tool | Description |\n"
-                readme_content += "|------|-------------|\n"
+        # Try to use the MarkitdownApp to convert HTML to Markdown
+        from universal_mcp.applications.markitdown.app import MarkitdownApp
+        
+        async def convert_async():
+            try:
+                markitdown = MarkitdownApp()
                 
-                for tool_name, tool_desc in tools:
-                    readme_content += f"| {tool_name} | {tool_desc} |\n"
+                # Create a data URI with the HTML content for MarkitdownApp
+                encoded_html = base64.b64encode(html_content.encode('utf-8')).decode('utf-8')
+                data_uri = f"data:text/html;base64,{encoded_html}"
                 
-                readme_content += "\n"
-            else:
-                readme_content += "No tools with documentation were found in this API client.\n\n"
-            
-            # Write README.md file as direct markdown
-            readme_file = app_dir / "README.md"
-            with open(readme_file, "w") as f:
-                f.write(readme_content)
-            
-            echo(f"Documentation generated at: {readme_file} using direct markdown")
-            
+                # Check if convert_to_markdown is a coroutine function
+                if inspect.iscoroutinefunction(markitdown.convert_to_markdown):
+                    result = await markitdown.convert_to_markdown(data_uri)
+                else:
+                    # If it's a regular function, just call it
+                    result = markitdown.convert_to_markdown(data_uri)
+                    
+                if isinstance(result, str):
+                    return result
+                return "# Tool Documentation\n\nNo documentation available."
+            except Exception as e:
+                echo(f"Error converting HTML to Markdown: {e}", err=True)
+                
+                # Fallback to direct markdown formatting if MarkitdownApp fails
+                readme_content = f"# {folder_name.replace('_', ' ').title()} Tool\n\n"
+                readme_content += f"This is automatically generated from openapi schema for the {folder_name.replace('_', ' ').title()} API.\n\n"
+                
+                # Add Supported Integrations section (before Tool List)
+                readme_content += "## Supported Integrations\n\n"
+                readme_content += "\n\n"
+                
+                # Add Tools section with table format
+                readme_content += "## Tool List\n\n"
+                
+                if tools:
+                    # Create markdown table for tools
+                    readme_content += "| Tool | Description |\n"
+                    readme_content += "|------|-------------|\n"
+                    
+                    for tool_name, tool_desc in tools:
+                        readme_content += f"| {tool_name} | {tool_desc} |\n"
+                    
+                    readme_content += "\n"
+                else:
+                    readme_content += "No tools with documentation were found in this API client.\n\n"
+                
+                return readme_content
+        
+        # Write HTML content to README if markdown conversion fails
+        readme_content = await convert_async()
+        
+        # Write the README file
+        readme_file = app_dir / "README.md"
+        with open(readme_file, "w") as f:
+            f.write(readme_content)
+        
+        echo(f"Documentation generated at: {readme_file}")
     except Exception as e:
-        echo(f"Warning: Failed to generate README.md: {e}", err=True)
-        traceback.print_exc()
+        echo(f"Error generating documentation: {e}", err=True)
     
-    # Clean up temporary files if needed
-    if os.path.exists(temp_output_path):
-        os.remove(temp_output_path)
-        echo(f"Temporary file {temp_output_path} removed")
-    
-    if new_file_path and os.path.exists(new_file_path) and new_file_path != temp_output_path:
-        os.remove(new_file_path)
-        echo(f"Temporary file {new_file_path} removed")
+    # Clean up temporary file if needed
+    if output_path != temp_output_path and os.path.exists(temp_output_path):
+        try:
+            os.remove(temp_output_path)
+            echo(f"Removed temporary file: {temp_output_path}")
+        except Exception as e:
+            echo(f"Warning: Could not remove temporary file {temp_output_path}: {e}", err=True)
     
     return {
         "app_file": str(app_file),
-        "readme_file": str(readme_file) if readme_file else None,
-        "folder_name": folder_name,
-        "class_name": class_name if 'class_name' in locals() else None,
-        "tools": tools if 'tools' in locals() else []
+        "readme_file": str(readme_file) if readme_file else None
     } 
