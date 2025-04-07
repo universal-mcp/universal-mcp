@@ -15,6 +15,7 @@ dependencies = [
     "pyyaml>=6.0.2",
     "typer>=0.15.2",
     "markitdown[all]>=0.1.1",
+    "litellm>=1.30.7",
 ]
 
 [project.optional-dependencies]
@@ -40,3 +41,7 @@ universal_mcp = "universal_mcp.cli:app"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
