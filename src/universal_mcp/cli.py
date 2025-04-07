@@ -1,7 +1,7 @@
 from pathlib import Path
-
+import asyncio
+import os
 import typer
-
 from universal_mcp.utils.installation import (
     get_supported_apps,
     install_claude,
@@ -12,20 +12,93 @@ app = typer.Typer()
 
 
 @app.command()
-def generate(schema_path: Path = typer.Option(..., "--schema", "-s")):
-    """Generate API client from OpenAPI schema"""
+def generate(
+    schema_path: Path = typer.Option(..., "--schema", "-s"),
+    output_path: Path = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path - should match the API name (e.g., 'twitter.py' for Twitter API)",
+    ),
+    add_docstrings: bool = typer.Option(
+        True, "--docstrings/--no-docstrings", help="Add docstrings to generated code"
+    ),
+):
+    """Generate API client from OpenAPI schema with optional docstring generation.
+
+    The output filename should match the name of the API in the schema (e.g., 'twitter.py' for Twitter API).
+    This name will be used for the folder in applications/ and as a prefix for function names.
+    """
+    # Import here to avoid circular imports
+    from universal_mcp.utils.api_generator import generate_api_from_schema
+
     if not schema_path.exists():
         typer.echo(f"Error: Schema file {schema_path} does not exist", err=True)
         raise typer.Exit(1)
-    from .utils.openapi import generate_api_client, load_schema
 
     try:
-        schema = load_schema(schema_path)
+        # Run the async function in the event loop
+        result = asyncio.run(
+            generate_api_from_schema(
+                schema_path=schema_path,
+                output_path=output_path,
+                add_docstrings=add_docstrings,
+            )
+        )
+
+        if not output_path:
+            # Print to stdout if no output path
+            print(result["code"])
+        else:
+            typer.echo("API client successfully generated and installed.")
+            if "app_file" in result:
+                typer.echo(f"Application file: {result['app_file']}")
+            if "readme_file" in result and result["readme_file"]:
+                typer.echo(f"Documentation: {result['readme_file']}")
     except Exception as e:
-        typer.echo(f"Error loading schema: {e}", err=True)
+        typer.echo(f"Error generating API client: {e}", err=True)
         raise typer.Exit(1) from e
-    code = generate_api_client(schema)
-    print(code)
+
+
+@app.command()
+def docgen(
+    file_path: Path = typer.Argument(..., help="Path to the Python file to process"),
+    model: str = typer.Option(
+        "anthropic/claude-3-sonnet-20240229",
+        "--model",
+        "-m",
+        help="Model to use for generating docstrings",
+    ),
+    api_key: str = typer.Option(
+        None,
+        "--api-key",
+        help="Anthropic API key (can also be set via ANTHROPIC_API_KEY environment variable)",
+    ),
+):
+    """Generate docstrings for Python files using LLMs.
+
+    This command uses litellm with structured output to generate high-quality
+    Google-style docstrings for all functions in the specified Python file.
+    """
+    from universal_mcp.utils.docgen import process_file
+
+    if not file_path.exists():
+        typer.echo(f"Error: File not found: {file_path}", err=True)
+        raise typer.Exit(1)
+
+    # Set API key if provided
+    if api_key:
+        os.environ["ANTHROPIC_API_KEY"] = api_key
+
+    try:
+        processed = process_file(str(file_path), model)
+        typer.echo(f"Successfully processed {processed} functions")
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        import traceback
+
+        traceback.print_exc()
+        raise typer.Exit(1) from e
 
 
 @app.command()
