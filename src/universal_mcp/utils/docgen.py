@@ -6,8 +6,7 @@ using LLMs with structured output
 
 import ast
 import os
-import re
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional
 
 import litellm
 from pydantic import BaseModel, Field

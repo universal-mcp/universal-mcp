@@ -1,12 +1,10 @@
 import os
 import ast
-import base64
 import importlib.util
 import inspect
-import json
 import traceback
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional
 
 from universal_mcp.utils.openapi import generate_api_client, load_schema
 from universal_mcp.utils.docgen import process_file
