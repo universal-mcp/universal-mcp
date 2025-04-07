@@ -1,9 +1,10 @@
-from typing import Optional
-from loguru import logger
+
 from e2b_code_interpreter import Sandbox
+from loguru import logger
 
 from universal_mcp.applications.application import APIApplication
 from universal_mcp.integrations import Integration
+
 
 class E2bApp(APIApplication):
     """
@@ -11,9 +12,9 @@ class E2bApp(APIApplication):
     to execute Python code.
     """
 
-    def __init__(self, integration: Optional[Integration] = None) -> None:
+    def __init__(self, integration: Integration | None = None) -> None:
         super().__init__(name="e2b", integration=integration)
-        self.api_key: Optional[str] = None
+        self.api_key: str | None = None
 
         if self.integration is not None:
             credentials = self.integration.get_credentials()
