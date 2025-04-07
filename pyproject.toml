@@ -36,6 +36,9 @@ dev = [
     "pyright>=1.1.398",
     "litellm>=1.30.7",
 ]
+e2b = [
+    "e2b-code-interpreter>=1.2.0",
+]
 [project.scripts]
 universal_mcp = "universal_mcp.cli:app"
 
