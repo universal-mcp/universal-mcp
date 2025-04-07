@@ -11,7 +11,7 @@ from mcp.types import TextContent
 from universal_mcp.applications import app_from_name
 from universal_mcp.config import AppConfig, IntegrationConfig, StoreConfig
 from universal_mcp.exceptions import NotAuthorizedError
-from universal_mcp.integrations import AgentRIntegration, ApiKeyIntegration,Integration
+from universal_mcp.integrations import AgentRIntegration, ApiKeyIntegration, Integration
 from universal_mcp.stores import store_from_config
 from universal_mcp.stores.store import (
     EnvironmentStore,
@@ -116,7 +116,6 @@ class LocalServer(Server):
             description="Stores an API key credential for a specific integration using its configured persistent store (e.g., keyring)."
         )
 
-    # --- ADD THIS NEW METHOD ---
     async def set_integration_credential(self, integration_name: str, api_key_value: str) -> str:
         """
         Stores the API key for the specified integration name using its configured store.
@@ -136,10 +135,8 @@ class LocalServer(Server):
             logger.error(f"Integration '{integration_name}' not found or not loaded by the server.")
             return f"Error: Integration '{integration_name}' is not configured on this server."
 
-        # Check if it's an integration type we can handle (currently ApiKeyIntegration)
         if isinstance(integration, ApiKeyIntegration):
             try:
-                # The set_credentials method for ApiKeyIntegration handles the store interaction
                 integration.set_credentials({"api_key": api_key_value})
                 logger.info(f"Successfully stored API key for {integration_name} via its store.")
                 return f"Successfully stored API key for '{integration_name}'."

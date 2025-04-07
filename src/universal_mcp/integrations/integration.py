@@ -78,11 +78,11 @@ class ApiKeyIntegration(Integration):
         logger.info(f"Initializing API Key Integration: {name} with store: {store}")
 
     def get_credentials(self):
-        api_key_value = self.store.get(self.name) # Returns string or None
+        api_key_value = self.store.get(self.name)
         if api_key_value:
-            return {"api_key": api_key_value} # Return dict if key found
+            return {"api_key": api_key_value}
         else:
-            return None # Return None if key not found
+            return None 
         
     def set_credentials(self, credentials: dict):
         if not isinstance(credentials, dict):
@@ -96,7 +96,6 @@ class ApiKeyIntegration(Integration):
         if not isinstance(api_key_value, str):
              raise ValueError("The value for 'api_key' must be a string.")
 
-        # Now pass the extracted string value to the store's set method
         self.store.set(self.name, api_key_value)
 
     def authorize(self):
