@@ -5,7 +5,17 @@
     "transport": "sse",
     "apps": [
         {
-            "name": "zenquotes"
+            "name": "markitdown"
+        },
+        {
+            "name": "e2b",
+            "integration": {
+                "name": "E2B_API_KEY",
+                "type": "api_key",
+                "store": {
+                    "type": "environment"
+                }
+            }
         }
     ]
 }

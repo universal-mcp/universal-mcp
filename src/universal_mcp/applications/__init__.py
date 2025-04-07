@@ -1,4 +1,5 @@
 from universal_mcp.applications.application import APIApplication, Application
+from universal_mcp.applications.e2b.app import E2bApp
 from universal_mcp.applications.github.app import GithubApp
 from universal_mcp.applications.google_calendar.app import GoogleCalendarApp
 from universal_mcp.applications.google_mail.app import GmailApp
@@ -28,6 +29,8 @@ def app_from_name(name: str):
         return RedditApp
     elif name == "markitdown":
         return MarkitdownApp
+    elif name == "e2b":
+        return E2bApp
     else:
         raise ValueError(f"App {name} not found")
 
