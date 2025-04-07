@@ -109,10 +109,9 @@ class LocalServer(Server):
                     description = tool.__doc__
                     self.add_tool(tool, name=name, description=description)
                     
-        logger.info("Registering server management tools.")
         self.add_tool(
             self.set_integration_credential,
-            name="server_set_integration_credential", # The name the agent will use
+            name="server_set_integration_credential",
             description="Stores an API key credential for a specific integration using its configured persistent store (e.g., keyring)."
         )
 
@@ -123,29 +122,13 @@ class LocalServer(Server):
         Args:
             integration_name: The name of the integration (e.g., 'E2B_API_KEY').
             api_key_value: The actual API key string to store.
-
-        Returns:
-            A confirmation or error message string.
         """
-        logger.info(f"Attempting to set credential for integration: {integration_name}")
-
         integration = self.integrations_by_name.get(integration_name)
-
         if not integration:
-            logger.error(f"Integration '{integration_name}' not found or not loaded by the server.")
             return f"Error: Integration '{integration_name}' is not configured on this server."
 
         if isinstance(integration, ApiKeyIntegration):
-            try:
-                integration.set_credentials({"api_key": api_key_value})
-                logger.info(f"Successfully stored API key for {integration_name} via its store.")
-                return f"Successfully stored API key for '{integration_name}'."
-            except Exception as e:
-                logger.error(f"Failed to store API key for {integration_name} using its store: {e}")
-                return f"Error: Failed to store API key for '{integration_name}'. Reason: {e}"
-        else:
-            logger.warning(f"Integration '{integration_name}' is not of type ApiKeyIntegration. Cannot set API key.")
-            return f"Error: Cannot set API key for integration '{integration_name}' (unsupported type: {type(integration).__name__})."
+            integration.set_credentials({"api_key": api_key_value})
 
 class AgentRServer(Server):
     """

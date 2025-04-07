@@ -87,15 +87,11 @@ class ApiKeyIntegration(Integration):
     def set_credentials(self, credentials: dict):
         if not isinstance(credentials, dict):
              raise ValueError("Credentials must be provided as a dictionary.")
-
-        api_key_value = credentials.get("api_key") # Get the value associated with 'api_key'
-
+        api_key_value = credentials.get("api_key")
         if api_key_value is None:
             raise ValueError("Credentials dictionary must contain an 'api_key' key.")
-
         if not isinstance(api_key_value, str):
              raise ValueError("The value for 'api_key' must be a string.")
-
         self.store.set(self.name, api_key_value)
 
     def authorize(self):
