@@ -6,6 +6,16 @@
     "apps": [
         {
             "name": "zenquotes"
+        },
+        {
+            "name": "firecrawl",
+            "integration": {
+                "name": "FIRECRAWL_API_KEY",
+                "type": "api_key",
+                "store": {
+                    "type": "environment"
+                }
+            }
         }
     ]
 }

@@ -7,7 +7,7 @@ from universal_mcp.applications.reddit.app import RedditApp
 from universal_mcp.applications.resend.app import ResendApp
 from universal_mcp.applications.tavily.app import TavilyApp
 from universal_mcp.applications.zenquotes.app import ZenQuoteApp
-
+from universal_mcp.applications.firecrawl.app import FirecrawlApp
 
 def app_from_name(name: str):
     name = name.lower().strip()
@@ -28,6 +28,8 @@ def app_from_name(name: str):
         return RedditApp
     elif name == "markitdown":
         return MarkitdownApp
+    elif name == "firecrawl":
+        return FirecrawlApp
     else:
         raise ValueError(f"App {name} not found")
 

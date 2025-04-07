@@ -486,6 +486,22 @@ standard = [
 ]
 
 [[package]]
+name = "firecrawl-py"
+version = "1.15.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "nest-asyncio" },
+    { name = "pydantic" },
+    { name = "python-dotenv" },
+    { name = "requests" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cf/70/44798abbdba2e7d0a330ab31b32b27bf830bd47d1b6fdfa692f615482e96/firecrawl_py-1.15.0.tar.gz", hash = "sha256:8136968d51a43b40ba3114630997c3a0ca12cdd817855cd9332163327630fff0", size = 21120 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cd/af/7e0cde1ec66bac63e90e54f38675b0e71be02b6c6194705c425ec0c52b3e/firecrawl_py-1.15.0-py3-none-any.whl", hash = "sha256:a7e0496978b048316dba0e87a8c43dc39f36c6390c7b467a41a538fc65181a7c", size = 34859 },
+]
+
+[[package]]
 name = "flatbuffers"
 version = "25.2.10"
 source = { registry = "https://pypi.org/simple" }
@@ -1231,6 +1247,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/85/fd/484aa8bb557f97a1781f38c78b79f795a2fa320e4165c4230f679937d1e8/narwhals-1.33.0.tar.gz", hash = "sha256:6233d2457debf4b5fe4a1da54530c6fe2d84326f4a8e3bca35bbbff580a347cb", size = 262554 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/41/c1/e9bc6b67c774e7c1f939c91ea535f18f7644fedc61b20d6baa861ad52b34/narwhals-1.33.0-py3-none-any.whl", hash = "sha256:f653319112fd121a1f1c18a40cf70dada773cdacfd53e62c2aa0afae43c17129", size = 322750 },
+]
+
+[[package]]
+name = "nest-asyncio"
+version = "1.6.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/83/f8/51569ac65d696c8ecbee95938f89d4abf00f47d58d48f6fbabfe8f0baefe/nest_asyncio-1.6.0.tar.gz", hash = "sha256:6f172d5449aca15afd6c646851f4e31e02c598d553a667e38cafa997cfec55fe", size = 7418 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a0/c4/c2971a3ba4c6103a3d10c4b0f24f461ddc027f0f09763220cf35ca1401b3/nest_asyncio-1.6.0-py3-none-any.whl", hash = "sha256:87af6efd6b5e897c81050477ef65c62e2b2f35d51703cae01aff2905b1852e1c", size = 5195 },
 ]
 
 [[package]]
@@ -2295,6 +2320,7 @@ name = "universal-mcp"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "firecrawl-py" },
     { name = "keyring" },
     { name = "loguru" },
     { name = "markitdown", extra = ["all"] },
@@ -2324,6 +2350,7 @@ playground = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", extras = ["standard"], marker = "extra == 'playground'", specifier = ">=0.115.12" },
+    { name = "firecrawl-py", specifier = ">=1.15.0" },
     { name = "keyring", specifier = ">=25.6.0" },
     { name = "langchain-anthropic", marker = "extra == 'playground'", specifier = ">=0.3.10" },
     { name = "langchain-mcp-adapters", marker = "extra == 'playground'", specifier = ">=0.0.3" },
