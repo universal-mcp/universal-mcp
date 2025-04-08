@@ -102,11 +102,14 @@ class LocalServer(Server):
             if app:
                 tools = app.list_tools()
                 for tool in tools:
-                    name = app.name + "_" + tool.__name__
+                    full_tool_name = app.name + "_" + tool.__name__
                     description = tool.__doc__
-                    self.add_tool(tool, name=name, description=description)
-
-
+                    should_add_tool = False
+                    if app_config.actions is None or full_tool_name in app_config.actions:
+                        should_add_tool = True
+                    if should_add_tool:
+                        self.add_tool(tool, name=full_tool_name, description=description)
+                        
 class AgentRServer(Server):
     """
     AgentR server. Connects to the AgentR API to get the apps and tools. Only supports agentr integrations.

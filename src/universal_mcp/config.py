@@ -18,7 +18,7 @@ class IntegrationConfig(BaseModel):
 class AppConfig(BaseModel):
     name: str
     integration: IntegrationConfig | None = None
-
+    actions: list[str] | None = None
 
 class ServerConfig(BaseModel):
     name: str = "Universal MCP"
