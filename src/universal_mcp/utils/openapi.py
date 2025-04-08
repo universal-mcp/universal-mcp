@@ -198,7 +198,8 @@ def generate_method_code(path, method, operation, tool_name=None):
         func_name = f"{tool_name}_{func_name}"
 
     # Get parameters and request body
-    parameters = operation.get("parameters", [])
+    # Filter out header parameters
+    parameters = [param for param in operation.get("parameters", []) if param.get("in") != "header"]
     has_body = "requestBody" in operation
     body_required = has_body and operation["requestBody"].get("required", False)
 
