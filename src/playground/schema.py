@@ -1,5 +1,6 @@
+from typing import Any, Literal, NotRequired, TypedDict
+
 from pydantic import BaseModel, Field
-from typing import Any, Literal, TypedDict, NotRequired
 
 
 class UserInput(BaseModel):

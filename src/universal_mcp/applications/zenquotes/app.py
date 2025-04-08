@@ -7,7 +7,7 @@ class ZenQuoteApp(APIApplication):
 
     def get_quote(self) -> str:
         """Get an inspirational quote from the Zen Quotes API
-        
+
         Returns:
             A random inspirational quote
         """

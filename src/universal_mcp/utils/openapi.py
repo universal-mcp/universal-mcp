@@ -1,8 +1,9 @@
 import json
-import yaml
 import re
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
+
+import yaml
 
 
 def convert_to_snake_case(identifier: str) -> str:
@@ -24,18 +25,15 @@ def convert_to_snake_case(identifier: str) -> str:
 
 
 def load_schema(path: Path):
-    if path.suffix == ".yaml":
-        type = "yaml"
-    else:
-        type = "json"
-    with open(path, "r") as f:
+    type = "yaml" if path.suffix == ".yaml" else "json"
+    with open(path) as f:
         if type == "yaml":
             return yaml.safe_load(f)
         else:
             return json.load(f)
 
 
-def determine_return_type(operation: Dict[str, Any]) -> str:
+def determine_return_type(operation: dict[str, Any]) -> str:
     """
     Determine the return type from the response schema.
 
@@ -101,15 +99,39 @@ def generate_api_client(schema):
         base_name = "".join(word.capitalize() for word in api_title.split())
         clean_name = "".join(c for c in base_name if c.isalnum())
         class_name = f"{clean_name}App"
+
+        # Extract tool name - remove spaces and convert to lowercase
+        tool_name = api_title.lower()
+
+        # Remove version numbers (like 3.0, v1, etc.)
+        tool_name = re.sub(r"\s*v?\d+(\.\d+)*", "", tool_name)
+
+        # Remove common words that aren't needed
+        common_words = ["api", "openapi", "open", "swagger", "spec", "specification"]
+        for word in common_words:
+            tool_name = tool_name.replace(word, "")
+
+        # Remove spaces, hyphens, underscores
+        tool_name = tool_name.replace(" ", "").replace("-", "").replace("_", "")
+
+        # Remove any non-alphanumeric characters
+        tool_name = "".join(c for c in tool_name if c.isalnum())
+
+        # If empty (after cleaning), use generic name
+        if not tool_name:
+            tool_name = "api"
     else:
         class_name = "APIClient"
+        tool_name = "api"
 
     # Iterate over paths and their operations
     for path, path_info in schema.get("paths", {}).items():
         for method in path_info:
             if method in ["get", "post", "put", "delete", "patch", "options", "head"]:
                 operation = path_info[method]
-                method_code, func_name = generate_method_code(path, method, operation)
+                method_code, func_name = generate_method_code(
+                    path, method, operation, tool_name
+                )
                 methods.append(method_code)
                 method_names.append(func_name)
 
@@ -142,7 +164,7 @@ def generate_api_client(schema):
     return class_code
 
 
-def generate_method_code(path, method, operation):
+def generate_method_code(path, method, operation, tool_name=None):
     """
     Generate the code for a single API method.
 
@@ -150,6 +172,7 @@ def generate_method_code(path, method, operation):
         path (str): The API path (e.g., '/users/{user_id}').
         method (str): The HTTP method (e.g., 'get').
         operation (dict): The operation details from the schema.
+        tool_name (str, optional): The name of the tool/app to prefix the function name with.
 
     Returns:
         tuple: (method_code, func_name) - The Python code for the method and its name.
@@ -169,6 +192,10 @@ def generate_method_code(path, method, operation):
             else:
                 name_parts.append(part)
         func_name = "_".join(name_parts).replace("-", "_").lower()
+
+    # Add tool name prefix if provided
+    if tool_name:
+        func_name = f"{tool_name}_{func_name}"
 
     # Get parameters and request body
     parameters = operation.get("parameters", [])

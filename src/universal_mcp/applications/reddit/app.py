@@ -1,8 +1,10 @@
 import httpx
-from universal_mcp.applications.application import APIApplication
-from universal_mcp.integrations import Integration
-from universal_mcp.exceptions import NotAuthorizedError
 from loguru import logger
+
+from universal_mcp.applications.application import APIApplication
+from universal_mcp.exceptions import NotAuthorizedError
+from universal_mcp.integrations import Integration
+
 
 class RedditApp(APIApplication):
     def __init__(self, integration: Integration) -> None:
@@ -32,126 +34,146 @@ class RedditApp(APIApplication):
             raise ValueError("Integration not configured for RedditApp")
         credentials = self.integration.get_credentials()
         if "access_token" not in credentials:
-             logger.error("Reddit credentials found but missing 'access_token'.")
-             raise ValueError("Invalid Reddit credentials format.")
+            logger.error("Reddit credentials found but missing 'access_token'.")
+            raise ValueError("Invalid Reddit credentials format.")
 
         return {
             "Authorization": f"Bearer {credentials['access_token']}",
-            "User-Agent": "agentr-reddit-app/0.1 by AgentR"
+            "User-Agent": "agentr-reddit-app/0.1 by AgentR",
         }
-    
-    def get_subreddit_posts(self, subreddit: str, limit: int = 5, timeframe: str = "day") -> str:
+
+    def get_subreddit_posts(
+        self, subreddit: str, limit: int = 5, timeframe: str = "day"
+    ) -> str:
         """Get the top posts from a specified subreddit over a given timeframe.
-        
+
         Args:
             subreddit: The name of the subreddit (e.g., 'python', 'worldnews') without the 'r/'.
             limit: The maximum number of posts to return (default: 5, max: 100).
             timeframe: The time period for top posts. Valid options: 'hour', 'day', 'week', 'month', 'year', 'all' (default: 'day').
-            
+
         Returns:
             A formatted string listing the top posts or an error message.
         """
-        valid_timeframes = ['hour', 'day', 'week', 'month', 'year', 'all']
+        valid_timeframes = ["hour", "day", "week", "month", "year", "all"]
         if timeframe not in valid_timeframes:
             return f"Error: Invalid timeframe '{timeframe}'. Please use one of: {', '.join(valid_timeframes)}"
-        
-        if not 1 <= limit <= 100:
-             return f"Error: Invalid limit '{limit}'. Please use a value between 1 and 100."
 
-        
+        if not 1 <= limit <= 100:
+            return (
+                f"Error: Invalid limit '{limit}'. Please use a value between 1 and 100."
+            )
+
         url = f"{self.base_api_url}/r/{subreddit}/top"
-        params = {
-            "limit": limit,
-            "t": timeframe
-        }
-        
-        logger.info(f"Requesting top {limit} posts from r/{subreddit} for timeframe '{timeframe}'")
+        params = {"limit": limit, "t": timeframe}
+
+        logger.info(
+            f"Requesting top {limit} posts from r/{subreddit} for timeframe '{timeframe}'"
+        )
         response = self._get(url, params=params)
 
         data = response.json()
-        
+
         if "error" in data:
-                logger.error(f"Reddit API error: {data['error']} - {data.get('message', '')}")
-                return f"Error from Reddit API: {data['error']} - {data.get('message', '')}"
+            logger.error(
+                f"Reddit API error: {data['error']} - {data.get('message', '')}"
+            )
+            return f"Error from Reddit API: {data['error']} - {data.get('message', '')}"
 
         posts = data.get("data", {}).get("children", [])
-        
-        if not posts:
-            return f"No top posts found in r/{subreddit} for the timeframe '{timeframe}'."
 
-        result_lines = [f"Top {len(posts)} posts from r/{subreddit} (timeframe: {timeframe}):\n"]
+        if not posts:
+            return (
+                f"No top posts found in r/{subreddit} for the timeframe '{timeframe}'."
+            )
+
+        result_lines = [
+            f"Top {len(posts)} posts from r/{subreddit} (timeframe: {timeframe}):\n"
+        ]
         for i, post_container in enumerate(posts):
             post = post_container.get("data", {})
-            title = post.get('title', 'No Title')
-            score = post.get('score', 0)
-            author = post.get('author', 'Unknown Author')
-            permalink = post.get('permalink', '')
+            title = post.get("title", "No Title")
+            score = post.get("score", 0)
+            author = post.get("author", "Unknown Author")
+            permalink = post.get("permalink", "")
             full_url = f"https://www.reddit.com{permalink}" if permalink else "No Link"
-            
-            result_lines.append(f"{i+1}. \"{title}\" by u/{author} (Score: {score})")
+
+            result_lines.append(f'{i + 1}. "{title}" by u/{author} (Score: {score})')
             result_lines.append(f"   Link: {full_url}")
 
         return "\n".join(result_lines)
 
-
-    def search_subreddits(self, query: str, limit: int = 5, sort: str = "relevance") -> str:
+    def search_subreddits(
+        self, query: str, limit: int = 5, sort: str = "relevance"
+    ) -> str:
         """Search for subreddits matching a query string.
-        
+
         Args:
             query: The text to search for in subreddit names and descriptions.
             limit: The maximum number of subreddits to return (default: 5, max: 100).
             sort: The order of results. Valid options: 'relevance', 'activity' (default: 'relevance').
-            
+
         Returns:
             A formatted string listing the found subreddits and their descriptions, or an error message.
         """
-        valid_sorts = ['relevance', 'activity']
+        valid_sorts = ["relevance", "activity"]
         if sort not in valid_sorts:
             return f"Error: Invalid sort option '{sort}'. Please use one of: {', '.join(valid_sorts)}"
-        
-        if not 1 <= limit <= 100:
-             return f"Error: Invalid limit '{limit}'. Please use a value between 1 and 100."
 
-    
+        if not 1 <= limit <= 100:
+            return (
+                f"Error: Invalid limit '{limit}'. Please use a value between 1 and 100."
+            )
+
         url = f"{self.base_api_url}/subreddits/search"
         params = {
             "q": query,
             "limit": limit,
             "sort": sort,
             # Optionally include NSFW results? Defaulting to false for safety.
-            # "include_over_18": "false" 
+            # "include_over_18": "false"
         }
-        
-        logger.info(f"Searching for subreddits matching '{query}' (limit: {limit}, sort: {sort})")
+
+        logger.info(
+            f"Searching for subreddits matching '{query}' (limit: {limit}, sort: {sort})"
+        )
         response = self._get(url, params=params)
-        
+
         data = response.json()
 
         if "error" in data:
-                logger.error(f"Reddit API error during subreddit search: {data['error']} - {data.get('message', '')}")
-                return f"Error from Reddit API during search: {data['error']} - {data.get('message', '')}"
+            logger.error(
+                f"Reddit API error during subreddit search: {data['error']} - {data.get('message', '')}"
+            )
+            return f"Error from Reddit API during search: {data['error']} - {data.get('message', '')}"
 
         subreddits = data.get("data", {}).get("children", [])
-        
+
         if not subreddits:
             return f"No subreddits found matching the query '{query}'."
 
-        result_lines = [f"Found {len(subreddits)} subreddits matching '{query}' (sorted by {sort}):\n"]
+        result_lines = [
+            f"Found {len(subreddits)} subreddits matching '{query}' (sorted by {sort}):\n"
+        ]
         for i, sub_container in enumerate(subreddits):
             sub_data = sub_container.get("data", {})
-            display_name = sub_data.get('display_name', 'N/A') # e.g., 'python'
-            title = sub_data.get('title', 'No Title') # Often the same as display_name or slightly longer
-            subscribers = sub_data.get('subscribers', 0)
+            display_name = sub_data.get("display_name", "N/A")  # e.g., 'python'
+            title = sub_data.get(
+                "title", "No Title"
+            )  # Often the same as display_name or slightly longer
+            subscribers = sub_data.get("subscribers", 0)
             # Use public_description if available, fallback to title
-            description = sub_data.get('public_description', '').strip() or title
-            
+            description = sub_data.get("public_description", "").strip() or title
+
             # Format subscriber count nicely
             subscriber_str = f"{subscribers:,}" if subscribers else "Unknown"
-            
-            result_lines.append(f"{i+1}. r/{display_name} ({subscriber_str} subscribers)")
+
+            result_lines.append(
+                f"{i + 1}. r/{display_name} ({subscriber_str} subscribers)"
+            )
             if description:
                 result_lines.append(f"   Description: {description}")
-            
+
         return "\n".join(result_lines)
 
     def get_post_flairs(self, subreddit: str):
@@ -163,9 +185,9 @@ class RedditApp(APIApplication):
         Returns:
             A list of dictionaries containing flair details, or an error message.
         """
-    
+
         url = f"{self.base_api_url}/r/{subreddit}/api/link_flair_v2"
-        
+
         logger.info(f"Fetching post flairs for subreddit: r/{subreddit}")
         response = self._get(url)
 
@@ -174,8 +196,16 @@ class RedditApp(APIApplication):
             return f"No post flairs available for r/{subreddit}."
 
         return flairs
-            
-    def create_post(self, subreddit: str, title: str, kind: str = "self", text: str = None, url: str = None, flair_id: str = None):
+
+    def create_post(
+        self,
+        subreddit: str,
+        title: str,
+        kind: str = "self",
+        text: str = None,
+        url: str = None,
+        flair_id: str = None,
+    ):
         """Create a new post in a specified subreddit.
 
         Args:
@@ -186,7 +216,7 @@ class RedditApp(APIApplication):
             url: The URL of the link or image; required if kind is 'link'.
                 For image posts to be displayed correctly, the URL must directly point to an image file
                 and end with a valid image extension (e.g., .jpg, .png, or .gif).
-                Note that .gif support can be inconsistent.            
+                Note that .gif support can be inconsistent.
             flair_id: The ID of the flair to assign to the post.
 
         Returns:
@@ -218,10 +248,16 @@ class RedditApp(APIApplication):
         response_json = response.json()
 
         # Check for Reddit API errors in the response
-        if response_json and "json" in response_json and "errors" in response_json["json"]:
+        if (
+            response_json
+            and "json" in response_json
+            and "errors" in response_json["json"]
+        ):
             errors = response_json["json"]["errors"]
             if errors:
-                error_message = ", ".join([f"{code}: {message}" for code, message in errors])
+                error_message = ", ".join(
+                    [f"{code}: {message}" for code, message in errors]
+                )
                 return f"Reddit API error: {error_message}"
 
         return response_json
@@ -241,7 +277,7 @@ class RedditApp(APIApplication):
         url = f"https://oauth.reddit.com/api/info.json?id={comment_id}"
 
         # Make the GET request to the Reddit API
-        
+
         response = self._get(url)
 
         data = response.json()
@@ -250,7 +286,7 @@ class RedditApp(APIApplication):
             return comments[0]["data"]
         else:
             return {"error": "Comment not found."}
-        
+
     def post_comment(self, parent_id: str, text: str) -> dict:
         """
         Post a comment to a Reddit post or another comment.
@@ -262,7 +298,7 @@ class RedditApp(APIApplication):
         Returns:
             A dictionary containing the response from the Reddit API, or an error message if posting fails.
         """
-        
+
         url = f"{self.base_api_url}/api/comment"
         data = {
             "parent": parent_id,
@@ -285,7 +321,7 @@ class RedditApp(APIApplication):
         Returns:
             A dictionary containing the response from the Reddit API, or an error message if editing fails.
         """
-      
+
         url = f"{self.base_api_url}/api/editusertext"
         data = {
             "thing_id": content_id,
@@ -297,7 +333,6 @@ class RedditApp(APIApplication):
 
         return response.json()
 
-        
     def delete_content(self, content_id: str) -> dict:
         """
         Delete a Reddit post or comment.
@@ -308,7 +343,7 @@ class RedditApp(APIApplication):
         Returns:
             A dictionary containing the response from the Reddit API, or an error message if deletion fails.
         """
-        
+
         url = f"{self.base_api_url}/api/del"
         data = {
             "id": content_id,
@@ -324,6 +359,12 @@ class RedditApp(APIApplication):
 
     def list_tools(self):
         return [
-            self.get_subreddit_posts,  self.search_subreddits,   self.get_post_flairs,   self.create_post,
-            self.get_comment_by_id,  self.post_comment,  self.edit_content,  self.delete_content
+            self.get_subreddit_posts,
+            self.search_subreddits,
+            self.get_post_flairs,
+            self.create_post,
+            self.get_comment_by_id,
+            self.post_comment,
+            self.edit_content,
+            self.delete_content,
         ]

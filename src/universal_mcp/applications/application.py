@@ -1,31 +1,37 @@
-from abc import ABC
+from abc import ABC, abstractmethod
+
+import httpx
 from loguru import logger
+
 from universal_mcp.exceptions import NotAuthorizedError
 from universal_mcp.integrations import Integration
-import httpx
+
 
 class Application(ABC):
     """
     Application is collection of tools that can be used by an agent.
     """
+
     def __init__(self, name: str, **kwargs):
         self.name = name
-        self.tools = []
 
+    @abstractmethod
     def list_tools(self):
-        return self.tools
+        pass
+
 
 class APIApplication(Application):
     """
     APIApplication is an application that uses an API to interact with the world.
     """
+
     def __init__(self, name: str, integration: Integration = None, **kwargs):
         super().__init__(name, **kwargs)
         self.integration = integration
 
     def _get_headers(self):
         return {}
-    
+
     def _get(self, url, params=None):
         try:
             headers = self._get_headers()
@@ -39,7 +45,6 @@ class APIApplication(Application):
             logger.error(f"Error getting {url}: {e}")
             raise e
 
-    
     def _post(self, url, data, params=None):
         try:
             headers = self._get_headers()
@@ -95,7 +100,7 @@ class APIApplication(Application):
             raise e
         except Exception as e:
             logger.error(f"Error patching {url}: {e}")
-            raise e       
+            raise e
 
     def validate(self):
         pass

@@ -1,8 +1,10 @@
-from universal_mcp.integrations.integration import Integration
 import os
+
 import httpx
 from loguru import logger
+
 from universal_mcp.exceptions import NotAuthorizedError
+from universal_mcp.integrations.integration import Integration
 
 
 class AgentRIntegration(Integration):

@@ -1,6 +1,7 @@
+import pytest
+
 from universal_mcp.config import AppConfig
 from universal_mcp.servers import LocalServer
-import pytest
 
 
 @pytest.mark.asyncio

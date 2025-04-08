@@ -1,4 +1,5 @@
 import pytest
+
 from universal_mcp.config import AppConfig
 from universal_mcp.servers.server import LocalServer
 

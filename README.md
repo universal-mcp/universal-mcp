@@ -142,7 +142,11 @@ AgentR includes a command-line interface for common operations:
 agentr version
 
 # Generate API client from OpenAPI schema
-agentr generate --schema path/to/openapi.yaml
+
+# Use the name of the API as the output filename (e.g., twitter, petstore, github)
+universal_mcp generate --schema petstore.json --output outputfilename
+
+# The tool will create src/universal_mcp/applications/petstore/ with app.py and README.md
 
 # Run the test server
 agentr run

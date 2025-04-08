@@ -1,6 +1,8 @@
 import asyncio
 import os
+import uuid
 from collections.abc import AsyncGenerator
+from pathlib import Path
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -9,6 +11,7 @@ from streamlit.runtime.scriptrunner import get_script_run_ctx
 
 from playground.client import AgentClient, AgentClientError
 from playground.schema import ChatHistory, ChatMessage, TaskData, TaskDataStatus
+from playground.settings import settings
 
 # A Streamlit app for interacting with the langgraph agent via a simple chat interface.
 # The app has three main functions which are all run async:
@@ -23,6 +26,24 @@ from playground.schema import ChatHistory, ChatMessage, TaskData, TaskDataStatus
 APP_TITLE = "Agent Service Toolkit"
 APP_ICON = "🧰"
 use_streaming = True
+
+
+# --- Function to handle unique filename generation ---
+def get_unique_filepath(upload_dir: Path, filename: str) -> Path:
+    """Checks if a file exists and returns a unique path if needed."""
+    filepath = upload_dir / filename
+    if not filepath.exists():
+        return filepath
+
+    # Handle collision
+    base, ext = os.path.splitext(filename)
+    counter = 1
+    while True:
+        new_filename = f"{base}_{counter}{ext}"
+        new_filepath = upload_dir / new_filename
+        if not new_filepath.exists():
+            return new_filepath
+        counter += 1
 
 
 async def main() -> None:
@@ -65,6 +86,24 @@ async def main() -> None:
             st.stop()
     agent_client: AgentClient = st.session_state.agent_client
 
+    # --- Ensure Upload Directory Exists ---
+    uploads_dir = settings.DATA_DIR / "uploads"
+    try:
+        uploads_dir.mkdir(parents=True, exist_ok=True)
+        # Simple permission check (might not be foolproof on all OS/filesystems)
+        # Try creating and deleting a dummy file
+        dummy_path = uploads_dir / f".streamlit_write_test_{uuid.uuid4()}"
+        dummy_path.touch()
+        dummy_path.unlink()
+    except OSError as e:
+        st.error(
+            f"Error creating or accessing upload directory ({uploads_dir}): {e}\n"
+            "Please ensure the application has write permissions to this directory."
+        )
+        st.stop()
+    # --- End Directory Check ---
+
+    # Initialize state variables if not present
     if "thread_id" not in st.session_state:
         thread_id = st.query_params.get("thread_id")
         if not thread_id:
@@ -80,6 +119,36 @@ async def main() -> None:
                 messages = []
         st.session_state.messages = messages
         st.session_state.thread_id = thread_id
+        st.session_state.uploaded_file_obj = None
+        st.session_state.file_processed = False
+
+    # Place it before the chat input for better flow
+    uploaded_file = st.file_uploader(
+        "Upload a file (optional)", type=None, key="file_uploader"
+    )
+
+    # Check if a new file has been uploaded or if the uploader was cleared
+    if uploaded_file is not None:
+        # Check if this is a new file or a different file than the last processed one
+        if (
+            "last_processed_file" not in st.session_state
+            or st.session_state.get("last_processed_file") != uploaded_file.name
+        ):
+            # Reset the processed state for the new file
+            st.session_state.file_processed = False
+            st.session_state.uploaded_file_obj = uploaded_file
+            st.info(
+                f"File '{uploaded_file.name}' ready for processing with your next message.",
+                icon="📄",
+            )
+    elif (
+        uploaded_file is None and st.session_state.get("uploaded_file_obj") is not None
+    ):
+        # User cleared the file uploader, so reset the state
+        st.session_state.uploaded_file_obj = None
+        st.session_state.file_processed = False
+        if "last_processed_file" in st.session_state:
+            del st.session_state["last_processed_file"]
 
     # Draw existing messages
     messages: list[ChatMessage] = st.session_state.messages
@@ -97,27 +166,90 @@ async def main() -> None:
     await draw_messages(amessage_iter())
 
     # Generate new message if the user provided new input
-    if user_input := st.chat_input():
-        messages.append(ChatMessage(type="human", content=user_input))
-        st.chat_message("human").write(user_input)
-        try:
-            if use_streaming:
-                stream = agent_client.astream(
-                    message=user_input,
-                    thread_id=st.session_state.thread_id,
+    if user_input := st.chat_input(
+        "Enter message or upload a file and describe task..."
+    ):
+        final_message_content = user_input
+        display_content = user_input
+
+        # --- Handle File Upload Integration ---
+        if st.session_state.uploaded_file_obj and not st.session_state.file_processed:
+            uploaded_file_obj = st.session_state.uploaded_file_obj
+            original_filename = uploaded_file_obj.name
+
+            try:
+                # Determine unique path and save the file
+                save_filepath = get_unique_filepath(uploads_dir, original_filename)
+                file_bytes = uploaded_file_obj.getvalue()
+                save_filepath.write_bytes(file_bytes)
+
+                # Get the absolute path as a string
+                absolute_filepath_str = str(save_filepath.resolve())
+
+                # Prepare metadata string
+                # Use a clear prefix so the agent can easily parse it
+                file_metadata_prefix = (
+                    f"[User uploaded file named '{original_filename}'. "
+                    f"It has been saved at the following absolute path: {absolute_filepath_str}]"
+                    f"\n\n"
                 )
-                await draw_messages(stream, is_new=True)
-            else:
-                response = await agent_client.ainvoke(
-                    message=user_input,
-                    thread_id=st.session_state.thread_id,
+
+                # Combine file metadata with user message
+                final_message_content = file_metadata_prefix + user_input
+
+                # Prepare display content for chat history
+                display_content = (
+                    f"[Using uploaded file: {original_filename}]\n\n{user_input}"
                 )
-                messages.append(response)
-                st.chat_message("ai").write(response.content)
-            st.rerun()  # Clear stale containers
-        except AgentClientError as e:
-            st.error(f"Error generating response: {e}")
-            st.stop()
+
+                # Mark the file as processed to prevent reprocessing
+                st.session_state.last_processed_file = original_filename
+                st.session_state.file_processed = True
+
+            except OSError as e:
+                st.error(f"Error saving uploaded file '{original_filename}': {e}")
+                # Don't proceed with sending message if file saving failed
+                st.stop()  # Stop execution for this run
+            except Exception as e:
+                st.error(f"An unexpected error occurred during file handling: {e}")
+                st.stop()
+
+        # --- End File Upload Integration ---
+
+        # Only proceed if we haven't stopped due to an error
+        if final_message_content is not None:
+            # Use final_message_content which might include the path metadata
+            messages.append(ChatMessage(type="human", content=final_message_content))
+
+            # Display the user-friendly content in the chat history
+            st.chat_message("human").write(display_content)
+
+            try:
+                if use_streaming:
+                    stream = agent_client.astream(
+                        # Send the full content including path metadata to the agent
+                        message=final_message_content,
+                        thread_id=st.session_state.thread_id,
+                    )
+                    await draw_messages(stream, is_new=True)
+                else:
+                    response = await agent_client.ainvoke(
+                        # Send the full content including path metadata to the agent
+                        message=final_message_content,
+                        thread_id=st.session_state.thread_id,
+                    )
+                    messages.append(response)
+                    st.chat_message("ai").write(response.content)
+
+                # Rerun to clear input box and update state cleanly
+                st.rerun()
+            except AgentClientError as e:
+                st.error(f"Error generating response: {e}")
+                # Don't stop necessarily, maybe the agent service is down, allow user to retry
+            except Exception as e:
+                st.error(
+                    f"An unexpected error occurred during agent communication: {e}"
+                )
 
     # If messages have been generated, show feedback widget
     if len(messages) > 0 and st.session_state.last_message:

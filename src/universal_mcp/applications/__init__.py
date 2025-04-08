@@ -1,12 +1,14 @@
-from universal_mcp.applications.zenquotes.app import ZenQuoteApp
-from universal_mcp.applications.tavily.app import TavilyApp
+from universal_mcp.applications.application import APIApplication, Application
+from universal_mcp.applications.e2b.app import E2bApp
+from universal_mcp.applications.firecrawl.app import FirecrawlApp
 from universal_mcp.applications.github.app import GithubApp
 from universal_mcp.applications.google_calendar.app import GoogleCalendarApp
 from universal_mcp.applications.google_mail.app import GmailApp
-from universal_mcp.applications.resend.app import ResendApp
-from universal_mcp.applications.reddit.app import RedditApp
 from universal_mcp.applications.markitdown.app import MarkitdownApp
-from universal_mcp.applications.application import Application, APIApplication
+from universal_mcp.applications.reddit.app import RedditApp
+from universal_mcp.applications.resend.app import ResendApp
+from universal_mcp.applications.tavily.app import TavilyApp
+from universal_mcp.applications.zenquotes.app import ZenQuoteApp
 
 
 def app_from_name(name: str):
@@ -28,6 +30,10 @@ def app_from_name(name: str):
         return RedditApp
     elif name == "markitdown":
         return MarkitdownApp
+    elif name == "e2b":
+        return E2bApp
+    elif name == "firecrawl":
+        return FirecrawlApp
     else:
         raise ValueError(f"App {name} not found")
 
