@@ -13,11 +13,6 @@ from universal_mcp.config import AppConfig, IntegrationConfig, StoreConfig
 from universal_mcp.exceptions import NotAuthorizedError
 from universal_mcp.integrations import AgentRIntegration, ApiKeyIntegration
 from universal_mcp.stores import store_from_config
-from universal_mcp.stores.store import (
-    EnvironmentStore,
-    KeyringStore,
-    MemoryStore,
-)
 
 
 class Server(FastMCP, ABC):
@@ -32,6 +27,19 @@ class Server(FastMCP, ABC):
         super().__init__(name, description, **kwargs)
         logger.info(f"Initializing server: {name} with store: {store}")
         self.store = store_from_config(store) if store else None
+        self._setup_store(store)
+        self._load_apps()
+
+    def _setup_store(self, store_config: StoreConfig | None):
+        """
+        Setup the store for the server.
+        """
+        if store_config is None:
+            return
+        self.store = store_from_config(store_config)
+        self.add_tool(self.store.set)
+        self.add_tool(self.store.delete)
+        # self.add_tool(self.store.get)
 
     @abstractmethod
     def _load_apps(self):
@@ -61,22 +69,17 @@ class LocalServer(Server):
         **kwargs,
     ):
         if apps_list is None:
-            apps_list = []
+            self.apps_list = []
+        else:
+            self.apps_list = apps_list
         super().__init__(**kwargs)
-        self.apps_list = apps_list
-        self._load_apps()
 
     def _get_store(self, store_config: StoreConfig | None):
         logger.info(f"Getting store: {store_config}")
+        # No store override, use the one from the server
         if store_config is None:
             return self.store
-        if store_config.type == "memory":
-            return MemoryStore()
-        elif store_config.type == "environment":
-            return EnvironmentStore()
-        elif store_config.type == "keyring":
-            return KeyringStore(app_name=self.name)
-        return None
+        return store_from_config(store_config)
 
     def _get_integration(self, integration_config: IntegrationConfig | None):
         if not integration_config:
@@ -105,11 +108,17 @@ class LocalServer(Server):
                     full_tool_name = app.name + "_" + tool.__name__
                     description = tool.__doc__
                     should_add_tool = False
-                    if app_config.actions is None or full_tool_name in app_config.actions:
+                    if (
+                        app_config.actions is None
+                        or full_tool_name in app_config.actions
+                    ):
                         should_add_tool = True
                     if should_add_tool:
-                        self.add_tool(tool, name=full_tool_name, description=description)
-                        
+                        self.add_tool(
+                            tool, name=full_tool_name, description=description
+                        )
+
+
 class AgentRServer(Server):
     """
     AgentR server. Connects to the AgentR API to get the apps and tools. Only supports agentr integrations.
@@ -118,12 +127,11 @@ class AgentRServer(Server):
     def __init__(
         self, name: str, description: str, api_key: str | None = None, **kwargs
     ):
-        super().__init__(name, description=description, **kwargs)
         self.api_key = api_key or os.getenv("AGENTR_API_KEY")
         self.base_url = os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
         if not self.api_key:
             raise ValueError("API key required - get one at https://agentr.dev")
-        self._load_apps()
+        super().__init__(name, description=description, **kwargs)
 
     def _load_app(self, app_config: AppConfig):
         name = app_config.name
