@@ -156,6 +156,9 @@ class KeyringStore(Store):
         Returns:
             The stored password if found, None otherwise
         """
+        key = key.upper()
+        if not key.endswith("_API_KEY"):
+            key += "_API_KEY"
         logger.info(f"Getting password for {key} from keyring")
         return keyring.get_password(self.app_name, key)
 
@@ -167,6 +170,9 @@ class KeyringStore(Store):
             key (str): The key to store the password under
             value (str): The password to store
         """
+        key = key.upper()
+        if not key.endswith("_API_KEY"):
+            key += "_API_KEY"
         logger.info(f"Setting password for {key} in keyring")
         keyring.set_password(self.app_name, key, value)
 
@@ -177,5 +183,8 @@ class KeyringStore(Store):
         Args:
             key (str): The key to delete
         """
+        key = key.upper()
+        if not key.endswith("_API_KEY"):
+            key += "_API_KEY"
         logger.info(f"Deleting password for {key} from keyring")
         keyring.delete_password(self.app_name, key)

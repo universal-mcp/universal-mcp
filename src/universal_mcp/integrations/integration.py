@@ -76,8 +76,6 @@ class ApiKeyIntegration(Integration):
 
     def __init__(self, name: str, store: Store = None, **kwargs):
         super().__init__(name, store, **kwargs)
-        if not name.endswith("api_key"):
-            self.name = f"{name}_api_key"
         logger.info(f"Initializing API Key Integration: {name} with store: {store}")
 
     def get_credentials(self):
