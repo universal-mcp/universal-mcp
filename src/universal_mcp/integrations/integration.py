@@ -89,9 +89,7 @@ class ApiKeyIntegration(Integration):
         self.store.set(self.name, credentials)
 
     def authorize(self):
-        return {
-            "text": f"Please configure the API Key for {self.name} in the store {self.store.name}"
-        }
+        return f"Please configure the API Key for {self.name} in the store"
 
 
 class OAuthIntegration(Integration):
