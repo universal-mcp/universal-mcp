@@ -85,4 +85,6 @@ class AgentRIntegration(Integration):
         )
         response.raise_for_status()
         url = response.json()
+
+        # TODO: open the url in the browser
         return f"Please authorize the application by clicking the link {url}"
