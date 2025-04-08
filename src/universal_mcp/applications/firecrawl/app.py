@@ -3,7 +3,6 @@ from typing import Any
 from firecrawl import FirecrawlApp as FirecrawlApiClient
 
 from universal_mcp.applications.application import APIApplication
-from universal_mcp.exceptions import NotAuthorizedError
 from universal_mcp.integrations import Integration
 
 
