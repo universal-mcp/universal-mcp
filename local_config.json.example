@@ -1,0 +1,11 @@
+{
+    "name": "Local Server",
+    "description": "Local server for testing",
+    "type": "local",
+    "transport": "sse",
+    "apps": [
+        {
+            "name": "markitdown"
+        }
+    ]
+}
