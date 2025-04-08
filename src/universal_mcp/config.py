@@ -20,6 +20,7 @@ class AppConfig(BaseModel):
     integration: IntegrationConfig | None = None
     actions: list[str] | None = None
 
+
 class ServerConfig(BaseModel):
     name: str = "Universal MCP"
     description: str = "Universal MCP"

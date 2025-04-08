@@ -1,6 +1,20 @@
 import json
+import shutil
 import sys
 from pathlib import Path
+from loguru import logger
+
+
+def get_uvx_path() -> str:
+    """Get the full path to the uv executable."""
+    uvx_path = shutil.which("uvx")
+    if not uvx_path:
+        logger.error(
+            "uvx executable not found in PATH, falling back to 'uvx'. "
+            "Please ensure uvx is installed and in your PATH"
+        )
+        return "uvx"  # Fall back to just "uvx" if not found
+    return uvx_path
 
 
 def create_file_if_not_exists(path: Path) -> None:
@@ -39,7 +53,7 @@ def install_claude(api_key: str) -> None:
     if "mcpServers" not in config:
         config["mcpServers"] = {}
     config["mcpServers"]["universal_mcp"] = {
-        "command": "uvx",
+        "command": get_uvx_path(),
         "args": ["universal_mcp@latest", "run"],
         "env": {"AGENTR_API_KEY": api_key},
     }
@@ -63,7 +77,7 @@ def install_cursor(api_key: str) -> None:
     if "mcpServers" not in config:
         config["mcpServers"] = {}
     config["mcpServers"]["universal_mcp"] = {
-        "command": "uvx",
+        "command": get_uvx_path(),
         "args": ["universal_mcp@latest", "run"],
         "env": {"AGENTR_API_KEY": api_key},
     }
