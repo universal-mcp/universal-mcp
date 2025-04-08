@@ -33,3 +33,7 @@ dump/
 
 # Pytest
 .pytest_cache
+
+
+# Local config
+local_config.json
