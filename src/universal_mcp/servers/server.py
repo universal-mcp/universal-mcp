@@ -11,13 +11,8 @@ from mcp.types import TextContent
 from universal_mcp.applications import app_from_name
 from universal_mcp.config import AppConfig, IntegrationConfig, StoreConfig
 from universal_mcp.exceptions import NotAuthorizedError
-from universal_mcp.integrations import AgentRIntegration, ApiKeyIntegration, Integration
+from universal_mcp.integrations import AgentRIntegration, ApiKeyIntegration
 from universal_mcp.stores import store_from_config
-from universal_mcp.stores.store import (
-    EnvironmentStore,
-    KeyringStore,
-    MemoryStore,
-)
 
 
 class Server(FastMCP, ABC):
@@ -32,6 +27,19 @@ class Server(FastMCP, ABC):
         super().__init__(name, description, **kwargs)
         logger.info(f"Initializing server: {name} with store: {store}")
         self.store = store_from_config(store) if store else None
+        self._setup_store(store)
+        self._load_apps()
+
+    def _setup_store(self, store_config: StoreConfig | None):
+        """
+        Setup the store for the server.
+        """
+        if store_config is None:
+            return
+        self.store = store_from_config(store_config)
+        self.add_tool(self.store.set)
+        self.add_tool(self.store.delete)
+        # self.add_tool(self.store.get)
 
     @abstractmethod
     def _load_apps(self):
@@ -61,23 +69,40 @@ class LocalServer(Server):
         **kwargs,
     ):
         if apps_list is None:
-            apps_list = []
+            self.apps_list = []
+        else:
+            self.apps_list = apps_list
         super().__init__(**kwargs)
-        self.apps_list = apps_list
-        self.integrations_by_name: dict[str, Integration] = {}
-        self._load_apps()
+        self.add_tool(self.set_integration_credential)
+        
+    def set_integration_credential(self, integration_name: str, api_key: str) -> str:
+        """Sets the API key credential for a configured integration using its defined store.
 
+        Args:
+            integration_name: The name of the integration (e.g., 'E2B_API_KEY') as defined
+                              in the configuration's integration.name field.
+            api_key: The actual API key string to store.
+
+        Returns:
+            A confirmation message indicating success or failure.
+        """
+        for app_config in self.apps_list:
+            try:
+                if app_config.integration and app_config.integration.name == integration_name:
+                    integration_config = app_config.integration
+                    store = store_from_config(integration_config.store)
+                    store.set(key=integration_name, value=api_key)
+                    msg = f"Successfully set credential for integration '{integration_name}' using store '{integration_config.store.type}'."
+                    return msg
+            except Exception as e:
+                return f"Failed to set credential for integration '{integration_name}': {e}"    
+    
     def _get_store(self, store_config: StoreConfig | None):
         logger.info(f"Getting store: {store_config}")
+        # No store override, use the one from the server
         if store_config is None:
             return self.store
-        if store_config.type == "memory":
-            return MemoryStore()
-        elif store_config.type == "environment":
-            return EnvironmentStore()
-        elif store_config.type == "keyring":
-            return KeyringStore(app_name=self.name)
-        return None
+        return store_from_config(store_config)
 
     def _get_integration(self, integration_config: IntegrationConfig | None):
         if not integration_config:
@@ -85,8 +110,6 @@ class LocalServer(Server):
         if integration_config.type == "api_key":
             store = self._get_store(integration_config.store)
             integration = ApiKeyIntegration(integration_config.name, store=store)
-            logger.info(f"Adding integration to dict: Name='{integration.name}'")
-            self.integrations_by_name[integration.name] = integration
             if integration_config.credentials:
                 integration.set_credentials(integration_config.credentials)
             return integration
@@ -105,34 +128,19 @@ class LocalServer(Server):
             if app:
                 tools = app.list_tools()
                 for tool in tools:
-                    name = app.name + "_" + tool.__name__
+                    full_tool_name = app.name + "_" + tool.__name__
                     description = tool.__doc__
-                    self.add_tool(tool, name=name, description=description)
-                    
-        self.add_tool(
-            self.set_integration_credential,
-            name="server_set_integration_credential",
-            description="Stores an API key credential for a specific integration using its configured persistent store (e.g., keyring)."
-        )
-        
-        self.add_tool(
-            self.delete_integration_credential,
-            name="server_delete_integration_credential",
-            description="Deletes a stored credential for a specific integration from its configured persistent store (e.g., keyring)."
-        )
-                
-    async def set_integration_credential(self, integration_name: str, api_key_value: str) -> str:
-        integration = self.integrations_by_name.get(integration_name)
-        if not integration:
-            return f"Error: Integration '{integration_name}' is not configured on this server."
-        if isinstance(integration, ApiKeyIntegration):
-            integration.set_credentials({"api_key": api_key_value})
-            return f"Successfully stored credential for integration '{integration_name}'."
+                    should_add_tool = False
+                    if (
+                        app_config.actions is None
+                        or full_tool_name in app_config.actions
+                    ):
+                        should_add_tool = True
+                    if should_add_tool:
+                        self.add_tool(
+                            tool, name=full_tool_name, description=description
+                        )
 
-    async def delete_integration_credential(self, integration_name: str) -> str:
-        integration = self.integrations_by_name.get(integration_name)
-        integration.store.delete(integration.name)
-        return f"Successfully deleted stored credential for integration '{integration_name}'."
 
 class AgentRServer(Server):
     """
@@ -142,12 +150,11 @@ class AgentRServer(Server):
     def __init__(
         self, name: str, description: str, api_key: str | None = None, **kwargs
     ):
-        super().__init__(name, description=description, **kwargs)
         self.api_key = api_key or os.getenv("AGENTR_API_KEY")
         self.base_url = os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
         if not self.api_key:
             raise ValueError("API key required - get one at https://agentr.dev")
-        self._load_apps()
+        super().__init__(name, description=description, **kwargs)
 
     def _load_app(self, app_config: AppConfig):
         name = app_config.name

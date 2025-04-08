@@ -15,19 +15,23 @@ class E2bApp(APIApplication):
         super().__init__(name="e2b", integration=integration)
         self.api_key: str | None = None
 
-        if self.integration is not None:
-            credentials = self.integration.get_credentials()
+    def _set_api_key(self):
+        if self.api_key:
+            return
 
-            if credentials and credentials.get("api_key"):
-                self.api_key = credentials["api_key"]
-                logger.info("E2B API Key successfully retrieved via integration.")
-            else:
-                logger.error(
-                    f"Failed to retrieve E2B API Key using integration '{self.integration.name}'. "
-                )
-        else:
-            logger.error("Integration is None. Cannot retrieve E2B API Key.")
-            
+        if not self.integration:
+            raise ValueError("Integration is None. Cannot retrieve E2B API Key.")
+
+        credentials = self.integration.get_credentials()
+        if not credentials:
+            raise ValueError(
+                f"Failed to retrieve E2B API Key using integration '{self.integration.name}'. "
+                f"Check store configuration (e.g., ensure the correct environment variable is set)."
+            )
+
+        self.api_key = credentials
+        logger.info("E2B API Key successfully retrieved via integration.")
+
     def _format_execution_output(self, logs) -> str:
         """Helper function to format the E2B execution logs nicely."""
         output_parts = []
@@ -54,32 +58,17 @@ class E2bApp(APIApplication):
             code: The string containing the Python code to execute.
 
         Returns:
-            A string containing the formatted stdout/stderr, or a dictionary
-            indicating that the API key is required.
+            A string containing the formatted standard output (stdout) and standard error (stderr)
+            from the execution. If an error occurs during setup or execution, an
+            error message string is returned.
         """
-        current_api_key = None
-        integration_name = "E2B_API_KEY"
-        if self.integration:
-            integration_name = self.integration.name
-            credentials = self.integration.get_credentials()
-            if credentials and credentials.get("api_key"):
-                current_api_key = credentials["api_key"]
-            else:
-                logger.warning(f"API Key '{integration_name}' not found via integration.")
-                return {
-                    "status": "tool_error",
-                    "error_type": "api_key_required",
-                    "key_name": integration_name,
-                    "message": f"API Key required for {self.name}. Please provide the '{integration_name}' key.",
-                }
-             
-        self.api_key = current_api_key
+        self._set_api_key()
         with Sandbox(api_key=self.api_key) as sandbox:
             execution = sandbox.run_code(code=code)
             result = self._format_execution_output(execution.logs)
             return result
- 
+
     def list_tools(self):
         return [
-                self.execute_python_code,
-            ]        
+            self.execute_python_code,
+        ]

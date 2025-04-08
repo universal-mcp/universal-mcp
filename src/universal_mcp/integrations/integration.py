@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import httpx
 from loguru import logger
 
+from universal_mcp.exceptions import NotAuthorizedError
 from universal_mcp.stores.store import Store
 
 
@@ -78,24 +79,17 @@ class ApiKeyIntegration(Integration):
         logger.info(f"Initializing API Key Integration: {name} with store: {store}")
 
     def get_credentials(self):
-        api_key_value = self.store.get(self.name)
-        if api_key_value:
-            return {"api_key": api_key_value}
-        else:
-            return None 
-        
+        credentials = self.store.get(self.name)
+        if credentials is None:
+            action = self.authorize()
+            raise NotAuthorizedError(action)
+        return credentials
+
     def set_credentials(self, credentials: dict):
-        if not isinstance(credentials, dict):
-             raise ValueError("Credentials must be provided as a dictionary.")
-        api_key_value = credentials.get("api_key")
-        if api_key_value is None:
-            raise ValueError("Credentials dictionary must contain an 'api_key' key.")
-        if not isinstance(api_key_value, str):
-             raise ValueError("The value for 'api_key' must be a string.")
-        self.store.set(self.name, api_key_value)
+        self.store.set(self.name, credentials)
 
     def authorize(self):
-        return {"text": "Please configure the API Key for {self.name}"}
+        return f"Please configure the API Key for {self.name} in the store"
 
 
 class OAuthIntegration(Integration):
