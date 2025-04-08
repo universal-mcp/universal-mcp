@@ -2,6 +2,7 @@ import os
 from abc import ABC, abstractmethod
 
 import keyring
+from loguru import logger
 
 
 class Store(ABC):
@@ -155,6 +156,7 @@ class KeyringStore(Store):
         Returns:
             The stored password if found, None otherwise
         """
+        logger.info(f"Getting password for {key} from keyring")
         return keyring.get_password(self.app_name, key)
 
     def set(self, key: str, value: str):
@@ -165,6 +167,7 @@ class KeyringStore(Store):
             key (str): The key to store the password under
             value (str): The password to store
         """
+        logger.info(f"Setting password for {key} in keyring")
         keyring.set_password(self.app_name, key, value)
 
     def delete(self, key: str):
@@ -174,4 +177,5 @@ class KeyringStore(Store):
         Args:
             key (str): The key to delete
         """
+        logger.info(f"Deleting password for {key} from keyring")
         keyring.delete_password(self.app_name, key)

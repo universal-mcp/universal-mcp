@@ -23,13 +23,13 @@ class E2bApp(APIApplication):
             raise ValueError("Integration is None. Cannot retrieve E2B API Key.")
 
         credentials = self.integration.get_credentials()
-        if not credentials or not credentials.get("api_key"):
+        if not credentials:
             raise ValueError(
                 f"Failed to retrieve E2B API Key using integration '{self.integration.name}'. "
                 f"Check store configuration (e.g., ensure the correct environment variable is set)."
             )
 
-        self.api_key = credentials["api_key"]
+        self.api_key = credentials
         logger.info("E2B API Key successfully retrieved via integration.")
 
     def _format_execution_output(self, logs) -> str:
