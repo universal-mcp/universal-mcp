@@ -74,6 +74,7 @@ class LocalServer(Server):
             self.apps_list = apps_list
         super().__init__(**kwargs)
         self.add_tool(self.set_integration_credential)
+        self.add_tool(self.delete_integration_credential)
         
     def set_integration_credential(self, integration_name: str, api_key: str) -> str:
         """Sets the API key credential for a configured integration using its defined store.
@@ -96,6 +97,29 @@ class LocalServer(Server):
                     return msg
             except Exception as e:
                 return f"Failed to set credential for integration '{integration_name}': {e}"    
+    
+    def delete_integration_credential(self, integration_name: str) -> str:
+        """Deletes the credential for a configured integration using its defined store.
+
+        Args:
+            integration_name: The name of the integration (e.g., 'E2B_API_KEY') as defined
+                              in the configuration's integration.name field.
+
+        Returns:
+            A confirmation message indicating success or failure.
+        """
+        for app_config in self.apps_list:
+            try:
+                if app_config.integration and app_config.integration.name == integration_name:
+                    integration_config = app_config.integration
+                    store = store_from_config(integration_config.store)
+                    store.delete(key=integration_name)
+                    msg = f"Successfully deleted credential for integration '{integration_name}' using store '{integration_config.store.type}'."
+                    return msg
+
+            except Exception as e:
+                msg = f"Error deleting credential for integration '{integration_name}': {e}"
+                return msg
     
     def _get_store(self, store_config: StoreConfig | None):
         logger.info(f"Getting store: {store_config}")
