@@ -66,7 +66,7 @@ def generate(
 def docgen(
     file_path: Path = typer.Argument(..., help="Path to the Python file to process"),
     model: str = typer.Option(
-        "anthropic/claude-3-sonnet-20240229",
+        "anthropic/claude-3-5-sonnet-20241022",
         "--model",
         "-m",
         help="Model to use for generating docstrings",

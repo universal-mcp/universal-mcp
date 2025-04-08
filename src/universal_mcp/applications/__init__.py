@@ -9,7 +9,7 @@ from universal_mcp.applications.reddit.app import RedditApp
 from universal_mcp.applications.resend.app import ResendApp
 from universal_mcp.applications.tavily.app import TavilyApp
 from universal_mcp.applications.zenquotes.app import ZenQuoteApp
-
+from universal_mcp.applications.notion.app import NotionApp
 
 def app_from_name(name: str):
     name = name.lower().strip()
@@ -34,6 +34,8 @@ def app_from_name(name: str):
         return E2bApp
     elif name == "firecrawl":
         return FirecrawlApp
+    elif name == "notion":
+        return NotionApp
     else:
         raise ValueError(f"App {name} not found")
 
