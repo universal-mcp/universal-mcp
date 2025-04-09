@@ -33,7 +33,7 @@ If you plan to use integrations with `type: "agentr"` (for services like GitHub,
 
 This file defines the server settings, credential stores, and the applications to load with their respective integrations.
 
-```bash
+```python
 {
   "name": "My Local MCP Server",
   "description": "A server for testing applications locally",
@@ -135,7 +135,7 @@ Universal MCP supports different ways to handle authentication for applications:
 
 For services that authenticate via simple API keys. Configure using `IntegrationConfig` with `type: "api_key"`.
 
-```bash
+```python
 {
   "name": "tavily",
   "integration": {
@@ -144,8 +144,8 @@ For services that authenticate via simple API keys. Configure using `Integration
     "store": {
       "name": "universal_mcp",
       "type": "environment"   # Or "keyring", "memory"
-            }
-  }
+       }
+    } 
 }
 ```
 
@@ -153,11 +153,11 @@ For services that authenticate via simple API keys. Configure using `Integration
 
 For services integrated with the AgentR platform, typically handling OAuth flows or centrally managed credentials. Configure using `IntegrationConfig` with `type: "agentr"`. Requires the `AGENTR_API_KEY` environment variable to be set for the MCP server process.
 
-```json
+```python
 {
   "name": "github",
   "integration": {
-    "name": "github", // Matches the service name configured in AgentR
+    "name": "github", # Matches the service name configured in AgentR
     "type": "agentr"
   }
 }
