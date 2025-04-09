@@ -5,7 +5,7 @@ from universal_mcp.applications.application import APIApplication
 from universal_mcp.integrations import Integration
 
 
-class E2bApp(APIApplication):
+class E2BApp(APIApplication):
     """
     Application for interacting with the E2B secure cloud sandboxes
     to execute Python code.

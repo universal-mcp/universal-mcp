@@ -116,7 +116,7 @@ def extract_functions_from_script(file_path: str) -> list[tuple[str, str]]:
 
 
 def generate_docstring(
-    function_code: str, model: str = "anthropic/claude-3-sonnet-20240229"
+    function_code: str, model: str = "google/gemini-flash"
 ) -> DocstringOutput:
     """
     Generate a docstring for a Python function using litellm with structured output.
@@ -304,9 +304,7 @@ def insert_docstring_into_function(function_code: str, docstring: str) -> str:
         return function_code
 
 
-def process_file(
-    file_path: str, model: str = "anthropic/claude-3-sonnet-20240229"
-) -> int:
+def process_file(file_path: str, model: str = "google/gemini-flash") -> int:
     """
     Process a Python file and add docstrings to all functions in it.
 

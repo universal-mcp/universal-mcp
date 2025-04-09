@@ -74,3 +74,8 @@ class SerpApp(APIApplication):
         # Handle other exceptions (e.g., network issues)
         except Exception as e:
             return f"Error: {str(e)}"
+
+    def list_tools(self):
+        return [
+            self.search,
+        ]

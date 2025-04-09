@@ -37,3 +37,11 @@ dump/
 
 # Local config
 local_config.json
+
+
+# Test Artifacts
+test_artifacts/
+src/universal_mcp/applications/complex/
+src/universal_mcp/applications/test/
+src/universal_mcp/applications/test_with_docs/
+src/universal_mcp/applications/test_without_docs/

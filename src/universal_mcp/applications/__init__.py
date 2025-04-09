@@ -1,5 +1,7 @@
 import importlib
 from loguru import logger
+from universal_mcp.applications.application import Application, APIApplication
+
 
 # Name are in the format of "app-name", eg, google-calendar
 # Folder name is "app_name", eg, google_calendar
@@ -16,4 +18,8 @@ def app_from_slug(slug: str):
     return app_class
 
 
-__all__ = ["app_from_slug"]
+__all__ = [
+    "app_from_slug",
+    "Application",
+    "APIApplication",
+]

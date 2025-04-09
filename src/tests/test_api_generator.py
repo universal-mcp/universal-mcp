@@ -93,7 +93,7 @@ async def test_generate_api_with_output(sample_schema, temp_dir):
     if readme_file:
         assert readme_file.exists()
         readme_content = readme_file.read_text()
-        assert "Test Tool" in readme_content
+        assert "Test MCP Server" in readme_content
         assert "Tool List" in readme_content
         assert "test_test_operation" in readme_content
 
@@ -260,7 +260,7 @@ async def test_generate_api_with_complex_schema(temp_dir):
     readme_content = readme_file.read_text()
 
     # Check README content
-    assert "Complex Tool" in readme_content
+    assert "Complex MCP Server" in readme_content
     assert "Tool List" in readme_content
     assert "complex_list_users" in readme_content
     assert "complex_create_user" in readme_content
