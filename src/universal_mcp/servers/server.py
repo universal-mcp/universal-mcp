@@ -106,9 +106,10 @@ class LocalServer(Server):
                 if app:
                     tools = app.list_tools()
                 for tool in tools:
-                    name = app.name + "_" + tool.__name__
+                    tool_name = tool.__name__
+                    name = app.name + "_" + tool_name
                     description = tool.__doc__
-                    if app_config.actions is None or name in app_config.actions:
+                    if app_config.actions is None or tool_name in app_config.actions:
                         self.add_tool(tool, name=name, description=description)
             except Exception as e:
                 logger.error(f"Error loading app {app_config.name}: {e}")
@@ -157,9 +158,10 @@ class AgentRServer(Server):
                 if app:
                     tools = app.list_tools()
                 for tool in tools:
-                    name = app.name + "_" + tool.__name__
+                    tool_name = tool.__name__
+                    name = app.name + "_" + tool_name
                     description = tool.__doc__
-                    if app_config.actions is None or name in app_config.actions:
+                    if app_config.actions is None or tool_name in app_config.actions:
                         self.add_tool(tool, name=name, description=description)
             except Exception as e:
                 logger.error(f"Error loading app {app_config.name}: {e}")
