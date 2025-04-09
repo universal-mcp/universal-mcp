@@ -1,6 +1,8 @@
+from typing import Any
+
 from universal_mcp.applications import APIApplication
 from universal_mcp.integrations import Integration
-from typing import Any, Dict, List
+
 
 class NotionApp(APIApplication):
     def __init__(self, integration: Integration = None, **kwargs) -> None:
@@ -29,7 +31,7 @@ class NotionApp(APIApplication):
             "Notion-Version": "2022-06-28",
         }    
 
-    def notion_retrieve_auser(self, id, request_body=None) -> Dict[str, Any]:
+    def notion_retrieve_auser(self, id, request_body=None) -> dict[str, Any]:
         """
         Retrieves user information from the Notion API by user ID.
         
@@ -44,12 +46,11 @@ class NotionApp(APIApplication):
             raise ValueError("Missing required parameter 'id'")
         url = f"{self.base_url}/v1/users/{id}"
         query_params = {}
-        json_body = request_body if request_body is not None else None
         response = self._get(url, params=query_params)
         response.raise_for_status()
         return response.json()
 
-    def notion_list_all_users(self, ) -> Dict[str, Any]:
+    def notion_list_all_users(self, ) -> dict[str, Any]:
         """
         Fetches and returns a list of all users from the Notion API.
         
@@ -65,7 +66,7 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_retrieve_your_token_sbot_user(self, ) -> Dict[str, Any]:
+    def notion_retrieve_your_token_sbot_user(self, ) -> dict[str, Any]:
         """
         Retrieves the current user's token data from the Notion API.
         
@@ -81,7 +82,7 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_retrieve_adatabase(self, id) -> Dict[str, Any]:
+    def notion_retrieve_adatabase(self, id) -> dict[str, Any]:
         """
         Retrieves a Notion database by its unique identifier.
         
@@ -99,7 +100,7 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_update_adatabase(self, id, request_body=None) -> Dict[str, Any]:
+    def notion_update_adatabase(self, id, request_body=None) -> dict[str, Any]:
         """
         Updates a Notion database with the given ID and request body data.
         
@@ -115,12 +116,11 @@ class NotionApp(APIApplication):
             raise ValueError("Missing required parameter 'id'")
         url = f"{self.base_url}/v1/databases/{id}"
         query_params = {}
-        json_body = request_body if request_body is not None else None
         response = self._patch(url, data={}, params=query_params)
         response.raise_for_status()
         return response.json()
 
-    def notion_query_adatabase(self, id, request_body=None) -> Dict[str, Any]:
+    def notion_query_adatabase(self, id, request_body=None) -> dict[str, Any]:
         """
         Executes a query on a Notion database using the Notion API.
         
@@ -141,7 +141,7 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_create_adatabase(self, request_body=None) -> Dict[str, Any]:
+    def notion_create_adatabase(self, request_body=None) -> dict[str, Any]:
         """
         Creates a new database in Notion using the provided request body.
         
@@ -159,7 +159,7 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_create_apage(self, request_body=None) -> Dict[str, Any]:
+    def notion_create_apage(self, request_body=None) -> dict[str, Any]:
         """
         Creates a new page in Notion by sending a POST request with the specified request body.
         
@@ -176,7 +176,7 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_retrieve_apage(self, id) -> Dict[str, Any]:
+    def notion_retrieve_apage(self, id) -> dict[str, Any]:
         """
         Retrieves a page from the Notion API using a given page ID.
         
@@ -194,7 +194,7 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_update_page_properties(self, id, request_body=None) -> Dict[str, Any]:
+    def notion_update_page_properties(self, id, request_body=None) -> dict[str, Any]:
         """
         Updates the properties of a Notion page identified by a given ID.
         
@@ -210,12 +210,11 @@ class NotionApp(APIApplication):
             raise ValueError("Missing required parameter 'id'")
         url = f"{self.base_url}/v1/pages/{id}"
         query_params = {}
-        json_body = request_body if request_body is not None else None
         response = self._patch(url, data={}, params=query_params)
         response.raise_for_status()
         return response.json()
 
-    def notion_retrieve_apage_property_item(self, page_id, property_id) -> Dict[str, Any]:
+    def notion_retrieve_apage_property_item(self, page_id, property_id) -> dict[str, Any]:
         """
         Retrieves a specific property item from a page in Notion using the page and property IDs.
         
@@ -236,7 +235,7 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_retrieve_block_children(self, id, page_size=None) -> Dict[str, Any]:
+    def notion_retrieve_block_children(self, id, page_size=None) -> dict[str, Any]:
         """
         Retrieves the child blocks of a specified Notion block.
         
@@ -256,7 +255,7 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_append_block_children(self, id, request_body=None) -> Dict[str, Any]:
+    def notion_append_block_children(self, id, request_body=None) -> dict[str, Any]:
         """
         Appends child blocks to a block in Notion using its API.
         
@@ -272,12 +271,11 @@ class NotionApp(APIApplication):
             raise ValueError("Missing required parameter 'id'")
         url = f"{self.base_url}/v1/blocks/{id}/children"
         query_params = {}
-        json_body = request_body if request_body is not None else None
         response = self._patch(url, data={}, params=query_params)
         response.raise_for_status()
         return response.json()
 
-    def notion_retrieve_ablock(self, id) -> Dict[str, Any]:
+    def notion_retrieve_ablock(self, id) -> dict[str, Any]:
         """
         Retrieves a block from the Notion API using the specified block ID.
         
@@ -295,7 +293,7 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_delete_ablock(self, id) -> Dict[str, Any]:
+    def notion_delete_ablock(self, id) -> dict[str, Any]:
         """
         Deletes a block from the Notion database using the specified block ID.
         
@@ -313,7 +311,7 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_update_ablock(self, id, request_body=None) -> Dict[str, Any]:
+    def notion_update_ablock(self, id, request_body=None) -> dict[str, Any]:
         """
         Updates a block in Notion with the given ID and request body.
         
@@ -328,12 +326,11 @@ class NotionApp(APIApplication):
             raise ValueError("Missing required parameter 'id'")
         url = f"{self.base_url}/v1/blocks/{id}"
         query_params = {}
-        json_body = request_body if request_body is not None else None
         response = self._patch(url, data={}, params=query_params)
         response.raise_for_status()
         return response.json()
 
-    def notion_search(self, request_body=None) -> Dict[str, Any]:
+    def notion_search(self, request_body=None) -> dict[str, Any]:
         """
         Executes a search request to the Notion API and returns the response in JSON format.
         
@@ -350,7 +347,7 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_retrieve_comments(self, block_id=None, page_size=None, request_body=None) -> Dict[str, Any]:
+    def notion_retrieve_comments(self, block_id=None, page_size=None, request_body=None) -> dict[str, Any]:
         """
         Retrieves comments from a Notion block using the Notion API.
         
@@ -364,12 +361,11 @@ class NotionApp(APIApplication):
         """
         url = f"{self.base_url}/v1/comments"
         query_params = {k: v for k, v in [('block_id', block_id), ('page_size', page_size)] if v is not None}
-        json_body = request_body if request_body is not None else None
         response = self._get(url, params=query_params)
         response.raise_for_status()
         return response.json()
 
-    def notion_add_comment_to_page(self, request_body=None) -> Dict[str, Any]:
+    def notion_add_comment_to_page(self, request_body=None) -> dict[str, Any]:
         """
         Adds a comment to a specified Notion page using the provided request body.
         

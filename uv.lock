@@ -1093,6 +1093,20 @@ wheels = [
 ]
 
 [[package]]
+name = "langchain-openai"
+version = "0.3.12"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "langchain-core" },
+    { name = "openai" },
+    { name = "tiktoken" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/32/01/94d861be321df40f104324d3c64115917c7e774bb5d6af45d4af967c863c/langchain_openai-0.3.12.tar.gz", hash = "sha256:c9dbff63551f6bd91913bca9f99a2d057fd95dc58d4778657d67e5baa1737f61", size = 269015 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/07/7e/0d8838972ffead497b40cd42a1676f9ad90427d422c92dff2fb5461c4308/langchain_openai-0.3.12-py3-none-any.whl", hash = "sha256:0fab64d58ec95e65ffbaf659470cd362e815685e15edbcb171641e90eca4eb86", size = 61320 },
+]
+
+[[package]]
 name = "langgraph"
 version = "0.3.25"
 source = { registry = "https://pypi.org/simple" }
@@ -2834,7 +2848,7 @@ wheels = [
 
 [[package]]
 name = "universal-mcp"
-version = "0.1.0"
+version = "0.1.2rc1"
 source = { editable = "." }
 dependencies = [
     { name = "keyring" },
@@ -2866,6 +2880,7 @@ playground = [
     { name = "fastapi", extra = ["standard"] },
     { name = "langchain-anthropic" },
     { name = "langchain-mcp-adapters" },
+    { name = "langchain-openai" },
     { name = "langgraph" },
     { name = "langgraph-checkpoint-sqlite" },
     { name = "python-dotenv" },
@@ -2884,6 +2899,7 @@ requires-dist = [
     { name = "keyring", specifier = ">=25.6.0" },
     { name = "langchain-anthropic", marker = "extra == 'playground'", specifier = ">=0.3.10" },
     { name = "langchain-mcp-adapters", marker = "extra == 'playground'", specifier = ">=0.0.3" },
+    { name = "langchain-openai", marker = "extra == 'playground'", specifier = ">=0.3.12" },
     { name = "langgraph", marker = "extra == 'playground'", specifier = ">=0.3.24" },
     { name = "langgraph-checkpoint-sqlite", marker = "extra == 'playground'", specifier = ">=2.0.6" },
     { name = "litellm", specifier = ">=1.30.7" },
