@@ -177,6 +177,9 @@ def generate_method_code(path, method, operation, tool_name=None):
     Returns:
         tuple: (method_code, func_name) - The Python code for the method and its name.
     """
+    # Extract path parameters from the URL path
+    path_params_in_url = re.findall(r'{([^}]+)}', path)
+    
     # Determine function name
     if "operationId" in operation:
         raw_name = operation["operationId"]
@@ -206,11 +209,20 @@ def generate_method_code(path, method, operation, tool_name=None):
     # Build function arguments
     required_args = []
     optional_args = []
+    
+    
+    for param_name in path_params_in_url:
+        if param_name not in required_args:
+            required_args.append(param_name)
+
+    
     for param in parameters:
-        if param.get("required", False):
-            required_args.append(param["name"])
-        else:
-            optional_args.append(f"{param['name']}=None")
+        param_name = param["name"]
+        if param_name not in required_args:  
+            if param.get("required", False):
+                required_args.append(param_name)
+            else:
+                optional_args.append(f"{param_name}=None")
 
     # Add request body parameter
     if has_body:
@@ -230,12 +242,12 @@ def generate_method_code(path, method, operation, tool_name=None):
     # Build method body
     body_lines = []
 
-    # Validate required parameters
-    for param in parameters:
-        if param.get("required", False):
-            body_lines.append(f"        if {param['name']} is None:")
+    # Validate required parameters including path parameters
+    for param_name in required_args:
+        if param_name != "request_body":  # Skip validation for request body as it's handled separately
+            body_lines.append(f"        if {param_name} is None:")
             body_lines.append(
-                f"            raise ValueError(\"Missing required parameter '{param['name']}'\")"
+                f"            raise ValueError(\"Missing required parameter '{param_name}'\")"
             )
 
     # Validate required body
@@ -245,15 +257,9 @@ def generate_method_code(path, method, operation, tool_name=None):
             '            raise ValueError("Missing required request body")'
         )
 
-    # Path parameters
-    path_params = [p for p in parameters if p["in"] == "path"]
-    path_params_dict = ", ".join([f"'{p['name']}': {p['name']}" for p in path_params])
-    body_lines.append(f"        path_params = {{{path_params_dict}}}")
-
-    # Format URL
-    body_lines.append(
-        f'        url = f"{{self.base_url}}{path}".format_map(path_params)'
-    )
+    # Format URL directly with path parameters
+    url_line = f'        url = f"{{self.base_url}}{path}"'
+    body_lines.append(url_line)
 
     # Query parameters
     query_params = [p for p in parameters if p["in"] == "query"]
