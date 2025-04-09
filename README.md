@@ -3,11 +3,11 @@ Universal MCP acts as a middleware layer for your API applications, enabling sea
 
 ## 🌟 Features
 
--   **MCP (Model Context Protocol) Integration**: Built upon the `mcp.server.fastmcp` framework for robust server architecture.
--   **Simplified API Integration**: Easily connect to services like GitHub, Google Calendar, Gmail, Reddit, Notion, Firecrawl, E2B, and more via standardized application classes.
--   **Managed Authentication**: Built-in support for API keys (`ApiKeyIntegration`), OAuth (`OAuthIntegration`), and AgentR-managed credentials (`AgentRIntegration`).
--   **Extensible Architecture**: Add new application integrations easily by subclassing `Application` or `APIApplication` and leveraging the dynamic `app_from_slug` loader.
--   **Credential Management**: Flexible storage options for API credentials using in-memory (`MemoryStore`), environment variables (`EnvironmentStore`), or system keyring (`KeyringStore`).
+- **MCP (Model Context Protocol) Integration**: Seamlessly works with MCP server architecture
+- **Simplified API Integration**: Connect to services like GitHub, Google Calendar, Gmail, Reddit, Tavily, and more with minimal code
+- **Managed Authentication**: Built-in support for API keys and OAuth-based authentication flows
+- **Extensible Architecture**: Easily build and add new app integrations with minimal boilerplate
+- **Credential Management**: Flexible storage options for API credentials with memory and environment-based implementations
 
 ## 🔧 Installation
 
