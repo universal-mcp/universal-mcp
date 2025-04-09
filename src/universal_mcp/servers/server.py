@@ -8,7 +8,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import TextContent
 
-from universal_mcp.applications import app_from_name
+from universal_mcp.applications import app_from_slug
 from universal_mcp.config import AppConfig, IntegrationConfig, StoreConfig
 from universal_mcp.exceptions import NotAuthorizedError
 from universal_mcp.integrations import AgentRIntegration, ApiKeyIntegration
@@ -68,7 +68,7 @@ class LocalServer(Server):
         apps_list: list[AppConfig] = None,
         **kwargs,
     ):
-        if apps_list is None:
+        if not apps_list:
             self.apps_list = []
         else:
             self.apps_list = apps_list
@@ -95,7 +95,7 @@ class LocalServer(Server):
     def _load_app(self, app_config: AppConfig):
         name = app_config.name
         integration = self._get_integration(app_config.integration)
-        app = app_from_name(name)(integration=integration)
+        app = app_from_slug(name)(integration=integration)
         return app
 
     def _load_apps(self):
@@ -140,7 +140,7 @@ class AgentRServer(Server):
             integration = AgentRIntegration(integration_name, api_key=self.api_key)
         else:
             integration = None
-        app = app_from_name(name)(integration=integration)
+        app = app_from_slug(name)(integration=integration)
         return app
 
     def _list_apps_with_integrations(self):

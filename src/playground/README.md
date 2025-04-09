@@ -35,10 +35,10 @@ To easily start all necessary services (MCP Server, FastAPI Backend, Streamlit F
 3.  Execute the startup script using Python:
 
     ```bash
-    python src/playground/__main__.py
+    python src/playground
     ```
 
-    *(Note: If your system uses `python3` to invoke Python 3, use that command instead: `python3 src/playground/__main__.py`)*
+    *(Note: If your system uses `python3` to invoke Python 3, use that command instead: `python3 src/playground`)*
 
 After running the command, you should see messages indicating that the components are being launched.
 

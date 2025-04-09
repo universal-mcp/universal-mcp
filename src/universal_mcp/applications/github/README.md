@@ -1,16 +1,35 @@
-# Github Tools
+
+# Github MCP Server
+
+An MCP Server for the Github API.
 
 ## Supported Integrations
 
-The GitHub application supports two integration types:
+- AgentR
+- API Key (Coming Soon)
+- OAuth (Coming Soon)
 
-1. OAuth (Recommended)
-2. Api Key 
+## Tools
 
+This is automatically generated from OpenAPI schema for the Github API.
+
+## Supported Integrations
+
+This tool can be integrated with any service that supports HTTP requests.
 
 ## Tool List
 
-| Tool | Description |
-|------|-------------|
-| star_repository | Star a GitHub repository by providing the full repository name (owner/repo) |
-| list_commits | List recent commits for a GitHub repository by providing the full repository name (owner/repo) |
+No tools with documentation were found in this API client.
+
+
+
+## Usage
+
+- Login to AgentR
+- Follow the quickstart guide to setup MCP Server for your client
+- Visit Apps Store and enable the Github app
+- Restart the MCP Server
+
+### Local Development
+
+- Follow the README to test with the local MCP Server

@@ -42,6 +42,9 @@ e2b = [
 firecrawl=[
     "firecrawl-py>=1.15.0",
 ]
+serpapi = [
+    "google-search-results>=2.4.2",
+]
 [project.scripts]
 universal_mcp = "universal_mcp.cli:app"
 
