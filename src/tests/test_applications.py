@@ -20,6 +20,7 @@ from universal_mcp.applications import app_from_slug
         "e2b",
         "firecrawl",
         "serp",
+        "notion",
     ],
 )
 def test_application(app_name):
