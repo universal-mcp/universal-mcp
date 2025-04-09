@@ -86,7 +86,7 @@ universal_mcp run -c config.json
 
 The server will start, load the configured applications (or connect to AgentR if `type: "agentr"`), and listen for connections based on the `transport` type (`sse`, `stdio`, or `http`).
 
-## 🎮 Using Playground
+## 🛠️ Using Playground
 
 The `playground` directory provides a runnable example with a FastAPI backend and a Streamlit frontend for interacting with the MCP server.
 
