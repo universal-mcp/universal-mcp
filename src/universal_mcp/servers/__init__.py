@@ -9,6 +9,7 @@ def server_from_config(config: ServerConfig):
             description=config.description,
             api_key=config.api_key,
             port=config.port,
+            apps_list=config.apps,
         )
     elif config.type == "local":
         return LocalServer(

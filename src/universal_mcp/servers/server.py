@@ -125,12 +125,14 @@ class AgentRServer(Server):
     """
 
     def __init__(
-        self, name: str, description: str, api_key: str | None = None, **kwargs
+        self, name: str, description: str, api_key: str | None = None,
+        apps_list: list[AppConfig] | None = None, **kwargs,
     ):
         self.api_key = api_key or os.getenv("AGENTR_API_KEY")
         self.base_url = os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
         if not self.api_key:
             raise ValueError("API key required - get one at https://agentr.dev")
+        self.config_apps_list = apps_list if apps_list else []
         super().__init__(name, description=description, **kwargs)
 
     def _load_app(self, app_config: AppConfig):
@@ -155,12 +157,34 @@ class AgentRServer(Server):
         return [AppConfig.model_validate(app) for app in apps]
 
     def _load_apps(self):
-        apps = self._list_apps_with_integrations()
-        for app in apps:
-            app = self._load_app(app)
-            if app:
-                tools = app.list_tools()
-                for tool in tools:
-                    name = app.name + "_" + tool.__name__
-                    description = tool.__doc__
-                    self.add_tool(tool, name=name, description=description)
+        api_apps = self._list_apps_with_integrations()
+        if not api_apps:
+            logger.warning("No apps found in the API")
+            return
+        use_local_config_filter = bool(self.config_apps_list)
+        if use_local_config_filter:
+            local_config_map = {app.name: app for app in self.config_apps_list}
+
+            for api_app_config in api_apps:
+                app_name = api_app_config.name
+                if app_name in local_config_map:
+                    local_app_config = local_config_map[app_name]
+                    app = self._load_app(api_app_config)
+
+                    if app:
+                        all_tools = app.list_tools()
+                        allowed_actions = local_app_config.actions
+                        for tool in all_tools:
+                            full_tool_name = app.name + "_" + tool.__name__
+                            description = tool.__doc__
+                            if allowed_actions is None or full_tool_name in allowed_actions:
+                                self.add_tool(tool, name=full_tool_name, description=description)
+        else:
+            for api_app_config in api_apps:
+                app = self._load_app(api_app_config)
+                if app:
+                    tools = app.list_tools()
+                    for tool in tools:
+                        name = app.name + "_" + tool.__name__
+                        description = tool.__doc__
+                        self.add_tool(tool, name=name, description=description)
