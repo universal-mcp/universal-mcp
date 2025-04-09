@@ -42,6 +42,9 @@ e2b = [
 firecrawl=[
     "firecrawl-py>=1.15.0",
 ]
+serpapi = [
+    "serpapi>=0.1.5",
+]
 [project.scripts]
 universal_mcp = "universal_mcp.cli:app"
 

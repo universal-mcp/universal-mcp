@@ -2529,6 +2529,18 @@ wheels = [
 ]
 
 [[package]]
+name = "serpapi"
+version = "0.1.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f0/fa/3fd8809287f3977a3e752bb88610e918d49cb1038b14f4bc51e13e594197/serpapi-0.1.5.tar.gz", hash = "sha256:b9707ed54750fdd2f62dc3a17c6a3fb7fa421dc37902fd65b2263c0ac765a1a5", size = 14191 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/df/6a/21deade04100d64844e494353a5d65e7971fbdfddf78eb1f248423593ad0/serpapi-0.1.5-py2.py3-none-any.whl", hash = "sha256:6467b6adec1231059f754ccaa952b229efeaa8b9cae6e71f879703ec9e5bb3d1", size = 10966 },
+]
+
+[[package]]
 name = "shellingham"
 version = "1.5.4"
 source = { registry = "https://pypi.org/simple" }
@@ -2862,6 +2874,9 @@ playground = [
     { name = "python-dotenv" },
     { name = "streamlit" },
 ]
+serpapi = [
+    { name = "serpapi" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -2886,10 +2901,11 @@ requires-dist = [
     { name = "python-dotenv", marker = "extra == 'playground'", specifier = ">=1.0.1" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.11.4" },
+    { name = "serpapi", marker = "extra == 'serpapi'", specifier = ">=0.1.5" },
     { name = "streamlit", marker = "extra == 'playground'", specifier = ">=1.44.1" },
     { name = "typer", specifier = ">=0.15.2" },
 ]
-provides-extras = ["playground", "dev", "e2b", "firecrawl"]
+provides-extras = ["playground", "dev", "e2b", "firecrawl", "serpapi"]
 
 [[package]]
 name = "urllib3"

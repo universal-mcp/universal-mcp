@@ -3,7 +3,7 @@ from collections.abc import Callable
 import pytest
 from loguru import logger
 
-from universal_mcp.applications import app_from_name
+from universal_mcp.applications import app_from_slug
 
 
 @pytest.mark.parametrize(
@@ -16,10 +16,14 @@ from universal_mcp.applications import app_from_name
         "google-mail",
         "resend",
         "reddit",
+        "markitdown",
+        "e2b",
+        "firecrawl",
+        "serp",
     ],
 )
 def test_application(app_name):
-    app = app_from_name(app_name)(integration=None)
+    app = app_from_slug(app_name)(integration=None)
     assert app is not None
     tools = app.list_tools()
     logger.info(f"Tools for {app_name}: {tools}")
