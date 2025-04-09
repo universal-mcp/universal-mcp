@@ -2848,7 +2848,7 @@ wheels = [
 
 [[package]]
 name = "universal-mcp"
-version = "0.1.2rc1"
+version = "0.1.2"
 source = { editable = "." }
 dependencies = [
     { name = "keyring" },
@@ -2859,6 +2859,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyyaml" },
+    { name = "rich" },
     { name = "typer" },
 ]
 
@@ -2914,6 +2915,7 @@ requires-dist = [
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.26.0" },
     { name = "python-dotenv", marker = "extra == 'playground'", specifier = ">=1.0.1" },
     { name = "pyyaml", specifier = ">=6.0.2" },
+    { name = "rich", specifier = ">=14.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.11.4" },
     { name = "streamlit", marker = "extra == 'playground'", specifier = ">=1.44.1" },
     { name = "typer", specifier = ">=0.15.2" },

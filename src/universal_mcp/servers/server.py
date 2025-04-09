@@ -101,22 +101,19 @@ class LocalServer(Server):
     def _load_apps(self):
         logger.info(f"Loading apps: {self.apps_list}")
         for app_config in self.apps_list:
-            app = self._load_app(app_config)
-            if app:
-                tools = app.list_tools()
+            try:
+                app = self._load_app(app_config)
+                if app:
+                    tools = app.list_tools()
                 for tool in tools:
                     full_tool_name = app.name + "_" + tool.__name__
                     description = tool.__doc__
-                    should_add_tool = False
-                    if (
-                        app_config.actions is None
-                        or full_tool_name in app_config.actions
-                    ):
-                        should_add_tool = True
-                    if should_add_tool:
+                    if app.actions is None or full_tool_name in app.actions:
                         self.add_tool(
                             tool, name=full_tool_name, description=description
                         )
+            except Exception as e:
+                logger.error(f"Error loading app {app_config.name}: {e}")
 
 
 class AgentRServer(Server):
@@ -157,10 +154,14 @@ class AgentRServer(Server):
     def _load_apps(self):
         apps = self._list_apps_with_integrations()
         for app in apps:
-            app = self._load_app(app)
-            if app:
-                tools = app.list_tools()
+            try:
+                app = self._load_app(app)
+                if app:
+                    tools = app.list_tools()
                 for tool in tools:
                     name = app.name + "_" + tool.__name__
                     description = tool.__doc__
-                    self.add_tool(tool, name=name, description=description)
+                    if app.actions is None or name in app.actions:
+                        self.add_tool(tool, name=name, description=description)
+            except Exception as e:
+                logger.error(f"Error loading app {app.name}: {e}")

@@ -1,6 +1,6 @@
 [project]
 name = "universal-mcp"
-version = "0.1.2rc1"
+version = "0.1.2"
 description = "Universal MCP acts as a middle ware for your API applications. It can store your credentials, authorize, enable disable apps on the fly and much more."
 readme = "README.md"
 authors = [
@@ -17,6 +17,7 @@ dependencies = [
     "markitdown[all]>=0.1.1",
     "keyring>=25.6.0",
     "litellm>=1.30.7",
+    "rich>=14.0.0",
 ]
 
 [project.optional-dependencies]
