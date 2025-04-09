@@ -1,7 +1,7 @@
 from universal_mcp.applications.application import APIApplication
 
 
-class ZenQuoteApp(APIApplication):
+class ZenquotesApp(APIApplication):
     def __init__(self, **kwargs) -> None:
         super().__init__(name="zenquote", **kwargs)
 

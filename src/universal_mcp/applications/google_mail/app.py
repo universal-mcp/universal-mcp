@@ -8,9 +8,9 @@ from universal_mcp.exceptions import NotAuthorizedError
 from universal_mcp.integrations import Integration
 
 
-class GmailApp(APIApplication):
+class GoogleMailApp(APIApplication):
     def __init__(self, integration: Integration) -> None:
-        super().__init__(name="gmail", integration=integration)
+        super().__init__(name="google-mail", integration=integration)
         self.base_api_url = "https://gmail.googleapis.com/gmail/v1/users/me"
 
     def _get_headers(self):

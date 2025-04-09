@@ -1,41 +1,26 @@
+import importlib
+
+from loguru import logger
+
 from universal_mcp.applications.application import APIApplication, Application
-from universal_mcp.applications.e2b.app import E2bApp
-from universal_mcp.applications.firecrawl.app import FirecrawlApp
-from universal_mcp.applications.github.app import GithubApp
-from universal_mcp.applications.google_calendar.app import GoogleCalendarApp
-from universal_mcp.applications.google_mail.app import GmailApp
-from universal_mcp.applications.markitdown.app import MarkitdownApp
-from universal_mcp.applications.reddit.app import RedditApp
-from universal_mcp.applications.resend.app import ResendApp
-from universal_mcp.applications.tavily.app import TavilyApp
-from universal_mcp.applications.zenquotes.app import ZenQuoteApp
+
+# Name are in the format of "app-name", eg, google-calendar
+# Folder name is "app_name", eg, google_calendar
+# Class name is NameApp, eg, GoogleCalendarApp
 
 
-def app_from_name(name: str):
-    name = name.lower().strip()
-    name = name.replace(" ", "-")
-    if name == "zenquotes":
-        return ZenQuoteApp
-    elif name == "tavily":
-        return TavilyApp
-    elif name == "github":
-        return GithubApp
-    elif name == "google-calendar":
-        return GoogleCalendarApp
-    elif name == "google-mail":
-        return GmailApp
-    elif name == "resend":
-        return ResendApp
-    elif name == "reddit":
-        return RedditApp
-    elif name == "markitdown":
-        return MarkitdownApp
-    elif name == "e2b":
-        return E2bApp
-    elif name == "firecrawl":
-        return FirecrawlApp
-    else:
-        raise ValueError(f"App {name} not found")
+def app_from_slug(slug: str):
+    name = slug.lower().strip()
+    app_name = "".join(word.title() for word in name.split("-")) + "App"
+    folder_name = name.replace("-", "_").lower()
+    logger.info(f"Importing {app_name} from {folder_name}")
+    module = importlib.import_module(f"universal_mcp.applications.{folder_name}.app")
+    app_class = getattr(module, app_name)
+    return app_class
 
 
-__all__ = ["app_from_name", "Application", "APIApplication"]
+__all__ = [
+    "app_from_slug",
+    "Application",
+    "APIApplication",
+]

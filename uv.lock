@@ -725,6 +725,15 @@ wheels = [
 ]
 
 [[package]]
+name = "google-search-results"
+version = "2.4.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/77/30/b3a6f6a2e00f8153549c2fa345c58ae1ce8e5f3153c2fe0484d444c3abcb/google_search_results-2.4.2.tar.gz", hash = "sha256:603a30ecae2af8e600b22635757a6df275dad4b934f975e67878ccd640b78245", size = 18818 }
+
+[[package]]
 name = "h11"
 version = "0.14.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1081,6 +1090,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/04/f5/dc7113d663995dcaf384312e3a6869ee254cd67b8d904a274d351a33d9b5/langchain_mcp_adapters-0.0.7.tar.gz", hash = "sha256:00cae7c832c1cf9e1faa8ed87973af2aa19d411aaf942860de680bec0f659fed", size = 11001 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a6/32/b09799c5b6ce8c6842536116118664dd7ec5964e229b7cd449c8d598c68d/langchain_mcp_adapters-0.0.7-py3-none-any.whl", hash = "sha256:1e37ec79fc6afb58d1dea17733e08cc111ebc1992aed4b22c67de5e2bdcdb5c6", size = 8610 },
+]
+
+[[package]]
+name = "langchain-openai"
+version = "0.3.12"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "langchain-core" },
+    { name = "openai" },
+    { name = "tiktoken" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/32/01/94d861be321df40f104324d3c64115917c7e774bb5d6af45d4af967c863c/langchain_openai-0.3.12.tar.gz", hash = "sha256:c9dbff63551f6bd91913bca9f99a2d057fd95dc58d4778657d67e5baa1737f61", size = 269015 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/07/7e/0d8838972ffead497b40cd42a1676f9ad90427d422c92dff2fb5461c4308/langchain_openai-0.3.12-py3-none-any.whl", hash = "sha256:0fab64d58ec95e65ffbaf659470cd362e815685e15edbcb171641e90eca4eb86", size = 61320 },
 ]
 
 [[package]]
@@ -2825,7 +2848,7 @@ wheels = [
 
 [[package]]
 name = "universal-mcp"
-version = "0.1.0"
+version = "0.1.2rc1"
 source = { editable = "." }
 dependencies = [
     { name = "keyring" },
@@ -2857,10 +2880,14 @@ playground = [
     { name = "fastapi", extra = ["standard"] },
     { name = "langchain-anthropic" },
     { name = "langchain-mcp-adapters" },
+    { name = "langchain-openai" },
     { name = "langgraph" },
     { name = "langgraph-checkpoint-sqlite" },
     { name = "python-dotenv" },
     { name = "streamlit" },
+]
+serpapi = [
+    { name = "google-search-results" },
 ]
 
 [package.metadata]
@@ -2868,9 +2895,11 @@ requires-dist = [
     { name = "e2b-code-interpreter", marker = "extra == 'e2b'", specifier = ">=1.2.0" },
     { name = "fastapi", extras = ["standard"], marker = "extra == 'playground'", specifier = ">=0.115.12" },
     { name = "firecrawl-py", marker = "extra == 'firecrawl'", specifier = ">=1.15.0" },
+    { name = "google-search-results", marker = "extra == 'serpapi'", specifier = ">=2.4.2" },
     { name = "keyring", specifier = ">=25.6.0" },
     { name = "langchain-anthropic", marker = "extra == 'playground'", specifier = ">=0.3.10" },
     { name = "langchain-mcp-adapters", marker = "extra == 'playground'", specifier = ">=0.0.3" },
+    { name = "langchain-openai", marker = "extra == 'playground'", specifier = ">=0.3.12" },
     { name = "langgraph", marker = "extra == 'playground'", specifier = ">=0.3.24" },
     { name = "langgraph-checkpoint-sqlite", marker = "extra == 'playground'", specifier = ">=2.0.6" },
     { name = "litellm", specifier = ">=1.30.7" },
@@ -2889,7 +2918,7 @@ requires-dist = [
     { name = "streamlit", marker = "extra == 'playground'", specifier = ">=1.44.1" },
     { name = "typer", specifier = ">=0.15.2" },
 ]
-provides-extras = ["playground", "dev", "e2b", "firecrawl"]
+provides-extras = ["playground", "dev", "e2b", "firecrawl", "serpapi"]
 
 [[package]]
 name = "urllib3"

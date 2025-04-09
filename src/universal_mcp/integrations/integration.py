@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import httpx
 from loguru import logger
 
+from universal_mcp.exceptions import NotAuthorizedError
 from universal_mcp.stores.store import Store
 
 
@@ -75,17 +76,22 @@ class ApiKeyIntegration(Integration):
 
     def __init__(self, name: str, store: Store = None, **kwargs):
         super().__init__(name, store, **kwargs)
+        if not name.endswith("api_key"):
+            self.name = f"{name}_api_key"
         logger.info(f"Initializing API Key Integration: {name} with store: {store}")
 
     def get_credentials(self):
         credentials = self.store.get(self.name)
+        if credentials is None:
+            action = self.authorize()
+            raise NotAuthorizedError(action)
         return credentials
 
     def set_credentials(self, credentials: dict):
         self.store.set(self.name, credentials)
 
     def authorize(self):
-        return {"text": "Please configure the API Key for {self.name}"}
+        return f"Please ask the user for api key and set the API Key for {self.name} in the store"
 
 
 class OAuthIntegration(Integration):

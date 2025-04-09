@@ -5,7 +5,7 @@ from universal_mcp.applications.application import APIApplication
 from universal_mcp.integrations import Integration
 
 
-class E2bApp(APIApplication):
+class E2BApp(APIApplication):
     """
     Application for interacting with the E2B secure cloud sandboxes
     to execute Python code.
@@ -15,20 +15,22 @@ class E2bApp(APIApplication):
         super().__init__(name="e2b", integration=integration)
         self.api_key: str | None = None
 
-        if self.integration is not None:
-            credentials = self.integration.get_credentials()
+    def _set_api_key(self):
+        if self.api_key:
+            return
 
-            if credentials and credentials.get("api_key"):
-                self.api_key = credentials["api_key"]
-                logger.info("E2B API Key successfully retrieved via integration.")
-            else:
-                # This typically means the environment variable was not set or accessible.
-                logger.error(
-                    f"Failed to retrieve E2B API Key using integration '{self.integration.name}'. "
-                    f"Check store configuration (e.g., ensure the correct environment variable is set)."
-                )
-        else:
-            logger.error("Integration is None. Cannot retrieve E2B API Key.")
+        if not self.integration:
+            raise ValueError("Integration is None. Cannot retrieve E2B API Key.")
+
+        credentials = self.integration.get_credentials()
+        if not credentials:
+            raise ValueError(
+                f"Failed to retrieve E2B API Key using integration '{self.integration.name}'. "
+                f"Check store configuration (e.g., ensure the correct environment variable is set)."
+            )
+
+        self.api_key = credentials
+        logger.info("E2B API Key successfully retrieved via integration.")
 
     def _format_execution_output(self, logs) -> str:
         """Helper function to format the E2B execution logs nicely."""
@@ -60,6 +62,7 @@ class E2bApp(APIApplication):
             from the execution. If an error occurs during setup or execution, an
             error message string is returned.
         """
+        self._set_api_key()
         with Sandbox(api_key=self.api_key) as sandbox:
             execution = sandbox.run_code(code=code)
             result = self._format_execution_output(execution.logs)
