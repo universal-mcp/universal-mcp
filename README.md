@@ -28,17 +28,16 @@ If you plan to use integrations with `type: "agentr"` (for services like GitHub,
     ```bash
     export AGENTR_API_KEY="your_api_key_here"
     ```
-This key is required for the MCP server to communicate with the AgentR platform for authentication and dynamic app loading when using `type: "agentr"`. If you only use `type: "local"` server and `type: "api_key"` or `null` integrations, this key might not be needed.
 
 **1. Create a Configuration File (e.g., `config.json`)**
 
 This file defines the server settings, credential stores, and the applications to load with their respective integrations.
 
-```json
+```bash
 {
   "name": "My Local MCP Server",
   "description": "A server for testing applications locally",
-  "type": "local",                  // Or "agentr" to load apps dynamically from AgentR
+  "type": "local",                  # Or "agentr" to load apps dynamically from AgentR
   "transport": "sse",
   "port": 8005,
   "store": {
@@ -47,13 +46,13 @@ This file defines the server settings, credential stores, and the applications t
   },
   "apps": [
     {
-      "name": "zenquotes",          // App slug
-      "integration": null           // No authentication needed
+      "name": "zenquotes",          # App slug
+      "integration": null           # No authentication needed
     },
     {
       "name": "tavily",
       "integration": {
-        "name": "TAVILY_API_KEY",   // Unique name for this credential
+        "name": "TAVILY_API_KEY",   # Unique name for this credential
         "type": "api_key",
         "store": {
           "type": "environment"
@@ -63,8 +62,8 @@ This file defines the server settings, credential stores, and the applications t
     {
       "name": "github",
       "integration": {
-        "name": "github",          // Matches the service name in AgentR
-        "type": "agentr"           // Uses AgentR platform for auth/creds
+        "name": "github",          # Matches the service name in AgentR
+        "type": "agentr"           # Uses AgentR platform for auth/creds
       }
     }
   ]
@@ -136,7 +135,7 @@ Universal MCP supports different ways to handle authentication for applications:
 
 For services that authenticate via simple API keys. Configure using `IntegrationConfig` with `type: "api_key"`.
 
-```json
+```bash
 {
   "name": "tavily",
   "integration": {
@@ -144,8 +143,8 @@ For services that authenticate via simple API keys. Configure using `Integration
     "type": "api_key",
     "store": {
       "name": "universal_mcp",
-      "type": "environment"   // Or "keyring", "memory"
-=    }
+      "type": "environment"   # Or "keyring", "memory"
+            }
   }
 }
 ```
