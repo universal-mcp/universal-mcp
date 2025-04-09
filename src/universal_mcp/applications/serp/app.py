@@ -1,7 +1,8 @@
-from serpapi import SerpApiClient as SerpApiSearch
-from universal_mcp.applications.application import APIApplication
 import httpx
 from loguru import logger
+from serpapi import SerpApiClient as SerpApiSearch
+
+from universal_mcp.applications.application import APIApplication
 
 
 class SerpApp(APIApplication):
@@ -25,7 +26,7 @@ class SerpApp(APIApplication):
         self.api_key = credentials
         logger.info("SERP API Key successfully retrieved via integration.")
 
-    async def search(self, params: dict[str, any] = {}) -> str:
+    async def search(self, params: dict[str, any] = None) -> str:
         """Perform a search on the specified engine using SerpApi.
 
         Args:
@@ -34,6 +35,8 @@ class SerpApp(APIApplication):
         Returns:
             A formatted string of search results or an error message.
         """
+        if params is None:
+            params = {}
         self._set_api_key()
         params = {
             "api_key": self.api_key,

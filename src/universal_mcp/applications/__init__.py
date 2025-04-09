@@ -1,7 +1,8 @@
 import importlib
-from loguru import logger
-from universal_mcp.applications.application import Application, APIApplication
 
+from loguru import logger
+
+from universal_mcp.applications.application import APIApplication, Application
 
 # Name are in the format of "app-name", eg, google-calendar
 # Folder name is "app_name", eg, google_calendar
