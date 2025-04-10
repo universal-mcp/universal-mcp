@@ -196,10 +196,6 @@ def generate_method_code(path, method, operation, tool_name=None):
                 name_parts.append(part)
         func_name = "_".join(name_parts).replace("-", "_").lower()
 
-    # Add tool name prefix if provided
-    if tool_name:
-        func_name = f"{tool_name}_{func_name}"
-
     # Get parameters and request body
     # Filter out header parameters
     parameters = [param for param in operation.get("parameters", []) if param.get("in") != "header"]
