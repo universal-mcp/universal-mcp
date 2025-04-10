@@ -41,7 +41,7 @@ def determine_return_type(operation: dict[str, Any]) -> str:
         operation (dict): The operation details from the schema.
 
     Returns:
-        str: The appropriate return type annotation (List[Any], Dict[str, Any], or Any)
+        str: The appropriate return type annotation (list[Any], dict[str, Any], or Any)
     """
     responses = operation.get("responses", {})
     # Find successful response (2XX)
@@ -62,9 +62,9 @@ def determine_return_type(operation: dict[str, Any]) -> str:
 
                 # Only determine if it's a list, dict, or unknown (Any)
                 if schema.get("type") == "array":
-                    return "List[Any]"
+                    return "list[Any]"
                 elif schema.get("type") == "object" or "$ref" in schema:
-                    return "Dict[str, Any]"
+                    return "dict[str, Any]"
 
     # Default to Any if unable to determine
     return "Any"
@@ -144,9 +144,9 @@ def generate_api_client(schema):
 
     # Generate class imports
     imports = [
+        "from typing import Any",
         "from universal_mcp.applications import APIApplication",
         "from universal_mcp.integrations import Integration",
-        "from typing import Any, Dict, List",
     ]
 
     # Construct the class code
@@ -274,40 +274,32 @@ def generate_method_code(path, method, operation, tool_name=None):
     else:
         body_lines.append("        query_params = {}")
 
-    # Request body handling for JSON
-    if has_body:
-        body_lines.append(
-            "        json_body = request_body if request_body is not None else None"
-        )
-
     # Make HTTP request using the proper method
     method_lower = method.lower()
     if method_lower == "get":
         body_lines.append("        response = self._get(url, params=query_params)")
     elif method_lower == "post":
         if has_body:
-            body_lines.append(
-                "        response = self._post(url, data=json_body, params=query_params)"
-            )
+            body_lines.append("        response = self._post(url, data=request_body, params=query_params)")
         else:
-            body_lines.append(
-                "        response = self._post(url, data={}, params=query_params)"
-            )
+            body_lines.append("        response = self._post(url, data={}, params=query_params)")
     elif method_lower == "put":
         if has_body:
-            body_lines.append(
-                "        response = self._put(url, data=json_body, params=query_params)"
-            )
+            body_lines.append("        response = self._put(url, data=request_body, params=query_params)")
         else:
-            body_lines.append(
-                "        response = self._put(url, data={}, params=query_params)"
-            )
+            body_lines.append("        response = self._put(url, data={}, params=query_params)")
+    elif method_lower == "patch":
+        if has_body:
+            body_lines.append("        response = self._patch(url, data=request_body, params=query_params)")
+        else:
+            body_lines.append("        response = self._patch(url, data={}, params=query_params)")
     elif method_lower == "delete":
         body_lines.append("        response = self._delete(url, params=query_params)")
     else:
-        body_lines.append(
-            f"        response = self._{method_lower}(url, data={{}}, params=query_params)"
-        )
+        if has_body:
+            body_lines.append(f"        response = self._{method_lower}(url, data=request_body, params=query_params)")
+        else:
+            body_lines.append(f"        response = self._{method_lower}(url, data={{}}, params=query_params)")
 
     # Handle response
     body_lines.append("        response.raise_for_status()")
