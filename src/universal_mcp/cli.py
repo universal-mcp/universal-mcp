@@ -1,10 +1,10 @@
 import asyncio
 import os
 from pathlib import Path
-from rich import print as rprint
-from rich.panel import Panel
 
 import typer
+from rich import print as rprint
+from rich.panel import Panel
 
 from universal_mcp.utils.installation import (
     get_supported_apps,
@@ -31,7 +31,7 @@ def generate(
     """Generate API client from OpenAPI schema with optional docstring generation.
 
     The output filename should match the name of the API in the schema (e.g., 'twitter.py' for Twitter API).
-    This name will be used for the folder in applications/ and as a prefix for function names.
+    This name will be used for the folder in applications/.
     """
     # Import here to avoid circular imports
     from universal_mcp.utils.api_generator import generate_api_from_schema
