@@ -2,7 +2,7 @@ from universal_mcp.applications import APIApplication
 from universal_mcp.integrations import Integration
 from typing import Any, Dict, List
 
-class NotionApiApp(APIApplication):
+class NotionApp(APIApplication):
     def __init__(self, integration: Integration = None, **kwargs) -> None:
         """
         Initializes the NotionAPIApp with a specified integration and optional additional keyword arguments.
@@ -14,8 +14,20 @@ class NotionApiApp(APIApplication):
         Returns:
             None
         """
-        super().__init__(name='notionapiapp', integration=integration, **kwargs)
+        super().__init__(name='notion', integration=integration, **kwargs)
         self.base_url = "https://api.notion.com"
+
+    def _get_headers(self):
+        if not self.integration:
+            raise ValueError("Integration not configured for NotionApp")
+        credentials = self.integration.get_credentials()
+        if "headers" in credentials:
+            return credentials["headers"]
+        return {
+            "Authorization": f"Bearer {credentials['access_token']}",
+            "Accept": "application/json",
+            "Notion-Version": "2022-06-28",
+        }     
 
     def retrieve_a_user(self, id, request_body=None) -> Dict[str, Any]:
         """
