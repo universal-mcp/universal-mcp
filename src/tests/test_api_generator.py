@@ -53,7 +53,9 @@ def sample_schema(temp_dir):
 async def test_generate_api_without_output(sample_schema):
     """Test API generation without output file (return code only)."""
     result = await generate_api_from_schema(
-        schema_path=sample_schema, output_path=None, add_docstrings=False
+        schema_path=sample_schema, 
+        output_path=None, 
+        add_docstrings=False
     )
 
     assert "code" in result
@@ -61,8 +63,8 @@ async def test_generate_api_without_output(sample_schema):
     # Check for required imports
     assert "from universal_mcp.applications import APIApplication" in result["code"]
     assert "from universal_mcp.integrations import Integration" in result["code"]
-    # Check for the test operation
-    assert "def test_test_operation" in result["code"]
+    # Check for the test operation (now without prefix)
+    assert "def test_operation" in result["code"]
     assert "list_tools" in result["code"]
 
 
@@ -72,7 +74,9 @@ async def test_generate_api_with_output(sample_schema, temp_dir):
     output_path = temp_dir / "test.py"
 
     result = await generate_api_from_schema(
-        schema_path=sample_schema, output_path=output_path, add_docstrings=True
+        schema_path=sample_schema, 
+        output_path=output_path, 
+        add_docstrings=True
     )
 
     assert "app_file" in result
@@ -86,7 +90,7 @@ async def test_generate_api_with_output(sample_schema, temp_dir):
     # Check for required imports and class structure
     assert "from universal_mcp.applications import APIApplication" in content
     assert "from universal_mcp.integrations import Integration" in content
-    assert "def test_test_operation" in content
+    assert "def test_operation" in content
     assert "def list_tools" in content
 
     # Verify README exists and contains expected content
@@ -95,7 +99,7 @@ async def test_generate_api_with_output(sample_schema, temp_dir):
         readme_content = readme_file.read_text()
         assert "Test MCP Server" in readme_content
         assert "Tool List" in readme_content
-        assert "test_test_operation" in readme_content
+        assert "test_operation" in readme_content
 
     # Verify temporary file was cleaned up
     assert not output_path.exists()
@@ -126,7 +130,9 @@ async def test_generate_api_with_docstrings(sample_schema, temp_dir):
     output_path = temp_dir / "test_with_docs.py"
 
     result = await generate_api_from_schema(
-        schema_path=sample_schema, output_path=output_path, add_docstrings=True
+        schema_path=sample_schema, 
+        output_path=output_path, 
+        add_docstrings=True
     )
 
     app_file = Path(result["app_file"])
@@ -137,7 +143,7 @@ async def test_generate_api_with_docstrings(sample_schema, temp_dir):
     # Check for required imports and class structure
     assert "from universal_mcp.applications import APIApplication" in content
     assert "from universal_mcp.integrations import Integration" in content
-    assert "def test_test_operation" in content
+    assert "def test_operation" in content
     assert '"""' in content  # Basic check for docstring presence
     assert "Args:" in content or "Parameters:" in content
     assert "Returns:" in content
@@ -152,7 +158,9 @@ async def test_generate_api_without_docstrings(sample_schema, temp_dir):
     output_path = temp_dir / "test_without_docs.py"
 
     result = await generate_api_from_schema(
-        schema_path=sample_schema, output_path=output_path, add_docstrings=False
+        schema_path=sample_schema, 
+        output_path=output_path, 
+        add_docstrings=False
     )
 
     app_file = Path(result["app_file"])
@@ -163,7 +171,7 @@ async def test_generate_api_without_docstrings(sample_schema, temp_dir):
     # Check for required imports and class structure
     assert "from universal_mcp.applications import APIApplication" in content
     assert "from universal_mcp.integrations import Integration" in content
-    assert "def test_test_operation" in content
+    assert "def test_operation" in content
     assert "def list_tools" in content
 
     # Verify temporary file was cleaned up
@@ -227,22 +235,24 @@ async def test_generate_api_with_complex_schema(temp_dir):
 
     output_path = temp_dir / "complex.py"
     result = await generate_api_from_schema(
-        schema_path=schema_file, output_path=output_path, add_docstrings=True
+        schema_path=schema_file, 
+        output_path=output_path, 
+        add_docstrings=True
     )
 
     app_file = Path(result["app_file"])
     assert app_file.exists()
 
     content = app_file.read_text()
-    # Check for all operations with the 'complex_' prefix
-    assert "def complex_list_users" in content
-    assert "def complex_create_user" in content
-    assert "def complex_get_user" in content
+    # Check for all operations (without the 'complex_' prefix)
+    assert "def list_users" in content
+    assert "def create_user" in content
+    assert "def get_user" in content
 
     # Check list_tools includes all operations with proper method references
-    assert "self.complex_list_users" in content
-    assert "self.complex_create_user" in content
-    assert "self.complex_get_user" in content
+    assert "self.list_users" in content
+    assert "self.create_user" in content
+    assert "self.get_user" in content
 
     # Check for proper class name
     assert "class ComplexApiApp(APIApplication)" in content
@@ -262,6 +272,6 @@ async def test_generate_api_with_complex_schema(temp_dir):
     # Check README content
     assert "Complex MCP Server" in readme_content
     assert "Tool List" in readme_content
-    assert "complex_list_users" in readme_content
-    assert "complex_create_user" in readme_content
-    assert "complex_get_user" in readme_content
+    assert "list_users" in readme_content
+    assert "create_user" in readme_content
+    assert "get_user" in readme_content

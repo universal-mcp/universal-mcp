@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from loguru import logger
+from rich import print
 
 
 def get_uvx_path() -> str:
@@ -21,6 +22,7 @@ def get_uvx_path() -> str:
 def create_file_if_not_exists(path: Path) -> None:
     """Create a file if it doesn't exist"""
     if not path.exists():
+        print(f"[yellow]Creating config file at {path}[/yellow]")
         with open(path, "w") as f:
             json.dump({}, f)
 
@@ -32,6 +34,7 @@ def get_supported_apps() -> list[str]:
 
 def install_claude(api_key: str) -> None:
     """Install Claude"""
+    print("[bold blue]Installing Claude configuration...[/bold blue]")
     # Determine platform-specific config path
     if sys.platform == "darwin":  # macOS
         config_path = (
@@ -50,6 +53,9 @@ def install_claude(api_key: str) -> None:
     try:
         config = json.loads(config_path.read_text())
     except json.JSONDecodeError:
+        print(
+            "[yellow]Config file was empty or invalid, creating new configuration[/yellow]"
+        )
         config = {}
     if "mcpServers" not in config:
         config["mcpServers"] = {}
@@ -60,10 +66,12 @@ def install_claude(api_key: str) -> None:
     }
     with open(config_path, "w") as f:
         json.dump(config, f, indent=4)
+    print("[green]✓[/green] Claude configuration installed successfully")
 
 
 def install_cursor(api_key: str) -> None:
     """Install Cursor"""
+    print("[bold blue]Installing Cursor configuration...[/bold blue]")
     # Set up Cursor config path
     config_path = Path.home() / ".cursor/mcp.json"
 
@@ -73,6 +81,9 @@ def install_cursor(api_key: str) -> None:
     try:
         config = json.loads(config_path.read_text())
     except json.JSONDecodeError:
+        print(
+            "[yellow]Config file was empty or invalid, creating new configuration[/yellow]"
+        )
         config = {}
 
     if "mcpServers" not in config:
@@ -85,15 +96,18 @@ def install_cursor(api_key: str) -> None:
 
     with open(config_path, "w") as f:
         json.dump(config, f, indent=4)
+    print("[green]✓[/green] Cursor configuration installed successfully")
 
 
 def install_windsurf() -> None:
     """Install Windsurf"""
+    print("[yellow]Windsurf installation not yet implemented[/yellow]")
     pass
 
 
 def install_app(app_name: str) -> None:
     """Install an app"""
+    print(f"[bold]Installing {app_name}...[/bold]")
     if app_name == "claude":
         install_claude()
     elif app_name == "cursor":
@@ -101,4 +115,5 @@ def install_app(app_name: str) -> None:
     elif app_name == "windsurf":
         install_windsurf()
     else:
+        print(f"[red]Error: App '{app_name}' not supported[/red]")
         raise ValueError(f"App '{app_name}' not supported")

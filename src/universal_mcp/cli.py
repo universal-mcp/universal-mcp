@@ -3,6 +3,8 @@ import os
 from pathlib import Path
 
 import typer
+from rich import print as rprint
+from rich.panel import Panel
 
 from universal_mcp.utils.installation import (
     get_supported_apps,
@@ -29,7 +31,7 @@ def generate(
     """Generate API client from OpenAPI schema with optional docstring generation.
 
     The output filename should match the name of the API in the schema (e.g., 'twitter.py' for Twitter API).
-    This name will be used for the folder in applications/ and as a prefix for function names.
+    This name will be used for the folder in applications/.
     """
     # Import here to avoid circular imports
     from universal_mcp.utils.api_generator import generate_api_from_schema
@@ -97,9 +99,6 @@ def docgen(
         typer.echo(f"Successfully processed {processed} functions")
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
-        import traceback
-
-        traceback.print_exc()
         raise typer.Exit(1) from e
 
 
@@ -111,7 +110,10 @@ def run(
 ):
     """Run the MCP server"""
     from universal_mcp.config import ServerConfig
+    from universal_mcp.logger import setup_logger
     from universal_mcp.servers import server_from_config
+
+    setup_logger()
 
     if config_path:
         config = ServerConfig.model_validate_json(config_path.read_text())
@@ -135,18 +137,23 @@ def install(app_name: str = typer.Argument(..., help="Name of app to install")):
         raise typer.Exit(1)
 
     # Print instructions before asking for API key
-    typer.echo(
-        "╭─ Instruction ─────────────────────────────────────────────────────────────────╮"
-    )
-    typer.echo(
-        "│ API key is required. Visit https://agentr.dev to create an API key.           │"
-    )
-    typer.echo(
-        "╰───────────────────────────────────────────────────────────────────────────────╯"
+
+    rprint(
+        Panel(
+            "API key is required. Visit [link]https://agentr.dev[/link] to create an API key.",
+            title="Instruction",
+            border_style="blue",
+            padding=(1, 2),
+        )
     )
 
     # Prompt for API key
-    api_key = typer.prompt("Enter your AgentR API key", hide_input=True)
+    api_key = typer.prompt(
+        "Enter your AgentR API key",
+        hide_input=False,
+        show_default=False,
+        type=str,
+    )
     try:
         if app_name == "claude":
             typer.echo(f"Installing mcp server for: {app_name}")

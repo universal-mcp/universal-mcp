@@ -47,14 +47,20 @@ class Server(FastMCP, ABC):
 
     async def call_tool(self, name: str, arguments: dict[str, Any]):
         """Call a tool by name with arguments."""
+        logger.info(f"Calling tool: {name} with arguments: {arguments}")
         try:
             result = await super().call_tool(name, arguments)
+            logger.info(f"Tool {name} completed successfully")
             return result
         except ToolError as e:
             raised_error = e.__cause__
             if isinstance(raised_error, NotAuthorizedError):
+                logger.warning(
+                    f"Not authorized to call tool {name}: {raised_error.message}"
+                )
                 return [TextContent(type="text", text=raised_error.message)]
             else:
+                logger.error(f"Error calling tool {name}: {str(e)}")
                 raise e
 
 
@@ -101,22 +107,18 @@ class LocalServer(Server):
     def _load_apps(self):
         logger.info(f"Loading apps: {self.apps_list}")
         for app_config in self.apps_list:
-            app = self._load_app(app_config)
-            if app:
-                tools = app.list_tools()
+            try:
+                app = self._load_app(app_config)
+                if app:
+                    tools = app.list_tools()
                 for tool in tools:
-                    full_tool_name = app.name + "_" + tool.__name__
+                    tool_name = tool.__name__
+                    name = app.name + "_" + tool_name
                     description = tool.__doc__
-                    should_add_tool = False
-                    if (
-                        app_config.actions is None
-                        or full_tool_name in app_config.actions
-                    ):
-                        should_add_tool = True
-                    if should_add_tool:
-                        self.add_tool(
-                            tool, name=full_tool_name, description=description
-                        )
+                    if app_config.actions is None or tool_name in app_config.actions:
+                        self.add_tool(tool, name=name, description=description)
+            except Exception as e:
+                logger.error(f"Error loading app {app_config.name}: {e}")
 
 
 class AgentRServer(Server):
@@ -143,7 +145,7 @@ class AgentRServer(Server):
         app = app_from_slug(name)(integration=integration)
         return app
 
-    def _list_apps_with_integrations(self):
+    def _list_apps_with_integrations(self) -> list[AppConfig]:
         # TODO: get this from the API
         response = httpx.get(
             f"{self.base_url}/api/apps/", headers={"X-API-KEY": self.api_key}
@@ -156,11 +158,16 @@ class AgentRServer(Server):
 
     def _load_apps(self):
         apps = self._list_apps_with_integrations()
-        for app in apps:
-            app = self._load_app(app)
-            if app:
-                tools = app.list_tools()
+        for app_config in apps:
+            try:
+                app = self._load_app(app_config)
+                if app:
+                    tools = app.list_tools()
                 for tool in tools:
-                    name = app.name + "_" + tool.__name__
+                    tool_name = tool.__name__
+                    name = app.name + "_" + tool_name
                     description = tool.__doc__
-                    self.add_tool(tool, name=name, description=description)
+                    if app_config.actions is None or tool_name in app_config.actions:
+                        self.add_tool(tool, name=name, description=description)
+            except Exception as e:
+                logger.error(f"Error loading app {app_config.name}: {e}")
