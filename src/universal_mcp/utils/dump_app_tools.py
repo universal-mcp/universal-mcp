@@ -3,6 +3,7 @@ from pathlib import Path
 
 from universal_mcp.applications import app_from_slug
 
+
 def discover_available_app_slugs():
     apps_dir = Path(__file__).resolve().parent.parent / "applications"
     app_slugs = []
