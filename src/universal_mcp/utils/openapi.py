@@ -195,6 +195,11 @@ def generate_method_code(path, method, operation, tool_name=None):
             else:
                 name_parts.append(part)
         func_name = "_".join(name_parts).replace("-", "_").lower()
+    
+   
+   
+    func_name = re.sub(r'_a([^_])', r'_a_\1', func_name)  # Fix for patterns like retrieve_ablock
+    func_name = re.sub(r'_an([^_])', r'_an_\1', func_name)  # Fix for patterns like create_anitem
 
     # Get parameters and request body
     # Filter out header parameters
