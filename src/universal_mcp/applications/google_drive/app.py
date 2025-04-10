@@ -1,5 +1,4 @@
 from typing import Any
-import json
 
 from loguru import logger
 
@@ -105,11 +104,7 @@ class GoogleDriveApp(APIApplication):
         if parent_folder_id:
             metadata["parents"] = [parent_folder_id]
         
-        # if content is None:
-        #     url = f"{self.base_url}/files"
-        #     response = self._post(url, data=metadata)
-        #     response.raise_for_status()
-        #     return response.json()
+       
         
         url = f"{self.base_url}/files?uploadType=media"
         headers = self._get_headers()
