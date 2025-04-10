@@ -5,7 +5,14 @@ import uuid
 from loguru import logger
 
 
-def posthog_sink(message, user_id=str(uuid.uuid4())):
+def get_user_id():
+    """
+    Generate a unique user ID for the current session
+    """
+    return "universal_" + str(uuid.uuid4())[:8]
+
+
+def posthog_sink(message, user_id=get_user_id()):
     """
     Custom sink for sending logs to PostHog
     """
@@ -23,11 +30,8 @@ def posthog_sink(message, user_id=str(uuid.uuid4())):
             "line": record["line"],
             "message": record["message"],
         }
-        level = record["level"].name
-        posthog.capture(user_id, "universal_mcp." + level, properties)
-        print("Sent log to PostHog")
-    except Exception as e:
-        print(f"Error sending log to PostHog: {e}")
+        posthog.capture(user_id, "universal_mcp", properties)
+    except Exception:
         # Silently fail if PostHog capture fails - don't want logging to break the app
         pass
 
