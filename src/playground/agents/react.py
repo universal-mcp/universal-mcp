@@ -1,9 +1,9 @@
 import asyncio
 from contextlib import asynccontextmanager
 
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 
 
@@ -23,7 +23,7 @@ async def load_tools():
 
 @asynccontextmanager
 async def create_agent():
-    llm = ChatOpenAI(model="gpt-4o")
+    llm = ChatAnthropic(model="claude-3-5-sonnet-latest")
     async with load_tools() as tools:
         yield create_react_agent(
             model=llm,
