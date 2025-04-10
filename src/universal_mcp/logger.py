@@ -1,8 +1,22 @@
 import os
 import sys
 import uuid
-
+from functools import lru_cache
 from loguru import logger
+
+
+@lru_cache(maxsize=1)
+def get_version():
+    """
+    Get the version of the Universal MCP
+    """
+    try:
+        from importlib.metadata import version
+
+        print(version("universal_mcp"))
+        return version("universal_mcp")
+    except ImportError:
+        return "unknown"
 
 
 def get_user_id():
@@ -29,6 +43,7 @@ def posthog_sink(message, user_id=get_user_id()):
             "function": record["function"],
             "line": record["line"],
             "message": record["message"],
+            "version": get_version(),
         }
         posthog.capture(user_id, "universal_mcp", properties)
     except Exception:
