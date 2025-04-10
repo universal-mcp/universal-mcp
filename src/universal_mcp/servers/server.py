@@ -47,14 +47,20 @@ class Server(FastMCP, ABC):
 
     async def call_tool(self, name: str, arguments: dict[str, Any]):
         """Call a tool by name with arguments."""
+        logger.info(f"Calling tool: {name} with arguments: {arguments}")
         try:
             result = await super().call_tool(name, arguments)
+            logger.info(f"Tool {name} completed successfully")
             return result
         except ToolError as e:
             raised_error = e.__cause__
             if isinstance(raised_error, NotAuthorizedError):
+                logger.warning(
+                    f"Not authorized to call tool {name}: {raised_error.message}"
+                )
                 return [TextContent(type="text", text=raised_error.message)]
             else:
+                logger.error(f"Error calling tool {name}: {str(e)}")
                 raise e
 
 
