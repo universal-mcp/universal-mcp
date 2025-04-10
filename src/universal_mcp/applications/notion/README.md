@@ -1,4 +1,15 @@
-# Notion Tool
+
+# Notion MCP Server
+
+An MCP Server for the Notion API.
+
+## Supported Integrations
+
+- AgentR
+- API Key (Coming Soon)
+- OAuth (Coming Soon)
+
+## Tools
 
 This is automatically generated from OpenAPI schema for the Notion API.
 
@@ -10,23 +21,35 @@ This tool can be integrated with any service that supports HTTP requests.
 
 | Tool | Description |
 |------|-------------|
-| notion_retrieve_auser | Retrieves user information from the Notion API by user ID. |
-| notion_list_all_users | Fetches and returns a list of all users from the Notion API. |
-| notion_retrieve_your_token_sbot_user | Retrieves the current user's token data from the Notion API. |
-| notion_retrieve_adatabase | Retrieves a Notion database by its unique identifier. |
-| notion_update_adatabase | Updates a Notion database with the given ID and request body data. |
-| notion_query_adatabase | Executes a query on a Notion database using the Notion API. |
-| notion_create_adatabase | Creates a new database in Notion using the provided request body. |
-| notion_create_apage | Creates a new page in Notion by sending a POST request with the specified request body. |
-| notion_retrieve_apage | Retrieves a page from the Notion API using a given page ID. |
-| notion_update_page_properties | Updates the properties of a Notion page identified by a given ID. |
-| notion_retrieve_apage_property_item | Retrieves a specific property item from a page in Notion using the page and property IDs. |
-| notion_retrieve_block_children | Retrieves the child blocks of a specified Notion block. |
-| notion_append_block_children | Appends child blocks to a block in Notion using its API. |
-| notion_retrieve_ablock | Retrieves a block from the Notion API using the specified block ID. |
-| notion_delete_ablock | Deletes a block from the Notion database using the specified block ID. |
-| notion_update_ablock | Updates a block in Notion with the given ID and request body. |
-| notion_search | Executes a search request to the Notion API and returns the response in JSON format. |
-| notion_retrieve_comments | Retrieves comments from a Notion block using the Notion API. |
-| notion_add_comment_to_page | Adds a comment to a specified Notion page using the provided request body. |
+| retrieve_a_user | Retrieves a user's information from the API based on the user ID. |
+| list_a_ll_users | Retrieves a list of all users from the API. |
+| retrieve_your_token_sbot_user | Retrieves the token for the current user from the server. |
+| retrieve_a_database | Retrieve detailed information about a specific database by its ID. |
+| update_a_database | Updates a database entry with the given identifier and optional request body. |
+| query_a_database | Queries a database by sending a POST request to a specified endpoint. |
+| create_a_database | Creates a new database by sending a POST request to the specified endpoint. |
+| create_a_page | Creates a new page using the specified request body data. |
+| retrieve_a_page | Retrieves a page's details using the provided page ID. |
+| update_page_properties | Updates the properties of a page with the specified ID using a PATCH request. |
+| retrieve_a_page_property_item | Retrieves a specific property item from a page by page ID and property ID. |
+| retrieve_block_children | Retrieves the children of a block by its unique identifier, with optional pagination. |
+| append_block_children | Appends children to a given block by ID and returns the response as a dictionary. |
+| retrieve_a_block | Retrieves a block by its unique identifier from the server. |
+| delete_a_block | Deletes a block with the specified identifier from the system. |
+| update_a_block | Updates an existing block with new data using the provided identifier and request body. |
+| search | Performs a search operation by sending a POST request to the specified search endpoint. |
+| retrieve_comments | Fetches comments from a specified endpoint with optional filtering and pagination. |
+| add_comment_to_page | Sends a POST request to add a new comment to a page. |
 
+
+
+## Usage
+
+- Login to AgentR
+- Follow the quickstart guide to setup MCP Server for your client
+- Visit Apps Store and enable the Notion app
+- Restart the MCP Server
+
+### Local Development
+
+- Follow the README to test with the local MCP Server

@@ -1,64 +1,52 @@
-from typing import Any
-
 from universal_mcp.applications import APIApplication
 from universal_mcp.integrations import Integration
+from typing import Any, Dict, List
 
-
-class NotionApp(APIApplication):
+class NotionApiApp(APIApplication):
     def __init__(self, integration: Integration = None, **kwargs) -> None:
         """
-        Initializes a new instance of the class with given integration and additional options.
+        Initializes the NotionAPIApp with a specified integration and optional additional keyword arguments.
         
         Args:
-            integration: An optional Integration instance to configure the connection. Defaults to None.
-            **kwargs: Additional keyword arguments for configuration.
+            integration: An Integration object to be used for authenticating or interfacing with the Notion API. Defaults to None.
+            kwargs: Additional keyword arguments that are passed to the parent's class initialization.
         
         Returns:
             None
         """
-        super().__init__(name='notion', integration=integration, **kwargs)
+        super().__init__(name='notionapiapp', integration=integration, **kwargs)
         self.base_url = "https://api.notion.com"
 
-    def _get_headers(self):
-        if not self.integration:
-            raise ValueError("Integration not configured for NotionApp")
-        credentials = self.integration.get_credentials()
-        if "headers" in credentials:
-            return credentials["headers"]
-        return {
-            "Authorization": f"Bearer {credentials['access_token']}",
-            "Accept": "application/json",
-            "Notion-Version": "2022-06-28",
-        }    
-
-    def notion_retrieve_auser(self, id, request_body=None) -> dict[str, Any]:
+    def retrieve_a_user(self, id, request_body=None) -> Dict[str, Any]:
         """
-        Retrieves user information from the Notion API by user ID.
+        Retrieves a user's information from the API based on the user ID.
         
         Args:
-            id: The unique identifier of the user whose information is to be retrieved.
-            request_body: A dictionary representing the request body, optional, default is None.
+            self: The instance of the class this method is a part of.
+            id: The unique identifier of the user to retrieve. Must not be None.
+            request_body: Optional JSON serializable dictionary for any additional parameters to be passed in the request. Defaults to None.
         
         Returns:
-            A dictionary containing the user's information from the Notion API.
+            A dictionary containing the user's information retrieved from the API.
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
         url = f"{self.base_url}/v1/users/{id}"
         query_params = {}
+        json_body = request_body if request_body is not None else None
         response = self._get(url, params=query_params)
         response.raise_for_status()
         return response.json()
 
-    def notion_list_all_users(self, ) -> dict[str, Any]:
+    def list_all_users(self, ) -> Dict[str, Any]:
         """
-        Fetches and returns a list of all users from the Notion API.
+        Retrieves a list of all users from the API.
         
         Args:
             None: This method does not take any parameters.
         
         Returns:
-            A dictionary containing the JSON response from the Notion API, representing all users data.
+            A dictionary containing the JSON response from the API, with details about all users.
         """
         url = f"{self.base_url}/v1/users"
         query_params = {}
@@ -66,15 +54,15 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_retrieve_your_token_sbot_user(self, ) -> dict[str, Any]:
+    def retrieve_your_token_sbot_user(self, ) -> Dict[str, Any]:
         """
-        Retrieves the current user's token data from the Notion API.
+        Retrieves the token for the current user from the server.
         
         Args:
-            self: Instance of the class containing the necessary configuration and authentication details for accessing the Notion API.
+            None: This method does not take any parameters.
         
         Returns:
-            A dictionary containing the current user's token information as retrieved from the Notion API.
+            A dictionary containing the JSON response from the server with the user's token information.
         """
         url = f"{self.base_url}/v1/users/me"
         query_params = {}
@@ -82,15 +70,15 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_retrieve_adatabase(self, id) -> dict[str, Any]:
+    def retrieve_a_database(self, id) -> Dict[str, Any]:
         """
-        Retrieves a Notion database by its unique identifier.
+        Retrieve detailed information about a specific database by its ID.
         
         Args:
-            id: A string representing the unique identifier of the Notion database to be retrieved.
+            id: The unique identifier of the database to retrieve.
         
         Returns:
-            A dictionary containing the details of the retrieved Notion database.
+            A dictionary containing the detailed information of the specified database.
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -100,37 +88,37 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_update_adatabase(self, id, request_body=None) -> dict[str, Any]:
+    def update_a_database(self, id, request_body=None) -> Dict[str, Any]:
         """
-        Updates a Notion database with the given ID and request body data.
+        Updates a database entry with the given identifier and optional request body.
         
         Args:
-            self: An instance of the class containing configuration and methods for HTTP requests.
-            id: A string representing the unique identifier of the Notion database to be updated.
-            request_body: An optional dictionary containing the fields and values to update in the database.
+            self: The instance of the class; refers to the current object.
+            id: The unique identifier of the database entry to be updated. Must not be None.
+            request_body: Optional. A dictionary containing the data to be updated in the database. Defaults to None.
         
         Returns:
-            A dictionary representing the JSON response from the Notion API after updating the database.
+            A dictionary containing the JSON response from the API, after updating the database entry.
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
         url = f"{self.base_url}/v1/databases/{id}"
         query_params = {}
+        json_body = request_body if request_body is not None else None
         response = self._patch(url, data={}, params=query_params)
         response.raise_for_status()
         return response.json()
 
-    def notion_query_adatabase(self, id, request_body=None) -> dict[str, Any]:
+    def query_a_database(self, id, request_body=None) -> Dict[str, Any]:
         """
-        Executes a query on a Notion database using the Notion API.
+        Queries a database by sending a POST request to a specified endpoint.
         
         Args:
-            self: Instance of the class which should contain 'base_url' and '_post' method.
-            id: A string representing the unique identifier of the Notion database to query.
-            request_body: Optional. A dictionary representing the request body for the query. Defaults to None.
+            id: The identifier of the database to query. This parameter is required.
+            request_body: Optional dictionary representing the JSON body of the request. Defaults to None if not provided.
         
         Returns:
-            A dictionary containing the JSON response from the Notion API after querying the specified database.
+            A dictionary representing the JSON response from the database query.
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -141,16 +129,15 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_create_adatabase(self, request_body=None) -> dict[str, Any]:
+    def create_a_database(self, request_body=None) -> Dict[str, Any]:
         """
-        Creates a new database in Notion using the provided request body.
+        Creates a new database by sending a POST request to the specified endpoint.
         
         Args:
-            self: Reference to the current instance of the class.
-            request_body: Optional dictionary containing the specifications for creating the Notion database. If None, a default empty request body is used.
+            request_body: The JSON data to be sent in the request body for creating the database. Defaults to None if not provided.
         
         Returns:
-            A dictionary representing the JSON response from the Notion API, containing data about the newly created database.
+            A dictionary containing the JSON response from the server, which includes details about the newly created database.
         """
         url = f"{self.base_url}/v1/databases/"
         query_params = {}
@@ -159,15 +146,15 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_create_apage(self, request_body=None) -> dict[str, Any]:
+    def create_a_page(self, request_body=None) -> Dict[str, Any]:
         """
-        Creates a new page in Notion by sending a POST request with the specified request body.
+        Creates a new page using the specified request body data.
         
         Args:
-            request_body: Optional; A dictionary containing the data to create a new page in Notion. Defaults to None.
+            request_body: Optional dictionary containing the data to create the new page. Defaults to None if not provided.
         
         Returns:
-            A dictionary containing the JSON response from the Notion API with the details of the newly created page.
+            A dictionary representing the JSON response from the server after attempting to create the page.
         """
         url = f"{self.base_url}/v1/pages/"
         query_params = {}
@@ -176,15 +163,16 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_retrieve_apage(self, id) -> dict[str, Any]:
+    def retrieve_a_page(self, id) -> Dict[str, Any]:
         """
-        Retrieves a page from the Notion API using a given page ID.
+        Retrieves a page's details using the provided page ID.
         
         Args:
-            id: The unique identifier of the Notion page to be retrieved.
+            self: Instance of the class containing this method.
+            id: The unique identifier of the page to retrieve.
         
         Returns:
-            A dictionary containing the JSON response from the Notion API, representing the page data.
+            A dictionary containing the details of the specified page.
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -194,36 +182,36 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_update_page_properties(self, id, request_body=None) -> dict[str, Any]:
+    def update_page_properties(self, id, request_body=None) -> Dict[str, Any]:
         """
-        Updates the properties of a Notion page identified by a given ID.
+        Updates the properties of a page with the specified ID using a PATCH request.
         
         Args:
-            self: Instance of the class containing the Notion API credentials and methods.
-            id: The unique identifier of the Notion page to update. Must not be None.
-            request_body: An optional dictionary representing the request body to be sent with the update request. Defaults to None, indicating no additional properties to update.
+            id: The unique identifier of the page to update. This parameter is required.
+            request_body: Optional dictionary specifying the properties to update on the page. Defaults to None if not provided.
         
         Returns:
-            A dictionary containing the JSON response from the Notion API after the page update request.
+            A dictionary containing the response data from the server after updating the page properties.
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
         url = f"{self.base_url}/v1/pages/{id}"
         query_params = {}
+        json_body = request_body if request_body is not None else None
         response = self._patch(url, data={}, params=query_params)
         response.raise_for_status()
         return response.json()
 
-    def notion_retrieve_apage_property_item(self, page_id, property_id) -> dict[str, Any]:
+    def retrieve_a_page_property_item(self, page_id, property_id) -> Dict[str, Any]:
         """
-        Retrieves a specific property item from a page in Notion using the page and property IDs.
+        Retrieves a specific property item from a page by page ID and property ID.
         
         Args:
-            page_id: The unique identifier for the Notion page from which the property item should be retrieved.
-            property_id: The unique identifier for the property item within the specified page that should be retrieved.
+            page_id: The unique identifier of the page from which to retrieve the property item.
+            property_id: The unique identifier of the property item to retrieve from the specified page.
         
         Returns:
-            A dictionary containing the JSON response from the Notion API representing the requested property item.
+            A dictionary containing the details of the property item, as retrieved from the page.
         """
         if page_id is None:
             raise ValueError("Missing required parameter 'page_id'")
@@ -235,17 +223,16 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_retrieve_block_children(self, id, page_size=None) -> dict[str, Any]:
+    def retrieve_block_children(self, id, page_size=None) -> Dict[str, Any]:
         """
-        Retrieves the child blocks of a specified Notion block.
+        Retrieves the children of a block by its unique identifier, with optional pagination.
         
         Args:
-            self: The instance of the class this method belongs to.
-            id: The unique identifier of the parent block whose children are to be retrieved.
-            page_size: Optional; the number of child blocks to retrieve per request.
+            id: The unique identifier of the block whose children are to be retrieved.
+            page_size: Optional; the maximum number of children to return per page. If not provided, the default page size is used.
         
         Returns:
-            A dictionary containing the JSON response with details about the child blocks.
+            A dictionary containing the children of the specified block along with their details.
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -255,35 +242,35 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_append_block_children(self, id, request_body=None) -> dict[str, Any]:
+    def append_block_children(self, id, request_body=None) -> Dict[str, Any]:
         """
-        Appends child blocks to a block in Notion using its API.
+        Appends children to a given block by ID and returns the response as a dictionary.
         
         Args:
-            self: Instance of the class containing Notion API credentials and configuration.
-            id: The unique identifier of the parent block to which child blocks are to be appended.
-            request_body: An optional dictionary containing the block data to append. Defaults to None.
+            id: The unique identifier of the block to which children are to be appended.
+            request_body: Optional. A dictionary representing the request body. Defaults to None.
         
         Returns:
-            A dictionary representing the response from the Notion API, containing the result of the append operation.
+            A dictionary containing the JSON response from the server after appending children to the block.
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
         url = f"{self.base_url}/v1/blocks/{id}/children"
         query_params = {}
+        json_body = request_body if request_body is not None else None
         response = self._patch(url, data={}, params=query_params)
         response.raise_for_status()
         return response.json()
 
-    def notion_retrieve_ablock(self, id) -> dict[str, Any]:
+    def retrieve_a_block(self, id) -> Dict[str, Any]:
         """
-        Retrieves a block from the Notion API using the specified block ID.
+        Retrieves a block by its unique identifier from the server.
         
         Args:
-            id: The unique identifier of the block to retrieve from the Notion API. Must be a non-null string.
+            id: The unique identifier of the block to be retrieved. Must be a non-null string.
         
         Returns:
-            A dictionary containing the block data in JSON format as retrieved from the Notion API.
+            A dictionary containing the block data retrieved from the server.
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -293,15 +280,15 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_delete_ablock(self, id) -> dict[str, Any]:
+    def delete_a_block(self, id) -> Dict[str, Any]:
         """
-        Deletes a block from the Notion database using the specified block ID.
+        Deletes a block with the specified identifier from the system.
         
         Args:
-            id: The unique identifier of the block to be deleted. Must not be None.
+            id: The unique identifier of the block to be deleted.
         
         Returns:
-            A dictionary containing the JSON response from the Notion API after attempting to delete the block.
+            A dictionary containing the JSON response from the server after the block is deleted.
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -311,34 +298,35 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_update_ablock(self, id, request_body=None) -> dict[str, Any]:
+    def update_a_block(self, id, request_body=None) -> Dict[str, Any]:
         """
-        Updates a block in Notion with the given ID and request body.
+        Updates an existing block with new data using the provided identifier and request body.
         
         Args:
-            id: The unique identifier of the Notion block to update.
-            request_body: The request body containing the updates to be made to the block. Defaults to None if not provided.
+            id: The unique identifier of the block to be updated.
+            request_body: Optional; a dictionary representing the data of the block to update. Defaults to None if not specified.
         
         Returns:
-            A dictionary containing the JSON response from the Notion API after the block has been updated.
+            A dictionary containing the JSON response from the server after updating the block.
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
         url = f"{self.base_url}/v1/blocks/{id}"
         query_params = {}
+        json_body = request_body if request_body is not None else None
         response = self._patch(url, data={}, params=query_params)
         response.raise_for_status()
         return response.json()
 
-    def notion_search(self, request_body=None) -> dict[str, Any]:
+    def search(self, request_body=None) -> Dict[str, Any]:
         """
-        Executes a search request to the Notion API and returns the response in JSON format.
+        Performs a search operation by sending a POST request to the specified search endpoint.
         
         Args:
-            request_body: An optional dictionary containing the search parameters for the API request. Defaults to None if not provided.
+            request_body: An optional dictionary representing the request payload to be sent in the POST request. Defaults to None if not provided.
         
         Returns:
-            A dictionary containing the response from the Notion API in JSON format.
+            A dictionary containing the response data of the search operation, parsed from the JSON content of the HTTP response.
         """
         url = f"{self.base_url}/v1/search"
         query_params = {}
@@ -347,33 +335,34 @@ class NotionApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def notion_retrieve_comments(self, block_id=None, page_size=None, request_body=None) -> dict[str, Any]:
+    def retrieve_comments(self, block_id=None, page_size=None, request_body=None) -> Dict[str, Any]:
         """
-        Retrieves comments from a Notion block using the Notion API.
+        Fetches comments from a specified endpoint with optional filtering and pagination.
         
         Args:
-            block_id: Optional; The ID of the block for which to retrieve comments. If None, it retrieves comments for all blocks available to the user.
-            page_size: Optional; The maximum number of comments to retrieve in one request. If None, the default page size will be used.
-            request_body: Optional; A dictionary to include additional parameters in the request body. If None, no extra parameters are added.
+            block_id: Optional; The ID of the block for which to retrieve comments. If not specified, comments for all blocks are retrieved.
+            page_size: Optional; The number of comments to retrieve per page. If not specified, a default page size is used.
+            request_body: Optional; A dictionary representing the request body to send. If not specified, no body is sent.
         
         Returns:
-            A dictionary containing the JSON response from the Notion API with the comments retrieved.
+            A dictionary containing the retrieved comments data.
         """
         url = f"{self.base_url}/v1/comments"
         query_params = {k: v for k, v in [('block_id', block_id), ('page_size', page_size)] if v is not None}
+        json_body = request_body if request_body is not None else None
         response = self._get(url, params=query_params)
         response.raise_for_status()
         return response.json()
 
-    def notion_add_comment_to_page(self, request_body=None) -> dict[str, Any]:
+    def add_comment_to_page(self, request_body=None) -> Dict[str, Any]:
         """
-        Adds a comment to a specified Notion page using the provided request body.
+        Sends a POST request to add a new comment to a page.
         
         Args:
-            request_body: An optional dictionary containing the details of the comment to be added to the Notion page. If None, no data is sent in the request's body.
+            request_body: Optional; A dictionary containing the comment data to send in the request body. Defaults to None.
         
         Returns:
-            A dictionary containing the response data from the Notion API, parsed from JSON format.
+            A dictionary containing the JSON response from the server after adding the comment.
         """
         url = f"{self.base_url}/v1/comments"
         query_params = {}
@@ -384,32 +373,32 @@ class NotionApp(APIApplication):
 
     def list_tools(self):
         """
-        Returns a list of functions that interact with Notion's API for various operations.
+        Returns a list of methods available for various user and database operations.
         
         Args:
-            None: This method does not take any parameters.
+            self: Instance of the class, typically used to access attributes and methods.
         
         Returns:
-            A list of functions that perform specific operations with Notion's API, such as retrieving or updating users, databases, pages, blocks, and comments.
+            List of method references that can be used to perform specific operations related to users and databases.
         """
         return [
-            self.notion_retrieve_auser,
-            self.notion_list_all_users,
-            self.notion_retrieve_your_token_sbot_user,
-            self.notion_retrieve_adatabase,
-            self.notion_update_adatabase,
-            self.notion_query_adatabase,
-            self.notion_create_adatabase,
-            self.notion_create_apage,
-            self.notion_retrieve_apage,
-            self.notion_update_page_properties,
-            self.notion_retrieve_apage_property_item,
-            self.notion_retrieve_block_children,
-            self.notion_append_block_children,
-            self.notion_retrieve_ablock,
-            self.notion_delete_ablock,
-            self.notion_update_ablock,
-            self.notion_search,
-            self.notion_retrieve_comments,
-            self.notion_add_comment_to_page
+            self.retrieve_a_user,
+            self.list_all_users,
+            self.retrieve_your_token_sbot_user,
+            self.retrieve_a_database,
+            self.update_a_database,
+            self.query_a_database,
+            self.create_a_database,
+            self.create_a_page,
+            self.retrieve_a_page,
+            self.update_page_properties,
+            self.retrieve_a_page_property_item,
+            self.retrieve_block_children,
+            self.append_block_children,
+            self.retrieve_a_block,
+            self.delete_a_block,
+            self.update_a_block,
+            self.search,
+            self.retrieve_comments,
+            self.add_comment_to_page
         ]
