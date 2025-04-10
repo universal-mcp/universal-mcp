@@ -5,15 +5,12 @@ from universal_mcp.integrations import Integration
 
 
 class PerplexityApp(APIApplication):
-
     def __init__(self, integration: Integration | None = None) -> None:
-
         super().__init__(name="perplexity", integration=integration)
         self.api_key: str | None = None
         self.base_url = "https://api.perplexity.ai"
 
     def _set_api_key(self):
-        
         if self.api_key:
             return
 
@@ -24,13 +21,11 @@ class PerplexityApp(APIApplication):
         if not credentials:
              raise ValueError(
                 f"Failed to retrieve Perplexity API Key using integration '{self.integration.name}'. "
-                f"Check store configuration (e.g., ensure the correct source like environment variable is set)."
              )
         
         if not isinstance(credentials, str) or not credentials.strip():
              raise ValueError(
                 f"Invalid credential format received for Perplexity API Key via integration '{self.integration.name}'. "
-                f"Expected a non-empty string API key."
             )
         self.api_key = credentials
 
@@ -78,7 +73,7 @@ class PerplexityApp(APIApplication):
         citations = response.get('citations', [])
         return {"content": content, "citations": citations}
 
-    def list_tools(self) -> list[callable]:
+    def list_tools(self):
         return [
             self.chat,
         ]
