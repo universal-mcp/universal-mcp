@@ -1,10 +1,10 @@
 import asyncio
 import os
 from pathlib import Path
-from rich import print as rprint
-from rich.panel import Panel
 
 import typer
+from rich import print as rprint
+from rich.panel import Panel
 
 from universal_mcp.utils.installation import (
     get_supported_apps,

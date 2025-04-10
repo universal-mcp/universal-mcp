@@ -2,8 +2,9 @@ import json
 import shutil
 import sys
 from pathlib import Path
-from rich import print
+
 from loguru import logger
+from rich import print
 
 
 def get_uvx_path() -> str:
