@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 from universal_mcp.applications.application import APIApplication
 from universal_mcp.integrations import Integration
@@ -42,7 +42,7 @@ class PerplexityApp(APIApplication):
             "Accept": "application/json",
         }
 
-    def chat(self, query: str, model: str = "sonar", temperature: float = 1, system_prompt: str = "Be precise and concise.") -> dict[str, Any] | str:
+    def chat(self, query: str, model: Literal["r1-1776","sonar","sonar-pro","sonar-reasoning","sonar-reasoning-pro", "sonar-deep-research"] = "sonar" , temperature: float = 1, system_prompt: str = "Be precise and concise.") -> dict[str, Any] | str:
         """
         Sends a query to a Perplexity Sonar online model and returns the response.
 
@@ -51,14 +51,12 @@ class PerplexityApp(APIApplication):
 
         Args:
             query: The user's query or message.
-            model: The specific Perplexity model to use (e.g., 'sonar-small-online', 'sonar-medium-online').
-                   Defaults to 'sonar-small-online'.
+            model: The specific Perplexity model to use (e.g., "r1-1776","sonar","sonar-pro","sonar-reasoning","sonar-reasoning-pro", "sonar-deep-research").Defaults to 'sonar'.
             temperature: Sampling temperature for the response generation (e.g., 0.7).
             system_prompt: An optional system message to guide the model's behavior.
 
         Returns:
-            A dictionary containing the full API response on success,
-            or a string containing an error message on failure.
+            A dictionary containing 'content' (str) and 'citations' (list) on success, or a string containing an error message on failure.
         """
         endpoint = f"{self.base_url}/chat/completions"
 
@@ -71,17 +69,16 @@ class PerplexityApp(APIApplication):
             "model": model,
             "messages": messages,
             "temperature": temperature,
-            # Add other parameters like max_tokens if needed
             # "max_tokens": 512,
         }
 
-        response = self._post(endpoint, data=payload)
-        return response.json()
+        data = self._post(endpoint, data=payload)
+        response = data.json()
+        content = response['choices'][0]['message']['content']
+        citations = response.get('citations', [])
+        return {"content": content, "citations": citations}
 
     def list_tools(self) -> list[callable]:
-        """
-        Returns a list of methods exposed as tools for the MCP server.
-        """
         return [
             self.chat,
         ]
