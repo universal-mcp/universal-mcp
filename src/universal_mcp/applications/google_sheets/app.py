@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any
 
 from loguru import logger
 
@@ -66,7 +66,7 @@ class GoogleSheetsApp(APIApplication):
         response = self._get(url)
         return response.json()
     
-    def batch_get_values(self, spreadsheet_id: str, ranges: List[str] = None) -> dict[str, Any]:
+    def batch_get_values(self, spreadsheet_id: str, ranges: list[str] = None) -> dict[str, Any]:
         """
         Returns one or more ranges of values from a spreadsheet.
         
@@ -109,7 +109,7 @@ class GoogleSheetsApp(APIApplication):
         self, 
         spreadsheet_id: str, 
         range: str, 
-        values: List[List[Any]], 
+        values: list[list[Any]], 
         value_input_option: str = "RAW"
     ) -> dict[str, Any]:
         """
