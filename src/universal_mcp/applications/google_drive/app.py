@@ -211,12 +211,68 @@ class GoogleDriveApp(APIApplication):
         response = self._post(url, data=metadata, params=params)
         return response.json()
 
+    def upload_a_file(
+        self,
+        file_name: str,
+        file_path: str,
+        parent_id: str = None,
+        mime_type: str = None
+    ) -> dict[str, Any]:
+        """
+        Upload a file to Google Drive from a local binary file.
+        
+        This method is suitable for files under 5MB in size. It automatically
+        reads the file from the provided path.
+        
+        Args:
+            file_name: Name to give the file on Google Drive
+            file_path: Path to the local file to upload
+            parent_id: ID of the parent folder to create the file in (optional)
+            mime_type: MIME type of the file 
+                       Examples: 'image/jpeg', 'image/png', 'application/pdf', 'text/csv'
+        
+        Returns:
+            A dictionary containing the created file's metadata.
+        """
+        
+            
+        metadata = {
+            "name": file_name,
+            "mimeType": mime_type
+        }
+        
+        if parent_id:
+            metadata["parents"] = [parent_id]
+            
+        create_url = f"{self.base_url}/files"
+        create_response = self._post(create_url, data=metadata)
+        file_data = create_response.json()
+        file_id = file_data.get("id")
+        
+        with open(file_path, 'rb') as file_content:
+            binary_content = file_content.read()
+            
+            upload_url = f"https://www.googleapis.com/upload/drive/v3/files/{file_id}?uploadType=media"
+            upload_headers = self._get_headers()
+            upload_headers["Content-Type"] = mime_type
+            
+            upload_response = httpx.patch(
+                upload_url,
+                headers=upload_headers,
+                content=binary_content
+            )
+            upload_response.raise_for_status()
+        
+        response_data = upload_response.json()
+        return response_data
+
     def list_tools(self):
         """Returns a list of methods exposed as tools."""
         return [
             self.get_drive_info,
             self.list_files,
             self.create_file_from_text,
+            self.upload_a_file,
             self.find_folder_id_by_name,
             self.create_folder,
             self.get_file,
