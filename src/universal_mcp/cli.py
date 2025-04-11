@@ -110,16 +110,16 @@ def run(
 ):
     """Run the MCP server"""
     from universal_mcp.config import ServerConfig
+
     from universal_mcp.logger import setup_logger
     from universal_mcp.servers import server_from_config
-
-    setup_logger()
 
     if config_path:
         config = ServerConfig.model_validate_json(config_path.read_text())
     else:
         config = ServerConfig()
     server = server_from_config(config)
+    setup_logger()
     server.run(transport=config.transport)
 
 
