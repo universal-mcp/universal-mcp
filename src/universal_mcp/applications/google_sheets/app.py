@@ -87,10 +87,66 @@ class GoogleSheetsApp(APIApplication):
         response = self._get(url, params=params)
         return response.json()
     
+    def clear_values(self, spreadsheet_id: str, range: str) -> dict[str, Any]:
+        """
+        Clears values from a spreadsheet. Only values are cleared -- all other properties 
+        of the cell (such as formatting, data validation, etc.) are kept.
+        
+        Args:
+            spreadsheet_id: The ID of the spreadsheet to update
+            range: The A1 notation or R1C1 notation of the values to clear
+                  (e.g. 'Sheet1!A1:B2')
+            
+        Returns:
+            The response from the Google Sheets API
+        """
+        url = f"{self.base_api_url}/{spreadsheet_id}/values/{range}:clear"
+        
+        response = self._post(url, data={})
+        return response.json()
+    
+    def update_values(
+        self, 
+        spreadsheet_id: str, 
+        range: str, 
+        values: List[List[Any]], 
+        value_input_option: str = "RAW"
+    ) -> dict[str, Any]:
+        """
+        Sets values in a range of a spreadsheet. 
+        
+        Args:
+            spreadsheet_id: The ID of the spreadsheet to update
+            range: The A1 notation of the values to update (e.g. 'Sheet1!A1:B2')
+            values: The data to write, as a list of lists (rows of values)
+            value_input_option: How the input data should be interpreted. 
+                                Accepted values are:
+                                - "RAW": The values will be stored as-is
+                                - "USER_ENTERED": The values will be parsed as if the user typed them into the UI
+                
+        Returns:
+            The response from the Google Sheets API
+        """
+        url = f"{self.base_api_url}/{spreadsheet_id}/values/{range}"
+        
+        params = {
+            "valueInputOption": value_input_option
+        }
+        
+        data = {
+            "range": range,
+            "values": values
+        }
+        
+        response = self._put(url, data=data, params=params)
+        return response.json()
+    
     def list_tools(self):
         """Returns a list of methods exposed as tools."""
         return [
            self.create_spreadsheet,
            self.get_spreadsheet,
-           self.batch_get_values
+           self.batch_get_values,
+           self.clear_values,
+           self.update_values
         ]
