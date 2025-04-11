@@ -189,6 +189,10 @@ class GoogleDriveApp(APIApplication):
             content: Content of the file as text string or binary data (for images/PDFs/etc)
                     Do NOT Base64 encode binary content - pass the raw bytes directly
             mime_type: MIME type of the file (default: text/plain)
+                       For Google Workspace files use:
+                       - application/vnd.google-apps.document (Google Doc)
+                       - application/vnd.google-apps.spreadsheet (Google Sheet)
+                       - application/vnd.google-apps.presentation (Google Slides)
                        For images use: image/jpeg, image/png, etc.
             parent_folder_id: ID of the parent folder (optional)
         
@@ -207,10 +211,30 @@ class GoogleDriveApp(APIApplication):
             response = self._post(url, data=metadata)
             return response.json()
         
-        # If we have both metadata and content, use multipart upload
-        url = f"{self.base_url}/files?uploadType=multipart"
+        # Case 2: Two-step approach for text content (create empty file first, then update content)
+        # This is more reliable for some Google Drive operations
+        if isinstance(content, str) and mime_type.startswith('text/'):
+            # Step 1: Create an empty file with metadata
+            create_url = f"{self.base_url}/files"
+            create_response = self._post(create_url, data=metadata)
+            file_data = create_response.json()
+            file_id = file_data.get("id")
+            
+            # Step 2: Update the file with content
+            upload_url = f"{self.base_url}/upload/drive/v3/files/{file_id}?uploadType=media"
+            upload_headers = self._get_headers()
+            upload_headers["Content-Type"] = f"{mime_type}; charset=utf-8"
+            
+            upload_response = httpx.patch(
+                upload_url,
+                headers=upload_headers,
+                content=content.encode("utf-8")
+            )
+            upload_response.raise_for_status()
+            return upload_response.json()
         
-        # Use multipart upload to ensure correct MIME type
+        # Case 3: Multipart upload for binary data or more complex uploads
+        url = f"{self.base_url}/files?uploadType=multipart"
         response = self._send_multipart(url, metadata, content, mime_type)
         return response.json()
 
@@ -306,6 +330,52 @@ class GoogleDriveApp(APIApplication):
         except Exception as e:
             return {"error": str(e)}
     
+    def create_file_from_text(
+        self,
+        file_name: str,
+        text_content: str,
+        parent_id: str = None,
+        mime_type: str = "text/plain"
+    ) -> dict[str, Any]:
+        """
+        Create a new file from text content in Google Drive.
+        
+        Args:
+            file_name: Name of the file to create on Google Drive
+            text_content: Plain text content to be written to the file
+            parent_id: ID of the parent folder to create the file in (optional)
+            mime_type: MIME type of the file (default: text/plain)
+        
+        Returns:
+            A dictionary containing the created file's metadata.
+        """
+        metadata = {
+            "name": file_name,
+            "mimeType": mime_type
+        }
+        
+        if parent_id:
+            metadata["parents"] = [parent_id]
+            
+        create_url = f"{self.base_url}/files"
+        create_response = self._post(create_url, data=metadata)
+        file_data = create_response.json()
+        file_id = file_data.get("id")
+        
+        # Step 2: Update the file with text content
+        upload_url = f"https://www.googleapis.com/upload/drive/v3/files/{file_id}?uploadType=media"
+        upload_headers = self._get_headers()
+        upload_headers["Content-Type"] = f"{mime_type}; charset=utf-8"
+        
+        upload_response = httpx.patch(
+            upload_url,
+            headers=upload_headers,
+            content=text_content.encode("utf-8")
+        )
+        upload_response.raise_for_status()
+        
+        response_data = upload_response.json()
+        return response_data
 
     def list_tools(self):
         """Returns a list of methods exposed as tools."""
@@ -313,6 +383,7 @@ class GoogleDriveApp(APIApplication):
             self.get_drive_info,
             self.list_files,
             self.create_file,
+            self.create_file_from_text,
             self.get_file,
             self.update_file,
             self.delete_file,
