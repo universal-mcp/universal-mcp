@@ -110,7 +110,6 @@ def run(
 ):
     """Run the MCP server"""
     from universal_mcp.config import ServerConfig
-
     from universal_mcp.logger import setup_logger
     from universal_mcp.servers import server_from_config
 
