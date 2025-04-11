@@ -1,8 +1,11 @@
+from typing import Any
+
+from loguru import logger
+
 from universal_mcp.applications.application import APIApplication
 from universal_mcp.exceptions import NotAuthorizedError
 from universal_mcp.integrations import Integration
-from loguru import logger
-from typing import Dict, Any
+
 
 class GoogleDocsApp(APIApplication):
     def __init__(self, integration: Integration) -> None:
@@ -24,7 +27,7 @@ class GoogleDocsApp(APIApplication):
             "Content-Type": "application/json",
         }
     
-    def create_document(self, title: str) -> Dict[str, Any]:
+    def create_document(self, title: str) -> dict[str, Any]:
         """
         Creates a new blank Google Document with the specified title.
         
@@ -40,7 +43,7 @@ class GoogleDocsApp(APIApplication):
         response.raise_for_status()
         return response.json()
     
-    def get_document(self, document_id: str) -> Dict[str, Any]:
+    def get_document(self, document_id: str) -> dict[str, Any]:
         """
         Gets the latest version of the specified document.
         
@@ -54,7 +57,7 @@ class GoogleDocsApp(APIApplication):
         response = self._get(url)
         return response.json()
     
-    def add_content(self, document_id: str, content: str, index: int = 1) -> Dict[str, Any]:
+    def add_content(self, document_id: str, content: str, index: int = 1) -> dict[str, Any]:
         """
         Adds text content to an existing Google Document.
         
