@@ -72,7 +72,9 @@ class GoogleDriveApp(APIApplication):
             params["orderBy"] = order_by
         
         response = self._get(url, params=params)
+        response.raise_for_status()
         return response.json()
+    
 
     def get_file(self, file_id: str) -> dict[str, Any]:
         """
@@ -151,6 +153,63 @@ class GoogleDriveApp(APIApplication):
         
         response_data = upload_response.json()
         return response_data
+        
+    def find_folder_id_by_name(self, folder_name: str) -> str | None:
+        """
+        Find a folder's ID by its name.
+        
+        Args:
+            folder_name: The name of the folder to find
+            
+        Returns:
+            The folder ID if found, None otherwise
+        """
+        query = f"mimeType='application/vnd.google-apps.folder' and name='{folder_name}' and trashed=false"
+        try:
+            response = self._get(
+                f"{self.base_url}/files",
+                params={"q": query, "fields": "files(id,name)"}
+            )
+            files = response.json().get("files", [])
+            return files[0]["id"] if files else None
+        except Exception as e:
+            logger.error(f"Error finding folder ID by name: {e}")
+            return None
+    
+    def create_folder(self, folder_name: str, parent_id: str = None) -> dict[str, Any]:
+        """
+        Create a new folder in Google Drive.
+        
+        Args:
+            folder_name: Name of the folder to create
+            parent_id: ID of the parent folder (optional). Can be an actual folder ID
+                       or a folder name that will be looked up.
+                       
+        Returns:
+            A dictionary containing the created folder's metadata.
+        """
+        import re
+        
+        metadata = {
+            "name": folder_name,
+            "mimeType": "application/vnd.google-apps.folder"
+        }
+        
+        if parent_id:
+            if not re.match(r"^[a-zA-Z0-9_-]{28,33}$", parent_id):
+                found_id = self.find_folder_id_by_name(parent_id)
+                if found_id:
+                    metadata["parents"] = [found_id]
+                else:
+                    raise ValueError(f"Could not find parent folder with name: {parent_id}")
+            else:
+                metadata["parents"] = [parent_id]
+                
+        url = f"{self.base_url}/files"
+        params = {"supportsAllDrives": "true"}
+        
+        response = self._post(url, data=metadata, params=params)
+        return response.json()
 
     def list_tools(self):
         """Returns a list of methods exposed as tools."""
@@ -158,6 +217,8 @@ class GoogleDriveApp(APIApplication):
             self.get_drive_info,
             self.list_files,
             self.create_file_from_text,
+            self.find_folder_id_by_name,
+            self.create_folder,
             self.get_file,
             self.delete_file,
         ]
