@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from langchain_core.messages import HumanMessage
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from langchain_openai import ChatOpenAI
+from langchain_openai import AzureChatOpenAI
 from langgraph.prebuilt import create_react_agent
 
 
@@ -23,7 +23,10 @@ async def load_tools():
 
 @asynccontextmanager
 async def create_agent():
-    llm = ChatOpenAI(model="gpt-4o")
+    llm = AzureChatOpenAI(
+        model="gpt-4o",
+        api_version="2024-12-01-preview",
+    )
     async with load_tools() as tools:
         yield create_react_agent(
             model=llm,

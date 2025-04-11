@@ -7,6 +7,13 @@ from universal_mcp.exceptions import NotAuthorizedError
 from universal_mcp.stores.store import Store
 
 
+def sanitize_api_key_name(name: str) -> str:
+    suffix = "_API_KEY" 
+    if name.endswith(suffix) or name.endswith(suffix.lower()):
+        return name.upper()
+    else:
+        return f"{name.upper()}{suffix}"
+    
 class Integration(ABC):
     """Abstract base class for handling application integrations and authentication.
 
@@ -75,9 +82,8 @@ class ApiKeyIntegration(Integration):
     """
 
     def __init__(self, name: str, store: Store = None, **kwargs):
-        super().__init__(name, store, **kwargs)
-        if not name.endswith("api_key"):
-            self.name = f"{name}_api_key"
+        sanitized_name = sanitize_api_key_name(name)
+        super().__init__(sanitized_name, store, **kwargs)
         logger.info(f"Initializing API Key Integration: {name} with store: {store}")
 
     def get_credentials(self):
