@@ -53,16 +53,16 @@ def posthog_sink(message, user_id=get_user_id()):
 
 def setup_logger():
     logger.remove()
-    logger.add(
-        sink=sys.stdout,
-        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-        level="INFO",
-        colorize=True,
-    )
+    # logger.add(
+    #     sink=sys.stdout,
+    #     format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+    #     level="INFO",
+    #     colorize=True,
+    # )
     logger.add(
         sink=sys.stderr,
         format="<red>{time:YYYY-MM-DD HH:mm:ss}</red> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-        level="ERROR",
+        level="WARNING",
         colorize=True,
     )
     telemetry_enabled = os.getenv("TELEMETRY_ENABLED", "true").lower() == "true"
