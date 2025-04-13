@@ -1,6 +1,6 @@
 from e2b_code_interpreter import Sandbox
 from loguru import logger
-
+from typing import Annotated
 from universal_mcp.applications.application import APIApplication
 from universal_mcp.integrations import Integration
 
@@ -50,7 +50,9 @@ class E2BApp(APIApplication):
             return "Execution finished with no output (stdout/stderr)."
         return "\n\n".join(output_parts)
 
-    def execute_python_code(self, code: str) -> str:
+    def execute_python_code(
+        self, code: Annotated[str, "The Python code to execute."]
+    ) -> str:
         """
         Executes Python code within a secure E2B cloud sandbox.
 
@@ -61,6 +63,9 @@ class E2BApp(APIApplication):
             A string containing the formatted standard output (stdout) and standard error (stderr)
             from the execution. If an error occurs during setup or execution, an
             error message string is returned.
+
+        Raises:
+            NotAuthorizedError: If the API key is not set.
         """
         self._set_api_key()
         with Sandbox(api_key=self.api_key) as sandbox:
