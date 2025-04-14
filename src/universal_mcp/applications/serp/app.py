@@ -22,8 +22,16 @@ class SerpApp(APIApplication):
                 f"Failed to retrieve SERP API Key using integration '{self.integration.name}'. "
                 f"Check store configuration (e.g., ensure the correct environment variable is set)."
             )
-
-        self.api_key = credentials
+        api_key = (
+            credentials.get("api_key")
+            or credentials.get("API_KEY")
+            or credentials.get("apiKey")
+        )
+        if not api_key:
+            raise ValueError(
+                f"Invalid credential format received for SERP API Key via integration '{self.integration.name}'. "
+            )
+        self.api_key = api_key
         logger.info("SERP API Key successfully retrieved via integration.")
 
     async def search(self, params: dict[str, any] = None) -> str:

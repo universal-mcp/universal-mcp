@@ -26,9 +26,7 @@ class FirecrawlApp(APIApplication):
             return
 
         if not self.integration:
-            raise ValueError(
-                "Integration is None. Cannot retrieve Firecrawl API Key."
-            )
+            raise ValueError("Integration is None. Cannot retrieve Firecrawl API Key.")
 
         credentials = self.integration.get_credentials()
         if not credentials:
@@ -36,9 +34,18 @@ class FirecrawlApp(APIApplication):
                 f"Failed to retrieve Firecrawl API Key using integration '{self.integration.name}'. "
                 f"Check store configuration (e.g., ensure the correct source like environment variable is set)."
             )
+        api_key = (
+            credentials.get("api_key")
+            or credentials.get("API_KEY")
+            or credentials.get("apiKey")
+        )
+        if not api_key:
+            raise ValueError(
+                f"Failed to retrieve Firecrawl API Key using integration '{self.integration.name}'. "
+                f"Check store configuration (e.g., ensure the correct environment variable is set)."
+            )
+        self.api_key = api_key
 
-        self.api_key = credentials
-        
     def _get_client(self) -> FirecrawlApiClient:
         """Initializes and returns the Firecrawl client after ensuring API key is set."""
         self._set_api_key()
@@ -128,9 +135,9 @@ class FirecrawlApp(APIApplication):
         """
         try:
             client = self._get_client()
-            status = client.check_crawl_status(id=job_id)    
+            status = client.check_crawl_status(id=job_id)
             return status
-        
+
         except Exception as e:
             return f"Error checking crawl status for job ID {job_id}: {type(e).__name__} - {e}"
 
@@ -148,12 +155,11 @@ class FirecrawlApp(APIApplication):
         try:
             client = self._get_client()
             response = client.cancel_crawl(id=job_id)
-            
+
             return response
 
-        except Exception as e:            
+        except Exception as e:
             return f"Error cancelling crawl job ID {job_id}: {type(e).__name__} - {e}"
-
 
     def start_batch_scrape(
         self,
@@ -196,9 +202,9 @@ class FirecrawlApp(APIApplication):
         """
         try:
             client = self._get_client()
-            status = client.check_batch_scrape_status(id=job_id)            
+            status = client.check_batch_scrape_status(id=job_id)
             return status
-        
+
         except Exception as e:
             return f"Error checking batch scrape status for job ID {job_id}: {type(e).__name__} - {e}"
 
@@ -220,7 +226,7 @@ class FirecrawlApp(APIApplication):
             A dictionary containing the job initiation response on success,
             or a string containing an error message on failure.
         """
-        
+
         try:
             client = self._get_client()
             response = client.async_extract(
@@ -246,7 +252,7 @@ class FirecrawlApp(APIApplication):
             client = self._get_client()
             status = client.get_extract_status(job_id=job_id)
             return status
-        
+
         except Exception as e:
             return f"Error checking extraction status for job ID {job_id}: {type(e).__name__} - {e}"
 

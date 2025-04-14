@@ -23,12 +23,16 @@ class PerplexityApp(APIApplication):
             raise ValueError(
                 f"Failed to retrieve Perplexity API Key using integration '{self.integration.name}'. "
             )
-
-        # if not isinstance(credentials, str) or not credentials.strip():
-        #     raise ValueError(
-        #         f"Invalid credential format received for Perplexity API Key via integration '{self.integration.name}'. "
-        #     )
-        self.api_key = credentials["apiKey"]
+        api_key = (
+            credentials.get("api_key")
+            or credentials.get("API_KEY")
+            or credentials.get("apiKey")
+        )
+        if not api_key:
+            raise ValueError(
+                f"Invalid credential format received for Perplexity API Key via integration '{self.integration.name}'. "
+            )
+        self.api_key = api_key
 
     def _get_headers(self) -> dict[str, str]:
         self._set_api_key()

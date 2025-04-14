@@ -7,13 +7,23 @@ class TavilyApp(APIApplication):
         name = "tavily"
         self.base_url = "https://api.tavily.com"
         super().__init__(name=name, integration=integration)
+        self.api_key = None
 
     def _get_headers(self):
-        credentials = self.integration.get_credentials()
-        if not credentials:
-            raise ValueError("No credentials found")
+        if not self.api_key:
+            credentials = self.integration.get_credentials()
+            if not credentials:
+                raise ValueError("No credentials found")
+            api_key = (
+                credentials.get("api_key")
+                or credentials.get("API_KEY")
+                or credentials.get("apiKey")
+            )
+            if not api_key:
+                raise ValueError("No API key found")
+            self.api_key = api_key
         return {
-            "Authorization": f"Bearer {credentials['api_key']}",
+            "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
 
