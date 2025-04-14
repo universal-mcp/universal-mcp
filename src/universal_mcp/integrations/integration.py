@@ -8,12 +8,13 @@ from universal_mcp.stores.store import Store
 
 
 def sanitize_api_key_name(name: str) -> str:
-    suffix = "_API_KEY" 
+    suffix = "_API_KEY"
     if name.endswith(suffix) or name.endswith(suffix.lower()):
         return name.upper()
     else:
         return f"{name.upper()}{suffix}"
-    
+
+
 class Integration(ABC):
     """Abstract base class for handling application integrations and authentication.
 
@@ -91,7 +92,7 @@ class ApiKeyIntegration(Integration):
         if credentials is None:
             action = self.authorize()
             raise NotAuthorizedError(action)
-        return credentials
+        return {"api_key": credentials}
 
     def set_credentials(self, credentials: dict):
         self.store.set(self.name, credentials)

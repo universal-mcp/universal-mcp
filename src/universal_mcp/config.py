@@ -10,7 +10,7 @@ class StoreConfig(BaseModel):
 
 class IntegrationConfig(BaseModel):
     name: str
-    type: Literal["api_key", "oauth", "agentr"]
+    type: Literal["api_key", "oauth", "agentr", "oauth2"]
     credentials: dict | None = None
     store: StoreConfig | None = None
 

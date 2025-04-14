@@ -1,6 +1,6 @@
 from e2b_code_interpreter import Sandbox
 from loguru import logger
-
+from typing import Annotated
 from universal_mcp.applications.application import APIApplication
 from universal_mcp.integrations import Integration
 
@@ -25,11 +25,18 @@ class E2BApp(APIApplication):
         credentials = self.integration.get_credentials()
         if not credentials:
             raise ValueError(
-                f"Failed to retrieve E2B API Key using integration '{self.integration.name}'. "
-                f"Check store configuration (e.g., ensure the correct environment variable is set)."
+                f"Invalid credential format received for E2B API Key via integration '{self.integration.name}'. "
             )
-
-        self.api_key = credentials
+        api_key = (
+            credentials.get("api_key")
+            or credentials.get("API_KEY")
+            or credentials.get("apiKey")
+        )
+        if not api_key:
+            raise ValueError(
+                f"Invalid credential format received for E2B API Key via integration '{self.integration.name}'. "
+            )
+        self.api_key = api_key
         logger.info("E2B API Key successfully retrieved via integration.")
 
     def _format_execution_output(self, logs) -> str:
@@ -50,7 +57,9 @@ class E2BApp(APIApplication):
             return "Execution finished with no output (stdout/stderr)."
         return "\n\n".join(output_parts)
 
-    def execute_python_code(self, code: str) -> str:
+    def execute_python_code(
+        self, code: Annotated[str, "The Python code to execute."]
+    ) -> str:
         """
         Executes Python code within a secure E2B cloud sandbox.
 
@@ -61,6 +70,9 @@ class E2BApp(APIApplication):
             A string containing the formatted standard output (stdout) and standard error (stderr)
             from the execution. If an error occurs during setup or execution, an
             error message string is returned.
+
+        Raises:
+            NotAuthorizedError: If the API key is not set.
         """
         self._set_api_key()
         with Sandbox(api_key=self.api_key) as sandbox:
