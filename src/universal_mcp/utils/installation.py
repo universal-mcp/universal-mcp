@@ -61,7 +61,7 @@ def install_claude(api_key: str) -> None:
         config["mcpServers"] = {}
     config["mcpServers"]["universal_mcp"] = {
         "command": get_uvx_path(),
-        "args": ["universal_mcp@latest", "run"],
+        "args": ["universal_mcp[all]@latest", "run"],
         "env": {"AGENTR_API_KEY": api_key},
     }
     with open(config_path, "w") as f:
@@ -90,7 +90,7 @@ def install_cursor(api_key: str) -> None:
         config["mcpServers"] = {}
     config["mcpServers"]["universal_mcp"] = {
         "command": get_uvx_path(),
-        "args": ["universal_mcp@latest", "run"],
+        "args": ["universal_mcp[all]@latest", "run"],
         "env": {"AGENTR_API_KEY": api_key},
     }
 

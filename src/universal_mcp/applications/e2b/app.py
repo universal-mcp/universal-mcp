@@ -25,8 +25,7 @@ class E2BApp(APIApplication):
         credentials = self.integration.get_credentials()
         if not credentials:
             raise ValueError(
-                f"Failed to retrieve E2B API Key using integration '{self.integration.name}'. "
-                f"Check store configuration (e.g., ensure the correct environment variable is set)."
+                f"Invalid credential format received for E2B API Key via integration '{self.integration.name}'. "
             )
         api_key = (
             credentials.get("api_key")
@@ -35,10 +34,10 @@ class E2BApp(APIApplication):
         )
         if not api_key:
             raise ValueError(
-                f"Failed to retrieve Firecrawl API Key using integration '{self.integration.name}'. "
-                f"Check store configuration (e.g., ensure the correct environment variable is set)."
+                f"Invalid credential format received for E2B API Key via integration '{self.integration.name}'. "
             )
         self.api_key = api_key
+        logger.info("E2B API Key successfully retrieved via integration.")
 
     def _format_execution_output(self, logs) -> str:
         """Helper function to format the E2B execution logs nicely."""
