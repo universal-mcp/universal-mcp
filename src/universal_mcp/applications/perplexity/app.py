@@ -19,7 +19,7 @@ class PerplexityApp(APIApplication):
             raise ValueError("Integration is None. Cannot retrieve Perplexity API Key.")
 
         credentials = self.integration.get_credentials()
-        if not credentials or "apiKey" not in credentials:
+        if not credentials:
             raise ValueError(
                 f"Failed to retrieve Perplexity API Key using integration '{self.integration.name}'. "
             )
