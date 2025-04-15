@@ -140,6 +140,7 @@ class AgentRServer(Server):
         super().__init__(name, description=description, **kwargs)
 
     def _load_app(self, app_config: AppConfig):
+        logger.info(f"Loading app: {app_config}")
         name = app_config.name
         if app_config.integration:
             integration_name = app_config.integration.name
@@ -152,12 +153,14 @@ class AgentRServer(Server):
     def _list_apps_with_integrations(self) -> list[AppConfig]:
         # TODO: get this from the API
         response = httpx.get(
-            f"{self.base_url}/api/apps/", headers={"X-API-KEY": self.api_key}
+            f"{self.base_url}/api/apps/",
+            headers={"X-API-KEY": self.api_key},
+            timeout=10,
         )
         response.raise_for_status()
         apps = response.json()
 
-        logger.info(f"Apps: {apps}")
+        logger.info(f"Loaded apps: {apps}")
         return [AppConfig.model_validate(app) for app in apps]
 
     def _load_apps(self):

@@ -10,11 +10,13 @@ def main():
     # Start MCP server first
     mcp_process = subprocess.Popen(["universal_mcp", "run", "-c", "local_config.json"])
     processes.append(mcp_process)
-    time.sleep(3)  # Give MCP server time to start
+    time.sleep(6)  # Give MCP server time to start
     logger.info("MCP server started")
 
     # Start FastAPI app second
-    fastapi_process = subprocess.Popen(["fastapi", "run", "src/playground"])
+    fastapi_process = subprocess.Popen(
+        ["fastapi", "run", "src/playground", "--port", "8003"]
+    )
     processes.append(fastapi_process)
     time.sleep(3)  # Give FastAPI time to start
     logger.info("FastAPI app started")

@@ -75,7 +75,7 @@ async def main() -> None:
         agent_url = os.getenv("AGENT_URL")
         if not agent_url:
             host = os.getenv("HOST", "0.0.0.0")
-            port = os.getenv("PORT", 8000)
+            port = os.getenv("PORT", 8003)
             agent_url = f"http://{host}:{port}"
         try:
             with st.spinner("Connecting to agent service..."):

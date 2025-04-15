@@ -5,7 +5,7 @@ from serpapi import SerpApiClient as SerpApiSearch
 from universal_mcp.applications.application import APIApplication
 
 
-class SerpApp(APIApplication):
+class SerpapiApp(APIApplication):
     def __init__(self, **kwargs):
         super().__init__(name="serpapi", **kwargs)
         self.api_key: str | None = None
