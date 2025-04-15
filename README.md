@@ -125,7 +125,7 @@ Universal MCP comes with several pre-built applications:
 | `resend`         | Send emails via Resend API               | API Key (via Integration)                 |
 | `serpapi`        | Perform web searches via SerpApi         | API Key (via Integration)                 |
 | `tavily`         | Advanced web search & research API       | API Key (via Integration)                 |
-| `zenquote`       | Get inspirational quotes                 | None                                      |
+| `zenquotes`      | Get inspirational quotes                 | None                                      |
 
 *Authentication Type notes:*
 *   *OAuth (AgentR)*: Typically requires configuring the integration with `type: "agentr"` in your `ServerConfig`. Requires the `AGENTR_API_KEY`.
