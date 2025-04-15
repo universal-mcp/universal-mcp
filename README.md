@@ -114,14 +114,18 @@ Universal MCP comes with several pre-built applications:
 | `firecrawl`      | Scrape/crawl web pages, search           | API Key (via Integration)                 |
 | `github`         | Interact with GitHub repos, issues, PRs  | OAuth (AgentR)                            |
 | `google-calendar`| Manage Google Calendar events            | OAuth (AgentR)                            |
+| `google-docs`    | Create and manage Google Docs documents  | OAuth (AgentR)                            |
+| `google-drive`   | Manage Google Drive files and folders    | OAuth (AgentR)                            |
 | `google-mail`    | Read and send Gmail emails               | OAuth (AgentR)                            |
+| `google-sheet`   | Manage Google Sheets spreadsheets        | OAuth (AgentR)                            |
 | `markitdown`     | Convert web pages/files to Markdown      | None                                      |
 | `notion`         | Interact with Notion pages/databases     | OAuth (AgentR)                            |
+| `perplexity`     | Interact with Perplexity AI models       | API Key (via Integration)                 |
 | `reddit`         | Interact with Reddit posts/comments      | OAuth (AgentR)                            |
 | `resend`         | Send emails via Resend API               | API Key (via Integration)                 |
-| `serp`           | Perform web searches via SerpApi         | API Key (via Integration)                 |
+| `serpapi`        | Perform web searches via SerpApi         | API Key (via Integration)                 |
 | `tavily`         | Advanced web search & research API       | API Key (via Integration)                 |
-| `zenquotes`      | Get inspirational quotes                 | None                                      |
+| `zenquote`       | Get inspirational quotes                 | None                                      |
 
 *Authentication Type notes:*
 *   *OAuth (AgentR)*: Typically requires configuring the integration with `type: "agentr"` in your `ServerConfig`. Requires the `AGENTR_API_KEY`.
