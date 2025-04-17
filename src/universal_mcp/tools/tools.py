@@ -9,7 +9,7 @@ import inspect
 from loguru import logger
 
 from universal_mcp.utils.docstring_parser import parse_docstring
-from .func_metadata import FuncMetadata, func_metadata
+from .func_metadata import FuncMetadata
 
 
 
@@ -59,7 +59,7 @@ class Tool(BaseModel):
         
         is_async = inspect.iscoroutinefunction(fn)
 
-        func_arg_metadata = func_metadata(
+        func_arg_metadata = FuncMetadata.func_metadata(
             fn,
         )
         parameters = func_arg_metadata.arg_model.model_json_schema()

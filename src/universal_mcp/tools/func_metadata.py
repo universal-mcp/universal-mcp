@@ -13,9 +13,46 @@ from pydantic.fields import FieldInfo
 from pydantic_core import PydanticUndefined
 
 from mcp.server.fastmcp.exceptions import InvalidSignature
-from mcp.server.fastmcp.utilities.logging import get_logger
+from loguru import logger
 
-logger = get_logger(__name__)
+
+
+def _get_typed_annotation(annotation: Any, globalns: dict[str, Any]) -> Any:
+    def try_eval_type(
+        value: Any, globalns: dict[str, Any], localns: dict[str, Any]
+    ) -> tuple[Any, bool]:
+        try:
+            return eval_type_backport(value, globalns, localns), True
+        except NameError:
+            return value, False
+
+    if isinstance(annotation, str):
+        annotation = ForwardRef(annotation)
+        annotation, status = try_eval_type(annotation, globalns, globalns)
+
+        # This check and raise could perhaps be skipped, and we (FastMCP) just call
+        # model_rebuild right before using it 🤷
+        if status is False:
+            raise InvalidSignature(f"Unable to evaluate type annotation {annotation}")
+
+    return annotation
+
+
+def _get_typed_signature(call: Callable[..., Any]) -> inspect.Signature:
+    """Get function signature while evaluating forward references"""
+    signature = inspect.signature(call)
+    globalns = getattr(call, "__globals__", {})
+    typed_params = [
+        inspect.Parameter(
+            name=param.name,
+            kind=param.kind,
+            default=param.default,
+            annotation=_get_typed_annotation(param.annotation, globalns),
+        )
+        for param in signature.parameters.values()
+    ]
+    typed_signature = inspect.Signature(typed_params)
+    return typed_signature
 
 
 class ArgModelBase(BaseModel):
@@ -102,113 +139,79 @@ class FuncMetadata(BaseModel):
     )
 
 
-def func_metadata(
-    func: Callable[..., Any], skip_names: Sequence[str] = ()
-) -> FuncMetadata:
-    """Given a function, return metadata including a pydantic model representing its
-    signature.
+    @classmethod
+    def func_metadata(
+        cls,
+        func: Callable[..., Any],
+        skip_names: Sequence[str] = ()
+    ) -> "FuncMetadata":
+        """Given a function, return metadata including a pydantic model representing its
+        signature.
 
-    The use case for this is
-    ```
-    meta = func_to_pyd(func)
-    validated_args = meta.arg_model.model_validate(some_raw_data_dict)
-    return func(**validated_args.model_dump_one_level())
-    ```
+        The use case for this is
+        ```
+        meta = func_to_pyd(func)
+        validated_args = meta.arg_model.model_validate(some_raw_data_dict)
+        return func(**validated_args.model_dump_one_level())
+        ```
 
-    **critically** it also provides pre-parse helper to attempt to parse things from
-    JSON.
+        **critically** it also provides pre-parse helper to attempt to parse things from
+        JSON.
 
-    Args:
-        func: The function to convert to a pydantic model
-        skip_names: A list of parameter names to skip. These will not be included in
-            the model.
-    Returns:
-        A pydantic model representing the function's signature.
-    """
-    sig = _get_typed_signature(func)
-    params = sig.parameters
-    dynamic_pydantic_model_params: dict[str, Any] = {}
-    globalns = getattr(func, "__globals__", {})
-    for param in params.values():
-        if param.name.startswith("_"):
-            raise InvalidSignature(
-                f"Parameter {param.name} of {func.__name__} cannot start with '_'"
+        Args:
+            func: The function to convert to a pydantic model
+            skip_names: A list of parameter names to skip. These will not be included in
+                the model.
+        Returns:
+            A pydantic model representing the function's signature.
+        """
+        sig = _get_typed_signature(func)
+        params = sig.parameters
+        dynamic_pydantic_model_params: dict[str, Any] = {}
+        globalns = getattr(func, "__globals__", {})
+        for param in params.values():
+            if param.name.startswith("_"):
+                raise InvalidSignature(
+                    f"Parameter {param.name} of {func.__name__} cannot start with '_'"
+                )
+            if param.name in skip_names:
+                continue
+            annotation = param.annotation
+
+            # `x: None` / `x: None = None`
+            if annotation is None:
+                annotation = Annotated[
+                    None,
+                    Field(
+                        default=param.default
+                        if param.default is not inspect.Parameter.empty
+                        else PydanticUndefined
+                    ),
+                ]
+
+            # Untyped field
+            if annotation is inspect.Parameter.empty:
+                annotation = Annotated[
+                    Any,
+                    Field(),
+                    # 🤷
+                    WithJsonSchema({"title": param.name, "type": "string"}),
+                ]
+
+            field_info = FieldInfo.from_annotated_attribute(
+                _get_typed_annotation(annotation, globalns),
+                param.default
+                if param.default is not inspect.Parameter.empty
+                else PydanticUndefined,
             )
-        if param.name in skip_names:
+            dynamic_pydantic_model_params[param.name] = (field_info.annotation, field_info)
             continue
-        annotation = param.annotation
 
-        # `x: None` / `x: None = None`
-        if annotation is None:
-            annotation = Annotated[
-                None,
-                Field(
-                    default=param.default
-                    if param.default is not inspect.Parameter.empty
-                    else PydanticUndefined
-                ),
-            ]
-
-        # Untyped field
-        if annotation is inspect.Parameter.empty:
-            annotation = Annotated[
-                Any,
-                Field(),
-                # 🤷
-                WithJsonSchema({"title": param.name, "type": "string"}),
-            ]
-
-        field_info = FieldInfo.from_annotated_attribute(
-            _get_typed_annotation(annotation, globalns),
-            param.default
-            if param.default is not inspect.Parameter.empty
-            else PydanticUndefined,
+        arguments_model = create_model(
+            f"{func.__name__}Arguments",
+            **dynamic_pydantic_model_params,
+            __base__=ArgModelBase,
         )
-        dynamic_pydantic_model_params[param.name] = (field_info.annotation, field_info)
-        continue
+        resp = FuncMetadata(arg_model=arguments_model)
+        return resp
 
-    arguments_model = create_model(
-        f"{func.__name__}Arguments",
-        **dynamic_pydantic_model_params,
-        __base__=ArgModelBase,
-    )
-    resp = FuncMetadata(arg_model=arguments_model)
-    return resp
-
-
-def _get_typed_annotation(annotation: Any, globalns: dict[str, Any]) -> Any:
-    def try_eval_type(
-        value: Any, globalns: dict[str, Any], localns: dict[str, Any]
-    ) -> tuple[Any, bool]:
-        try:
-            return eval_type_backport(value, globalns, localns), True
-        except NameError:
-            return value, False
-
-    if isinstance(annotation, str):
-        annotation = ForwardRef(annotation)
-        annotation, status = try_eval_type(annotation, globalns, globalns)
-
-        # This check and raise could perhaps be skipped, and we (FastMCP) just call
-        # model_rebuild right before using it 🤷
-        if status is False:
-            raise InvalidSignature(f"Unable to evaluate type annotation {annotation}")
-
-    return annotation
-
-
-def _get_typed_signature(call: Callable[..., Any]) -> inspect.Signature:
-    """Get function signature while evaluating forward references"""
-    signature = inspect.signature(call)
-    globalns = getattr(call, "__globals__", {})
-    typed_params = [
-        inspect.Parameter(
-            name=param.name,
-            kind=param.kind,
-            default=param.default,
-            annotation=_get_typed_annotation(param.annotation, globalns),
-        )
-        for param in signature.parameters.values()
-    ]
-    typed_signature = inspect.Signature(typed_params)
-    return typed_signature
