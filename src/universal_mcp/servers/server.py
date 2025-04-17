@@ -68,7 +68,6 @@ class BaseServer(FastMCP, ABC):
         from universal_mcp.tools.tools import Tool
 
         tool_functions = app.list_tools()
-        registered_count = 0
 
         for tool_func in tool_functions:
             base_name = tool_func.__name__
@@ -90,7 +89,6 @@ class BaseServer(FastMCP, ABC):
             if should_register:
                 try:
                     self._tool_manager.add_tool(tool_func, name=full_tool_name)
-                    registered_count += 1
                 except Exception as e:
                     logger.error(f"Error registering tool {full_tool_name}: {e}")
                     
