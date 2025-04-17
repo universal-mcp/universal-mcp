@@ -1,8 +1,9 @@
 from typing import Any, Literal
 
+from loguru import logger
+
 from universal_mcp.applications.application import APIApplication
 from universal_mcp.integrations import Integration
-from loguru import logger
 
 
 class PerplexityApp(APIApplication):

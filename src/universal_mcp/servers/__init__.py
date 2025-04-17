@@ -4,20 +4,11 @@ from universal_mcp.servers.server import AgentRServer, LocalServer
 
 def server_from_config(config: ServerConfig):
     if config.type == "agentr":
-        return AgentRServer(
-            name=config.name,
-            description=config.description,
-            api_key=config.api_key,
-            port=config.port,
-        )
+        return AgentRServer(config=config, api_key=config.api_key)
+
     elif config.type == "local":
-        return LocalServer(
-            name=config.name,
-            description=config.description,
-            store=config.store,
-            apps_list=config.apps,
-            port=config.port,
-        )
+        return LocalServer(config=config)
+    else:
+        raise ValueError(f"Unsupported server type: {config.type}")
 
-
-__all__ = [AgentRServer, LocalServer]
+__all__ = [AgentRServer, LocalServer, server_from_config]

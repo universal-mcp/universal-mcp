@@ -7,12 +7,14 @@ from typing import (
     ForwardRef,
 )
 
+from mcp.server.fastmcp.exceptions import InvalidSignature
+from mcp.server.fastmcp.utilities.logging import get_logger
 from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema, create_model
 from pydantic._internal._typing_extra import eval_type_backport
 from pydantic.fields import FieldInfo
 from pydantic_core import PydanticUndefined
 
-from mcp.server.fastmcp.exceptions import InvalidSignature
+from universal_mcp.exceptions import InvalidSignature
 from loguru import logger
 
 
@@ -64,7 +66,7 @@ class ArgModelBase(BaseModel):
         That is, sub-models etc are not dumped - they are kept as pydantic models.
         """
         kwargs: dict[str, Any] = {}
-        for field_name in self.model_fields.keys():
+        for field_name in self.model_fields:
             kwargs[field_name] = getattr(self, field_name)
         return kwargs
 
@@ -118,7 +120,7 @@ class FuncMetadata(BaseModel):
         """
         new_data = data.copy()  # Shallow copy
         for field_name, _field_info in self.arg_model.model_fields.items():
-            if field_name not in data.keys():
+            if field_name not in data:
                 continue
             if isinstance(data[field_name], str):
                 try:

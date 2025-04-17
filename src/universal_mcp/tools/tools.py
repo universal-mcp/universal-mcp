@@ -1,16 +1,15 @@
 from __future__ import annotations as _annotations
 
+import inspect
 from collections.abc import Callable
-from typing import  Any
+from typing import Any
+
+from loguru import logger
+from pydantic import BaseModel, Field
 
 from universal_mcp.exceptions import ToolError
-from pydantic import BaseModel, Field
-import inspect
-from loguru import logger
-
 from universal_mcp.utils.docstring_parser import parse_docstring
 from .func_metadata import FuncMetadata
-
 
 
 class Tool(BaseModel):
@@ -45,9 +44,8 @@ class Tool(BaseModel):
         cls,
         fn: Callable[..., Any],
         name: str | None = None,
-    ) -> "Tool":
+    ) -> Tool:
         """Create a Tool from a function."""
-        from mcp.server.fastmcp import Context
 
         func_name = name or fn.__name__
 

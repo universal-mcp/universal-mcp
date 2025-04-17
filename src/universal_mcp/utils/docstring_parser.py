@@ -1,8 +1,8 @@
 import re
+from typing import Any
 
-from typing import Any, Dict
 
-def parse_docstring(docstring: str | None) -> Dict[str, Any]:
+def parse_docstring(docstring: str | None) -> dict[str, Any]:
     """
     Parses a standard Python docstring into summary, args, returns, and raises.
 
@@ -68,12 +68,7 @@ def parse_docstring(docstring: str | None) -> Dict[str, Any]:
 
         # --- Finalize Previous Item ---
         finalize_previous = False
-        if is_new_section_header:
-            finalize_previous = True
-        # No 'key' for tags, finalize only if indentation breaks *within* args/raises/returns
-        elif current_section in ["args", "raises"] and current_key and not line.startswith(' '):
-            finalize_previous = True
-        elif current_section == "returns" and current_desc_lines and not line.startswith(' '):
+        if is_new_section_header or current_section in ["args", "raises"] and current_key and not line.startswith(' ') or current_section == "returns" and current_desc_lines and not line.startswith(' '):
             finalize_previous = True
         # Tags are simpler: finalize if we encounter a non-indented line that isn't a section header
         elif current_section == "tags" and tags and not line.startswith(' ') and not is_new_section_header:
@@ -91,14 +86,11 @@ def parse_docstring(docstring: str | None) -> Dict[str, Any]:
 
             current_key = None
             current_desc_lines = []
-            # If it wasn't a new section header, it means we broke indentation,
-            # so we should stop processing the previous section type.
-            if not is_new_section_header:
-                current_section = None
-            else:
-                current_section = new_section_type # Set the new section type
-
-            # If it was just a header line, continue to next line
+            
+            # Update current_section: None if indentation broke, otherwise the new section type
+            current_section = None if not is_new_section_header else new_section_type
+            
+            # If the current line was just a header, skip to the next line
             if is_new_section_header:
                 continue
 
