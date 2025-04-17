@@ -1,6 +1,6 @@
 import os
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any,Callable
 
 import httpx
 from loguru import logger
@@ -13,6 +13,7 @@ from universal_mcp.config import AppConfig, IntegrationConfig, StoreConfig
 from universal_mcp.exceptions import NotAuthorizedError
 from universal_mcp.integrations import AgentRIntegration, ApiKeyIntegration
 from universal_mcp.stores import store_from_config
+from universal_mcp.tools.tools import Tool,ToolManager
 
 
 class Server(FastMCP, ABC):
@@ -26,10 +27,16 @@ class Server(FastMCP, ABC):
     ):
         super().__init__(name, description, **kwargs)
         logger.info(f"Initializing server: {name} with store: {store}")
+        self.tool_manager = ToolManager(warn_on_duplicate_tools=True)
         self.store = store_from_config(store) if store else None
         self._setup_store(store)
         self._load_apps()
-
+        
+    # Override FastMCP's add_tool to use ToolManager
+    def add_tool(self, fn: Callable[..., Any], name: str | None = None, **kwargs) -> Tool:
+        
+        return self.tool_manager.add_tool(fn, name=name)
+    
     def _setup_store(self, store_config: StoreConfig | None):
         """
         Setup the store for the server.
@@ -45,13 +52,20 @@ class Server(FastMCP, ABC):
     def _load_apps(self):
         pass
 
+    # Override FastMCP's call_tool to use ToolManager
     async def call_tool(self, name: str, arguments: dict[str, Any]):
-        """Call a tool by name with arguments."""
-        logger.info(f"Calling tool: {name} with arguments: {arguments}")
+        """Call a tool by name with arguments using the internal ToolManager."""
         try:
-            result = await super().call_tool(name, arguments)
-            logger.info(f"Tool {name} completed successfully")
-            return result
+            result = await self.tool_manager.call_tool(name, arguments)
+            logger.info(f"Tool '{name}' completed successfully via ToolManager")
+            if isinstance(result, str):
+                 return [TextContent(type="text", text=result)]
+            elif isinstance(result, list) and all(isinstance(item, TextContent) for item in result):
+                 return result
+            else:
+                 logger.warning(f"Tool '{name}' returned unexpected type: {type(result)}. Wrapping in TextContent.")
+                 return [TextContent(type="text", text=str(result))]
+
         except ToolError as e:
             raised_error = e.__cause__
             if isinstance(raised_error, NotAuthorizedError):
@@ -105,24 +119,25 @@ class LocalServer(Server):
         return app
 
     def _load_apps(self):
-        logger.info(f"Loading apps: {self.apps_list}")
-        for app_config in self.apps_list:
-            try:
-                app = self._load_app(app_config)
-                if app:
+            logger.info(f"Loading apps: {self.apps_list}")
+            for app_config in self.apps_list:
+                try:
+                    app = self._load_app(app_config)
                     tools = app.list_tools()
-                for tool in tools:
-                    tool_name = tool.__name__
-                    name = app.name + "_" + tool_name
-                    description = tool.__doc__
-                    if (
-                        app_config.actions is None
-                        or len(app_config.actions) == 0
-                        or name in app_config.actions
-                    ):
-                        self.add_tool(tool, name=name, description=description)
-            except Exception as e:
-                logger.error(f"Error loading app {app_config.name}: {e}")
+                    for tool in tools:
+                        tool_name = tool.__name__
+                        name = app.name + "_" + tool_name
+
+                        if app_config.actions:
+                            if name in app_config.actions:
+                                self.add_tool(tool, name=name)
+                        else:
+                            temp_tool_info = Tool.from_function(tool, name=name)
+                            if any(tag.lower() == "important" for tag in temp_tool_info.tags):
+                                self.add_tool(tool, name=name)
+                except Exception as e:
+                    logger.error(f"Error loading app {app_config.name}: {e}")
+                    continue
 
 
 class AgentRServer(Server):
