@@ -8,15 +8,10 @@ from typing import (
 )
 
 from mcp.server.fastmcp.exceptions import InvalidSignature
-from mcp.server.fastmcp.utilities.logging import get_logger
 from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema, create_model
 from pydantic._internal._typing_extra import eval_type_backport
 from pydantic.fields import FieldInfo
 from pydantic_core import PydanticUndefined
-
-from universal_mcp.exceptions import InvalidSignature
-from loguru import logger
-
 
 
 def _get_typed_annotation(annotation: Any, globalns: dict[str, Any]) -> Any:

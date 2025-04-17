@@ -1,6 +1,9 @@
-from universal_mcp.tools.func_metadata import FuncMetadata
+from typing import Annotated
+
 from pydantic import Field
-from typing import Annotated, Any
+
+from universal_mcp.tools.func_metadata import FuncMetadata
+
 
 def test_func_metadata_annotated():
     def func(a: Annotated[int, Field(title="First integer")], b: int):
