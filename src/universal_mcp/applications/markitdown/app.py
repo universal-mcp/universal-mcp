@@ -19,9 +19,6 @@ class MarkitdownApp(Application):
         - Audio: Extracts metadata and attempts transcription to get text.
         - Archives: ZIP (extracts and attempts to convert supported files within, concatenating results).
 
-        Note: Conversion quality depends on the source format. Complex layouts, encrypted files, or missing transcripts/OCR data may limit output.
-        Enhanced PDF/Image processing via Azure Document Intelligence may be active if configured server-side.
-
         Args:
             uri (str): The URI pointing to the resource. Supported schemes:
                        - http:// or https:// (Web pages, feeds, APIs)
@@ -30,10 +27,6 @@ class MarkitdownApp(Application):
 
         Returns:
             str: The extracted content converted to Markdown format.
-
-        Example:
-            >>> await convert_to_markdown("https://example.com")
-            "# Example Domain\n\nThis domain is for use in illustrative examples..."
         """
         return self.markitdown.convert_uri(uri).markdown
 
