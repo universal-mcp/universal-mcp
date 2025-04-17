@@ -1,5 +1,10 @@
 from universal_mcp.config import StoreConfig
-from universal_mcp.stores.store import BaseStore, EnvironmentStore, KeyringStore, MemoryStore
+from universal_mcp.stores.store import (
+    BaseStore,
+    EnvironmentStore,
+    KeyringStore,
+    MemoryStore,
+)
 
 
 def store_from_config(store_config: StoreConfig):

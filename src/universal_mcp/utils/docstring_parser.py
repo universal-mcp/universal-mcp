@@ -1,8 +1,8 @@
 import re
+from typing import Any
 
-from typing import Any, Dict
 
-def parse_docstring(docstring: str | None) -> Dict[str, Any]:
+def parse_docstring(docstring: str | None) -> dict[str, Any]:
     """
     Parses a standard Python docstring into summary, args, returns, and raises.
 
@@ -68,12 +68,7 @@ def parse_docstring(docstring: str | None) -> Dict[str, Any]:
 
         # --- Finalize Previous Item ---
         finalize_previous = False
-        if is_new_section_header:
-            finalize_previous = True
-        # No 'key' for tags, finalize only if indentation breaks *within* args/raises/returns
-        elif current_section in ["args", "raises"] and current_key and not line.startswith(' '):
-            finalize_previous = True
-        elif current_section == "returns" and current_desc_lines and not line.startswith(' '):
+        if is_new_section_header or current_section in ["args", "raises"] and current_key and not line.startswith(' ') or current_section == "returns" and current_desc_lines and not line.startswith(' '):
             finalize_previous = True
         # Tags are simpler: finalize if we encounter a non-indented line that isn't a section header
         elif current_section == "tags" and tags and not line.startswith(' ') and not is_new_section_header:

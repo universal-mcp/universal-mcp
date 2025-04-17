@@ -1,27 +1,25 @@
 import os
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 from mcp.types import TextContent
 
-from universal_mcp.applications import app_from_slug, Application
-from universal_mcp.config import AppConfig, IntegrationConfig, StoreConfig, ServerConfig
+from universal_mcp.applications import Application, app_from_slug
+from universal_mcp.config import AppConfig, IntegrationConfig, ServerConfig, StoreConfig
 from universal_mcp.exceptions import NotAuthorizedError, ToolError
 from universal_mcp.integrations import AgentRIntegration, ApiKeyIntegration, Integration
 from universal_mcp.stores import BaseStore, store_from_config
 from universal_mcp.tools.tools import ToolManager
 
 
-
-
 class IntegrationFactory:
     """Factory class for creating integrations"""
     
     @staticmethod
-    def create(config: Optional[IntegrationConfig], store: Optional[BaseStore] = None, api_key: Optional[str] = None) -> Optional[Integration]:
+    def create(config: IntegrationConfig | None, store: BaseStore | None = None, api_key: str | None = None) -> Integration | None:
         if not config:
             return None
             
@@ -47,7 +45,7 @@ class BaseServer(FastMCP, ABC):
         self._tool_manager = ToolManager(warn_on_duplicate_tools=True)
         self._load_apps()
 
-    def _setup_store(self, store_config: Optional[StoreConfig]) -> Optional[BaseStore]:
+    def _setup_store(self, store_config: StoreConfig | None) -> BaseStore | None:
         """Setup and configure the store"""
         if not store_config:
             return None
@@ -62,7 +60,7 @@ class BaseServer(FastMCP, ABC):
         """Load and register applications"""
         pass
 
-    def _register_app(self, app: Application, actions: Optional[list[str]] = None) -> None:
+    def _register_app(self, app: Application, actions: list[str] | None = None) -> None:
         """Register application tools"""
         tools = app.list_tools()
         for tool in tools:
@@ -101,7 +99,7 @@ class LocalServer(BaseServer):
         self.config = config
         super().__init__(config, **kwargs)
 
-    def _load_app(self, app_config: AppConfig) -> Optional[Application]:
+    def _load_app(self, app_config: AppConfig) -> Application | None:
         """Load a single application with its integration"""
         try:
             integration = IntegrationFactory.create(
@@ -125,7 +123,7 @@ class LocalServer(BaseServer):
 class AgentRServer(BaseServer):
     """AgentR API-connected server"""
 
-    def __init__(self, config: ServerConfig, api_key: Optional[str] = None, **kwargs):
+    def __init__(self, config: ServerConfig, api_key: str | None = None, **kwargs):
         self.api_key = api_key or os.getenv("AGENTR_API_KEY")
         self.base_url = os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
         
@@ -144,7 +142,7 @@ class AgentRServer(BaseServer):
         response.raise_for_status()
         return [AppConfig.model_validate(app) for app in response.json()]
 
-    def _load_app(self, app_config: AppConfig) -> Optional[Application]:
+    def _load_app(self, app_config: AppConfig) -> Application | None:
         """Load a single application with AgentR integration"""
         try:
             integration = IntegrationFactory.create(
