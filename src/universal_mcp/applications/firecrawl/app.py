@@ -66,8 +66,7 @@ class FirecrawlApp(APIApplication):
             or a string containing an error message on failure.
 
         Tags:
-            scrape
-            important
+            scrape, important
         """
         try:
             client = self._get_client()
@@ -92,8 +91,7 @@ class FirecrawlApp(APIApplication):
             or a string containing an error message on failure.
 
         Tags:
-            search
-            important
+            search, important
         """
         try:
             client = self._get_client()
@@ -121,9 +119,7 @@ class FirecrawlApp(APIApplication):
             or a string containing an error message on failure.
 
         Tags:
-            crawl
-            async_job
-            start
+            crawl, async_job, start
         """
         try:
             client = self._get_client()
@@ -147,9 +143,7 @@ class FirecrawlApp(APIApplication):
             or a string containing an error message on failure.
 
         Tags:
-            crawl
-            async_job
-            status
+            crawl, async_job, status
         """
         try:
             client = self._get_client()
@@ -171,10 +165,7 @@ class FirecrawlApp(APIApplication):
             or a string containing an error message on failure.
 
         Tags:
-            crawl
-            async_job
-            management
-            cancel
+            crawl, async_job, management, cancel
         """
         try:
             client = self._get_client()
@@ -204,10 +195,7 @@ class FirecrawlApp(APIApplication):
             or a string containing an error message on failure.
 
         Tags:
-            scrape
-            batch
-            async_job
-            start
+            scrape, batch, async_job, start
         """
         try:
             client = self._get_client()
@@ -231,10 +219,7 @@ class FirecrawlApp(APIApplication):
             or a string containing an error message on failure.
 
         Tags:
-            scrape
-            batch
-            async_job
-            status
+            scrape, batch, async_job, status
         """
         try:
             client = self._get_client()
@@ -263,10 +248,7 @@ class FirecrawlApp(APIApplication):
             or a string containing an error message on failure.
 
         Tags:
-            extract
-            ai
-            async_job
-            start
+            extract, ai, async_job, start
         """
 
         try:
@@ -291,10 +273,7 @@ class FirecrawlApp(APIApplication):
             or a string containing an error message on failure.
 
         Tags:
-            extract
-            ai
-            async_job
-            status
+            extract, ai, async_job, status
         """
         try:
             client = self._get_client()
