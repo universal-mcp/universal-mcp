@@ -86,14 +86,11 @@ def parse_docstring(docstring: str | None) -> dict[str, Any]:
 
             current_key = None
             current_desc_lines = []
-            # If it wasn't a new section header, it means we broke indentation,
-            # so we should stop processing the previous section type.
-            if not is_new_section_header:
-                current_section = None
-            else:
-                current_section = new_section_type # Set the new section type
-
-            # If it was just a header line, continue to next line
+            
+            # Update current_section: None if indentation broke, otherwise the new section type
+            current_section = None if not is_new_section_header else new_section_type
+            
+            # If the current line was just a header, skip to the next line
             if is_new_section_header:
                 continue
 
