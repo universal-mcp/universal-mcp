@@ -61,14 +61,39 @@ class BaseServer(FastMCP, ABC):
         pass
 
     def _register_app(self, app: Application, actions: list[str] | None = None) -> None:
-        """Register application tools"""
-        tools = app.list_tools()
-        for tool in tools:
-            name = f"{app.name}_{tool.__name__}"
-            if actions and name not in actions:
-                continue
-            self.add_tool(tool, name=name)
+        """
+        Register application tools. If specific actions are provided, only those are loaded.
+        Otherwise, only tools tagged as 'important' are loaded by default.
+        """
+        from universal_mcp.tools.tools import Tool
 
+        tool_functions = app.list_tools()
+        registered_count = 0
+
+        for tool_func in tool_functions:
+            base_name = tool_func.__name__
+            full_tool_name = f"{app.name}_{base_name}"
+
+            should_register = False
+            if actions:
+                if full_tool_name in actions:
+                    should_register = True
+            else:
+                try:
+                    tool_obj = Tool.from_function(tool_func)
+                    if "important" in tool_obj.tags:
+                        should_register = True
+
+                except Exception as e:
+                    logger.error(f"Error processing metadata for tool {base_name} in app {app.name}, skipping: {e}")
+
+            if should_register:
+                try:
+                    self.add_tool(tool_func, name=full_tool_name)
+                    registered_count += 1
+                except Exception as e:
+                    logger.error(f"Error registering tool {full_tool_name}: {e}")
+                    
     async def call_tool(self, name: str, arguments: dict[str, Any]):
         """Call a tool with error handling"""
         logger.info(f"Calling tool: {name} with arguments: {arguments}")
