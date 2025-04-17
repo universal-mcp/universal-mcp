@@ -19,7 +19,7 @@ from universal_mcp.applications import app_from_slug
         "markitdown",
         "e2b",
         "firecrawl",
-        "serp",
+        "serpapi",
         "notion",
     ],
 )

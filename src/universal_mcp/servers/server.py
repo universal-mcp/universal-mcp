@@ -5,7 +5,7 @@ from typing import Any
 import httpx
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp.exceptions import ToolError
+from universal_mcp.exceptions import ToolError
 from mcp.types import TextContent
 
 from universal_mcp.applications import app_from_slug
@@ -13,6 +13,7 @@ from universal_mcp.config import AppConfig, IntegrationConfig, StoreConfig
 from universal_mcp.exceptions import NotAuthorizedError
 from universal_mcp.integrations import AgentRIntegration, ApiKeyIntegration
 from universal_mcp.stores import store_from_config
+from universal_mcp.tools.tools import ToolManager
 
 
 class Server(FastMCP, ABC):
@@ -27,6 +28,9 @@ class Server(FastMCP, ABC):
         super().__init__(name, description, **kwargs)
         logger.info(f"Initializing server: {name} with store: {store}")
         self.store = store_from_config(store) if store else None
+        self._tool_manager = ToolManager(
+            warn_on_duplicate_tools=True
+        )
         self._setup_store(store)
         self._load_apps()
 

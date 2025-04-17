@@ -1,32 +1,45 @@
+from __future__ import annotations as _annotations
+
+from collections.abc import Callable
+from typing import  Any
+
+from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.fastmcp.tools.base import Tool
+from mcp.server.fastmcp.utilities.logging import get_logger
 from pydantic import BaseModel, Field
-from typing import Callable
 import inspect
-from loguru import logger
-from universal_mcp.exceptions import ToolError
-from universal_mcp.tools.func_metadata import func_metadata, FuncMetadata
+from .func_metadata import FuncMetadata, func_metadata
+
+
+logger = get_logger(__name__)
 
 
 class Tool(BaseModel):
     """Internal tool registration info."""
 
-    fn: Callable[..., any] = Field(exclude=True)
+    fn: Callable[..., Any] = Field(exclude=True)
     name: str = Field(description="Name of the tool")
     description: str = Field(description="Description of what the tool does")
-    parameters: dict[str, any] = Field(description="JSON schema for tool parameters")
+    parameters: dict[str, Any] = Field(description="JSON schema for tool parameters")
     fn_metadata: FuncMetadata = Field(
         description="Metadata about the function including a pydantic model for tool"
         " arguments"
     )
     is_async: bool = Field(description="Whether the tool is async")
+    context_kwarg: str | None = Field(
+        None, description="Name of the kwarg that should receive context"
+    )
 
     @classmethod
     def from_function(
         cls,
-        fn: Callable[..., any],
+        fn: Callable[..., Any],
         name: str | None = None,
         description: str | None = None,
-    ) -> "Tool":
+        context_kwarg: str | None = None,
+    ) -> Tool:
         """Create a Tool from a function."""
+        from mcp.server.fastmcp import Context
 
         func_name = name or fn.__name__
 
@@ -36,7 +49,17 @@ class Tool(BaseModel):
         func_doc = description or fn.__doc__ or ""
         is_async = inspect.iscoroutinefunction(fn)
 
-        func_arg_metadata = func_metadata(fn)
+        if context_kwarg is None:
+            sig = inspect.signature(fn)
+            for param_name, param in sig.parameters.items():
+                if param.annotation is Context:
+                    context_kwarg = param_name
+                    break
+
+        func_arg_metadata = func_metadata(
+            fn,
+            skip_names=[context_kwarg] if context_kwarg is not None else [],
+        )
         parameters = func_arg_metadata.arg_model.model_json_schema()
 
         return cls(
@@ -46,20 +69,21 @@ class Tool(BaseModel):
             parameters=parameters,
             fn_metadata=func_arg_metadata,
             is_async=is_async,
+            context_kwarg=context_kwarg,
         )
-
-    def validate_arguments(self, arguments: dict[str, any]) -> dict[str, any]:
-        """Validate the arguments against the tool's parameters."""
-        return self.fn_metadata.pre_parse_json(arguments)
 
     async def run(
         self,
-        arguments: dict[str, any],
-    ) -> any:
+        arguments: dict[str, Any],
+        context = None,
+    ) -> Any:
         """Run the tool with arguments."""
         try:
             return await self.fn_metadata.call_fn_with_arg_validation(
-                self.fn, self.is_async, arguments
+                self.fn,
+                self.is_async,
+                arguments,
+                None
             )
         except Exception as e:
             raise ToolError(f"Error executing tool {self.name}: {e}") from e
@@ -80,9 +104,14 @@ class ToolManager:
         """List all registered tools."""
         return list(self._tools.values())
 
-    def add_tool(self, fn: Callable[..., any]) -> Tool:
+    def add_tool(
+        self,
+        fn: Callable[..., Any],
+        name: str | None = None,
+        description: str | None = None,
+    ) -> Tool:
         """Add a tool to the server."""
-        tool = Tool.from_function(fn)
+        tool = Tool.from_function(fn, name=name, description=description)
         existing = self._tools.get(tool.name)
         if existing:
             if self.warn_on_duplicate_tools:
@@ -94,11 +123,12 @@ class ToolManager:
     async def call_tool(
         self,
         name: str,
-        arguments: dict[str, any],
-    ) -> any:
+        arguments: dict[str, Any],
+        context = None,
+    ) -> Any:
         """Call a tool by name with arguments."""
         tool = self.get_tool(name)
         if not tool:
             raise ToolError(f"Unknown tool: {name}")
 
-        return await tool.run(arguments)
+        return await tool.run(arguments, context=context)
