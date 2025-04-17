@@ -3,15 +3,12 @@ from __future__ import annotations as _annotations
 from collections.abc import Callable
 from typing import  Any
 
-from mcp.server.fastmcp.exceptions import ToolError
-from mcp.server.fastmcp.tools.base import Tool
-from mcp.server.fastmcp.utilities.logging import get_logger
+from universal_mcp.exceptions import ToolError
 from pydantic import BaseModel, Field
 import inspect
+from loguru import logger
 from .func_metadata import FuncMetadata, func_metadata
 
-
-logger = get_logger(__name__)
 
 
 class Tool(BaseModel):

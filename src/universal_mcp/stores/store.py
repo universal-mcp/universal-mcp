@@ -5,7 +5,7 @@ import keyring
 from loguru import logger
 
 
-class Store(ABC):
+class BaseStore(ABC):
     """
     Abstract base class defining the interface for credential stores.
     All credential stores must implement get, set and delete methods.
@@ -46,7 +46,7 @@ class Store(ABC):
         pass
 
 
-class MemoryStore:
+class MemoryStore(BaseStore):
     """
     Acts as credential store for the applications.
     Responsible for storing and retrieving credentials.
@@ -89,7 +89,7 @@ class MemoryStore:
         del self.data[key]
 
 
-class EnvironmentStore(Store):
+class EnvironmentStore(BaseStore):
     """
     Store that uses environment variables to store credentials.
     Implements the Store interface using OS environment variables as the backend.
@@ -131,7 +131,7 @@ class EnvironmentStore(Store):
         del os.environ[key]
 
 
-class KeyringStore(Store):
+class KeyringStore(BaseStore):
     """
     Store that uses keyring to store credentials.
     Implements the Store interface using system keyring as the backend.

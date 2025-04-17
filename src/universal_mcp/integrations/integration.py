@@ -4,7 +4,7 @@ import httpx
 from loguru import logger
 
 from universal_mcp.exceptions import NotAuthorizedError
-from universal_mcp.stores.store import Store
+from universal_mcp.stores import BaseStore
 
 
 def sanitize_api_key_name(name: str) -> str:
@@ -30,7 +30,7 @@ class Integration(ABC):
         store: Store instance for persisting credentials and other data
     """
 
-    def __init__(self, name: str, store: Store = None):
+    def __init__(self, name: str, store: BaseStore = None):
         self.name = name
         self.store = store
 
@@ -82,7 +82,7 @@ class ApiKeyIntegration(Integration):
         store: Store instance for persisting credentials and other data
     """
 
-    def __init__(self, name: str, store: Store = None, **kwargs):
+    def __init__(self, name: str, store: BaseStore = None, **kwargs):
         sanitized_name = sanitize_api_key_name(name)
         super().__init__(sanitized_name, store, **kwargs)
         logger.info(f"Initializing API Key Integration: {name} with store: {store}")
@@ -105,7 +105,7 @@ class OAuthIntegration(Integration):
     def __init__(
         self,
         name: str,
-        store: Store = None,
+        store: BaseStore = None,
         client_id: str = None,
         client_secret: str = None,
         auth_url: str = None,

@@ -1,6 +1,6 @@
 import pytest
 
-from universal_mcp.config import AppConfig
+from universal_mcp.config import AppConfig, ServerConfig
 from universal_mcp.servers import LocalServer
 
 
@@ -13,9 +13,10 @@ async def test_zenquotes():
         )
     ]
 
-    server = LocalServer(
-        name="Test Server", description="Test Server", apps_list=apps_list
+    server_config = ServerConfig(
+        name="Test Server", description="Test Server", apps=apps_list
     )
+    server = LocalServer(server_config)
 
     # List available tools
     tools = await server.list_tools()

@@ -1,188 +1,157 @@
 import os
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Optional
 
 import httpx
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
-from universal_mcp.exceptions import ToolError
 from mcp.types import TextContent
 
-from universal_mcp.applications import app_from_slug
-from universal_mcp.config import AppConfig, IntegrationConfig, StoreConfig
-from universal_mcp.exceptions import NotAuthorizedError
-from universal_mcp.integrations import AgentRIntegration, ApiKeyIntegration
-from universal_mcp.stores import store_from_config
+from universal_mcp.applications import app_from_slug, Application
+from universal_mcp.config import AppConfig, IntegrationConfig, StoreConfig, ServerConfig
+from universal_mcp.exceptions import NotAuthorizedError, ToolError
+from universal_mcp.integrations import AgentRIntegration, ApiKeyIntegration, Integration
+from universal_mcp.stores import BaseStore, store_from_config
 from universal_mcp.tools.tools import ToolManager
 
 
-class Server(FastMCP, ABC):
-    """
-    Server is responsible for managing the applications and the store
-    It also acts as a router for the applications, and exposed to the client
-    """
 
-    def __init__(
-        self, name: str, description: str, store: StoreConfig | None = None, **kwargs
-    ):
-        super().__init__(name, description, **kwargs)
-        logger.info(f"Initializing server: {name} with store: {store}")
-        self.store = store_from_config(store) if store else None
-        self._tool_manager = ToolManager(
-            warn_on_duplicate_tools=True
-        )
-        self._setup_store(store)
+
+class IntegrationFactory:
+    """Factory class for creating integrations"""
+    
+    @staticmethod
+    def create(config: Optional[IntegrationConfig], store: Optional[BaseStore] = None, api_key: Optional[str] = None) -> Optional[Integration]:
+        if not config:
+            return None
+            
+        if config.type == "api_key":
+            integration = ApiKeyIntegration(config.name, store=store)
+            if config.credentials:
+                integration.set_credentials(config.credentials)
+            return integration
+        elif config.type == "agentr":
+            return AgentRIntegration(config.name, api_key=api_key)
+            
+        raise ValueError(f"Unsupported integration type: {config.type}")
+
+
+class BaseServer(FastMCP, ABC):
+    """Base server class with common functionality"""
+
+    def __init__(self, config: ServerConfig, **kwargs):
+        super().__init__(config.name, config.description, **kwargs)
+        logger.info(f"Initializing server: {config.name} with store: {config.store}")
+        
+        self.store = self._setup_store(config.store)
+        self._tool_manager = ToolManager(warn_on_duplicate_tools=True)
         self._load_apps()
 
-    def _setup_store(self, store_config: StoreConfig | None):
-        """
-        Setup the store for the server.
-        """
-        if store_config is None:
-            return
-        self.store = store_from_config(store_config)
-        self.add_tool(self.store.set)
-        self.add_tool(self.store.delete)
-        # self.add_tool(self.store.get)
+    def _setup_store(self, store_config: Optional[StoreConfig]) -> Optional[BaseStore]:
+        """Setup and configure the store"""
+        if not store_config:
+            return None
+            
+        store = store_from_config(store_config)
+        self.add_tool(store.set)
+        self.add_tool(store.delete)
+        return store
 
     @abstractmethod
-    def _load_apps(self):
+    def _load_apps(self) -> None:
+        """Load and register applications"""
         pass
 
+    def _register_app(self, app: Application, actions: Optional[list[str]] = None) -> None:
+        """Register application tools"""
+        tools = app.list_tools()
+        for tool in tools:
+            name = f"{app.name}_{tool.__name__}"
+            if actions and name not in actions:
+                continue
+            self.add_tool(tool, name=name, description=tool.__doc__)
+
     async def call_tool(self, name: str, arguments: dict[str, Any]):
-        """Call a tool by name with arguments."""
+        """Call a tool with error handling"""
         logger.info(f"Calling tool: {name} with arguments: {arguments}")
         try:
             result = await super().call_tool(name, arguments)
             logger.info(f"Tool {name} completed successfully")
             return result
         except ToolError as e:
-            raised_error = e.__cause__
-            if isinstance(raised_error, NotAuthorizedError):
-                logger.warning(
-                    f"Not authorized to call tool {name}: {raised_error.message}"
-                )
-                return [TextContent(type="text", text=raised_error.message)]
-            else:
-                logger.error(f"Error calling tool {name}: {str(e)}")
-                raise e
+            if isinstance(e.__cause__, NotAuthorizedError):
+                message = f"Not authorized to call tool {name}: {e.__cause__.message}"
+                logger.warning(message)
+                return [TextContent(type="text", text=message)]
+            logger.error(f"Error calling tool {name}: {str(e)}")
+            raise
 
 
-class LocalServer(Server):
-    """
-    Local server for development purposes
-    """
+class LocalServer(BaseServer):
+    """Local development server"""
 
-    def __init__(
-        self,
-        apps_list: list[AppConfig] = None,
-        **kwargs,
-    ):
-        if not apps_list:
-            self.apps_list = []
-        else:
-            self.apps_list = apps_list
-        super().__init__(**kwargs)
+    def __init__(self, config: ServerConfig, **kwargs):
+        self.config = config
+        super().__init__(config, **kwargs)
 
-    def _get_store(self, store_config: StoreConfig | None):
-        logger.info(f"Getting store: {store_config}")
-        # No store override, use the one from the server
-        if store_config is None:
-            return self.store
-        return store_from_config(store_config)
-
-    def _get_integration(self, integration_config: IntegrationConfig | None):
-        if not integration_config:
+    def _load_app(self, app_config: AppConfig) -> Optional[Application]:
+        """Load a single application with its integration"""
+        try:
+            integration = IntegrationFactory.create(
+                app_config.integration,
+                store=self.store
+            )
+            return app_from_slug(app_config.name)(integration=integration)
+        except Exception as e:
+            logger.error(f"Failed to load app {app_config.name}: {e}")
             return None
-        if integration_config.type == "api_key":
-            store = self._get_store(integration_config.store)
-            integration = ApiKeyIntegration(integration_config.name, store=store)
-            if integration_config.credentials:
-                integration.set_credentials(integration_config.credentials)
-            return integration
-        return None
 
-    def _load_app(self, app_config: AppConfig):
-        name = app_config.name
-        integration = self._get_integration(app_config.integration)
-        app = app_from_slug(name)(integration=integration)
-        return app
-
-    def _load_apps(self):
-        logger.info(f"Loading apps: {self.apps_list}")
-        for app_config in self.apps_list:
-            try:
-                app = self._load_app(app_config)
-                if app:
-                    tools = app.list_tools()
-                for tool in tools:
-                    tool_name = tool.__name__
-                    name = app.name + "_" + tool_name
-                    description = tool.__doc__
-                    if (
-                        app_config.actions is None
-                        or len(app_config.actions) == 0
-                        or name in app_config.actions
-                    ):
-                        self.add_tool(tool, name=name, description=description)
-            except Exception as e:
-                logger.error(f"Error loading app {app_config.name}: {e}")
+    def _load_apps(self) -> None:
+        """Load all configured applications"""
+        logger.info(f"Loading apps: {self.config.apps}")
+        for app_config in self.config.apps:
+            app = self._load_app(app_config)
+            if app:
+                self._register_app(app)
 
 
-class AgentRServer(Server):
-    """
-    AgentR server. Connects to the AgentR API to get the apps and tools. Only supports agentr integrations.
-    """
+class AgentRServer(BaseServer):
+    """AgentR API-connected server"""
 
-    def __init__(
-        self, name: str, description: str, api_key: str | None = None, **kwargs
-    ):
+    def __init__(self, config: ServerConfig, api_key: Optional[str] = None, **kwargs):
         self.api_key = api_key or os.getenv("AGENTR_API_KEY")
         self.base_url = os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
+        
         if not self.api_key:
             raise ValueError("API key required - get one at https://agentr.dev")
-        super().__init__(name, description=description, **kwargs)
+            
+        super().__init__(config, **kwargs)
 
-    def _load_app(self, app_config: AppConfig):
-        logger.info(f"Loading app: {app_config}")
-        name = app_config.name
-        if app_config.integration:
-            integration_name = app_config.integration.name
-            integration = AgentRIntegration(integration_name, api_key=self.api_key)
-        else:
-            integration = None
-        app = app_from_slug(name)(integration=integration)
-        return app
-
-    def _list_apps_with_integrations(self) -> list[AppConfig]:
-        # TODO: get this from the API
+    def _fetch_apps(self) -> list[AppConfig]:
+        """Fetch available apps from AgentR API"""
         response = httpx.get(
             f"{self.base_url}/api/apps/",
             headers={"X-API-KEY": self.api_key},
             timeout=10,
         )
         response.raise_for_status()
-        apps = response.json()
+        return [AppConfig.model_validate(app) for app in response.json()]
 
-        logger.info(f"Loaded apps: {apps}")
-        return [AppConfig.model_validate(app) for app in apps]
+    def _load_app(self, app_config: AppConfig) -> Optional[Application]:
+        """Load a single application with AgentR integration"""
+        try:
+            integration = IntegrationFactory.create(
+                app_config.integration,
+                api_key=self.api_key
+            )
+            return app_from_slug(app_config.name)(integration=integration)
+        except Exception as e:
+            logger.error(f"Failed to load app {app_config.name}: {e}")
+            return None
 
-    def _load_apps(self):
-        apps = self._list_apps_with_integrations()
-        for app_config in apps:
-            try:
-                app = self._load_app(app_config)
-                if app:
-                    tools = app.list_tools()
-                for tool in tools:
-                    tool_name = tool.__name__
-                    name = app.name + "_" + tool_name
-                    description = tool.__doc__
-                    if (
-                        app_config.actions is None
-                        or len(app_config.actions) == 0
-                        or name in app_config.actions
-                    ):
-                        self.add_tool(tool, name=name, description=description)
-            except Exception as e:
-                logger.error(f"Error loading app {app_config.name}: {e}")
+    def _load_apps(self) -> None:
+        """Load all apps available from AgentR"""
+        for app_config in self._fetch_apps():
+            app = self._load_app(app_config)
+            if app:
+                self._register_app(app)
