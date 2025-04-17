@@ -69,13 +69,13 @@ class BaseServer(FastMCP, ABC):
             name = f"{app.name}_{tool.__name__}"
             if actions and name not in actions:
                 continue
-            self.add_tool(tool, name=name, description=tool.__doc__)
+            self.add_tool(tool, name=name)
 
     async def call_tool(self, name: str, arguments: dict[str, Any]):
         """Call a tool with error handling"""
         logger.info(f"Calling tool: {name} with arguments: {arguments}")
         try:
-            result = await self.tool_manager.call_tool(name, arguments)
+            result = await self._tool_manager.call_tool(name, arguments)
             logger.info(f"Tool '{name}' completed successfully via ToolManager")
             if isinstance(result, str):
                  return [TextContent(type="text", text=result)]

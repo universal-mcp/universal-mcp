@@ -18,7 +18,7 @@ class Tool(BaseModel):
 
     fn: Callable[..., Any] = Field(exclude=True)
     name: str = Field(description="Name of the tool")
-    summary: str = Field(
+    description: str = Field(
         description="Summary line from the tool's docstring"
     )
     args_description: dict[str, str] = Field(
@@ -33,7 +33,7 @@ class Tool(BaseModel):
     tags: list[str] = Field(
         default_factory=list, description="Tags for categorizing the tool"
         )
-    parameters: dict[str, any] = Field(description="JSON schema for tool parameters")
+    parameters: dict[str, Any] = Field(description="JSON schema for tool parameters")
     fn_metadata: FuncMetadata = Field(
         description="Metadata about the function including a pydantic model for tool"
         " arguments"
@@ -59,23 +59,15 @@ class Tool(BaseModel):
         
         is_async = inspect.iscoroutinefunction(fn)
 
-        if context_kwarg is None:
-            sig = inspect.signature(fn)
-            for param_name, param in sig.parameters.items():
-                if param.annotation is Context:
-                    context_kwarg = param_name
-                    break
-
         func_arg_metadata = func_metadata(
             fn,
-            skip_names=[context_kwarg] if context_kwarg is not None else [],
         )
         parameters = func_arg_metadata.arg_model.model_json_schema()
 
         return cls(
             fn=fn,
             name=func_name,
-            summary=parsed_doc["summary"],
+            description=parsed_doc["summary"],
             args_description=parsed_doc["args"],
             returns_description=parsed_doc["returns"],
             raises_description=parsed_doc["raises"],
