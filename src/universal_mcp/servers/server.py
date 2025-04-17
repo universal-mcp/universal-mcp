@@ -75,9 +75,16 @@ class BaseServer(FastMCP, ABC):
         """Call a tool with error handling"""
         logger.info(f"Calling tool: {name} with arguments: {arguments}")
         try:
-            result = await super().call_tool(name, arguments)
-            logger.info(f"Tool {name} completed successfully")
-            return result
+            result = await self.tool_manager.call_tool(name, arguments)
+            logger.info(f"Tool '{name}' completed successfully via ToolManager")
+            if isinstance(result, str):
+                 return [TextContent(type="text", text=result)]
+            elif isinstance(result, list) and all(isinstance(item, TextContent) for item in result):
+                 return result
+            else:
+                 logger.warning(f"Tool '{name}' returned unexpected type: {type(result)}. Wrapping in TextContent.")
+                 return [TextContent(type="text", text=str(result))]
+
         except ToolError as e:
             if isinstance(e.__cause__, NotAuthorizedError):
                 message = f"Not authorized to call tool {name}: {e.__cause__.message}"

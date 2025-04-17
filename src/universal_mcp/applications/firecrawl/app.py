@@ -64,6 +64,10 @@ class FirecrawlApp(APIApplication):
         Returns:
             A dictionary containing the scraped data on success,
             or a string containing an error message on failure.
+
+        Tags:
+            scrape
+            important
         """
         try:
             client = self._get_client()
@@ -86,6 +90,10 @@ class FirecrawlApp(APIApplication):
         Returns:
             A dictionary containing the search results on success,
             or a string containing an error message on failure.
+
+        Tags:
+            search
+            important
         """
         try:
             client = self._get_client()
@@ -111,6 +119,11 @@ class FirecrawlApp(APIApplication):
         Returns:
             A dictionary containing the job initiation response on success,
             or a string containing an error message on failure.
+
+        Tags:
+            crawl
+            async_job
+            start
         """
         try:
             client = self._get_client()
@@ -132,6 +145,11 @@ class FirecrawlApp(APIApplication):
         Returns:
             A dictionary containing the job status details on success,
             or a string containing an error message on failure.
+
+        Tags:
+            crawl
+            async_job
+            status
         """
         try:
             client = self._get_client()
@@ -151,6 +169,12 @@ class FirecrawlApp(APIApplication):
         Returns:
             A dictionary confirming the cancellation status on success,
             or a string containing an error message on failure.
+
+        Tags:
+            crawl
+            async_job
+            management
+            cancel
         """
         try:
             client = self._get_client()
@@ -178,6 +202,12 @@ class FirecrawlApp(APIApplication):
         Returns:
             A dictionary containing the job initiation response on success,
             or a string containing an error message on failure.
+
+        Tags:
+            scrape
+            batch
+            async_job
+            start
         """
         try:
             client = self._get_client()
@@ -199,6 +229,12 @@ class FirecrawlApp(APIApplication):
         Returns:
             A dictionary containing the job status details on success,
             or a string containing an error message on failure.
+
+        Tags:
+            scrape
+            batch
+            async_job
+            status
         """
         try:
             client = self._get_client()
@@ -225,6 +261,12 @@ class FirecrawlApp(APIApplication):
         Returns:
             A dictionary containing the job initiation response on success,
             or a string containing an error message on failure.
+
+        Tags:
+            extract
+            ai
+            async_job
+            start
         """
 
         try:
@@ -247,6 +289,12 @@ class FirecrawlApp(APIApplication):
         Returns:
             A dictionary containing the job status details on success,
             or a string containing an error message on failure.
+
+        Tags:
+            extract
+            ai
+            async_job
+            status
         """
         try:
             client = self._get_client()
