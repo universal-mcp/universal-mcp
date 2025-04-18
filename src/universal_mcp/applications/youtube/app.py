@@ -1,6 +1,8 @@
 from typing import Any
 from universal_mcp.applications import APIApplication
 from universal_mcp.integrations import Integration
+from loguru import logger
+from universal_mcp.exceptions import NotAuthorizedError
 
 class YoutubeApp(APIApplication):
     def __init__(self, integration: Integration = None, **kwargs) -> None:
@@ -14,9 +16,24 @@ class YoutubeApp(APIApplication):
         Returns:
             None
         """
-        super().__init__(name='youtubeapp', integration=integration, **kwargs)
-        self.base_url = "httpswww.googleapis.com/youtube/v1"
+        super().__init__(name='youtube', integration=integration, **kwargs)
+        self.base_url = "https://www.googleapis.com/youtube/v3"
 
+    def _get_headers(self):
+        if not self.integration:
+            raise ValueError("Integration not configured for YoutubeApp")
+        credentials = self.integration.get_credentials()
+        if not credentials:
+            logger.warning("No Google credentials found via integration.")
+            action = self.integration.authorize()
+            raise NotAuthorizedError(action)
+        if "headers" in credentials:
+            return credentials["headers"]
+        return {
+            "Authorization": f"Bearer {credentials['access_token']}",
+            "Content-Type": "application/json",
+        }
+    
     def get_jobs_job_reports(self, jobId, createdAfter=None, onBehalfOfContentOwner=None, pageSize=None, pageToken=None, startTimeAtOrAfter=None, startTimeBefore=None) -> Any:
         """
         Retrieves job reports for a specific job based on provided filters and parameters.
@@ -462,21 +479,21 @@ class YoutubeApp(APIApplication):
 
     def get_activities(self, channelId=None, home=None, maxResults=None, mine=None, pageToken=None, part=None, publishedAfter=None, publishedBefore=None, regionCode=None) -> Any:
         """
-        Fetches a list of activities from a specified YouTube channel or across the platform.
+        Get YouTube channel activities.
         
         Args:
-            channelId: Optional; A string representing the ID of the channel for which to retrieve activities. When specified, limits results to this channel.
-            home: Optional; A boolean indicating whether to retrieve channel entries for the authenticated user. If true, combines authenticated user's channel activities.
-            maxResults: Optional; An integer specifying the maximum number of items that should be returned in the result set.
-            mine: Optional; A boolean indicating whether to restrict results to activities owned by the authenticated user.
-            pageToken: Optional; A string used to identify a specific page in the result set that should be returned.
-            part: Optional; A string specifying a comma-separated list of one or more activity resource properties that should be included in the response.
-            publishedAfter: Optional; A string in ISO 8601 format indicating that the API response should only include activities published after this date.
-            publishedBefore: Optional; A string in ISO 8601 format indicating that the API response should only include activities published before this date.
-            regionCode: Optional; A string representing the ISO 3166-1 alpha-2 country code for the region in which to return the activities.
+            channelId: Channel ID
+            home: User's feed
+            maxResults: Results limit
+            mine: User's activities
+            pageToken: Page token
+            part: Response parts
+            publishedAfter: After date
+            publishedBefore: Before date
+            regionCode: Region code
         
         Returns:
-            Returns a JSON object containing the list of activities retrieved based on the specified query parameters.
+            JSON with activities
         """
         url = f"{self.base_url}/activities"
         query_params = {k: v for k, v in [('channelId', channelId), ('home', home), ('maxResults', maxResults), ('mine', mine), ('pageToken', pageToken), ('part', part), ('publishedAfter', publishedAfter), ('publishedBefore', publishedBefore), ('regionCode', regionCode)] if v is not None}
@@ -520,23 +537,23 @@ class YoutubeApp(APIApplication):
 
     def get_channels(self, categoryId=None, forUsername=None, hl=None, id=None, managedByMe=None, maxResults=None, mine=None, mySubscribers=None, onBehalfOfContentOwner=None, pageToken=None, part=None) -> Any:
         """
-        Retrieves YouTube channels based on various filter criteria.
+        Get YouTube channels.
         
         Args:
-            categoryId: Optional; str or None. The YouTube video category ID for which channels will be retrieved.
-            forUsername: Optional; str or None. The YouTube username to search for.
-            hl: Optional; str or None. The language code for localized metadata in the response.
-            id: Optional; str or None. A string of comma-separated YouTube channel IDs to retrieve.
-            managedByMe: Optional; bool or None. Restricts response to channels managed by the authenticated user.
-            maxResults: Optional; int or None. Maximum number of items to return.
-            mine: Optional; bool or None. Restricts the response to only the channels owned by the authenticated user.
-            mySubscribers: Optional; bool or None. Restricts the response to channels subscribed to by the authenticated user.
-            onBehalfOfContentOwner: Optional; str or None. Identifies the content owner on whose behalf the API request is being performed.
-            pageToken: Optional; str or None. Identifies a specific page in the result set to return.
-            part: Optional; str or None. Specifies a comma-separated list of channel resource properties to include in the API response.
+            categoryId: Category ID
+            forUsername: Username
+            hl: Language code
+            id: Channel IDs
+            managedByMe: Managed channels
+            maxResults: Results limit
+            mine: Own channels
+            mySubscribers: Subscribed channels
+            onBehalfOfContentOwner: Owner ID
+            pageToken: Page token
+            part: Response parts
         
         Returns:
-            A JSON object containing the response from the YouTube API channels endpoint, structured according to the specified 'part' parameter.
+            JSON with channels
         """
         url = f"{self.base_url}/channels"
         query_params = {k: v for k, v in [('categoryId', categoryId), ('forUsername', forUsername), ('hl', hl), ('id', id), ('managedByMe', managedByMe), ('maxResults', maxResults), ('mine', mine), ('mySubscribers', mySubscribers), ('onBehalfOfContentOwner', onBehalfOfContentOwner), ('pageToken', pageToken), ('part', part)] if v is not None}
@@ -546,23 +563,23 @@ class YoutubeApp(APIApplication):
 
     def get_comment_threads(self, allThreadsRelatedToChannelId=None, channelId=None, id=None, maxResults=None, moderationStatus=None, order=None, pageToken=None, part=None, searchTerms=None, textFormat=None, videoId=None) -> Any:
         """
-        Fetches comment threads from a YouTube API endpoint based on provided filters.
+        Get YouTube comment threads.
         
         Args:
-            allThreadsRelatedToChannelId: An optional string to filter threads related to a specific channel ID.
-            channelId: An optional string specifying the channel ID for which to fetch comment threads.
-            id: An optional string specifying a comma-separated list of comment thread IDs to retrieve.
-            maxResults: An optional integer to limit the number of results returned, with a possible maximum.
-            moderationStatus: An optional string to filter threads based on their moderation status (e.g., 'published', 'rejected').
-            order: An optional string to specify the order of results (e.g., 'time').
-            pageToken: An optional string for pagination to retrieve the next set of results.
-            part: An optional string specifying the comment thread resource parts that the API response will include.
-            searchTerms: An optional string for searching comment threads that match the specified terms.
-            textFormat: An optional string indicating the text format of the comments ('plainText' or 'html').
-            videoId: An optional string specifying the ID of the video for which to fetch comment threads.
+            allThreadsRelatedToChannelId: Threads for channel
+            channelId: Channel ID 
+            id: Comment thread IDs
+            maxResults: Results limit
+            moderationStatus: Moderation status
+            order: Sort order
+            pageToken: Pagination token
+            part: Response parts
+            searchTerms: Search terms
+            textFormat: Text format
+            videoId: Video ID
         
         Returns:
-            A dictionary containing the JSON response from the YouTube API, which includes details about the comment threads matching the specified filters.
+            JSON with comment threads
         """
         url = f"{self.base_url}/commentThreads"
         query_params = {k: v for k, v in [('allThreadsRelatedToChannelId', allThreadsRelatedToChannelId), ('channelId', channelId), ('id', id), ('maxResults', maxResults), ('moderationStatus', moderationStatus), ('order', order), ('pageToken', pageToken), ('part', part), ('searchTerms', searchTerms), ('textFormat', textFormat), ('videoId', videoId)] if v is not None}
@@ -696,43 +713,43 @@ class YoutubeApp(APIApplication):
 
     def get_search(self, channelId=None, channelType=None, eventType=None, forContentOwner=None, forDeveloper=None, forMine=None, location=None, locationRadius=None, maxResults=None, onBehalfOfContentOwner=None, order=None, pageToken=None, part=None, publishedAfter=None, publishedBefore=None, q=None, regionCode=None, relatedToVideoId=None, relevanceLanguage=None, safeSearch=None, topicId=None, type=None, videoCaption=None, videoCategoryId=None, videoDefinition=None, videoDimension=None, videoDuration=None, videoEmbeddable=None, videoLicense=None, videoSyndicated=None, videoType=None) -> Any:
         """
-        Performs a search query on the YouTube Data API with a variety of optional filters and parameters.
+        Search YouTube Data API with filters.
         
         Args:
-            channelId: Optional; ID of the channel to filter results.
-            channelType: Optional; Type of channel that the search will be limited to.
-            eventType: Optional; Filter results by event type.
-            forContentOwner: Optional; Flags searches for content owners.
-            forDeveloper: Optional; Flags searches for developers.
-            forMine: Optional; Flags searches for authenticated user's own videos.
-            location: Optional; Filters results based on location.
-            locationRadius: Optional; Radius around the specified location.
-            maxResults: Optional; Maximum number of results to return.
-            onBehalfOfContentOwner: Optional; YouTube content owner ID, used for API request.
-            order: Optional; Order in which search results are returned.
-            pageToken: Optional; Token for the page of results to retrieve.
-            part: Optional; Comma-separated list of resource properties included in the response.
-            publishedAfter: Optional; Limits results to those published after this date.
-            publishedBefore: Optional; Limits results to those published before this date.
-            q: Optional; Query string for searching videos.
-            regionCode: Optional; ISO 3166-1 alpha-2 code of the region.
-            relatedToVideoId: Optional; Filter to include only videos related to this ID.
-            relevanceLanguage: Optional; Language code for relevance ranking.
-            safeSearch: Optional; Restriction level on restricted content.
-            topicId: Optional; Filter results by topic ID.
-            type: Optional; Resource type to search (video, channel, etc.).
-            videoCaption: Optional; Filter to include only captions.
-            videoCategoryId: Optional; Filter results based on video category.
-            videoDefinition: Optional; Filter results based on video definition.
-            videoDimension: Optional; Filter results based on video dimension.
-            videoDuration: Optional; Filter results based on video duration.
-            videoEmbeddable: Optional; Only return embeddable videos.
-            videoLicense: Optional; Filter results based on license type.
-            videoSyndicated: Optional; Only include syndicated videos.
-            videoType: Optional; Filter results by video type.
+            channelId: Channel filter
+            channelType: Channel type
+            eventType: Event type
+            forContentOwner: Content owner search
+            forDeveloper: Developer search
+            forMine: User's videos
+            location: Location filter
+            locationRadius: Location radius
+            maxResults: Results limit
+            onBehalfOfContentOwner: Owner ID
+            order: Results order
+            pageToken: Page token
+            part: Response parts
+            publishedAfter: After date
+            publishedBefore: Before date
+            q: Search query
+            regionCode: Region code
+            relatedToVideoId: Related videos
+            relevanceLanguage: Language
+            safeSearch: Safe search
+            topicId: Topic filter
+            type: Resource type
+            videoCaption: Caption filter
+            videoCategoryId: Category
+            videoDefinition: Definition
+            videoDimension: Dimension
+            videoDuration: Duration
+            videoEmbeddable: Embeddable
+            videoLicense: License
+            videoSyndicated: Syndicated
+            videoType: Video type
         
         Returns:
-            A JSON response from the YouTube Data API containing search results matching the specified criteria.
+            JSON with search results
         """
         url = f"{self.base_url}/search"
         query_params = {k: v for k, v in [('channelId', channelId), ('channelType', channelType), ('eventType', eventType), ('forContentOwner', forContentOwner), ('forDeveloper', forDeveloper), ('forMine', forMine), ('location', location), ('locationRadius', locationRadius), ('maxResults', maxResults), ('onBehalfOfContentOwner', onBehalfOfContentOwner), ('order', order), ('pageToken', pageToken), ('part', part), ('publishedAfter', publishedAfter), ('publishedBefore', publishedBefore), ('q', q), ('regionCode', regionCode), ('relatedToVideoId', relatedToVideoId), ('relevanceLanguage', relevanceLanguage), ('safeSearch', safeSearch), ('topicId', topicId), ('type', type), ('videoCaption', videoCaption), ('videoCategoryId', videoCategoryId), ('videoDefinition', videoDefinition), ('videoDimension', videoDimension), ('videoDuration', videoDuration), ('videoEmbeddable', videoEmbeddable), ('videoLicense', videoLicense), ('videoSyndicated', videoSyndicated), ('videoType', videoType)] if v is not None}
