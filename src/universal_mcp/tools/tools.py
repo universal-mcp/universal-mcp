@@ -7,6 +7,7 @@ from typing import Any
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from universal_mcp.applications.application import Application
 from universal_mcp.exceptions import ToolError
 from universal_mcp.utils.docstring_parser import parse_docstring
 
@@ -91,8 +92,7 @@ class Tool(BaseModel):
             )
         except Exception as e:
             raise ToolError(f"Error executing tool {self.name}: {e}") from e
-
-
+        
 class ToolManager:
     """Manages FastMCP tools."""
 
@@ -109,10 +109,13 @@ class ToolManager:
         return list(self._tools.values())
 
     # Modified add_tool to accept name override explicitly
-    def add_tool(self, fn: Callable[..., Any], name: str | None = None) -> Tool: # Changed any to Any
+    def add_tool(self, fn: Callable[..., Any] | Tool, name: str | None = None) -> Tool: # Changed any to Any
         """Add a tool to the server, allowing name override."""
         # Create the Tool object using the provided name if available
-        tool = Tool.from_function(fn, name=name)
+        if isinstance(fn, Tool):
+            tool = fn
+        else:
+            tool = Tool.from_function(fn, name=name)
         existing = self._tools.get(tool.name)
         if existing:
             if self.warn_on_duplicate_tools:
@@ -139,3 +142,21 @@ class ToolManager:
             raise ToolError(f"Unknown tool: {name}")
 
         return await tool.run(arguments)
+
+    def get_tools_by_tags(self, tags: list[str]) -> list[Tool]:
+        """Get tools by tags."""
+        return [tool for tool in self._tools.values() if any(tag in tool.tags for tag in tags)]
+    
+    def register_tools_from_app(self, app: Application, tools: list[str] = [], tags: list[str] = ["important"]) -> None:
+        """Register tools from an application."""
+        for tool in app.list_tools():
+            tool = Tool.from_function(tool)
+            tool.name = f"{app.name}_{tool.name}"
+            tool.tags = tool.tags + app.tags
+            should_register = True
+            if tools and len(tools) > 0:
+                should_register = tool.name in tools
+            elif tags and len(tags) > 0:
+                should_register = should_register and any(tag in tool.tags for tag in tags)
+            if should_register:
+                self.add_tool(tool)

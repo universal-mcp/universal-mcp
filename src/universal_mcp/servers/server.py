@@ -59,38 +59,6 @@ class BaseServer(FastMCP, ABC):
     def _load_apps(self) -> None:
         """Load and register applications"""
         pass
-
-    def _register_app(self, app: Application, actions: list[str] | None = None) -> None:
-        """
-        Register application tools. If specific actions are provided, only those are loaded.
-        Otherwise, only tools tagged as 'important' are loaded by default.
-        """
-        from universal_mcp.tools.tools import Tool
-
-        tool_functions = app.list_tools()
-
-        for tool_func in tool_functions:
-            base_name = tool_func.__name__
-            full_tool_name = f"{app.name}_{base_name}"
-
-            should_register = False
-            if actions:
-                if full_tool_name in actions:
-                    should_register = True
-            else:
-                try:
-                    tool_obj = Tool.from_function(tool_func)
-                    if "important" in tool_obj.tags:
-                        should_register = True
-
-                except Exception as e:
-                    logger.error(f"Error processing metadata for tool {base_name} in app {app.name}, skipping: {e}")
-
-            if should_register:
-                try:
-                    self._tool_manager.add_tool(tool_func, name=full_tool_name)
-                except Exception as e:
-                    logger.error(f"Error registering tool {full_tool_name}: {e}")
                     
     async def call_tool(self, name: str, arguments: dict[str, Any]):
         """Call a tool with error handling"""
@@ -140,7 +108,7 @@ class LocalServer(BaseServer):
         for app_config in self.config.apps:
             app = self._load_app(app_config)
             if app:
-                self._register_app(app)
+                self._tool_manager.register_tools_from_app(app, app_config.actions)
 
 
 class AgentRServer(BaseServer):
@@ -182,4 +150,4 @@ class AgentRServer(BaseServer):
         for app_config in self._fetch_apps():
             app = self._load_app(app_config)
             if app:
-                self._register_app(app)
+                self._tool_manager.register_tools_from_app(app, app_config.actions)
