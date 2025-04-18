@@ -14,7 +14,7 @@ def convert_tool_to_mcp_tool(
 def convert_tool_to_langchain_tool(
     tool: Tool,
 ):
-    from langchain_core.tools import BaseTool, StructuredTool, ToolException
+    from langchain_core.tools import StructuredTool
     """Convert an tool to a LangChain tool.
 
     NOTE: this tool can be executed only in a context of an active MCP client session.

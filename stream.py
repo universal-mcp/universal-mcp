@@ -1,25 +1,25 @@
+import json
 import time
 import uuid
-from fastapi import FastAPI, Query, Request
-from fastapi.responses import StreamingResponse
-from langchain_core.messages import HumanMessage
-from langchain_openai import AzureChatOpenAI
 from typing import Annotated
 
-from typing_extensions import TypedDict
-
-from langgraph.graph import StateGraph, START, END
-from langgraph.graph.message import add_messages
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import json
+from fastapi.responses import StreamingResponse
 from langchain_core.messages import (
     AIMessageChunk,
 )
+from langchain_openai import AzureChatOpenAI
+from langgraph.graph.message import add_messages
 from langgraph.prebuilt import create_react_agent
-from universal_mcp.tools import ToolManager
+from pydantic import BaseModel
+from typing_extensions import TypedDict
+
 from universal_mcp.applications import app_from_slug
 from universal_mcp.integrations import AgentRIntegration
+from universal_mcp.tools import ToolManager
+
+
 class State(TypedDict):
     # Messages have the type "list". The `add_messages` function
     # in the annotation defines how this state key should be updated
@@ -97,7 +97,7 @@ async def langgraph_sse_stream_with_events(messages: list[dict]):
             if isinstance(message_chunk, AIMessageChunk):
                 if message_chunk.tool_calls:
                     for tool_call in message_chunk.tool_calls:
-                        sse_data = f"event: tool_call\n"
+                        sse_data = "event: tool_call\n"
                         sse_data += f"data: {json.dumps({'name': tool_call.function.name, 'arguments': tool_call.function.arguments})}\n\n"
                         yield sse_data.encode("utf-8")
                 elif message_chunk.content:
@@ -110,7 +110,7 @@ async def langgraph_sse_stream_with_events(messages: list[dict]):
         ):  # Handle cases where tuple wrapping might not occur
             if event.tool_calls:
                 for tool_call in event.tool_calls:
-                    sse_data = f"event: tool_call\n"
+                    sse_data = "event: tool_call\n"
                     sse_data += f"data: {json.dumps({'name': tool_call.function.name, 'arguments': tool_call.function.arguments})}\n\n"
                     yield sse_data.encode("utf-8")
             elif event.content:
@@ -123,7 +123,7 @@ async def openai_sse_stream_generator(messages: list[dict]):
     Streams LangGraph results in OpenAI-compatible SSE format.
     """
     graph = create_graph()
-    completion_id = f"chatcmpl-{uuid.uuid4()}"
+    f"chatcmpl-{uuid.uuid4()}"
     first_chunk = True
 
     try:
@@ -256,7 +256,7 @@ async def openai_sse_stream_generator(messages: list[dict]):
     except Exception as e:
         # Handle exceptions and optionally stream an error message
         print(f"Error during streaming: {e}")
-        error_message = {
+        {
             "error": {
                 "message": f"An error occurred: {str(e)}",
                 "type": "stream_error",

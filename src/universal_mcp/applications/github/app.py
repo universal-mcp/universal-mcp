@@ -1,4 +1,4 @@
-from typing import Any,ClassVar
+from typing import Any, ClassVar
 
 from loguru import logger
 

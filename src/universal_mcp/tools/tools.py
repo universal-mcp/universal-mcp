@@ -38,7 +38,10 @@ def convert_tool_to_langchain_tool(
     Returns:
         a LangChain StructuredTool
     """
-    from langchain_core.tools import StructuredTool,ToolException # Keep import inside if preferred, or move top
+    from langchain_core.tools import (  # Keep import inside if preferred, or move top
+        StructuredTool,
+        ToolException,
+    )
 
     async def call_tool(
         **arguments: dict[str, any], # arguments received here are validated by StructuredTool
@@ -169,10 +172,7 @@ class ToolManager:
     def add_tool(self, fn: Callable[..., Any] | Tool, name: str | None = None) -> Tool: # Changed any to Any
         """Add a tool to the server, allowing name override."""
         # Create the Tool object using the provided name if available
-        if isinstance(fn, Tool):
-            tool = fn
-        else:
-            tool = Tool.from_function(fn, name=name)
+        tool = fn if isinstance(fn, Tool) else Tool.from_function(fn, name=name)
         existing = self._tools.get(tool.name)
         if existing:
             if self.warn_on_duplicate_tools:
