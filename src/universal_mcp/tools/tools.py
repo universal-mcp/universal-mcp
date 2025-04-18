@@ -230,10 +230,7 @@ class ToolManager:
 
         # For tags, determine the filter list based on priority: passed 'tags' or default 'important'
         # This list is only used if tools_name_filter is empty.
-        if tags: # If a non-empty list was explicitly passed for tags
-            active_tags_filter = tags
-        else: # If tags was None or []
-            active_tags_filter = ["important"] # Default filter
+        active_tags_filter = tags if tags else ["important"]# Default filter
 
         logger.debug(f"Registering tools for '{app.name}'. Name filter: {tools_name_filter or 'None'}. Tag filter (if name filter empty): {active_tags_filter}")
 
