@@ -24,32 +24,46 @@ def convert_tool_to_mcp_tool(
         inputSchema=tool.parameters,
     )
 
+# MODIFY THIS FUNCTION:
 def convert_tool_to_langchain_tool(
     tool: Tool,
 ):
-    from langchain_core.tools import BaseTool, StructuredTool, ToolException
-    """Convert an tool to a LangChain tool.
+    """Convert a Tool object to a LangChain StructuredTool.
 
     NOTE: this tool can be executed only in a context of an active MCP client session.
 
     Args:
-        tool: Tool to convert
+        tool: Tool object to convert
 
     Returns:
-        a LangChain tool
+        a LangChain StructuredTool
     """
+    from langchain_core.tools import StructuredTool,ToolException # Keep import inside if preferred, or move top
 
     async def call_tool(
-        **arguments: dict[str, any],
+        **arguments: dict[str, any], # arguments received here are validated by StructuredTool
     ):
-        call_tool_result = await tool.run(arguments)
-        return call_tool_result
+        # tool.run already handles validation via fn_metadata.call_fn_with_arg_validation
+        # It should be able to handle the validated/coerced types from StructuredTool
+        try:
+            call_tool_result = await tool.run(arguments)
+            return call_tool_result
+        except ToolError as e:
+             # Langchain expects ToolException for controlled errors
+             raise ToolException(f"Error running tool '{tool.name}': {e}") from e
+        except Exception as e:
+            # Catch unexpected errors
+            raise ToolException(f"Unexpected error in tool '{tool.name}': {e}") from e
+
 
     return StructuredTool(
         name=tool.name,
-        description=tool.description or "",
+        description=tool.description or f"Tool named {tool.name}.", # Provide fallback description
         coroutine=call_tool,
-        response_format="content",
+        args_schema=tool.fn_metadata.arg_model, # <<< --- ADD THIS LINE
+        # handle_tool_error=True, # Optional: Consider adding error handling config
+        # return_direct=False,    # Optional: Default is usually fine
+        # response_format="content", # This field might not be valid for StructuredTool, check LangChain docs if needed. Let's remove for now.
     )
 
 class Tool(BaseModel):
@@ -190,16 +204,65 @@ class ToolManager:
         """Get tools by tags."""
         return [tool for tool in self._tools.values() if any(tag in tool.tags for tag in tags)]
     
-    def register_tools_from_app(self, app: Application, tools: list[str] = [], tags: list[str] = ["important"]) -> None:
-        """Register tools from an application."""
-        for tool in app.list_tools():
-            tool = Tool.from_function(tool)
-            tool.name = f"{app.name}_{tool.name}"
-            tool.tags = tool.tags + [app.name]
+    def register_tools_from_app(self, app: Application, tools: list[str] | None = None, tags: list[str] | None = None) -> None:
+        """Register tools from an application instance, applying filters if provided."""
+        # Ensure filters are lists for easier handling, default to empty if None
+        tools_filter = tools or []
+        tags_filter = tags or []
+
+        # Call list_tools() correctly - it returns a list of *callable functions/methods*
+        # from the specific Application instance (e.g., GithubApp instance)
+        try:
+            # list_tools in Application subclasses should not take arguments
+            available_tool_functions = app.list_tools()
+        except TypeError as e:
+            logger.error(f"Error calling list_tools for app '{app.name}'. Does its list_tools method accept arguments? It shouldn't. Error: {e}")
+            return # Stop processing this app if list_tools is wrong
+
+        if not isinstance(available_tool_functions, list):
+             logger.error(f"App '{app.name}' list_tools() did not return a list. Skipping registration.")
+             return
+
+        # Iterate over the actual function/method objects returned by app.list_tools()
+        for tool_func in available_tool_functions:
+            if not callable(tool_func):
+                logger.warning(f"Item returned by {app.name}.list_tools() is not callable: {tool_func}. Skipping.")
+                continue
+
+            # Create the Tool metadata object from the function/method
+            # This parses docstrings, gets signature, etc.
+            try:
+                # tool_func is the loop variable, representing the function itself (e.g., GithubApp.star_repository)
+                tool_instance = Tool.from_function(tool_func)
+            except Exception as e:
+                 logger.error(f"Failed to create Tool object from function '{getattr(tool_func, '__name__', 'unknown')}' in app '{app.name}': {e}")
+                 continue # Skip this tool if metadata creation fails
+
+            # --- Modify the Tool instance before registration ---
+
+            # 1. Prefix the name with the app name
+            original_name = tool_instance.name # Get the name derived from the function
+            prefixed_name = f"{app.name}_{original_name}"
+            tool_instance.name = prefixed_name # Update the name on the Tool instance
+
+            # 2. Add the app name itself as a tag for categorization/filtering
+            # Use setdefault to avoid adding if already present (though unlikely here)
+            if app.name not in tool_instance.tags:
+                 tool_instance.tags.append(app.name)
+
+            # --- Filtering logic (using the *modified* tool_instance) ---
             should_register = True
-            if tools and len(tools) > 0:
-                should_register = tool.name in tools
-            elif tags and len(tags) > 0:
-                should_register = should_register and any(tag in tool.tags for tag in tags)
+
+            # Apply 'tools' filter first (list of specific tool names to include)
+            if tools_filter: # Check if the tools filter list is not empty
+                should_register = tool_instance.name in tools_filter
+            # Only apply 'tags' filter if 'tools' filter wasn't provided or didn't exclude the tool
+            elif tags_filter and should_register: # Check if the tag filter list is not empty
+                # Check if *any* specified tag exists in the tool's combined tags
+                should_register = any(tag in tool_instance.tags for tag in tags_filter)
+            # If both filters are empty, should_register remains True
+
+            # --- Add the tool if it passed the filters ---
             if should_register:
-                self.add_tool(tool)
+                # Pass the fully configured Tool *instance* to add_tool
+                self.add_tool(tool_instance)

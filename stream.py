@@ -17,7 +17,9 @@ from langchain_core.messages import (
     AIMessageChunk,
 )
 from langgraph.prebuilt import create_react_agent
-
+from universal_mcp.tools import ToolManager
+from universal_mcp.applications import app_from_slug
+from universal_mcp.integrations import AgentRIntegration
 class State(TypedDict):
     # Messages have the type "list". The `add_messages` function
     # in the annotation defines how this state key should be updated
@@ -37,17 +39,47 @@ def chatbot(state: State):
 
 
 def create_graph():
-    from universal_mcp.tools import ToolManager
-    from universal_mcp.applications import app_from_slug
     tool_manager = ToolManager()
-    for app in ["google-calendar", "github"]:
-        app = app_from_slug(app)
-        tool_manager.register_tools_from_app(app)
+
+    app_slugs_to_load = ["github"] # Add more slugs here as needed, e.g., "firecrawl"
+
+    for app_slug in app_slugs_to_load:
+        try:
+            app_class = app_from_slug(app_slug)
+            integration = AgentRIntegration(name=app_slug)
+
+            # 3. Instantiate the application CLASS with the integration INSTANCE
+            app_instance = app_class(integration=integration)
+
+            # 4. Pass the application INSTANCE to the tool manager
+            #    Optionally pass filters for tools/tags if needed
+            tool_manager.register_tools_from_app(app_instance) # Pass the instance
+
+            print(f"Successfully registered tools for app: {app_slug}")
+
+        except ValueError as e:
+            # Catch errors during integration creation (e.g., missing API key)
+            print(f"Warning: Skipping app '{app_slug}' due to integration error: {e}")
+        except ImportError:
+            print(f"Warning: Could not import app '{app_slug}'. Skipping.")
+        except Exception as e:
+            # Catch other potential errors during instantiation or registration
+            print(f"Warning: Skipping app '{app_slug}' due to error: {e}")
+            import traceback
+            traceback.print_exc() # Print full traceback for debugging
+
+    # Get the tools in LangChain format AFTER the loop
     tools = tool_manager.list_tools(format="langchain")
+
+    if not tools:
+        print("Warning: No tools were registered for the agent.")
+        # Decide if you want to proceed without tools or raise an error
+
+    # Create the agent with the collected tools
     graph = create_react_agent(
             model=llm,
-            tools=tools,
-            debug=False,
+            tools=tools, # Pass the collected list of LangChain tools
+            debug=False, # Set to True for more verbose LangGraph logging
     )
     return graph
 
