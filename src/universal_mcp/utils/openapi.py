@@ -233,6 +233,14 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
     has_body = "requestBody" in operation
     body_required = has_body and operation["requestBody"].get("required", False)
 
+    # Check if the requestBody has actual content or is empty
+    has_empty_body = False
+    if has_body:
+        request_body_content = operation["requestBody"].get("content", {})
+        if not request_body_content or all(not content for content_type, content in request_body_content.items()):
+            has_empty_body = True
+            has_body = False  # Treat it as if it doesn't have a body for property extraction
+
     # Extract request body schema properties and required fields
     required_fields = []
     request_body_properties = {}
@@ -322,6 +330,10 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
                     request_body_params.append(prop_name)
                     if f"{prop_name}=None" not in optional_args:
                         optional_args.append(f"{prop_name}=None")
+    
+    # If request body is present but empty (content: {}), add a generic request_body parameter
+    if has_empty_body:
+        optional_args.append("request_body=None")
 
     # Combine required and optional arguments
     args = required_args + optional_args
@@ -380,30 +392,21 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
 
     # Make HTTP request using the proper method
     method_lower = method.lower()
+    # For empty request bodies, use the request_body parameter directly if provided
+    request_body_arg = "request_body" if has_empty_body else "{}" if not has_body else "request_body"
+    
     if method_lower == "get":
         body_lines.append("        response = self._get(url, params=query_params)")
     elif method_lower == "post":
-        if has_body:
-            body_lines.append("        response = self._post(url, data=request_body, params=query_params)")
-        else:
-            body_lines.append("        response = self._post(url, data={}, params=query_params)")
+        body_lines.append(f"        response = self._post(url, data={request_body_arg}, params=query_params)")
     elif method_lower == "put":
-        if has_body:
-            body_lines.append("        response = self._put(url, data=request_body, params=query_params)")
-        else:
-            body_lines.append("        response = self._put(url, data={}, params=query_params)")
+        body_lines.append(f"        response = self._put(url, data={request_body_arg}, params=query_params)")
     elif method_lower == "patch":
-        if has_body:
-            body_lines.append("        response = self._patch(url, data=request_body, params=query_params)")
-        else:
-            body_lines.append("        response = self._patch(url, data={}, params=query_params)")
+        body_lines.append(f"        response = self._patch(url, data={request_body_arg}, params=query_params)")
     elif method_lower == "delete":
         body_lines.append("        response = self._delete(url, params=query_params)")
     else:
-        if has_body:
-            body_lines.append(f"        response = self._{method_lower}(url, data=request_body, params=query_params)")
-        else:
-            body_lines.append(f"        response = self._{method_lower}(url, data={{}}, params=query_params)")
+        body_lines.append(f"        response = self._{method_lower}(url, data={request_body_arg}, params=query_params)")
 
     # Handle response
     body_lines.append("        response.raise_for_status()")
