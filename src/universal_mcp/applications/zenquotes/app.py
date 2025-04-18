@@ -10,6 +10,9 @@ class ZenquotesApp(APIApplication):
 
         Returns:
             A random inspirational quote
+
+        Tags:
+            quotes, important
         """
         url = "https://zenquotes.io/api/random"
         response = self._get(url)

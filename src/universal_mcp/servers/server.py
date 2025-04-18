@@ -59,6 +59,9 @@ class BaseServer(FastMCP, ABC):
     def _load_apps(self) -> None:
         """Load and register applications"""
         pass
+
+    def list_tools(self):
+        return self._tool_manager.list_tools(format='mcp')
                     
     async def call_tool(self, name: str, arguments: dict[str, Any]):
         """Call a tool with error handling"""
