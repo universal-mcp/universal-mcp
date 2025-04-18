@@ -1,8 +1,11 @@
 from typing import Any
-from universal_mcp.applications import APIApplication
-from universal_mcp.integrations import Integration
+
 from loguru import logger
+
+from universal_mcp.applications import APIApplication
 from universal_mcp.exceptions import NotAuthorizedError
+from universal_mcp.integrations import Integration
+
 
 class YoutubeApp(APIApplication):
     def __init__(self, integration: Integration = None, **kwargs) -> None:
