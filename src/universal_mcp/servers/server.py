@@ -1,6 +1,7 @@
 import os
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, List, Optional
+from urllib.parse import urlparse
 
 import httpx
 from loguru import logger
@@ -8,45 +9,43 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import TextContent
 
 from universal_mcp.applications import Application, app_from_slug
-from universal_mcp.config import AppConfig, IntegrationConfig, ServerConfig, StoreConfig
+from universal_mcp.config import AppConfig, ServerConfig, StoreConfig
 from universal_mcp.exceptions import NotAuthorizedError, ToolError
-from universal_mcp.integrations import AgentRIntegration, ApiKeyIntegration, Integration
+from universal_mcp.integrations import integration_from_config
 from universal_mcp.stores import BaseStore, store_from_config
 from universal_mcp.tools.tools import ToolManager
 
 
-class IntegrationFactory:
-    """Factory class for creating integrations"""
-    
-    @staticmethod
-    def create(config: IntegrationConfig | None, store: BaseStore | None = None, api_key: str | None = None) -> Integration | None:
-        if not config:
-            return None
-            
-        if config.type == "api_key":
-            integration = ApiKeyIntegration(config.name, store=store)
-            if config.credentials:
-                integration.set_credentials(config.credentials)
-            return integration
-        elif config.type == "agentr":
-            return AgentRIntegration(config.name, api_key=api_key)
-            
-        raise ValueError(f"Unsupported integration type: {config.type}")
-
 
 class BaseServer(FastMCP, ABC):
-    """Base server class with common functionality"""
+    """Base server class with common functionality.
+    
+    This class provides core server functionality including store setup,
+    tool management, and application loading.
+    
+    Args:
+        config: Server configuration
+        **kwargs: Additional keyword arguments passed to FastMCP
+    """
 
     def __init__(self, config: ServerConfig, **kwargs):
         super().__init__(config.name, config.description, **kwargs)
         logger.info(f"Initializing server: {config.name} with store: {config.store}")
         
+        self.config = config  # Store config at base level for consistency
         self.store = self._setup_store(config.store)
         self._tool_manager = ToolManager(warn_on_duplicate_tools=True)
         self._load_apps()
 
-    def _setup_store(self, store_config: StoreConfig | None) -> BaseStore | None:
-        """Setup and configure the store"""
+    def _setup_store(self, store_config: Optional[StoreConfig]) -> Optional[BaseStore]:
+        """Setup and configure the store.
+        
+        Args:
+            store_config: Store configuration
+            
+        Returns:
+            Configured store instance or None if no config provided
+        """
         if not store_config:
             return None
             
@@ -57,56 +56,102 @@ class BaseServer(FastMCP, ABC):
 
     @abstractmethod
     def _load_apps(self) -> None:
-        """Load and register applications"""
+        """Load and register applications."""
         pass
 
-    def list_tools(self):
+    async def list_tools(self) -> List[dict]:
+        """List all available tools in MCP format.
+        
+        Returns:
+            List of tool definitions
+        """
         return self._tool_manager.list_tools(format='mcp')
+    
+    def _format_tool_result(self, result: Any) -> List[TextContent]:
+        """Format tool result into TextContent list.
+        
+        Args:
+            result: Raw tool result
+            
+        Returns:
+            List of TextContent objects
+        """
+        if isinstance(result, str):
+            return [TextContent(type="text", text=result)]
+        elif isinstance(result, list) and all(isinstance(item, TextContent) for item in result):
+            return result
+        else:
+            logger.warning(f"Tool returned unexpected type: {type(result)}. Wrapping in TextContent.")
+            return [TextContent(type="text", text=str(result))]
                     
-    async def call_tool(self, name: str, arguments: dict[str, Any]):
-        """Call a tool with error handling"""
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> List[TextContent]:
+        """Call a tool with comprehensive error handling.
+        
+        Args:
+            name: Tool name
+            arguments: Tool arguments
+            
+        Returns:
+            List of TextContent results
+            
+        Raises:
+            ToolError: If tool execution fails
+        """
         logger.info(f"Calling tool: {name} with arguments: {arguments}")
         try:
             result = await self._tool_manager.call_tool(name, arguments)
-            logger.info(f"Tool '{name}' completed successfully via ToolManager")
-            if isinstance(result, str):
-                 return [TextContent(type="text", text=result)]
-            elif isinstance(result, list) and all(isinstance(item, TextContent) for item in result):
-                 return result
-            else:
-                 logger.warning(f"Tool '{name}' returned unexpected type: {type(result)}. Wrapping in TextContent.")
-                 return [TextContent(type="text", text=str(result))]
+            logger.info(f"Tool '{name}' completed successfully")
+            return self._format_tool_result(result)
 
         except ToolError as e:
             if isinstance(e.__cause__, NotAuthorizedError):
                 message = f"Not authorized to call tool {name}: {e.__cause__.message}"
                 logger.warning(message)
                 return [TextContent(type="text", text=message)]
-            logger.error(f"Error calling tool {name}: {str(e)}")
+            elif isinstance(e.__cause__, httpx.HTTPError):
+                message = f"HTTP error calling tool {name}: {str(e.__cause__)}"
+                logger.error(message)
+                return [TextContent(type="text", text=message)]
+            elif isinstance(e.__cause__, ValueError):
+                message = f"Invalid arguments for tool {name}: {str(e.__cause__)}"
+                logger.error(message)
+                return [TextContent(type="text", text=message)]
+            logger.error(f"Error calling tool {name}: {str(e)}", exc_info=True)
             raise
 
 
 class LocalServer(BaseServer):
-    """Local development server"""
+    """Local development server implementation.
+    
+    Args:
+        config: Server configuration
+        **kwargs: Additional keyword arguments passed to FastMCP
+    """
 
     def __init__(self, config: ServerConfig, **kwargs):
-        self.config = config
         super().__init__(config, **kwargs)
 
-    def _load_app(self, app_config: AppConfig) -> Application | None:
-        """Load a single application with its integration"""
+    def _load_app(self, app_config: AppConfig) -> Optional[Application]:
+        """Load a single application with its integration.
+        
+        Args:
+            app_config: Application configuration
+            
+        Returns:
+            Configured application instance or None if loading fails
+        """
         try:
-            integration = IntegrationFactory.create(
+            integration = integration_from_config(
                 app_config.integration,
                 store=self.store
-            )
+            ) if app_config.integration  else None
             return app_from_slug(app_config.name)(integration=integration)
         except Exception as e:
-            logger.error(f"Failed to load app {app_config.name}: {e}")
+            logger.error(f"Failed to load app {app_config.name}: {e}", exc_info=True)
             return None
 
     def _load_apps(self) -> None:
-        """Load all configured applications"""
+        """Load all configured applications."""
         logger.info(f"Loading apps: {self.config.apps}")
         for app_config in self.config.apps:
             app = self._load_app(app_config)
@@ -115,42 +160,74 @@ class LocalServer(BaseServer):
 
 
 class AgentRServer(BaseServer):
-    """AgentR API-connected server"""
+    """AgentR API-connected server implementation.
+    
+    Args:
+        config: Server configuration
+        api_key: Optional API key for AgentR authentication. If not provided,
+                will attempt to read from AGENTR_API_KEY environment variable.
+        **kwargs: Additional keyword arguments passed to FastMCP
+    """
 
-    def __init__(self, config: ServerConfig, api_key: str | None = None, **kwargs):
+    def __init__(self, config: ServerConfig, api_key: Optional[str] = None, **kwargs):
         self.api_key = api_key or os.getenv("AGENTR_API_KEY")
         self.base_url = os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
         
         if not self.api_key:
             raise ValueError("API key required - get one at https://agentr.dev")
-            
+        parsed = urlparse(self.base_url)
+        if not all([parsed.scheme, parsed.netloc]):
+            raise ValueError(f"Invalid base URL format: {self.base_url}")
+
         super().__init__(config, **kwargs)
-
-    def _fetch_apps(self) -> list[AppConfig]:
-        """Fetch available apps from AgentR API"""
-        response = httpx.get(
-            f"{self.base_url}/api/apps/",
-            headers={"X-API-KEY": self.api_key},
-            timeout=10,
-        )
-        response.raise_for_status()
-        return [AppConfig.model_validate(app) for app in response.json()]
-
-    def _load_app(self, app_config: AppConfig) -> Application | None:
-        """Load a single application with AgentR integration"""
+        
+    def _fetch_apps(self) -> List[AppConfig]:
+        """Fetch available apps from AgentR API.
+        
+        Returns:
+            List of application configurations
+            
+        Raises:
+            httpx.HTTPError: If API request fails
+        """
         try:
-            integration = IntegrationFactory.create(
+            response = httpx.get(
+                f"{self.base_url}/api/apps/",
+                headers={"X-API-KEY": self.api_key},
+                timeout=10,
+            )
+            response.raise_for_status()
+            return [AppConfig.model_validate(app) for app in response.json()]
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to fetch apps from AgentR: {e}", exc_info=True)
+            raise
+
+    def _load_app(self, app_config: AppConfig) -> Optional[Application]:
+        """Load a single application with AgentR integration.
+        
+        Args:
+            app_config: Application configuration
+            
+        Returns:
+            Configured application instance or None if loading fails
+        """
+        try:
+            integration = integration_from_config(
                 app_config.integration,
                 api_key=self.api_key
             )
             return app_from_slug(app_config.name)(integration=integration)
         except Exception as e:
-            logger.error(f"Failed to load app {app_config.name}: {e}")
+            logger.error(f"Failed to load app {app_config.name}: {e}", exc_info=True)
             return None
 
     def _load_apps(self) -> None:
-        """Load all apps available from AgentR"""
-        for app_config in self._fetch_apps():
-            app = self._load_app(app_config)
-            if app:
-                self._tool_manager.register_tools_from_app(app, app_config.actions)
+        """Load all apps available from AgentR."""
+        try:
+            for app_config in self._fetch_apps():
+                app = self._load_app(app_config)
+                if app:
+                    self._tool_manager.register_tools_from_app(app, app_config.actions)
+        except Exception as e:
+            logger.error("Failed to load apps", exc_info=True)
+            raise

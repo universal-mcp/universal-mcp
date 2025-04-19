@@ -1,8 +1,19 @@
 import os
 from abc import ABC, abstractmethod
+from typing import Optional, Any
 
 import keyring
 from loguru import logger
+
+
+class StoreError(Exception):
+    """Base exception class for store-related errors."""
+    pass
+
+
+class KeyNotFoundError(StoreError):
+    """Exception raised when a key is not found in the store."""
+    pass
 
 
 class BaseStore(ABC):
@@ -12,52 +23,62 @@ class BaseStore(ABC):
     """
 
     @abstractmethod
-    def get(self, key: str):
+    def get(self, key: str) -> Any:
         """
         Retrieve a value from the store by key.
 
         Args:
             key (str): The key to look up
-
+        
         Returns:
-            The stored value if found, None otherwise
+            Any: The stored value
+            
+        Raises:
+            KeyNotFoundError: If the key is not found in the store
+            StoreError: If there is an error accessing the store
         """
         pass
 
     @abstractmethod
-    def set(self, key: str, value: str):
+    def set(self, key: str, value: str) -> None:
         """
         Store a value in the store with the given key.
 
         Args:
             key (str): The key to store the value under
             value (str): The value to store
+
+        Raises:
+            StoreError: If there is an error storing the value
         """
         pass
 
     @abstractmethod
-    def delete(self, key: str):
+    def delete(self, key: str) -> None:
         """
         Delete a value from the store by key.
 
         Args:
             key (str): The key to delete
+
+        Raises:
+            KeyNotFoundError: If the key is not found in the store
+            StoreError: If there is an error deleting the value
         """
         pass
 
 
 class MemoryStore(BaseStore):
     """
-    Acts as credential store for the applications.
-    Responsible for storing and retrieving credentials.
-    Ideally should be a key value store that keeps data in memory.
+    In-memory credential store implementation.
+    Stores credentials in a dictionary that persists only for the duration of the program execution.
     """
 
     def __init__(self):
         """Initialize an empty dictionary to store the data."""
-        self.data = {}
+        self.data: dict[str, str] = {}
 
-    def get(self, key: str):
+    def get(self, key: str) -> Any:
         """
         Retrieve a value from the in-memory store by key.
 
@@ -65,11 +86,16 @@ class MemoryStore(BaseStore):
             key (str): The key to look up
 
         Returns:
-            The stored value if found, None otherwise
-        """
-        return self.data.get(key)
+            Any: The stored value
 
-    def set(self, key: str, value: str):
+        Raises:
+            KeyNotFoundError: If the key is not found in the store
+        """
+        if key not in self.data:
+            raise KeyNotFoundError(f"Key '{key}' not found in memory store")
+        return self.data[key]
+
+    def set(self, key: str, value: str) -> None:
         """
         Store a value in the in-memory store with the given key.
 
@@ -79,27 +105,28 @@ class MemoryStore(BaseStore):
         """
         self.data[key] = value
 
-    def delete(self, key: str):
+    def delete(self, key: str) -> None:
         """
         Delete a value from the in-memory store by key.
 
         Args:
             key (str): The key to delete
+
+        Raises:
+            KeyNotFoundError: If the key is not found in the store
         """
+        if key not in self.data:
+            raise KeyNotFoundError(f"Key '{key}' not found in memory store")
         del self.data[key]
 
 
 class EnvironmentStore(BaseStore):
     """
-    Store that uses environment variables to store credentials.
-    Implements the Store interface using OS environment variables as the backend.
+    Environment variable-based credential store implementation.
+    Uses OS environment variables to store and retrieve credentials.
     """
 
-    def __init__(self):
-        """Initialize the environment store."""
-        pass
-
-    def get(self, key: str):
+    def get(self, key: str) -> Any:
         """
         Retrieve a value from environment variables by key.
 
@@ -107,11 +134,17 @@ class EnvironmentStore(BaseStore):
             key (str): The environment variable name to look up
 
         Returns:
-            dict: Dictionary containing the api_key from environment variable
-        """
-        return {"api_key": os.getenv(key)}
+            Any: The stored value
 
-    def set(self, key: str, value: str):
+        Raises:
+            KeyNotFoundError: If the environment variable is not found
+        """
+        value = os.getenv(key)
+        if value is None:
+            raise KeyNotFoundError(f"Environment variable '{key}' not found")
+        return value
+
+    def set(self, key: str, value: str) -> None:
         """
         Set an environment variable.
 
@@ -121,20 +154,25 @@ class EnvironmentStore(BaseStore):
         """
         os.environ[key] = value
 
-    def delete(self, key: str):
+    def delete(self, key: str) -> None:
         """
         Delete an environment variable.
 
         Args:
             key (str): The environment variable name to delete
+
+        Raises:
+            KeyNotFoundError: If the environment variable is not found
         """
+        if key not in os.environ:
+            raise KeyNotFoundError(f"Environment variable '{key}' not found")
         del os.environ[key]
 
 
 class KeyringStore(BaseStore):
     """
-    Store that uses keyring to store credentials.
-    Implements the Store interface using system keyring as the backend.
+    System keyring-based credential store implementation.
+    Uses the system's secure credential storage facility via the keyring library.
     """
 
     def __init__(self, app_name: str = "universal_mcp"):
@@ -146,7 +184,7 @@ class KeyringStore(BaseStore):
         """
         self.app_name = app_name
 
-    def get(self, key: str):
+    def get(self, key: str) -> Any:
         """
         Retrieve a password from the system keyring.
 
@@ -154,28 +192,51 @@ class KeyringStore(BaseStore):
             key (str): The key to look up
 
         Returns:
-            The stored password if found, None otherwise
-        """
-        logger.info(f"Getting password for {key} from keyring")
-        return keyring.get_password(self.app_name, key)
+            Any: The stored value
 
-    def set(self, key: str, value: str):
+        Raises:
+            KeyNotFoundError: If the key is not found in the keyring
+            StoreError: If there is an error accessing the keyring
+        """
+        try:
+            logger.info(f"Getting password for {key} from keyring")
+            value = keyring.get_password(self.app_name, key)
+            if value is None:
+                raise KeyNotFoundError(f"Key '{key}' not found in keyring")
+            return value
+        except Exception as e:
+            raise KeyNotFoundError(f"Key '{key}' not found in keyring")
+
+    def set(self, key: str, value: str) -> None:
         """
         Store a password in the system keyring.
 
         Args:
             key (str): The key to store the password under
             value (str): The password to store
-        """
-        logger.info(f"Setting password for {key} in keyring")
-        keyring.set_password(self.app_name, key, value)
 
-    def delete(self, key: str):
+        Raises:
+            StoreError: If there is an error storing in the keyring
+        """
+        try:
+            logger.info(f"Setting password for {key} in keyring")
+            keyring.set_password(self.app_name, key, value)
+        except Exception as e:
+            raise StoreError(f"Error storing in keyring: {str(e)}")
+
+    def delete(self, key: str) -> None:
         """
         Delete a password from the system keyring.
 
         Args:
             key (str): The key to delete
+
+        Raises:
+            KeyNotFoundError: If the key is not found in the keyring
+            StoreError: If there is an error deleting from the keyring
         """
-        logger.info(f"Deleting password for {key} from keyring")
-        keyring.delete_password(self.app_name, key)
+        try:
+            logger.info(f"Deleting password for {key} from keyring")
+            keyring.delete_password(self.app_name, key)
+        except Exception as e:
+            raise KeyNotFoundError(f"Key '{key}' not found in keyring")

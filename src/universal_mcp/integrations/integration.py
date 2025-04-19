@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Dict, Optional, Union, Any
 
 import httpx
 from loguru import logger
@@ -30,37 +31,43 @@ class Integration(ABC):
         store: Store instance for persisting credentials and other data
     """
 
-    def __init__(self, name: str, store: BaseStore = None):
+    def __init__(self, name: str, store: Optional[BaseStore] = None):
         self.name = name
         self.store = store
 
     @abstractmethod
-    def authorize(self):
+    def authorize(self) -> Union[str, Dict[str, Any]]:
         """Authorize the integration.
 
         Returns:
-            str: Authorization URL.
+            Union[str, Dict[str, Any]]: Authorization URL or parameters needed for authorization.
+
+        Raises:
+            ValueError: If required configuration is missing.
         """
         pass
 
     @abstractmethod
-    def get_credentials(self):
+    def get_credentials(self) -> Dict[str, Any]:
         """Get credentials for the integration.
 
         Returns:
-            dict: Credentials for the integration.
+            Dict[str, Any]: Credentials for the integration.
 
         Raises:
-            NotAuthorizedError: If credentials are not found.
+            NotAuthorizedError: If credentials are not found or invalid.
         """
         pass
 
     @abstractmethod
-    def set_credentials(self, credentials: dict):
+    def set_credentials(self, credentials: Dict[str, Any]) -> None:
         """Set credentials for the integration.
 
         Args:
-            credentials: Credentials for the integration.
+            credentials: Dictionary containing credentials for the integration.
+
+        Raises:
+            ValueError: If credentials are invalid or missing required fields.
         """
         pass
 
@@ -82,35 +89,84 @@ class ApiKeyIntegration(Integration):
         store: Store instance for persisting credentials and other data
     """
 
-    def __init__(self, name: str, store: BaseStore = None, **kwargs):
+    def __init__(self, name: str, store: Optional[BaseStore] = None, **kwargs):
         sanitized_name = sanitize_api_key_name(name)
         super().__init__(sanitized_name, store, **kwargs)
         logger.info(f"Initializing API Key Integration: {name} with store: {store}")
 
-    def get_credentials(self):
+    def get_credentials(self) -> Dict[str, str]:
+        """Get API key credentials.
+
+        Returns:
+            Dict[str, str]: Dictionary containing the API key.
+
+        Raises:
+            NotAuthorizedError: If API key is not found.
+        """
         credentials = self.store.get(self.name)
         if credentials is None:
             action = self.authorize()
             raise NotAuthorizedError(action)
         return {"api_key": credentials}
 
-    def set_credentials(self, credentials: dict):
+    def set_credentials(self, credentials: Dict[str, Any]) -> None:
+        """Set API key credentials.
+
+        Args:
+            credentials: Dictionary containing the API key.
+
+        Raises:
+            ValueError: If credentials are invalid or missing API key.
+        """
+        if not credentials or not isinstance(credentials, dict):
+            raise ValueError("Invalid credentials format")
         self.store.set(self.name, credentials)
 
-    def authorize(self):
+    def authorize(self) -> str:
+        """Get authorization instructions for API key.
+
+        Returns:
+            str: Instructions for setting up API key.
+        """
         return f"Please ask the user for api key and set the API Key for {self.name} in the store"
 
 
 class OAuthIntegration(Integration):
+    """Integration class for OAuth based authentication.
+
+    This class implements the Integration interface for services that use OAuth
+    authentication. It handles the OAuth flow including authorization, token exchange,
+    and token refresh.
+
+    Args:
+        name: The name identifier for this integration
+        store: Optional Store instance for persisting credentials and other data
+        client_id: OAuth client ID
+        client_secret: OAuth client secret
+        auth_url: OAuth authorization URL
+        token_url: OAuth token exchange URL
+        scope: OAuth scope string
+        **kwargs: Additional keyword arguments passed to parent class
+
+    Attributes:
+        name: The name identifier for this integration
+        store: Store instance for persisting credentials and other data
+        client_id: OAuth client ID
+        client_secret: OAuth client secret
+        auth_url: OAuth authorization URL
+        token_url: OAuth token exchange URL
+        scope: OAuth scope string
+    """
+
     def __init__(
         self,
         name: str,
-        store: BaseStore = None,
-        client_id: str = None,
-        client_secret: str = None,
-        auth_url: str = None,
-        token_url: str = None,
-        scope: str = None,
+        store: Optional[BaseStore] = None,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
+        auth_url: Optional[str] = None,
+        token_url: Optional[str] = None,
+        scope: Optional[str] = None,
         **kwargs,
     ):
         super().__init__(name, store, **kwargs)
@@ -120,20 +176,41 @@ class OAuthIntegration(Integration):
         self.token_url = token_url
         self.scope = scope
 
-    def get_credentials(self):
+    def get_credentials(self) -> Optional[Dict[str, Any]]:
+        """Get OAuth credentials.
+
+        Returns:
+            Optional[Dict[str, Any]]: Dictionary containing OAuth tokens if found, None otherwise.
+        """
         credentials = self.store.get(self.name)
         if not credentials:
             return None
         return credentials
 
-    def set_credentials(self, credentials: dict):
+    def set_credentials(self, credentials: Dict[str, Any]) -> None:
+        """Set OAuth credentials.
+
+        Args:
+            credentials: Dictionary containing OAuth tokens.
+
+        Raises:
+            ValueError: If credentials are invalid or missing required tokens.
+        """
         if not credentials or not isinstance(credentials, dict):
             raise ValueError("Invalid credentials format")
         if "access_token" not in credentials:
             raise ValueError("Credentials must contain access_token")
         self.store.set(self.name, credentials)
 
-    def authorize(self):
+    def authorize(self) -> Dict[str, Any]:
+        """Get OAuth authorization parameters.
+
+        Returns:
+            Dict[str, Any]: Dictionary containing OAuth authorization parameters.
+
+        Raises:
+            ValueError: If required OAuth configuration is missing.
+        """
         if not all([self.client_id, self.client_secret, self.auth_url, self.token_url]):
             raise ValueError("Missing required OAuth configuration")
 
@@ -150,7 +227,19 @@ class OAuthIntegration(Integration):
             "token_url": self.token_url,
         }
 
-    def handle_callback(self, code: str):
+    def handle_callback(self, code: str) -> Dict[str, Any]:
+        """Handle OAuth callback and exchange code for tokens.
+
+        Args:
+            code: Authorization code from OAuth callback.
+
+        Returns:
+            Dict[str, Any]: Dictionary containing OAuth tokens.
+
+        Raises:
+            ValueError: If required OAuth configuration is missing.
+            httpx.HTTPError: If token exchange request fails.
+        """
         if not all([self.client_id, self.client_secret, self.token_url]):
             raise ValueError("Missing required OAuth configuration")
 
@@ -167,15 +256,29 @@ class OAuthIntegration(Integration):
         self.store.set(self.name, credentials)
         return credentials
 
-    def refresh_token(self):
+    def refresh_token(self) -> Dict[str, Any]:
+        """Refresh OAuth access token using refresh token.
+
+        Returns:
+            Dict[str, Any]: Dictionary containing new OAuth tokens.
+
+        Raises:
+            ValueError: If required OAuth configuration is missing.
+            httpx.HTTPError: If token refresh request fails.
+            KeyError: If refresh token is not found in current credentials.
+        """
         if not all([self.client_id, self.client_secret, self.token_url]):
             raise ValueError("Missing required OAuth configuration")
+
+        credentials = self.get_credentials()
+        if not credentials or "refresh_token" not in credentials:
+            raise KeyError("Refresh token not found in current credentials")
 
         token_params = {
             "client_id": self.client_id,
             "client_secret": self.client_secret,
             "grant_type": "refresh_token",
-            "refresh_token": self.credentials["refresh_token"],
+            "refresh_token": credentials["refresh_token"],
         }
 
         response = httpx.post(self.token_url, data=token_params)
