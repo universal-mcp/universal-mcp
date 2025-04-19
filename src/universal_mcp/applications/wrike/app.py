@@ -2,6 +2,7 @@ from typing import Any
 from universal_mcp.applications import APIApplication
 from universal_mcp.integrations import Integration
 
+
 class OfficialWrikeCollectionV21App(APIApplication):
     def __init__(self, integration: Integration = None, **kwargs) -> None:
         """
@@ -14,8 +15,21 @@ class OfficialWrikeCollectionV21App(APIApplication):
         Returns:
             None. This constructor initializes the instance in place.
         """
-        super().__init__(name='officialwrikecollectionv21app', integration=integration, **kwargs)
-        self.base_url = "http://{{wrikeapi}}"
+        super().__init__(name='wrike', integration=integration, **kwargs)
+        self.base_url = "https://www.wrike.com/api/v4"
+
+    def _get_headers(self):
+        if not self.integration:
+            raise ValueError("Integration not configured for GmailApp")
+        credentials = self.integration.get_credentials()
+
+        if "headers" in credentials:
+            return credentials["headers"]
+        return {
+            "Authorization": f"Bearer {credentials['access_token']}",
+            "Content-Type": "application/json",
+        }   
+
 
     def get_contacts(self, deleted=None, fields=None, metadata=None) -> Any:
         """
