@@ -321,7 +321,7 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
             request_body_params = [array_param_name]
         elif request_body_properties:
             # For object request bodies, add individual properties as parameters
-            for prop_name, prop_details in request_body_properties.items():
+            for prop_name in request_body_properties:
                 if prop_name in required_fields:
                     request_body_params.append(prop_name)
                     if prop_name not in required_args:
