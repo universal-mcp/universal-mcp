@@ -1,8 +1,11 @@
 from universal_mcp.applications.application import APIApplication
 from universal_mcp.integrations import Integration
-
+from typing import ClassVar
 
 class ResendApp(APIApplication):
+    
+    APP_TAGS: ClassVar[list[str]] = ["email"]
+    
     def __init__(self, integration: Integration) -> None:
         super().__init__(name="resend", integration=integration)
         self.api_key = None
@@ -34,6 +37,9 @@ class ResendApp(APIApplication):
 
         Returns:
             A message indicating that the email was sent successfully
+            
+        Tags:
+            important, write
         """
         credentials = self.integration.get_credentials()
         if not credentials:

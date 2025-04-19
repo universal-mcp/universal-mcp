@@ -75,6 +75,9 @@ class E2BApp(APIApplication):
 
         Raises:
             NotAuthorizedError: If the API key is not set.
+        
+        Tags:
+            important, code, execute
         """
         self._set_api_key()
         with Sandbox(api_key=self.api_key) as sandbox:

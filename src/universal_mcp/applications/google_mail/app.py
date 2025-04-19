@@ -1,6 +1,6 @@
 import base64
 from email.message import EmailMessage
-
+from typing import ClassVar
 from loguru import logger
 
 from universal_mcp.applications.application import APIApplication
@@ -9,6 +9,8 @@ from universal_mcp.integrations import Integration
 
 
 class GoogleMailApp(APIApplication):
+    APP_TAGS: ClassVar[list[str]] = ["email"]
+
     def __init__(self, integration: Integration) -> None:
         super().__init__(name="google-mail", integration=integration)
         self.base_api_url = "https://gmail.googleapis.com/gmail/v1/users/me"
@@ -39,6 +41,9 @@ class GoogleMailApp(APIApplication):
 
         Returns:
             A confirmation message
+
+        Tags:
+            send, compose, action, important
         """
         try:
             url = f"{self.base_api_url}/messages/send"
@@ -98,6 +103,9 @@ class GoogleMailApp(APIApplication):
 
         Returns:
             A confirmation message with the draft ID
+
+        Tags:
+            draft, compose, create, action
         """
         try:
             url = f"{self.base_api_url}/drafts"
@@ -136,6 +144,9 @@ class GoogleMailApp(APIApplication):
 
         Returns:
             A confirmation message
+
+        Tags:
+            draft, send, action
         """
         try:
             url = f"{self.base_api_url}/drafts/send"
@@ -173,6 +184,9 @@ class GoogleMailApp(APIApplication):
 
         Returns:
             The draft information or an error message
+
+        Tags:
+            draft, get, read
         """
         try:
             url = f"{self.base_api_url}/drafts/{draft_id}"
@@ -232,6 +246,9 @@ class GoogleMailApp(APIApplication):
 
         Returns:
             A formatted list of drafts or an error message
+
+        Tags:
+            draft, list, read
         """
         try:
             url = f"{self.base_api_url}/drafts"
@@ -293,6 +310,9 @@ class GoogleMailApp(APIApplication):
 
         Returns:
             The message information or an error message
+
+        Tags:
+            message, get, read, important
         """
         try:
             url = f"{self.base_api_url}/messages/{message_id}"
@@ -359,6 +379,9 @@ class GoogleMailApp(APIApplication):
 
         Returns:
             A formatted list of messages or an error message
+
+        Tags:
+            message, list, read, search, important
         """
         try:
             url = f"{self.base_api_url}/messages"
@@ -421,6 +444,9 @@ class GoogleMailApp(APIApplication):
 
         Returns:
             A formatted list of labels or an error message
+
+        Tags:
+            label, list, read, organization
         """
         try:
             url = f"{self.base_api_url}/labels"
@@ -493,6 +519,9 @@ class GoogleMailApp(APIApplication):
 
         Returns:
             A confirmation message with the new label details
+
+        Tags:
+            label, create, write, organization
         """
         try:
             url = f"{self.base_api_url}/labels"
@@ -538,6 +567,9 @@ class GoogleMailApp(APIApplication):
 
         Returns:
             A formatted string containing the user's profile information or an error message
+
+        Tags:
+            profile, get, read, account
         """
         try:
             url = f"{self.base_api_url}/profile"

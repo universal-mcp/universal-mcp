@@ -21,6 +21,8 @@ class BaseStore(ABC):
 
         Returns:
             The stored value if found, None otherwise
+        Tags:
+            important
         """
         pass
 
@@ -32,6 +34,8 @@ class BaseStore(ABC):
         Args:
             key (str): The key to store the value under
             value (str): The value to store
+        Tags:
+            important
         """
         pass
 
@@ -42,6 +46,8 @@ class BaseStore(ABC):
 
         Args:
             key (str): The key to delete
+        Tags:
+            important
         """
         pass
 
@@ -166,9 +172,12 @@ class KeyringStore(BaseStore):
         Args:
             key (str): The key to store the password under
             value (str): The password to store
+        Tags:
+            important
         """
         logger.info(f"Setting password for {key} in keyring")
         keyring.set_password(self.app_name, key, value)
+        return f"API key has been set for {self.app_name} with key: {key}"
 
     def delete(self, key: str):
         """
@@ -176,6 +185,9 @@ class KeyringStore(BaseStore):
 
         Args:
             key (str): The key to delete
+        Tags:
+            important
         """
         logger.info(f"Deleting password for {key} from keyring")
         keyring.delete_password(self.app_name, key)
+        return f"{key} has been deleted"

@@ -108,10 +108,8 @@ class ToolManager:
         """List all registered tools."""
         return list(self._tools.values())
 
-    # Modified add_tool to accept name override explicitly
     def add_tool(self, fn: Callable[..., Any] | Tool, name: str | None = None) -> Tool: # Changed any to Any
         """Add a tool to the server, allowing name override."""
-        # Create the Tool object using the provided name if available
         if isinstance(fn, Tool):
             tool = fn
         else:
@@ -119,14 +117,12 @@ class ToolManager:
         existing = self._tools.get(tool.name)
         if existing:
             if self.warn_on_duplicate_tools:
-                # Check if it's the *exact* same function object being added again
                 if existing.fn is not tool.fn:
                      logger.warning(f"Tool name '{tool.name}' conflicts with an existing tool. Skipping addition of new function.")
                 else:
                      logger.debug(f"Tool '{tool.name}' with the same function already exists.")
             return existing # Return the existing tool if name conflicts
 
-        logger.debug(f"Adding tool: {tool.name}")
         self._tools[tool.name] = tool
         return tool
 
@@ -147,16 +143,40 @@ class ToolManager:
         """Get tools by tags."""
         return [tool for tool in self._tools.values() if any(tag in tool.tags for tag in tags)]
     
-    def register_tools_from_app(self, app: Application, tools: list[str] = [], tags: list[str] = ["important"]) -> None:
-        """Register tools from an application."""
-        for tool in app.list_tools():
-            tool = Tool.from_function(tool)
-            tool.name = f"{app.name}_{tool.name}"
-            tool.tags = tool.tags + app.tags
-            should_register = True
-            if tools and len(tools) > 0:
-                should_register = tool.name in tools
-            elif tags and len(tags) > 0:
-                should_register = should_register and any(tag in tool.tags for tag in tags)
+    def register_tools_from_app(
+        self,
+        app: Application,
+        tools: list[str] | None = None,
+        tags: list[str] | None = None
+    ) -> None:
+        
+        available_tool_functions = app.list_tools()
+        
+        tools_name_filter = tools or []
+        active_tags_filter = tags if tags else ["important"]
+
+        for tool_func in available_tool_functions:
+            if not callable(tool_func):
+                continue
+            
+            tool_instance = Tool.from_function(tool_func)
+            
+            original_name = tool_instance.name
+            prefixed_name = f"{app.name}_{original_name}"
+            tool_instance.name = prefixed_name
+
+            if app.name not in tool_instance.tags:
+                 tool_instance.tags.append(app.name)
+
+            should_register = False
+
+            if tools_name_filter:
+                if tool_instance.name in tools_name_filter:
+                    should_register = True
+
+            else:
+                if any(tag in tool_instance.tags for tag in active_tags_filter):
+                    should_register = True
+    
             if should_register:
-                self.add_tool(tool)
+                self.add_tool(tool_instance)

@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, ClassVar
 
 from loguru import logger
 
@@ -7,6 +7,9 @@ from universal_mcp.integrations import Integration
 
 
 class GithubApp(APIApplication):
+
+    APP_TAGS: ClassVar[list[str]] = ["developers-tools"]
+
     def __init__(self, integration: Integration) -> None:
         super().__init__(name="github", integration=integration)
         self.base_api_url = "https://api.github.com/repos"
@@ -29,8 +32,10 @@ class GithubApp(APIApplication):
             repo_full_name: The full name of the repository (e.g. 'owner/repo')
 
         Returns:
-
             A confirmation message
+
+        Tags:
+            star, action, important
         """
         url = f"https://api.github.com/user/starred/{repo_full_name}"
         response = self._put(url, data={})
@@ -51,6 +56,9 @@ class GithubApp(APIApplication):
 
         Returns:
             A formatted list of recent commits
+
+        Tags:
+            commits, list, read, history
         """
         repo_full_name = repo_full_name.strip()
         url = f"{self.base_api_url}/{repo_full_name}/commits"
@@ -79,6 +87,9 @@ class GithubApp(APIApplication):
 
         Returns:
             A formatted list of branches
+
+        Tags:
+            branches, list, read
         """
         repo_full_name = repo_full_name.strip()
         url = f"{self.base_api_url}/{repo_full_name}/branches"
@@ -105,6 +116,9 @@ class GithubApp(APIApplication):
 
         Returns:
             A formatted list of pull requests
+
+        Tags:
+            pull_request, pr, list, important, read
         """
         repo_full_name = repo_full_name.strip()
         url = f"{self.base_api_url}/{repo_full_name}/pulls"
@@ -150,6 +164,9 @@ class GithubApp(APIApplication):
 
         Returns:
              The complete GitHub API response
+
+        Tags:
+            issues, list, project_management, important, read
         """
         repo_full_name = repo_full_name.strip()
         url = f"{self.base_api_url}/{repo_full_name}/issues"
@@ -174,6 +191,9 @@ class GithubApp(APIApplication):
 
         Returns:
             A formatted string with pull request details
+
+        Tags:
+            pull_request, pr, get, read
         """
         repo_full_name = repo_full_name.strip()
         url = f"{self.base_api_url}/{repo_full_name}/pulls/{pull_number}"
@@ -222,6 +242,9 @@ class GithubApp(APIApplication):
 
         Returns:
             The complete GitHub API response
+
+        Tags:
+            pull_request, pr, create, write, important
         """
         repo_full_name = repo_full_name.strip()
         url = f"{self.base_api_url}/{repo_full_name}/pulls"
@@ -262,6 +285,9 @@ class GithubApp(APIApplication):
 
         Returns:
             A confirmation message with the new issue details
+
+        Tags:
+            issues, create, write, project_management
         """
         repo_full_name = repo_full_name.strip()
         url = f"{self.base_api_url}/{repo_full_name}/issues"
@@ -302,6 +328,9 @@ class GithubApp(APIApplication):
 
         Returns:
             A formatted list of repository activities
+
+        Tags:
+            activity, events, list, read
         """
         repo_full_name = repo_full_name.strip()
         url = f"{self.base_api_url}/{repo_full_name}/activity"
@@ -353,6 +382,9 @@ class GithubApp(APIApplication):
 
         Returns:
              The complete GitHub API response
+
+        Tags:
+            issues, update, write, project_management
         """
         url = f"{self.base_api_url}/{repo_full_name}/issues/{issue_number}"
 

@@ -49,10 +49,10 @@ class BaseServer(FastMCP, ABC):
         """Setup and configure the store"""
         if not store_config:
             return None
-            
+        
         store = store_from_config(store_config)
-        self.add_tool(store.set)
-        self.add_tool(store.delete)
+        self._tool_manager.add_tool(store.set, name="set")
+        self._tool_manager.add_tool(store.delete, name="store_delete") 
         return store
 
     @abstractmethod
