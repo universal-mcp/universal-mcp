@@ -1,22 +1,24 @@
+import json
 import time
 import uuid
-from fastapi import FastAPI, Query, Request
-from fastapi.responses import StreamingResponse
-from langchain_core.messages import HumanMessage
-from langchain_openai import AzureChatOpenAI
 from typing import Annotated
 
-from typing_extensions import TypedDict
-
-from langgraph.graph import StateGraph, START, END
-from langgraph.graph.message import add_messages
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import json
+from fastapi.responses import StreamingResponse
 from langchain_core.messages import (
     AIMessageChunk,
 )
+from langchain_openai import AzureChatOpenAI
+from langgraph.graph.message import add_messages
 from langgraph.prebuilt import create_react_agent
+from pydantic import BaseModel
+from typing_extensions import TypedDict
+
+from universal_mcp.applications import app_from_slug
+from universal_mcp.integrations import AgentRIntegration
+from universal_mcp.tools import ToolManager
+
 
 class State(TypedDict):
     # Messages have the type "list". The `add_messages` function
@@ -37,17 +39,47 @@ def chatbot(state: State):
 
 
 def create_graph():
-    from universal_mcp.tools import ToolManager
-    from universal_mcp.applications import app_from_slug
     tool_manager = ToolManager()
-    for app in ["google-calendar", "github"]:
-        app = app_from_slug(app)
-        tool_manager.register_tools_from_app(app)
+
+    app_slugs_to_load = ["github"] # Add more slugs here as needed, e.g., "firecrawl"
+
+    for app_slug in app_slugs_to_load:
+        try:
+            app_class = app_from_slug(app_slug)
+            integration = AgentRIntegration(name=app_slug)
+
+            # 3. Instantiate the application CLASS with the integration INSTANCE
+            app_instance = app_class(integration=integration)
+
+            # 4. Pass the application INSTANCE to the tool manager
+            #    Optionally pass filters for tools/tags if needed
+            tool_manager.register_tools_from_app(app_instance) # Pass the instance
+
+            print(f"Successfully registered tools for app: {app_slug}")
+
+        except ValueError as e:
+            # Catch errors during integration creation (e.g., missing API key)
+            print(f"Warning: Skipping app '{app_slug}' due to integration error: {e}")
+        except ImportError:
+            print(f"Warning: Could not import app '{app_slug}'. Skipping.")
+        except Exception as e:
+            # Catch other potential errors during instantiation or registration
+            print(f"Warning: Skipping app '{app_slug}' due to error: {e}")
+            import traceback
+            traceback.print_exc() # Print full traceback for debugging
+
+    # Get the tools in LangChain format AFTER the loop
     tools = tool_manager.list_tools(format="langchain")
+
+    if not tools:
+        print("Warning: No tools were registered for the agent.")
+        # Decide if you want to proceed without tools or raise an error
+
+    # Create the agent with the collected tools
     graph = create_react_agent(
             model=llm,
-            tools=tools,
-            debug=False,
+            tools=tools, # Pass the collected list of LangChain tools
+            debug=False, # Set to True for more verbose LangGraph logging
     )
     return graph
 
@@ -65,7 +97,7 @@ async def langgraph_sse_stream_with_events(messages: list[dict]):
             if isinstance(message_chunk, AIMessageChunk):
                 if message_chunk.tool_calls:
                     for tool_call in message_chunk.tool_calls:
-                        sse_data = f"event: tool_call\n"
+                        sse_data = "event: tool_call\n"
                         sse_data += f"data: {json.dumps({'name': tool_call.function.name, 'arguments': tool_call.function.arguments})}\n\n"
                         yield sse_data.encode("utf-8")
                 elif message_chunk.content:
@@ -78,7 +110,7 @@ async def langgraph_sse_stream_with_events(messages: list[dict]):
         ):  # Handle cases where tuple wrapping might not occur
             if event.tool_calls:
                 for tool_call in event.tool_calls:
-                    sse_data = f"event: tool_call\n"
+                    sse_data = "event: tool_call\n"
                     sse_data += f"data: {json.dumps({'name': tool_call.function.name, 'arguments': tool_call.function.arguments})}\n\n"
                     yield sse_data.encode("utf-8")
             elif event.content:
@@ -91,7 +123,7 @@ async def openai_sse_stream_generator(messages: list[dict]):
     Streams LangGraph results in OpenAI-compatible SSE format.
     """
     graph = create_graph()
-    completion_id = f"chatcmpl-{uuid.uuid4()}"
+    f"chatcmpl-{uuid.uuid4()}"
     first_chunk = True
 
     try:
@@ -224,7 +256,7 @@ async def openai_sse_stream_generator(messages: list[dict]):
     except Exception as e:
         # Handle exceptions and optionally stream an error message
         print(f"Error during streaming: {e}")
-        error_message = {
+        {
             "error": {
                 "message": f"An error occurred: {str(e)}",
                 "type": "stream_error",

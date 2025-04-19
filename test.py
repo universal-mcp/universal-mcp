@@ -7,5 +7,5 @@ llm = ChatOpenAI(
     streaming=True,  # Make sure this is set
 )
 
-for chunk in llm.stream("hello"):
+for chunk in llm.stream("what tools do you have ?"):
     print(chunk)
