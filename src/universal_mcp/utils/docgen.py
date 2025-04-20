@@ -47,17 +47,23 @@ class FunctionExtractor(ast.NodeVisitor):
             return None
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
-        """Visits a regular function definition."""
-        source_code = self._get_source_segment(node)
-        if source_code:
-            self.functions.append((node.name, source_code))
+        """Visits a regular function definition and collects it if not excluded."""
+        # Add the exclusion logic here
+        if not node.name.startswith('_') and node.name != 'list_tools':
+            source_code = self._get_source_segment(node)
+            if source_code:
+                self.functions.append((node.name, source_code))
+        # Continue traversing the AST for nested functions/classes
         self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
-        """Visits an asynchronous function definition."""
-        source_code = self._get_source_segment(node)
-        if source_code:
-            self.functions.append((node.name, source_code))
+        """Visits an asynchronous function definition and collects it if not excluded."""
+        # Add the exclusion logic here
+        if not node.name.startswith('_') and node.name != 'list_tools':
+            source_code = self._get_source_segment(node)
+            if source_code:
+                self.functions.append((node.name, source_code))
+        # Continue traversing the AST for nested functions/classes
         self.generic_visit(node)
 
 
@@ -355,6 +361,7 @@ def process_file(file_path: str, model: str = "openai/gpt-4o") -> int:
             f.write(updated_content)
         print(f"Updated {count} functions in {file_path}")
     else:
+        print(updated_function, "formatted docstring",formatted_docstring) 
         print(f"No changes made to {file_path}")
 
     return count
