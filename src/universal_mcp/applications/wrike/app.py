@@ -21,7 +21,7 @@ class WrikeApp(APIApplication):
 
     def _get_headers(self):
         if not self.integration:
-            raise ValueError("Integration not configured for GmailApp")
+            raise ValueError("Integration not configured for WrikeApp")
         credentials = self.integration.get_credentials()
 
         if "headers" in credentials:
