@@ -28,6 +28,10 @@ class DocstringOutput(BaseModel):
         default_factory=dict,
         description="Dictionary mapping potential exception types/reasons to their descriptions"
     )
+    tags: list[str] = Field(
+        default_factory=list,
+        description="List of relevant tags for the function (e.g., action, job type, async status, importance)"
+    )
 
 
 class FunctionExtractor(ast.NodeVisitor):
@@ -142,7 +146,8 @@ def generate_docstring(
         A DocstringOutput object containing the structured docstring components
     """
     system_prompt = """You are a helpful AI assistant specialized in writing high-quality Google-style Python docstrings.
-    You MUST ALWAYS include an Args section, even if there are no arguments (in which case mention 'None')."""
+    You MUST ALWAYS include an Args section, even if there are no arguments (in which case mention 'None').
+    You should also generate a list of tags describing the function's purpose and characteristics."""
 
     user_prompt = f"""Generate a high-quality Google-style docstring for the following Python function.
     Analyze the function's name, parameters, return values, potential exceptions, and functionality to create a comprehensive docstring.
@@ -152,26 +157,31 @@ def generate_docstring(
     2. ALWAYS include Args section with description of each parameter (or 'None' if no parameters)
     3. Include Returns section describing the return value (or 'None' if nothing is explicitly returned)
     4. **Optionally include a Raises section if the function might raise exceptions, describing the exception type/reason and when it's raised.**
-    5. Be formatted according to Google Python Style Guide
+    5. **Include a Tags section with a list of strings describing the function's purpose, characteristics, or keywords.** Tags should be lowercase and single words or hyphenated phrases. Include tags like:
+        - The main action (e.g., 'scrape', 'search', 'start', 'check', 'cancel', 'list')
+        - The type of job ('async_job', 'batch')
+        - The stage of an asynchronous job ('start', 'status', 'cancel')
+        - Related domain/feature ('ai', 'management')
+        - **Significance: Add the tag 'important' to functions that represent core capabilities or primary interaction points of the class (e.g., initiating actions like scrape, search, or starting async jobs).**
+    6. Be formatted according to Google Python Style Guide
 
     Here is the function:
 
     {function_code}
 
-    Respond in JSON format with the following structure. **Include the 'raises' field only if the function is likely to raise exceptions.**
+    Respond ONLY in JSON format with the following structure. **Include the 'raises' field only if the function is likely to raise exceptions.** **Include the 'tags' field as a list of strings.**
     {{
     "summary": "A clear, concise summary of what the function does",
     "args": {{"param_name": "param description", "param_name2": "param description"}},
     "returns": "Description of what the function returns",
     "raises": {{
-        "ExceptionType": "Description of when/why this exception is raised",
-        "AnotherException": "Description for the other exception"
-    }}
+        "ExceptionType": "Description of when/why this exception is raised"
+    }},
+    "tags": ["tag1", "tag2", "important"]
     }}
     """
 
     try:
-        # Use regular completion and parse the JSON ourselves instead of using response_model
         response = litellm.completion(
             model=model,
             messages=[
@@ -180,80 +190,105 @@ def generate_docstring(
             ],
         )
 
-        # Get the response content
         response_text = response.choices[0].message.content
 
-        # Simple JSON extraction in case the model includes extra text
         import json
         import re
 
-        # Find JSON object in the response using regex
-        json_match = re.search(r"({.*})", response_text.replace("\n", " "), re.DOTALL)
+        json_match = re.search(r"({.*})", response_text.replace("\n", " "), re.DOTALL | re.IGNORECASE)
         if json_match:
             json_str = json_match.group(1)
             parsed_data = json.loads(json_str)
         else:
-            # Try to parse the whole response as JSON
-            parsed_data = json.loads(response_text)
+            try:
+                cleaned_text = response_text.strip()
+                if cleaned_text.startswith("```json"):
+                    cleaned_text = cleaned_text[7:].strip()
+                if cleaned_text.endswith("```"):
+                    cleaned_text = cleaned_text[:-3].strip()
 
-        # Ensure args is never empty
-        if not parsed_data.get("args"):
-            parsed_data["args"] = {"None": "This function takes no arguments"}
+                parsed_data = json.loads(cleaned_text)
+            except json.JSONDecodeError:
+                 print(f"Warning: Could not find or parse JSON from LLM response:\n{response_text}", file=sys.stderr)
+                 parsed_data = {}
 
-        # Create DocstringOutput from parsed data
+        model_args = parsed_data.get("args")
+        if not model_args:
+             parsed_data["args"] = {"None": "This function takes no arguments"}
+
         return DocstringOutput(
-        summary=parsed_data.get("summary", ""),
-        args=parsed_data.get("args", {"None": "This function takes no arguments"}),
-        returns=parsed_data.get("returns", "None"), # Provide a default for returns if needed
-        raises=parsed_data.get("raises", {}) # Get raises, default to empty dict
-    )
-
-    except Exception as e:
-        print(f"Error generating docstring: {e}")
-        # Return a docstring object with default values
-        return DocstringOutput(
-            summary="No documentation available",
-            args={"None": "This function takes no arguments"},
-            returns="None",
+            summary=parsed_data.get("summary", "No documentation available"),
+            args=parsed_data.get("args", {"None": "This function takes no arguments"}),
+            returns=parsed_data.get("returns", "None"),
+            raises=parsed_data.get("raises", {}),
+            tags=parsed_data.get("tags", []) # Get tags, default to empty list
         )
 
+    except Exception as e:
+        print(f"Error generating docstring: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        return DocstringOutput(
+            summary=f"Error generating docstring: {e}",
+            args={"None": "This function takes no arguments"},
+            returns="None",
+            raises={},
+            tags=["generation-error"]
+        )
 
 def format_docstring(docstring: DocstringOutput) -> str:
     """
-    Format a DocstringOutput object into a properly formatted docstring string.
+    Format a DocstringOutput object into the content string for a docstring.
+    This function produces the content *between* the triple quotes, without
+    the leading/trailing triple quotes or the main indentation.
 
     Args:
         docstring: The DocstringOutput object to format
 
     Returns:
-        A formatted docstring string ready to be inserted into code
+        A formatted docstring content string ready to be indented and wrapped
+        in triple quotes for insertion into code.
     """
-    formatted_docstring = f"{docstring.summary}\n\n"
+    parts = []
+
+    summary = docstring.summary.strip()
+    if summary:
+        parts.append(summary)
+
     filtered_args = {name: desc for name, desc in docstring.args.items() if name not in ('self', 'cls')}
+    args_lines = []
+    if filtered_args:
+        args_lines.append("Args:")
+        for arg_name, arg_desc in filtered_args.items():
+             arg_desc_cleaned = arg_desc.strip()
+             args_lines.append(f"    {arg_name}: {arg_desc_cleaned}")
+    elif docstring.args.get('None'): # Include the 'None' placeholder if it was generated
+        args_lines.append("Args:")
+        none_desc_cleaned = docstring.args['None'].strip()
+        args_lines.append(f"    None: {none_desc_cleaned}")
 
-    if filtered_args: # Check the filtered args
-        formatted_docstring += "Args:\n"
-        for arg_name, arg_desc in docstring.args.items():
-            # Exclude 'self' and 'cls' from the formatted output
-            if arg_name in ('self', 'cls'):
-                continue
-            formatted_docstring += f"    {arg_name}: {arg_desc}\n"
-        formatted_docstring += "\n"
-    elif docstring.args.get('None'): # Check if the original args included the 'None' placeholder
-         formatted_docstring += "Args:\n"
-         formatted_docstring += f"    None: {docstring.args['None']}\n"
-         formatted_docstring += "\n"
+    if args_lines:
+         parts.append("\n".join(args_lines))
 
-    if docstring.returns:
-        formatted_docstring += f"Returns:\n    {docstring.returns}\n"
-        formatted_docstring += "\n"
+    returns_desc_cleaned = docstring.returns.strip()
+    if returns_desc_cleaned and returns_desc_cleaned.lower() not in ('none', ''):
+        parts.append(f"Returns:\n    {returns_desc_cleaned}")
 
+    raises_lines = []
     if docstring.raises:
-        formatted_docstring += "Raises:\n"
+        raises_lines.append("Raises:")
         for exception_type, exception_desc in docstring.raises.items():
-            formatted_docstring += f"    {exception_type}: {exception_desc}\n"
+            exception_desc_cleaned = exception_desc.strip()
+            if exception_type.strip() and exception_desc_cleaned: # Ensure type and desc are not empty
+                raises_lines.append(f"    {exception_type.strip()}: {exception_desc_cleaned}")
+    if raises_lines:
+         parts.append("\n".join(raises_lines))
 
-    return formatted_docstring.strip()
+    cleaned_tags = [tag.strip() for tag in docstring.tags if tag and tag.strip()]
+    if cleaned_tags:
+        tags_string = ", ".join(cleaned_tags)
+        parts.append(f"Tags:\n    {tags_string}")
+
+    return "\n\n".join(parts)
 
 def insert_docstring_into_function(function_code: str, docstring: str) -> str:
     """

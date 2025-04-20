@@ -71,11 +71,14 @@ class E2BApp(APIApplication):
         
         Returns:
             A string containing the formatted execution output/logs from running the code
-
+        
         Raises:
             SandboxError: When there are issues with sandbox initialization or code execution
             AuthenticationError: When API key authentication fails during sandbox setup
             ValueError: When provided code string is empty or invalid
+        
+        Tags:
+            execute, sandbox, code-execution, security, important
         """
         self._set_api_key()
         with Sandbox(api_key=self.api_key) as sandbox:
