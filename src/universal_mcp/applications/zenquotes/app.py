@@ -6,13 +6,20 @@ class ZenquotesApp(APIApplication):
         super().__init__(name="zenquote", **kwargs)
 
     def get_quote(self) -> str:
-        """Get an inspirational quote from the Zen Quotes API
-
+        """
+        Fetches a random inspirational quote from the Zen Quotes API.
+        
         Returns:
-            A random inspirational quote
-
+            A formatted string containing the quote and its author in the format 'quote - author'
+        
+        Raises:
+            RequestException: If the HTTP request to the Zen Quotes API fails
+            JSONDecodeError: If the API response contains invalid JSON
+            IndexError: If the API response doesn't contain any quotes
+            KeyError: If the quote data doesn't contain the expected 'q' or 'a' fields
+        
         Tags:
-            quotes, important
+            fetch, quotes, api, http, important
         """
         url = "https://zenquotes.io/api/random"
         response = self._get(url)

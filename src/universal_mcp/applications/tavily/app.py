@@ -28,13 +28,21 @@ class TavilyApp(APIApplication):
         }
 
     def search(self, query: str) -> str:
-        """Search the web using Tavily's search API
-
+        """
+        Performs a web search using Tavily's search API and returns either a direct answer or a summary of top results.
+        
         Args:
-            query: The search query
-
+            query: The search query string to be processed by Tavily's search engine
+        
         Returns:
-            str: A summary of search results
+            A string containing either a direct answer from Tavily's AI or a formatted summary of the top 3 search results, with each result containing the title and snippet
+        
+        Raises:
+            ValueError: When authentication credentials are invalid or missing (via validate() method)
+            HTTPError: When the API request fails or returns an error response
+        
+        Tags:
+            search, ai, web, query, important, api-client, text-processing
         """
         self.validate()
         url = f"{self.base_url}/search"
@@ -50,18 +58,13 @@ class TavilyApp(APIApplication):
             "include_domains": [],
             "exclude_domains": [],
         }
-
         response = self._post(url, payload)
         result = response.json()
-
         if "answer" in result:
             return result["answer"]
-
-        # Fallback to combining top results if no direct answer
         summaries = []
         for item in result.get("results", [])[:3]:
             summaries.append(f"• {item['title']}: {item['snippet']}")
-
         return "\n".join(summaries)
 
     def list_tools(self):

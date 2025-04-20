@@ -34,13 +34,20 @@ class GoogleSheetApp(APIApplication):
     
     def create_spreadsheet(self, title: str) -> dict[str, Any]:
         """
-        Creates a new blank Google Spreadsheet with the specified title.
+        Creates a new blank Google Spreadsheet with the specified title and returns the API response.
         
         Args:
-            title: The title of the spreadsheet to create required , which is provided by the user
-            
+            title: String representing the desired title for the new spreadsheet
+        
         Returns:
-            The response from the Google Sheets API
+            Dictionary containing the full response from the Google Sheets API, including the spreadsheet's metadata and properties
+        
+        Raises:
+            HTTPError: When the API request fails due to invalid authentication, network issues, or API limitations
+            ValueError: When the title parameter is empty or contains invalid characters
+        
+        Tags:
+            create, spreadsheet, google-sheets, api, important
         """
         url = self.base_api_url
         spreadsheet_data = {
@@ -48,19 +55,26 @@ class GoogleSheetApp(APIApplication):
                 "title": title
             }
         }
-        
         response = self._post(url, data=spreadsheet_data)
         return response.json()
     
     def get_spreadsheet(self, spreadsheet_id: str) -> dict[str, Any]:
         """
-        Returns the spreadsheet details.
+        Retrieves detailed information about a specific Google Spreadsheet using its ID.
         
         Args:
-            spreadsheet_id: The ID of the spreadsheet to retrieve
-            
+            spreadsheet_id: The unique identifier of the Google Spreadsheet to retrieve (found in the spreadsheet's URL)
+        
         Returns:
-            The response from the Google Sheets API containing the spreadsheet data and details
+            A dictionary containing the full spreadsheet metadata and contents, including properties, sheets, named ranges, and other spreadsheet-specific information from the Google Sheets API
+        
+        Raises:
+            HTTPError: When the API request fails due to invalid spreadsheet_id or insufficient permissions
+            ConnectionError: When there's a network connectivity issue
+            ValueError: When the response cannot be parsed as JSON
+        
+        Tags:
+            get, retrieve, spreadsheet, api, metadata, read, important
         """
         url = f"{self.base_api_url}/{spreadsheet_id}"
         response = self._get(url)
@@ -68,40 +82,48 @@ class GoogleSheetApp(APIApplication):
     
     def batch_get_values(self, spreadsheet_id: str, ranges: list[str] = None) -> dict[str, Any]:
         """
-        Returns one or more ranges of values from a spreadsheet.
+        Retrieves multiple ranges of values from a Google Spreadsheet in a single batch request.
         
         Args:
-            spreadsheet_id: The ID of the spreadsheet to retrieve values from
-            ranges: Optional list of A1 notation or R1C1 notation ranges to retrieve values from
-                   (e.g. ['Sheet1!A1:B2', 'Sheet2!C3:D4'])
-            
+            spreadsheet_id: The unique identifier of the Google Spreadsheet to retrieve values from
+            ranges: Optional list of A1 notation or R1C1 notation range strings (e.g., ['Sheet1!A1:B2', 'Sheet2!C3:D4']). If None, returns values from the entire spreadsheet
+        
         Returns:
-            The response from the Google Sheets API containing the requested values
+            A dictionary containing the API response with the requested spreadsheet values and metadata
+        
+        Raises:
+            HTTPError: If the API request fails due to invalid spreadsheet_id, insufficient permissions, or invalid range format
+            ValueError: If the spreadsheet_id is empty or invalid
+        
+        Tags:
+            get, batch, read, spreadsheet, values, important
         """
         url = f"{self.base_api_url}/{spreadsheet_id}/values:batchGet"
-        
         params = {}
         if ranges:
             params["ranges"] = ranges
-            
         response = self._get(url, params=params)
         return response.json()
     
     def clear_values(self, spreadsheet_id: str, range: str) -> dict[str, Any]:
         """
-        Clears values from a spreadsheet. Only values are cleared -- all other properties 
-        of the cell (such as formatting, data validation, etc.) are kept.
+        Clears all values from a specified range in a Google Spreadsheet while preserving cell formatting and other properties
         
         Args:
-            spreadsheet_id: The ID of the spreadsheet to update
-            range: The A1 notation or R1C1 notation of the values to clear
-                  (e.g. 'Sheet1!A1:B2')
-            
+            spreadsheet_id: The unique identifier of the Google Spreadsheet to modify
+            range: The A1 or R1C1 notation range of cells to clear (e.g., 'Sheet1!A1:B2')
+        
         Returns:
-            The response from the Google Sheets API
+            A dictionary containing the Google Sheets API response
+        
+        Raises:
+            HttpError: When the API request fails due to invalid spreadsheet_id, invalid range format, or insufficient permissions
+            ValueError: When spreadsheet_id is empty or range is in invalid format
+        
+        Tags:
+            clear, modify, spreadsheet, api, sheets, data-management, important
         """
         url = f"{self.base_api_url}/{spreadsheet_id}/values/{range}:clear"
-        
         response = self._post(url, data={})
         return response.json()
     
@@ -113,31 +135,32 @@ class GoogleSheetApp(APIApplication):
         value_input_option: str = "RAW"
     ) -> dict[str, Any]:
         """
-        Sets values in a range of a spreadsheet. 
+        Updates cell values in a specified range of a Google Spreadsheet using the Sheets API
         
         Args:
-            spreadsheet_id: The ID of the spreadsheet to update
-            range: The A1 notation of the values to update (e.g. 'Sheet1!A1:B2')
-            values: The data to write, as a list of lists (rows of values)
-            value_input_option: How the input data should be interpreted. 
-                                Accepted values are:
-                                - "RAW": The values will be stored as-is
-                                - "USER_ENTERED": The values will be parsed as if the user typed them into the UI
-                
+            spreadsheet_id: The unique identifier of the target Google Spreadsheet
+            range: The A1 notation range where values will be updated (e.g., 'Sheet1!A1:B2')
+            values: A list of lists containing the data to write, where each inner list represents a row of values
+            value_input_option: Determines how input data should be interpreted: 'RAW' (as-is) or 'USER_ENTERED' (parsed as UI input). Defaults to 'RAW'
+        
         Returns:
-            The response from the Google Sheets API
+            A dictionary containing the Google Sheets API response with update details
+        
+        Raises:
+            RequestError: When the API request fails due to invalid parameters or network issues
+            AuthenticationError: When authentication with the Google Sheets API fails
+        
+        Tags:
+            update, write, sheets, api, important, data-modification, google-sheets
         """
         url = f"{self.base_api_url}/{spreadsheet_id}/values/{range}"
-        
         params = {
             "valueInputOption": value_input_option
         }
-        
         data = {
             "range": range,
             "values": values
         }
-        
         response = self._put(url, data=data, params=params)
         return response.json()
     

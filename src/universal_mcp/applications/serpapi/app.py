@@ -35,13 +35,21 @@ class SerpapiApp(APIApplication):
         logger.info("SERP API Key successfully retrieved via integration.")
 
     async def search(self, params: dict[str, any] = None) -> str:
-        """Perform a search on the specified engine using SerpApi.
-
+        """
+        Performs an asynchronous search using the SerpApi service and returns formatted search results.
+        
         Args:
-            params: Dictionary of engine-specific parameters (e.g., {"q": "Coffee", "engine": "google_light", "location": "Austin, TX"}).
-
+            params: Dictionary of engine-specific parameters (e.g., {'q': 'Coffee', 'engine': 'google_light', 'location': 'Austin, TX'}). Defaults to None.
+        
         Returns:
-            A formatted string of search results or an error message.
+            A formatted string containing search results with titles, links, and snippets, or an error message if the search fails.
+        
+        Raises:
+            httpx.HTTPStatusError: Raised when the API request fails due to HTTP errors (401 for invalid API key, 429 for rate limiting)
+            Exception: Raised for general errors such as network issues or invalid parameters
+        
+        Tags:
+            search, async, web-scraping, api, serpapi, important
         """
         if params is None:
             params = {}
@@ -51,7 +59,6 @@ class SerpapiApp(APIApplication):
             "engine": "google_light",  # Fastest engine by default
             **params,  # Include any additional parameters
         }
-
         try:
             search = SerpApiSearch(params)
             data = search.get_dict()

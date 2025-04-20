@@ -59,34 +59,35 @@ class PerplexityApp(APIApplication):
         system_prompt: str = "Be precise and concise.",
     ) -> dict[str, Any] | str:
         """
-        Sends a query to a Perplexity Sonar online model and returns the response.
-
-        This uses the chat completions endpoint, suitable for conversational queries
-        and leveraging Perplexity's online capabilities.
-
+        Initiates a chat completion request to generate AI responses using various models with customizable parameters.
+        
         Args:
-            query: The user's query or message.
-            model: The specific Perplexity model to use (e.g., "r1-1776","sonar","sonar-pro","sonar-reasoning","sonar-reasoning-pro", "sonar-deep-research").Defaults to 'sonar'.
-            temperature: Sampling temperature for the response generation (e.g., 0.7).
-            system_prompt: An optional system message to guide the model's behavior.
-
+            query: The input text/prompt to send to the chat model
+            model: The model to use for chat completion. Options include 'r1-1776', 'sonar', 'sonar-pro', 'sonar-reasoning', 'sonar-reasoning-pro', 'sonar-deep-research'. Defaults to 'sonar'
+            temperature: Controls randomness in the model's output. Higher values make output more random, lower values more deterministic. Defaults to 1
+            system_prompt: Initial system message to guide the model's behavior. Defaults to 'Be precise and concise.'
+        
         Returns:
-            A dictionary containing 'content' (str) and 'citations' (list) on success, or a string containing an error message on failure.
+            A dictionary containing the generated content and citations, with keys 'content' (str) and 'citations' (list), or a string in some cases
+        
+        Raises:
+            AuthenticationError: Raised when API authentication fails due to missing or invalid credentials
+            HTTPError: Raised when the API request fails or returns an error status
+        
+        Tags:
+            chat, generate, ai, completion, important
         """
         endpoint = f"{self.base_url}/chat/completions"
-
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": query})
-
         payload = {
             "model": model,
             "messages": messages,
             "temperature": temperature,
             # "max_tokens": 512,
         }
-
         data = self._post(endpoint, data=payload)
         response = data.json()
         content = response["choices"][0]["message"]["content"]

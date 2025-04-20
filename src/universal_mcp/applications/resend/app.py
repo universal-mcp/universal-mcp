@@ -25,15 +25,22 @@ class ResendApp(APIApplication):
         }
 
     def send_email(self, to: str, subject: str, content: str) -> str:
-        """Send an email using the Resend API
-
+        """
+        Sends an email using the Resend API with specified recipient, subject, and content
+        
         Args:
-            to: The email address to send the email to
-            subject: The subject of the email
-            content: The content of the email
-
+            to: Email address of the recipient
+            subject: Subject line of the email
+            content: Main body text content of the email
+        
         Returns:
-            A message indicating that the email was sent successfully
+            String message confirming successful email delivery ('Sent Successfully')
+        
+        Raises:
+            ValueError: Raised when no valid credentials are found for the API
+        
+        Tags:
+            send, email, api, communication, important
         """
         credentials = self.integration.get_credentials()
         if not credentials:
