@@ -67,11 +67,10 @@ class E2BApp(APIApplication):
         Executes Python code in a sandboxed environment and returns the formatted output.
         
         Args:
-            self: Instance of the class containing the execution environment.
-            code: String containing the Python code to be executed in the sandbox.
+            code: String containing the Python code to be executed in the sandbox
         
         Returns:
-            String containing the formatted output of the code execution, including any logs or results produced during execution.
+            A formatted string containing the execution output/logs from running the code
         """
         self._set_api_key()
         with Sandbox(api_key=self.api_key) as sandbox:

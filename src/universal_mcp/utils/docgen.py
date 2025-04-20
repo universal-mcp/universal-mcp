@@ -219,12 +219,20 @@ def format_docstring(docstring: DocstringOutput) -> str:
         A formatted docstring string ready to be inserted into code
     """
     formatted_docstring = f"{docstring.summary}\n\n"
+    filtered_args = {name: desc for name, desc in docstring.args.items() if name not in ('self', 'cls')}
 
-    if docstring.args:
+    if filtered_args: # Check the filtered args
         formatted_docstring += "Args:\n"
         for arg_name, arg_desc in docstring.args.items():
+            # Exclude 'self' and 'cls' from the formatted output
+            if arg_name in ('self', 'cls'):
+                continue
             formatted_docstring += f"    {arg_name}: {arg_desc}\n"
         formatted_docstring += "\n"
+    elif docstring.args.get('None'): # Check if the original args included the 'None' placeholder
+         formatted_docstring += "Args:\n"
+         formatted_docstring += f"    None: {docstring.args['None']}\n"
+         formatted_docstring += "\n"
 
     if docstring.returns:
         formatted_docstring += f"Returns:\n    {docstring.returns}\n"
