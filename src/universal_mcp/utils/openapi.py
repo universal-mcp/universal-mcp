@@ -361,7 +361,7 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
             body_lines.append(f"        request_body = {request_body_params[0]}")
         elif request_body_properties:
             # For object request bodies, build the request body from individual parameters
-            body_lines.append("        # Build request body from parameters")
+            
             body_lines.append("        request_body = {")
             
             for prop_name in request_body_params:
@@ -370,8 +370,7 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
             
             body_lines.append("        }")
             
-            # Filter out None values
-            body_lines.append("        # Remove None values from request body")
+            
             body_lines.append("        request_body = {k: v for k, v in request_body.items() if v is not None}")
     
     # Format URL directly with path parameters

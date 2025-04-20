@@ -21,41 +21,41 @@ This tool can be integrated with any service that supports HTTP requests.
 
 | Tool | Description |
 |------|-------------|
-| get_contacts | Retrieves a list of contacts from the server, optionally filtering by deletion status, specific fields, or metadata. |
-| get_contacts_by_contactid | Retrieves contact details by contact ID from the API, allowing optional selection of specific fields. |
-| put_contacts_by_contactid | Updates a contact with the specified contact ID using the provided data. |
-| get_users_by_userid | Retrieves user information for a given user ID using a GET request to the '/users/{userId}' endpoint. |
-| put_users_by_userid | Updates a user resource identified by userId with the provided request body via an HTTP PUT request. |
-| get_groups | Retrieves a list of groups from the API, applying optional filters and pagination parameters. |
-| post_groups | Creates a new group by sending a POST request with the provided request body. |
-| get_groups_by_groupid | Retrieves group information by group ID from the API, optionally including only specified fields. |
-| put_groups_by_groupid | Updates a group's details by group ID using a PUT request and returns the server response as a JSON object. |
-| delete_groups_by_groupid | Deletes a group by its unique group ID via an HTTP DELETE request and returns the server's JSON response. |
-| put_groups_bulk | Sends a bulk update request for groups using a PUT HTTP request. |
-| get_invitations | Retrieves a list of invitation objects from the server using a GET request. |
-| post_invitations | Sends a POST request to create invitations using the given request body. |
-| put_invitations_by_invitationid | Updates an invitation resource identified by invitationId with the provided request body using an HTTP PUT request. |
-| delete_invitations_by_invitationid | Deletes an invitation identified by the given invitation ID. |
-| get_a_ccount | Retrieves account information from the API, optionally filtering the fields returned. |
-| put_a_ccount | Updates an account by sending a PUT request with the provided request body to the account endpoint. |
-| get_workflows | Retrieves all workflows from the server as a JSON object. |
-| post_workflows | Creates a new workflow by sending a POST request with optional name and request body. |
-| put_workflows_by_workflowid | Updates a workflow's details by workflow ID using a PUT request. |
-| get_customfields | Retrieves all custom fields from the API endpoint as a JSON object. |
-| post_customfields | Creates a custom field by sending a POST request with the specified parameters and request body. |
-| get_customfields_by_customfieldid | Retrieves the details of a custom field by its unique custom field ID. |
-| put_customfields_by_customfieldid | Updates the properties of a custom field identified by its ID using the provided parameters. |
-| delete_customfields_by_customfieldid | Deletes a custom field by its unique custom field ID. |
-| get_folders | Retrieves a list of folders from the API, filtered by optional query parameters. |
-| get_folders_by_folderid_folders | Retrieves a list of subfolders within a specified folder, applying optional filters such as metadata, custom fields, invitations, project, contract types, pagination, and response fields. |
-| post_folders_by_folderid_folders | Creates a subfolder within a specified parent folder by sending a POST request with the provided request body. |
-| delete_folders_by_folderid | Deletes a folder specified by its folder ID via an HTTP DELETE request. |
-| put_folders_by_folderid | Updates a folder resource by its folder ID using the provided request body. |
-| get_tasks | Retrieves a list of tasks from the server with optional filters and pagination parameters. |
-| get_tasks_by_taskid | Retrieve detailed information about a specific task by its task ID from the remote API. |
-| put_tasks_by_taskid | Updates a task by its task ID using a PUT request and returns the updated task data as JSON. |
-| delete_tasks_by_taskid | Deletes a task identified by its task ID from the remote server and returns the server response. |
-| post_folders_by_folderid_tasks | No documentation available |
+| get_contacts | Retrieves a list of contacts from the server, with optional filtering and field selection. |
+| get_contacts_by_contactid | Retrieves contact information for a specific contact ID, optionally returning only specified fields. |
+| put_contacts_by_contactid | Updates an existing contact by contact ID with provided details such as metadata, billing and cost rates, job role, custom fields, or additional fields. |
+| get_users_by_userid | Retrieves user information for a given user ID from the API endpoint. |
+| put_users_by_userid | Updates a user's profile information by user ID using a PUT request. |
+| get_groups | Retrieves a list of groups from the API, applying optional filtering and pagination parameters. |
+| post_groups | Creates a new group with the specified title and optional details, sending a POST request to the groups endpoint. |
+| get_groups_by_groupid | Retrieves details for a specific group by its group ID, optionally returning only specified fields. |
+| put_groups_by_groupid | Updates an existing group identified by groupId with new properties and membership changes via a PUT request. |
+| delete_groups_by_groupid | Deletes a group resource identified by the provided groupId using an HTTP DELETE request. |
+| put_groups_bulk | Updates multiple group memberships in bulk by sending a PUT request with the given members data. |
+| get_invitations | Retrieves all invitations from the server using a GET request. |
+| post_invitations | Sends an invitation email to a user with optional details such as name, role, and custom message. |
+| put_invitations_by_invitationid | Updates an existing invitation by invitation ID with optional fields such as resend, role, external, and user type ID. |
+| delete_invitations_by_invitationid | Deletes an invitation specified by its invitation ID. |
+| get_a_ccount | Retrieves account information from the API, optionally including only specified fields. |
+| put_a_ccount | Sends a PUT request to update or create an account with the provided metadata and returns the server response as a JSON object. |
+| get_workflows | Retrieves all workflows from the server using a GET request. |
+| post_workflows | Creates a new workflow by sending a POST request to the workflows endpoint. |
+| put_workflows_by_workflowid | Updates an existing workflow by workflow ID with optional name, hidden status, and request body data. |
+| get_customfields | Retrieves all custom fields from the API and returns them as a parsed JSON object. |
+| post_customfields | Creates a custom field by sending a POST request with the specified parameters to the customfields endpoint and returns the created field's data. |
+| get_customfields_by_customfieldid | Retrieves details for a custom field by its unique identifier from the API. |
+| put_customfields_by_customfieldid | Updates a custom field specified by its ID with the provided parameters using an HTTP PUT request. |
+| delete_customfields_by_customfieldid | Deletes a custom field resource identified by its custom field ID. |
+| get_folders | Retrieves a list of folders from the API, supporting extensive filtering, pagination, and field selection. |
+| get_folders_by_folderid_folders | Retrieves subfolders of a specified folder, applying optional filters and pagination parameters. |
+| post_folders_by_folderid_folders | Creates a new subfolder within a specified folder by folder ID, with configurable attributes such as title, description, sharing, metadata, and permissions. |
+| delete_folders_by_folderid | Deletes a folder resource identified by its folder ID via an HTTP DELETE request. |
+| put_folders_by_folderid | Updates a folder's properties and relationships by folder ID using a PUT request. |
+| get_tasks | Retrieves tasks from the API with optional filtering, sorting, pagination, and field selection parameters. |
+| get_tasks_by_taskid | Retrieves a task by its ID from the remote service, optionally returning only specified fields. |
+| put_tasks_by_taskid | Updates the properties and relationships of a task specified by its ID, applying the given changes and returning the updated task data as a JSON object. |
+| delete_tasks_by_taskid | Deletes a task identified by the given task ID via an HTTP DELETE request and returns the response as a JSON object. |
+| post_folders_by_folderid_tasks | Creates a new task within a specified folder by folder ID, with configurable attributes such as title, description, status, importance, dates, assigned users, metadata, custom fields, and other options. |
 
 
 
