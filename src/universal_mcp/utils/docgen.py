@@ -24,6 +24,10 @@ class DocstringOutput(BaseModel):
         description="Dictionary mapping parameter names to their descriptions"
     )
     returns: str = Field(description="Description of what the function returns")
+    raises: dict[str, str] = Field(
+        default_factory=dict,
+        description="Dictionary mapping potential exception types/reasons to their descriptions"
+    )
 
 
 class FunctionExtractor(ast.NodeVisitor):
@@ -140,24 +144,29 @@ def generate_docstring(
     system_prompt = """You are a helpful AI assistant specialized in writing high-quality Google-style Python docstrings.
     You MUST ALWAYS include an Args section, even if there are no arguments (in which case mention 'None')."""
 
-    user_prompt = f"""Generate a high-quality Google-style docstring for the following Python function. 
-    Analyze the function's name, parameters, return values, and functionality to create a comprehensive docstring.
-    
+    user_prompt = f"""Generate a high-quality Google-style docstring for the following Python function.
+    Analyze the function's name, parameters, return values, potential exceptions, and functionality to create a comprehensive docstring.
+
     The docstring MUST:
     1. Start with a clear, concise summary of what the function does
     2. ALWAYS include Args section with description of each parameter (or 'None' if no parameters)
-    3. Include Returns section describing the return value
-    4. Be formatted according to Google Python Style Guide
-    
+    3. Include Returns section describing the return value (or 'None' if nothing is explicitly returned)
+    4. **Optionally include a Raises section if the function might raise exceptions, describing the exception type/reason and when it's raised.**
+    5. Be formatted according to Google Python Style Guide
+
     Here is the function:
-    
+
     {function_code}
-    
-    Respond in JSON format with the following structure:
+
+    Respond in JSON format with the following structure. **Include the 'raises' field only if the function is likely to raise exceptions.**
     {{
-      "summary": "A clear, concise summary of what the function does",
-      "args": {{"param_name": "param description", "param_name2": "param description"}},
-      "returns": "Description of what the function returns"
+    "summary": "A clear, concise summary of what the function does",
+    "args": {{"param_name": "param description", "param_name2": "param description"}},
+    "returns": "Description of what the function returns",
+    "raises": {{
+        "ExceptionType": "Description of when/why this exception is raised",
+        "AnotherException": "Description for the other exception"
+    }}
     }}
     """
 
@@ -193,10 +202,11 @@ def generate_docstring(
 
         # Create DocstringOutput from parsed data
         return DocstringOutput(
-            summary=parsed_data.get("summary", ""),
-            args=parsed_data.get("args", {"None": "This function takes no arguments"}),
-            returns=parsed_data.get("returns", ""),
-        )
+        summary=parsed_data.get("summary", ""),
+        args=parsed_data.get("args", {"None": "This function takes no arguments"}),
+        returns=parsed_data.get("returns", "None"), # Provide a default for returns if needed
+        raises=parsed_data.get("raises", {}) # Get raises, default to empty dict
+    )
 
     except Exception as e:
         print(f"Error generating docstring: {e}")
@@ -236,6 +246,12 @@ def format_docstring(docstring: DocstringOutput) -> str:
 
     if docstring.returns:
         formatted_docstring += f"Returns:\n    {docstring.returns}\n"
+        formatted_docstring += "\n"
+
+    if docstring.raises:
+        formatted_docstring += "Raises:\n"
+        for exception_type, exception_desc in docstring.raises.items():
+            formatted_docstring += f"    {exception_type}: {exception_desc}\n"
 
     return formatted_docstring.strip()
 

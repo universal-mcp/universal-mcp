@@ -64,13 +64,18 @@ class E2BApp(APIApplication):
         code: Annotated[str, "The Python code to execute."]
         ) -> str:
         """
-        Executes Python code in a sandboxed environment and returns the formatted output.
+        Executes Python code in a sandbox environment and returns the formatted output
         
         Args:
             code: String containing the Python code to be executed in the sandbox
         
         Returns:
-            A formatted string containing the execution output/logs from running the code
+            A string containing the formatted execution output/logs from running the code
+
+        Raises:
+            SandboxError: When there are issues with sandbox initialization or code execution
+            AuthenticationError: When API key authentication fails during sandbox setup
+            ValueError: When provided code string is empty or invalid
         """
         self._set_api_key()
         with Sandbox(api_key=self.api_key) as sandbox:
