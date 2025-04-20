@@ -1,12 +1,15 @@
+import contextlib
 import os
+
 import pytest
+
 from universal_mcp.stores.store import (
-    MemoryStore,
     EnvironmentStore,
-    KeyringStore,
     KeyNotFoundError,
-    StoreError
+    KeyringStore,
+    MemoryStore,
 )
+
 
 # Test MemoryStore
 class TestMemoryStore:
@@ -68,10 +71,8 @@ class TestKeyringStore:
         store = KeyringStore("test_app")
         yield store
         # Clean up after tests
-        try:
+        with contextlib.suppress(KeyNotFoundError):
             store.delete("test_key")
-        except KeyNotFoundError:
-            pass
 
     def test_set_and_get(self, store):
         store.set("test_key", "test_value")

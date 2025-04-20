@@ -6,6 +6,9 @@ using LLMs with structured output
 
 import ast
 import os
+import sys
+import textwrap
+import traceback
 
 import litellm
 from pydantic import BaseModel, Field
@@ -228,87 +231,136 @@ def format_docstring(docstring: DocstringOutput) -> str:
 
     return formatted_docstring.strip()
 
-
 def insert_docstring_into_function(function_code: str, docstring: str) -> str:
     """
-    Insert a docstring into a function's code.
+    Insert a docstring into a function's code, replacing an existing one if present
+    at the correct location, and attempting to remove misplaced string literals
+    from the body.
+
+    This version handles multiline function definitions and existing docstrings
+    by carefully splicing lines based on AST node positions. It also tries to
+    clean up old, misplaced string literals that might have been interpreted
+    as docstrings previously.
 
     Args:
-        function_code: The source code of the function
-        docstring: The formatted docstring string to insert
+        function_code: The source code of the function snippet. This snippet is
+                       expected to contain exactly one function definition.
+        docstring: The formatted docstring string content (without triple quotes or
+                   leading/trailing newlines within the content itself).
 
     Returns:
-        The updated function code with the docstring inserted
+        The updated function code with the docstring inserted, or the original
+        code if an error occurs during processing or parsing.
     """
     try:
-        function_ast = ast.parse(function_code)
-        if not function_ast.body or not hasattr(function_ast.body[0], "body"):
-            return function_code
+        lines = function_code.splitlines(keepends=True)
 
-        function_lines = function_code.splitlines()
+        tree = ast.parse(function_code)
+        if not tree.body or not isinstance(tree.body[0], ast.FunctionDef | ast.AsyncFunctionDef):
+            print("Warning: Could not parse function definition from code snippet. Returning original code.", file=sys.stderr)
+            return function_code # Return original code if parsing fails or isn't a function
 
-        # Find the function definition line (ends with ':')
-        func_def_line = None
-        for i, line in enumerate(function_lines):
-            if "def " in line and line.strip().endswith(":"):
-                func_def_line = i
+        func_node = tree.body[0]
+        func_name = getattr(func_node, 'name', 'unknown_function')
+
+        insert_idx = func_node.end_lineno
+
+        if func_node.body:
+            insert_idx = func_node.body[0].lineno - 1
+
+        body_indent = "    " # Default indentation (PEP 8)
+
+        indent_source_idx = insert_idx
+        actual_first_body_line_idx = -1
+        for i in range(indent_source_idx, len(lines)):
+            line = lines[i]
+            stripped = line.lstrip()
+            if stripped and not stripped.startswith('#'):
+                actual_first_body_line_idx = i
                 break
 
-        if func_def_line is None:
-            return function_code
-
-        # Determine indentation from the first non-empty line after the function definition
-        body_indent = ""
-        for line in function_lines[func_def_line + 1 :]:
-            if line.strip():
-                body_indent = " " * (len(line) - len(line.lstrip()))
-                break
-
-        # Check if the function already has a docstring
-        first_element = (
-            function_ast.body[0].body[0] if function_ast.body[0].body else None
-        )
-        has_docstring = (
-            isinstance(first_element, ast.Expr)
-            and isinstance(first_element.value, ast.Constant)
-            and isinstance(first_element.value.value, str)
-        )
-
-        docstring_lines = [
-            f'{body_indent}"""',
-            *[f"{body_indent}{line}" for line in docstring.split("\n")],
-            f'{body_indent}"""',
-        ]
-
-        if has_docstring:
-            # Find the existing docstring in the source and replace it
-            for i in range(func_def_line + 1, len(function_lines)):
-                if '"""' in function_lines[i] or "'''" in function_lines[i]:
-                    docstring_start = i
-                    # Find end of docstring
-                    for j in range(docstring_start + 1, len(function_lines)):
-                        if '"""' in function_lines[j] or "'''" in function_lines[j]:
-                            docstring_end = j
-                            # Replace the existing docstring
-                            return "\n".join(
-                                function_lines[:docstring_start]
-                                + docstring_lines
-                                + function_lines[docstring_end + 1 :]
-                            )
+        # If a meaningful line was found at or after insertion point, use its indentation
+        if actual_first_body_line_idx != -1:
+            body_line = lines[actual_first_body_line_idx]
+            body_indent = body_line[:len(body_line) - len(body_line.lstrip())]
         else:
-            # Insert new docstring after function definition
-            return "\n".join(
-                function_lines[: func_def_line + 1]
-                + docstring_lines
-                + function_lines[func_def_line + 1 :]
-            )
+            if func_node.lineno - 1 < len(lines): # Ensure def line exists
+                 def_line = lines[func_node.lineno - 1]
+                 def_line_indent = def_line[:len(def_line) - len(def_line.lstrip())]
+                 body_indent = def_line_indent + "    " # Standard 4 spaces relative indent
 
-        # Default return if insertion logic fails
+
+        # Format the new docstring lines with the calculated indentation
+        new_docstring_lines_formatted = [f'{body_indent}"""\n']
+        new_docstring_lines_formatted.extend([f"{body_indent}{line}\n" for line in docstring.splitlines()])
+        new_docstring_lines_formatted.append(f'{body_indent}"""\n')
+
+        output_lines = []
+        output_lines.extend(lines[:insert_idx])
+
+        # 2. Insert the new docstring
+        output_lines.extend(new_docstring_lines_formatted)
+        remaining_body_lines = lines[insert_idx:]
+
+        remaining_body_code = "".join(remaining_body_lines)
+
+        if remaining_body_code.strip(): # Only parse if there's non-whitespace content
+            try:
+                dummy_code = f"def _dummy_func():\n{textwrap.indent(remaining_body_code, body_indent)}"
+                dummy_tree = ast.parse(dummy_code)
+                dummy_body_statements = dummy_tree.body[0].body if dummy_tree.body and isinstance(dummy_tree.body[0], ast.FunctionDef | ast.AsyncFunctionDef) else []
+                cleaned_body_parts = []
+                for _node in dummy_body_statements:
+                    break # Exit this loop, we'll process func_node.body instead
+                cleaned_body_parts = []
+                start_stmt_index = 1 if func_node.body and isinstance(func_node.body[0], ast.Expr) and isinstance(func_node.body[0].value, ast.Constant) and isinstance(func_node.body[0].value.value, str) else 0
+
+                for i in range(start_stmt_index, len(func_node.body)):
+                     stmt_node = func_node.body[i]
+
+                     is_just_string_stmt = isinstance(stmt_node, ast.Expr) and isinstance(stmt_node.value, ast.Constant) and isinstance(stmt_node.value.value, str)
+
+                     if not is_just_string_stmt:
+                         stmt_start_idx = stmt_node.lineno - 1
+                         stmt_end_idx = stmt_node.end_lineno - 1 # Inclusive end line index
+
+                         cleaned_body_parts.extend(lines[stmt_start_idx : stmt_end_idx + 1])
+
+                if func_node.body:
+                    last_stmt_end_idx = func_node.body[-1].end_lineno - 1
+                    for line in lines[last_stmt_end_idx + 1:]:
+                         if line.strip():
+                              cleaned_body_parts.append(line)
+                cleaned_body_lines = cleaned_body_parts
+
+            except SyntaxError as parse_e:
+                print(f"WARNING: Could not parse function body for cleaning, keeping all body lines: {parse_e}", file=sys.stderr)
+                traceback.print_exc(file=sys.stderr)
+                cleaned_body_lines = remaining_body_lines
+            except Exception as other_e:
+                 print(f"WARNING: Unexpected error processing function body for cleaning, keeping all body lines: {other_e}", file=sys.stderr)
+                 traceback.print_exc(file=sys.stderr)
+                 cleaned_body_lines = remaining_body_lines
+        else:
+             cleaned_body_lines = []
+             output_lines.extend(lines[func_node.end_lineno:])
+
+        if func_node.body or not remaining_body_code.strip():
+             output_lines.extend(cleaned_body_lines)
+
+        final_code = "".join(output_lines)
+        ast.parse(final_code)
+        return final_code
+
+    except SyntaxError as e:
+        print(f"WARNING: Generated code snippet for '{func_name}' has syntax error: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         return function_code
     except Exception as e:
-        print(f"Error inserting docstring: {e}")
+        print(f"Error processing function snippet for insertion: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        
         return function_code
-
 
 def process_file(file_path: str, model: str = "openai/gpt-4o") -> int:
     """

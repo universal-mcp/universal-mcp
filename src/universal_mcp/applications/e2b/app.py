@@ -60,21 +60,18 @@ class E2BApp(APIApplication):
         return "\n\n".join(output_parts)
 
     def execute_python_code(
-        self, code: Annotated[str, "The Python code to execute."]
-    ) -> str:
+        self, 
+        code: Annotated[str, "The Python code to execute."]
+        ) -> str:
         """
-        Executes Python code within a secure E2B cloud sandbox.
-
+        Executes Python code in a sandboxed environment and returns the formatted output.
+        
         Args:
-            code: The string containing the Python code to execute.
-
+            self: Instance of the class containing the execution environment.
+            code: String containing the Python code to be executed in the sandbox.
+        
         Returns:
-            A string containing the formatted standard output (stdout) and standard error (stderr)
-            from the execution. If an error occurs during setup or execution, an
-            error message string is returned.
-
-        Raises:
-            NotAuthorizedError: If the API key is not set.
+            String containing the formatted output of the code execution, including any logs or results produced during execution.
         """
         self._set_api_key()
         with Sandbox(api_key=self.api_key) as sandbox:
