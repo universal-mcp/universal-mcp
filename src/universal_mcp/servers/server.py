@@ -1,6 +1,6 @@
 import os
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Callable, List, Optional
 from urllib.parse import urlparse
 
 import httpx
@@ -58,7 +58,15 @@ class BaseServer(FastMCP, ABC):
         """Load and register applications."""
         pass
 
-    async def list_tools(self) -> list[dict]:
+    def add_tool(self, tool: Callable) -> None:
+        """Add a tool to the server.
+        
+        Args:
+            tool: Tool to add
+        """
+        self._tool_manager.add_tool(tool)
+
+    async def list_tools(self) -> List[dict]:
         """List all available tools in MCP format.
         
         Returns:
