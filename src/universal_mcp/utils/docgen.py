@@ -12,7 +12,6 @@ import textwrap
 import traceback
 
 import litellm
-import re
 from pydantic import BaseModel, Field
 
 
