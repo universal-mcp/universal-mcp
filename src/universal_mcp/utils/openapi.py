@@ -231,8 +231,22 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
     func_name = re.sub(r'_an$', r'_an', func_name)  # Don't change if 'an' is at the end of the name
 
     # Get parameters and request body
-    # Filter out header parameters
-    parameters = [param for param in operation.get("parameters", []) if param.get("in") != "header"]
+    # Resolve parameter references before processing
+    resolved_parameters = []
+    for param in operation.get("parameters", []):
+        if "$ref" in param:
+            # Resolve reference to actual parameter object
+            ref_param = resolve_schema_reference(param["$ref"], full_schema)
+            if ref_param:
+                resolved_parameters.append(ref_param)
+            else:
+                print(f"Warning: Could not resolve parameter reference: {param['$ref']}")
+        else:
+            resolved_parameters.append(param)
+    
+    # Filter out header parameters from the resolved parameters
+    parameters = [param for param in resolved_parameters if param.get("in") != "header"]
+    
     has_body = "requestBody" in operation
     body_required = has_body and operation["requestBody"].get("required", False)
 
@@ -242,7 +256,23 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
         request_body_content = operation["requestBody"].get("content", {})
         if not request_body_content or all(not content for content_type, content in request_body_content.items()):
             has_empty_body = True
-            has_body = False  # Treat it as if it doesn't have a body for property extraction
+        else:
+            # Handle empty properties with additionalProperties:true
+            for content_type, content in request_body_content.items():
+                if content_type.startswith("application/json") and "schema" in content:
+                    schema = content["schema"]
+                    
+                    # Resolve schema reference if present
+                    if "$ref" in schema:
+                        ref_schema = resolve_schema_reference(schema["$ref"], full_schema)
+                        if ref_schema:
+                            schema = ref_schema
+                    
+                    # Check if properties is empty and additionalProperties is true
+                    if schema.get("type") == "object" and schema.get("additionalProperties", False) is True:
+                        properties = schema.get("properties", {})
+                        if not properties or len(properties) == 0:
+                            has_empty_body = True
 
     # Extract request body schema properties and required fields
     required_fields = []
@@ -282,7 +312,11 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
                                 ref_prop_schema = resolve_schema_reference(prop_schema["$ref"], full_schema)
                                 if ref_prop_schema:
                                     request_body_properties[prop_name] = ref_prop_schema
-                break
+                
+                # Handle schemas with empty properties but additionalProperties: true
+                # by treating them similar to empty bodies
+                if (not request_body_properties or len(request_body_properties) == 0) and schema.get("additionalProperties") is True:
+                    has_empty_body = True
 
     # Build function arguments
     required_args = []
@@ -335,7 +369,7 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
                         optional_args.append(f"{prop_name}=None")
     
     # If request body is present but empty (content: {}), add a generic request_body parameter
-    if has_empty_body:
+    if has_empty_body and "request_body=None" not in optional_args:
         optional_args.append("request_body=None")
 
     # Combine required and optional arguments
@@ -394,8 +428,14 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
 
     # Make HTTP request using the proper method
     method_lower = method.lower()
-    # For empty request bodies, use the request_body parameter directly if provided
-    request_body_arg = "request_body" if has_empty_body else "{}" if not has_body else "request_body"
+    
+    # Determine what to use as the request body argument
+    if has_empty_body:
+        request_body_arg = "request_body"
+    elif not has_body:
+        request_body_arg = "{}"
+    else:
+        request_body_arg = "request_body"
     
     if method_lower == "get":
         body_lines.append("        response = self._get(url, params=query_params)")
