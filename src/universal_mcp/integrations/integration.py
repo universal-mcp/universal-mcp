@@ -91,9 +91,23 @@ class ApiKeyIntegration(Integration):
     """
 
     def __init__(self, name: str, store: BaseStore | None = None, **kwargs):
+        self.type = "api_key"
         sanitized_name = sanitize_api_key_name(name)
         super().__init__(sanitized_name, store, **kwargs)
         logger.info(f"Initializing API Key Integration: {name} with store: {store}")
+        self._api_key : str | None = None
+
+    @property
+    def api_key(self) -> str | None:
+        if not self._api_key:
+            try:
+                credentials = self.store.get(self.name)
+                self.api_key = credentials
+            except KeyNotFoundError as e:
+                action = self.authorize()
+                raise NotAuthorizedError(action) from e
+        return self._api_key
+
 
     def get_credentials(self) -> dict[str, str]:
         """Get API key credentials.
@@ -104,12 +118,7 @@ class ApiKeyIntegration(Integration):
         Raises:
             NotAuthorizedError: If API key is not found.
         """
-        try:
-            credentials = self.store.get(self.name)
-        except KeyNotFoundError as e:
-            action = self.authorize()
-            raise NotAuthorizedError(action) from e
-        return {"api_key": credentials}
+        return {"api_key": self.api_key}
 
     def set_credentials(self, credentials: dict[str, Any]) -> None:
         """Set API key credentials.

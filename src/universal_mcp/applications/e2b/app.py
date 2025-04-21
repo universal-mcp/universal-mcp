@@ -15,31 +15,6 @@ class E2BApp(APIApplication):
 
     def __init__(self, integration: Integration | None = None) -> None:
         super().__init__(name="e2b", integration=integration)
-        self.api_key: str | None = None
-
-    def _set_api_key(self):
-        if self.api_key:
-            return
-
-        if not self.integration:
-            raise ValueError("Integration is None. Cannot retrieve E2B API Key.")
-
-        credentials = self.integration.get_credentials()
-        if not credentials:
-            raise ValueError(
-                f"Invalid credential format received for E2B API Key via integration '{self.integration.name}'. "
-            )
-        api_key = (
-            credentials.get("api_key")
-            or credentials.get("API_KEY")
-            or credentials.get("apiKey")
-        )
-        if not api_key:
-            raise ValueError(
-                f"Invalid credential format received for E2B API Key via integration '{self.integration.name}'. "
-            )
-        self.api_key = api_key
-        logger.info("E2B API Key successfully retrieved via integration.")
 
     def _format_execution_output(self, logs) -> str:
         """Helper function to format the E2B execution logs nicely."""
@@ -79,8 +54,8 @@ class E2BApp(APIApplication):
         Tags:
             execute, sandbox, code-execution, security, important
         """
-        self._set_api_key()
-        with Sandbox(api_key=self.api_key) as sandbox:
+        api_key = self.integration.get_credentials().get("api_key")
+        with Sandbox(api_key=api_key) as sandbox:
             execution = sandbox.run_code(code=code)
             result = self._format_execution_output(execution.logs)
             return result

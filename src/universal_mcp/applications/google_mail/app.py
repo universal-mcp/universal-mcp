@@ -13,21 +13,6 @@ class GoogleMailApp(APIApplication):
         super().__init__(name="google-mail", integration=integration)
         self.base_api_url = "https://gmail.googleapis.com/gmail/v1/users/me"
 
-    def _get_headers(self):
-        if not self.integration:
-            raise ValueError("Integration not configured for GmailApp")
-        credentials = self.integration.get_credentials()
-        if not credentials:
-            logger.warning("No Gmail credentials found via integration.")
-            action = self.integration.authorize()
-            raise NotAuthorizedError(action)
-
-        if "headers" in credentials:
-            return credentials["headers"]
-        return {
-            "Authorization": f"Bearer {credentials['access_token']}",
-            "Content-Type": "application/json",
-        }
 
     def send_email(self, to: str, subject: str, body: str) -> str:
         """

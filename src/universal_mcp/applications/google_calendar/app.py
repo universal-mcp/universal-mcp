@@ -11,16 +11,6 @@ class GoogleCalendarApp(APIApplication):
         super().__init__(name="google-calendar", integration=integration)
         self.base_api_url = "https://www.googleapis.com/calendar/v3/calendars/primary"
 
-    def _get_headers(self):
-        if not self.integration:
-            raise ValueError("Integration not configured for GoogleCalendarApp")
-        credentials = self.integration.get_credentials()
-        if "headers" in credentials:
-            return credentials["headers"]
-        return {
-            "Authorization": f"Bearer {credentials['access_token']}",
-            "Accept": "application/json",
-        }
 
     def _format_datetime(self, dt_string: str) -> str:
         """Format a datetime string from ISO format to a human-readable format.

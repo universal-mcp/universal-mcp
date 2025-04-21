@@ -19,17 +19,6 @@ class WrikeApp(APIApplication):
         super().__init__(name="wrike", integration=integration, **kwargs)
         self.base_url = "https://www.wrike.com/api/v4"
 
-    def _get_headers(self):
-        if not self.integration:
-            raise ValueError("Integration not configured for WrikeApp")
-        credentials = self.integration.get_credentials()
-
-        if "headers" in credentials:
-            return credentials["headers"]
-        return {
-            "Authorization": f"Bearer {credentials['access_token']}",
-            "Content-Type": "application/json",
-        }
 
     def get_contacts(self, deleted=None, fields=None, metadata=None) -> Any:
         """

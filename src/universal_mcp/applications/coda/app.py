@@ -10,37 +10,6 @@ class CodaApp(APIApplication):
     def __init__(self, integration: Integration = None, **kwargs) -> None:
         super().__init__(name="coda", integration=integration, **kwargs)
         self.base_url = "https://coda.io/apis/v1"
-        self.api_key: str | None = None
-
-    def _set_api_key(self):
-        if self.api_key:
-            return
-
-        if not self.integration:
-            raise ValueError("Integration is None. Cannot retrieve Coda API Key.")
-
-        credentials = self.integration.get_credentials()
-        if not credentials:
-            raise ValueError(
-                f"Failed to retrieve Coda API Key using integration '{self.integration.name}'. "
-            )
-        api_key = (
-            credentials.get("api_key")
-            or credentials.get("API_KEY")
-            or credentials.get("apiKey")
-        )
-        if not api_key:
-            raise ValueError("Coda API Key not found in credentials.")
-        self.api_key = api_key
-
-    def _get_headers(self) -> dict[str, str]:
-        self._set_api_key()
-        logger.info(f"Coda API Key: {self.api_key}")
-        return {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        }
 
     def list_categories(
         self,

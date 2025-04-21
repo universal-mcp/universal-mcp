@@ -8,31 +8,7 @@ from universal_mcp.applications.application import APIApplication
 class SerpapiApp(APIApplication):
     def __init__(self, **kwargs):
         super().__init__(name="serpapi", **kwargs)
-        self.api_key: str | None = None
-
-    def _set_api_key(self):
-        if self.api_key is not None:
-            return
-        if not self.integration:
-            raise ValueError("Integration is None. Cannot retrieve SERP API Key.")
-
-        credentials = self.integration.get_credentials()
-        if not credentials:
-            raise ValueError(
-                f"Failed to retrieve SERP API Key using integration '{self.integration.name}'. "
-                f"Check store configuration (e.g., ensure the correct environment variable is set)."
-            )
-        api_key = (
-            credentials.get("api_key")
-            or credentials.get("API_KEY")
-            or credentials.get("apiKey")
-        )
-        if not api_key:
-            raise ValueError(
-                f"Invalid credential format received for SERP API Key via integration '{self.integration.name}'. "
-            )
-        self.api_key = api_key
-        logger.info("SERP API Key successfully retrieved via integration.")
+    
 
     async def search(self, params: dict[str, any] = None) -> str:
         """
@@ -53,9 +29,9 @@ class SerpapiApp(APIApplication):
         """
         if params is None:
             params = {}
-        self._set_api_key()
+        api_key = self.integration.get_credentials().get("api_key")
         params = {
-            "api_key": self.api_key,
+            "api_key": api_key,
             "engine": "google_light",  # Fastest engine by default
             **params,  # Include any additional parameters
         }

@@ -22,20 +22,6 @@ class YoutubeApp(APIApplication):
         super().__init__(name="youtube", integration=integration, **kwargs)
         self.base_url = "https://www.googleapis.com/youtube/v3"
 
-    def _get_headers(self):
-        if not self.integration:
-            raise ValueError("Integration not configured for YoutubeApp")
-        credentials = self.integration.get_credentials()
-        if not credentials:
-            logger.warning("No Google credentials found via integration.")
-            action = self.integration.authorize()
-            raise NotAuthorizedError(action)
-        if "headers" in credentials:
-            return credentials["headers"]
-        return {
-            "Authorization": f"Bearer {credentials['access_token']}",
-            "Content-Type": "application/json",
-        }
 
     def get_jobs_job_reports(
         self,

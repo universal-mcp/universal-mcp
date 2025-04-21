@@ -17,21 +17,6 @@ class GoogleSheetApp(APIApplication):
         super().__init__(name="google-sheet", integration=integration)
         self.base_api_url = "https://sheets.googleapis.com/v4/spreadsheets"
 
-    def _get_headers(self):
-        if not self.integration:
-            raise ValueError("Integration not configured for GoogleSheetsApp")
-        credentials = self.integration.get_credentials()
-        if not credentials:
-            logger.warning("No Google credentials found via integration.")
-            action = self.integration.authorize()
-            raise NotAuthorizedError(action)
-        if "headers" in credentials:
-            return credentials["headers"]
-        return {
-            "Authorization": f"Bearer {credentials['access_token']}",
-            "Content-Type": "application/json",
-        }
-
     def create_spreadsheet(self, title: str) -> dict[str, Any]:
         """
         Creates a new blank Google Spreadsheet with the specified title and returns the API response.

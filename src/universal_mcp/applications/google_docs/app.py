@@ -12,21 +12,6 @@ class GoogleDocsApp(APIApplication):
         super().__init__(name="google-docs", integration=integration)
         self.base_api_url = "https://docs.googleapis.com/v1/documents"
 
-    def _get_headers(self):
-        if not self.integration:
-            raise ValueError("Integration not configured for GoogleDocsApp")
-        credentials = self.integration.get_credentials()
-        if not credentials:
-            logger.warning("No Google credentials found via integration.")
-            action = self.integration.authorize()
-            raise NotAuthorizedError(action)
-        if "headers" in credentials:
-            return credentials["headers"]
-        return {
-            "Authorization": f"Bearer {credentials['access_token']}",
-            "Content-Type": "application/json",
-        }
-
     def create_document(self, title: str) -> dict[str, Any]:
         """
         Creates a new blank Google Document with the specified title and returns the API response.

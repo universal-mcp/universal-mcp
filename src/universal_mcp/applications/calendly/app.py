@@ -19,18 +19,6 @@ class CalendlyApp(APIApplication):
         super().__init__(name="calendly", integration=integration, **kwargs)
         self.base_url = "https://api.calendly.com"
 
-    def _get_headers(self):
-        if not self.integration:
-            raise ValueError("Integration not configured for CalendlyApp")
-        credentials = self.integration.get_credentials()
-
-        if "headers" in credentials:
-            return credentials["headers"]
-        return {
-            "Authorization": f"Bearer {credentials['access_token']}",
-            "Content-Type": "application/json",
-        }
-
     def list_event_invitees(
         self, uuid, status=None, sort=None, email=None, page_token=None, count=None
     ) -> dict[str, Any]:

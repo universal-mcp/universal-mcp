@@ -12,38 +12,6 @@ class PerplexityApp(APIApplication):
         self.api_key: str | None = None
         self.base_url = "https://api.perplexity.ai"
 
-    def _set_api_key(self):
-        if self.api_key:
-            return
-
-        if not self.integration:
-            raise ValueError("Integration is None. Cannot retrieve Perplexity API Key.")
-
-        credentials = self.integration.get_credentials()
-        if not credentials:
-            raise ValueError(
-                f"Failed to retrieve Perplexity API Key using integration '{self.integration.name}'. "
-            )
-        api_key = (
-            credentials.get("api_key")
-            or credentials.get("API_KEY")
-            or credentials.get("apiKey")
-        )
-        if not api_key:
-            raise ValueError(
-                f"Invalid credential format received for Perplexity API Key via integration '{self.integration.name}'. "
-            )
-        self.api_key = api_key
-
-    def _get_headers(self) -> dict[str, str]:
-        self._set_api_key()
-        logger.debug(f"Perplexity API Key: {self.api_key}")
-        return {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        }
-
     def chat(
         self,
         query: str,

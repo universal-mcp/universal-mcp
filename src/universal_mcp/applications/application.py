@@ -31,6 +31,34 @@ class APIApplication(Application):
         self.integration = integration
 
     def _get_headers(self):
+        if not self.integration:
+            return {}
+        credentials = self.integration.get_credentials()
+        
+        # Check if direct headers are provided
+        headers = credentials.get("headers")
+        if headers:
+            return headers
+        
+        # Check if api key is provided
+        api_key = (
+            credentials.get("api_key")
+            or credentials.get("API_KEY")
+            or credentials.get("apiKey")
+        )
+        if api_key:
+            return {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+        
+        # Check if access token is provided
+        access_token = credentials.get("access_token")
+        if access_token:
+            return {
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+            }
         return {}
 
     def _get(self, url, params=None):

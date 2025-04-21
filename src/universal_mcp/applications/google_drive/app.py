@@ -18,21 +18,6 @@ class GoogleDriveApp(APIApplication):
         super().__init__(name="google-drive", integration=integration)
         self.base_url = "https://www.googleapis.com/drive/v3"
 
-    def _get_headers(self):
-        if not self.integration:
-            raise ValueError("Integration not configured for GoogleDriveApp")
-        credentials = self.integration.get_credentials()
-        if not credentials:
-            logger.warning("No Google Drive credentials found via integration.")
-            action = self.integration.authorize()
-            raise NotAuthorizedError(action)
-
-        if "headers" in credentials:
-            return credentials["headers"]
-        return {
-            "Authorization": f"Bearer {credentials['access_token']}",
-            "Content-Type": "application/json",
-        }
 
     def get_drive_info(self) -> dict[str, Any]:
         """
