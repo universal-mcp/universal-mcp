@@ -7,10 +7,10 @@ using LLMs with structured output
 import ast
 import json
 import os
+import re
 import sys
 import textwrap
 import traceback
-import re
 
 import litellm
 from pydantic import BaseModel, Field
@@ -151,7 +151,7 @@ def extract_json_from_text(text):
     if json_match:
         try:
             return json.loads(json_match.group(1))
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError:
             pass
 
     # Try to find the first { and last } for a complete JSON object
@@ -166,7 +166,7 @@ def extract_json_from_text(text):
                     brace_count -= 1
                     if brace_count == 0:
                         return json.loads(text[start:i+1])
-    except json.JSONDecodeError as e:
+    except json.JSONDecodeError:
         pass
     
     try:
