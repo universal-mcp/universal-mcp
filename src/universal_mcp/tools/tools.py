@@ -4,16 +4,16 @@ import inspect
 from collections.abc import Callable
 from typing import Any, Literal
 
+import httpx
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from universal_mcp.analytics import analytics
 from universal_mcp.applications.application import Application
 from universal_mcp.exceptions import NotAuthorizedError, ToolError
 from universal_mcp.utils.docstring_parser import parse_docstring
-import httpx
 
 from .func_metadata import FuncMetadata
-from universal_mcp.analytics import analytics
 
 
 def convert_tool_to_openai_tool(

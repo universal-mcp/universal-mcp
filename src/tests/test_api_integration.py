@@ -1,8 +1,10 @@
 import pytest
+
 from universal_mcp.applications.perplexity.app import PerplexityApp
 from universal_mcp.exceptions import NotAuthorizedError
 from universal_mcp.integrations import ApiKeyIntegration
 from universal_mcp.stores import MemoryStore
+
 
 def test_perplexity_api_no_key():
     # Create a memory store

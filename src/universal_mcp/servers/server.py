@@ -1,6 +1,7 @@
 import os
 from abc import ABC, abstractmethod
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 from urllib.parse import urlparse
 
 import httpx
@@ -8,12 +9,12 @@ from loguru import logger
 from mcp.server.fastmcp import FastMCP
 from mcp.types import TextContent
 
+from universal_mcp.analytics import analytics
 from universal_mcp.applications import Application, app_from_slug
 from universal_mcp.config import AppConfig, ServerConfig, StoreConfig
 from universal_mcp.integrations import AgentRIntegration, integration_from_config
 from universal_mcp.stores import BaseStore, store_from_config
 from universal_mcp.tools.tools import ToolManager
-from universal_mcp.analytics import analytics
 
 
 class BaseServer(FastMCP, ABC):

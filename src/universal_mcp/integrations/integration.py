@@ -106,9 +106,9 @@ class ApiKeyIntegration(Integration):
         """
         try:
             credentials = self.store.get(self.name)
-        except KeyNotFoundError:
+        except KeyNotFoundError as e:
             action = self.authorize()
-            raise NotAuthorizedError(action)
+            raise NotAuthorizedError(action) from e
         return {"api_key": credentials}
 
     def set_credentials(self, credentials: dict[str, Any]) -> None:
