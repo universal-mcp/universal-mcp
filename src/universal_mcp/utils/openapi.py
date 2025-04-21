@@ -224,8 +224,11 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
                 name_parts.append(part)
         func_name = "_".join(name_parts).replace("-", "_").lower()
     
-    func_name = re.sub(r'_a([^_])', r'_a_\1', func_name)  # Fix for patterns like retrieve_ablock
-    func_name = re.sub(r'_an([^_])', r'_an_\1', func_name)  # Fix for patterns like create_anitem
+    # Only fix isolated 'a' and 'an' as articles, not when they're part of words
+    func_name = re.sub(r'_a([^_a-z])', r'_a_\1', func_name)  # Fix for patterns like retrieve_ablock -> retrieve_a_block
+    func_name = re.sub(r'_a$', r'_a', func_name)  # Don't change if 'a' is at the end of the name
+    func_name = re.sub(r'_an([^_a-z])', r'_an_\1', func_name)  # Fix for patterns like create_anitem -> create_an_item
+    func_name = re.sub(r'_an$', r'_an', func_name)  # Don't change if 'an' is at the end of the name
 
     # Get parameters and request body
     # Filter out header parameters
