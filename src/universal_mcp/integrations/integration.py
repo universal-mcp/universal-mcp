@@ -6,6 +6,7 @@ from loguru import logger
 
 from universal_mcp.exceptions import NotAuthorizedError
 from universal_mcp.stores import BaseStore
+from universal_mcp.stores.store import KeyNotFoundError
 
 
 def sanitize_api_key_name(name: str) -> str:
@@ -103,8 +104,9 @@ class ApiKeyIntegration(Integration):
         Raises:
             NotAuthorizedError: If API key is not found.
         """
-        credentials = self.store.get(self.name)
-        if credentials is None:
+        try:
+            credentials = self.store.get(self.name)
+        except KeyNotFoundError:
             action = self.authorize()
             raise NotAuthorizedError(action)
         return {"api_key": credentials}

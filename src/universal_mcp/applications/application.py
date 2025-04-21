@@ -27,6 +27,7 @@ class APIApplication(Application):
 
     def __init__(self, name: str, integration: Integration = None, **kwargs):
         super().__init__(name, **kwargs)
+        self.default_timeout = 30
         self.integration = integration
 
     def _get_headers(self):
@@ -35,7 +36,7 @@ class APIApplication(Application):
     def _get(self, url, params=None):
         try:
             headers = self._get_headers()
-            response = httpx.get(url, headers=headers, params=params)
+            response = httpx.get(url, headers=headers, params=params, timeout=self.default_timeout)
             response.raise_for_status()
             return response
         except NotAuthorizedError as e:
@@ -48,7 +49,7 @@ class APIApplication(Application):
     def _post(self, url, data, params=None):
         try:
             headers = self._get_headers()
-            response = httpx.post(url, headers=headers, json=data, params=params)
+            response = httpx.post(url, headers=headers, json=data, params=params, timeout=self.default_timeout)
             response.raise_for_status()
             return response
         except NotAuthorizedError as e:
@@ -66,7 +67,7 @@ class APIApplication(Application):
     def _put(self, url, data, params=None):
         try:
             headers = self._get_headers()
-            response = httpx.put(url, headers=headers, json=data, params=params)
+            response = httpx.put(url, headers=headers, json=data, params=params, timeout=self.default_timeout)
             response.raise_for_status()
             return response
         except NotAuthorizedError as e:
@@ -79,7 +80,7 @@ class APIApplication(Application):
     def _delete(self, url, params=None):
         try:
             headers = self._get_headers()
-            response = httpx.delete(url, headers=headers, params=params)
+            response = httpx.delete(url, headers=headers, params=params, timeout=self.default_timeout)
             response.raise_for_status()
             return response
         except NotAuthorizedError as e:
@@ -92,7 +93,7 @@ class APIApplication(Application):
     def _patch(self, url, data, params=None):
         try:
             headers = self._get_headers()
-            response = httpx.patch(url, headers=headers, json=data, params=params)
+            response = httpx.patch(url, headers=headers, json=data, params=params, timeout=self.default_timeout)
             response.raise_for_status()
             return response
         except NotAuthorizedError as e:

@@ -1,6 +1,6 @@
 import os
 from abc import ABC, abstractmethod
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable
 from urllib.parse import urlparse
 
 import httpx
@@ -32,8 +32,8 @@ class BaseServer(FastMCP, ABC):
         logger.info(f"Initializing server: {config.name} with store: {config.store}")
         
         self.config = config  # Store config at base level for consistency
-        self.store = self._setup_store(config.store)
         self._tool_manager = ToolManager(warn_on_duplicate_tools=True)
+        self.store = self._setup_store(config.store)
         self._load_apps()
 
     def _setup_store(self, store_config: StoreConfig | None) -> BaseStore | None:
