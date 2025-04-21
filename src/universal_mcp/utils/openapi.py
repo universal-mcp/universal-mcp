@@ -2,7 +2,6 @@ import json
 import re
 from pathlib import Path
 from typing import Any
-import re
 
 import yaml
 
@@ -370,10 +369,8 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
                         optional_args.append(f"{prop_name}=None")
     
     # If request body is present but empty (content: {}), add a generic request_body parameter
-    if has_empty_body:
-        # Only add if it's not already in the optional arguments
-        if "request_body=None" not in optional_args:
-            optional_args.append("request_body=None")
+    if has_empty_body and "request_body=None" not in optional_args:
+        optional_args.append("request_body=None")
 
     # Combine required and optional arguments
     args = required_args + optional_args

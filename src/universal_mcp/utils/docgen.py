@@ -10,6 +10,7 @@ import os
 import sys
 import textwrap
 import traceback
+import re
 
 import litellm
 from pydantic import BaseModel, Field
@@ -150,7 +151,7 @@ def extract_json_from_text(text):
     if json_match:
         try:
             return json.loads(json_match.group(1))
-        except:
+        except json.JSONDecodeError as e:
             pass
 
     # Try to find the first { and last } for a complete JSON object
@@ -165,13 +166,13 @@ def extract_json_from_text(text):
                     brace_count -= 1
                     if brace_count == 0:
                         return json.loads(text[start:i+1])
-    except:
+    except json.JSONDecodeError as e:
         pass
     
     try:
         return json.loads(text)
-    except:
-        raise ValueError("Could not extract valid JSON from the response")
+    except json.JSONDecodeError as e:
+        raise ValueError("Could not extract valid JSON from the response") from e
 
 
 def generate_docstring(
