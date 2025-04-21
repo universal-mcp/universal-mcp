@@ -10,8 +10,7 @@ from mcp.types import TextContent
 
 from universal_mcp.applications import Application, app_from_slug
 from universal_mcp.config import AppConfig, ServerConfig, StoreConfig
-from universal_mcp.exceptions import NotAuthorizedError, ToolError
-from universal_mcp.integrations import integration_from_config
+from universal_mcp.integrations import AgentRIntegration, integration_from_config
 from universal_mcp.stores import BaseStore, store_from_config
 from universal_mcp.tools.tools import ToolManager
 
@@ -33,25 +32,7 @@ class BaseServer(FastMCP, ABC):
         
         self.config = config  # Store config at base level for consistency
         self._tool_manager = ToolManager(warn_on_duplicate_tools=True)
-        self.store = self._setup_store(config.store)
         self._load_apps()
-
-    def _setup_store(self, store_config: StoreConfig | None) -> BaseStore | None:
-        """Setup and configure the store.
-        
-        Args:
-            store_config: Store configuration
-            
-        Returns:
-            Configured store instance or None if no config provided
-        """
-        if not store_config:
-            return None
-            
-        store = store_from_config(store_config)
-        self.add_tool(store.set)
-        self.add_tool(store.delete)
-        return store
 
     @abstractmethod
     def _load_apps(self) -> None:
@@ -105,26 +86,9 @@ class BaseServer(FastMCP, ABC):
             ToolError: If tool execution fails
         """
         logger.info(f"Calling tool: {name} with arguments: {arguments}")
-        try:
-            result = await self._tool_manager.call_tool(name, arguments)
-            logger.info(f"Tool '{name}' completed successfully")
-            return self._format_tool_result(result)
-
-        except ToolError as e:
-            if isinstance(e.__cause__, NotAuthorizedError):
-                message = f"Not authorized to call tool {name}: {e.__cause__.message}"
-                logger.warning(message)
-                return [TextContent(type="text", text=message)]
-            elif isinstance(e.__cause__, httpx.HTTPError):
-                message = f"HTTP error calling tool {name}: {str(e.__cause__)}"
-                logger.error(message)
-                return [TextContent(type="text", text=message)]
-            elif isinstance(e.__cause__, ValueError):
-                message = f"Invalid arguments for tool {name}: {str(e.__cause__)}"
-                logger.error(message)
-                return [TextContent(type="text", text=message)]
-            logger.error(f"Error calling tool {name}: {str(e)}", exc_info=True)
-            raise
+        result = await self._tool_manager.call_tool(name, arguments)
+        logger.info(f"Tool '{name}' completed successfully")
+        return self._format_tool_result(result)
 
 
 class LocalServer(BaseServer):
@@ -137,6 +101,25 @@ class LocalServer(BaseServer):
 
     def __init__(self, config: ServerConfig, **kwargs):
         super().__init__(config, **kwargs)
+        self.store = self._setup_store(config.store)
+    
+    def _setup_store(self, store_config: StoreConfig | None) -> BaseStore | None:
+        """Setup and configure the store.
+        
+        Args:
+            store_config: Store configuration
+            
+        Returns:
+            Configured store instance or None if no config provided
+        """
+        if not store_config:
+            return None
+            
+        store = store_from_config(store_config)
+        self.add_tool(store.set)
+        self.add_tool(store.delete)
+        return store
+
 
     def _load_app(self, app_config: AppConfig) -> Application | None:
         """Load a single application with its integration.
@@ -185,6 +168,10 @@ class AgentRServer(BaseServer):
         parsed = urlparse(self.base_url)
         if not all([parsed.scheme, parsed.netloc]):
             raise ValueError(f"Invalid base URL format: {self.base_url}")
+        self.integration = AgentRIntegration(
+                name="agentr",
+                api_key=self.api_key
+            )
 
         super().__init__(config, **kwargs)
         
@@ -219,10 +206,10 @@ class AgentRServer(BaseServer):
             Configured application instance or None if loading fails
         """
         try:
-            integration = integration_from_config(
-                app_config.integration,
+            integration = AgentRIntegration(
+                name=app_config.integration.name,
                 api_key=self.api_key
-            )
+            ) if app_config.integration else None
             return app_from_slug(app_config.name)(integration=integration)
         except Exception as e:
             logger.error(f"Failed to load app {app_config.name}: {e}", exc_info=True)

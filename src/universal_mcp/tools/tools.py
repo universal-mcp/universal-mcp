@@ -8,11 +8,24 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 from universal_mcp.applications.application import Application
-from universal_mcp.exceptions import ToolError
+from universal_mcp.exceptions import NotAuthorizedError, ToolError
 from universal_mcp.utils.docstring_parser import parse_docstring
+import httpx
 
 from .func_metadata import FuncMetadata
 
+
+def convert_tool_to_openai_tool(
+    tool: Tool,
+):
+    return {
+        "type": "function",
+        "function": {
+            "name": tool.name,
+            "description": tool.description,
+            "parameters": tool.parameters,
+        }
+    }
 
 def convert_tool_to_mcp_tool(
     tool: Tool,
@@ -24,7 +37,6 @@ def convert_tool_to_mcp_tool(
         inputSchema=tool.parameters,
     )
 
-# MODIFY THIS FUNCTION:
 def convert_tool_to_langchain_tool(
     tool: Tool,
 ):
@@ -145,6 +157,15 @@ class Tool(BaseModel):
                 arguments,
                 None
             )
+        except NotAuthorizedError as e:
+            message = f"Not authorized to call tool {self.name}: {e.message}"
+            return message
+        except httpx.HTTPError as e:
+            message = f"HTTP error calling tool {self.name}: {str(e)}"
+            raise ToolError(message) from e
+        except ValueError as e:
+            message = f"Invalid arguments for tool {self.name}: {e}"
+            raise ToolError(message) from e
         except Exception as e:
             raise ToolError(f"Error executing tool {self.name}: {e}") from e
         
@@ -159,12 +180,14 @@ class ToolManager:
         """Get tool by name."""
         return self._tools.get(name)
 
-    def list_tools(self, format: Literal["mcp", "langchain"] = "mcp") -> list[Tool]:
+    def list_tools(self, format: Literal["mcp", "langchain", "openai"] = "mcp") -> list[Tool]:
         """List all registered tools."""
         if format == "mcp":
             return [convert_tool_to_mcp_tool(tool) for tool in self._tools.values()]
         elif format == "langchain":
             return [convert_tool_to_langchain_tool(tool) for tool in self._tools.values()]
+        elif format == "openai":
+            return [convert_tool_to_openai_tool(tool) for tool in self._tools.values()]
         else:
             raise ValueError(f"Invalid format: {format}")
 
@@ -197,8 +220,10 @@ class ToolManager:
         tool = self.get_tool(name)
         if not tool:
             raise ToolError(f"Unknown tool: {name}")
-
-        return await tool.run(arguments)
+        result = await tool.run(arguments)
+        return result
+        
+        
 
     def get_tools_by_tags(self, tags: list[str]) -> list[Tool]:
         """Get tools by tags."""
