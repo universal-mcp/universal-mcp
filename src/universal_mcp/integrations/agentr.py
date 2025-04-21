@@ -43,7 +43,34 @@ class AgentRIntegration(Integration):
             str: Authorization URL from authorize() method
         """
         return self.authorize()
-        # raise NotImplementedError("AgentR Integration does not support setting credentials. Visit the authorize url to set credentials.")
+
+    @property
+    def credentials(self):
+        """Get credentials for the integration from the AgentR API.
+
+        Makes API request to retrieve stored credentials for this integration.
+
+        Returns:
+            dict: Credentials data from API response
+
+        Raises:
+            NotAuthorizedError: If credentials are not found (404 response)
+            HTTPError: For other API errors
+        """
+        if self._credentials is not None:
+            return self._credentials
+        response = httpx.get(
+            f"{self.base_url}/api/{self.name}/credentials/",
+            headers={"accept": "application/json", "X-API-KEY": self.api_key},
+        )
+        if response.status_code == 404:
+            logger.warning(f"No credentials found for {self.name}. Requesting authorization...")
+            action = self.authorize()
+            raise NotAuthorizedError(action)
+        response.raise_for_status()
+        data = response.json()
+        self._credentials = data
+        return self._credentials
 
     def get_credentials(self):
         """Get credentials for the integration from the AgentR API.
@@ -57,17 +84,7 @@ class AgentRIntegration(Integration):
             NotAuthorizedError: If credentials are not found (404 response)
             HTTPError: For other API errors
         """
-        response = httpx.get(
-            f"{self.base_url}/api/{self.name}/credentials/",
-            headers={"accept": "application/json", "X-API-KEY": self.api_key},
-        )
-        if response.status_code == 404:
-            logger.warning(f"No credentials found for {self.name}. Requesting authorization...")
-            action = self.authorize()
-            raise NotAuthorizedError(action)
-        response.raise_for_status()
-        data = response.json()
-        return data
+        return self.credentials
 
     def authorize(self):
         """Get authorization URL for the integration.

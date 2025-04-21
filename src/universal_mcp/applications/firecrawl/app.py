@@ -17,7 +17,6 @@ class FirecrawlApp(APIApplication):
         super().__init__(name="firecrawl", integration=integration)
 
     
-
     def _get_client(self) -> FirecrawlApiClient:
         """Initializes and returns the Firecrawl client after ensuring API key is set."""
         api_key = self.integration.get_credentials().get("api_key")
