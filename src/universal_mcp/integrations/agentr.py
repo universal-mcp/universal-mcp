@@ -30,6 +30,7 @@ class AgentRIntegration(Integration):
             )
             raise ValueError("AgentR API key required - get one at https://agentr.dev")
         self.base_url = os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
+        self._credentials = None
 
     def set_credentials(self, credentials: dict | None = None):
         """Set credentials for the integration.
