@@ -73,27 +73,27 @@ def determine_return_type(operation: dict[str, Any]) -> str:
 def resolve_schema_reference(reference, schema):
     """
     Resolve a JSON schema reference to its target schema.
-    
+
     Args:
         reference (str): The reference string (e.g., '#/components/schemas/User')
         schema (dict): The complete OpenAPI schema that contains the reference
-        
+
     Returns:
         dict: The resolved schema, or None if not found
     """
-    if not reference.startswith('#/'):
+    if not reference.startswith("#/"):
         return None
-    
+
     # Split the reference path and navigate through the schema
-    parts = reference[2:].split('/')
+    parts = reference[2:].split("/")
     current = schema
-    
+
     for part in parts:
         if part in current:
             current = current[part]
         else:
             return None
-    
+
     return current
 
 
@@ -206,8 +206,8 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
         tuple: (method_code, func_name) - The Python code for the method and its name.
     """
     # Extract path parameters from the URL path
-    path_params_in_url = re.findall(r'{([^}]+)}', path)
-    
+    path_params_in_url = re.findall(r"{([^}]+)}", path)
+
     # Determine function name
     if "operationId" in operation:
         raw_name = operation["operationId"]
@@ -223,12 +223,20 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
             else:
                 name_parts.append(part)
         func_name = "_".join(name_parts).replace("-", "_").lower()
-    
+
     # Only fix isolated 'a' and 'an' as articles, not when they're part of words
-    func_name = re.sub(r'_a([^_a-z])', r'_a_\1', func_name)  # Fix for patterns like retrieve_ablock -> retrieve_a_block
-    func_name = re.sub(r'_a$', r'_a', func_name)  # Don't change if 'a' is at the end of the name
-    func_name = re.sub(r'_an([^_a-z])', r'_an_\1', func_name)  # Fix for patterns like create_anitem -> create_an_item
-    func_name = re.sub(r'_an$', r'_an', func_name)  # Don't change if 'an' is at the end of the name
+    func_name = re.sub(
+        r"_a([^_a-z])", r"_a_\1", func_name
+    )  # Fix for patterns like retrieve_ablock -> retrieve_a_block
+    func_name = re.sub(
+        r"_a$", r"_a", func_name
+    )  # Don't change if 'a' is at the end of the name
+    func_name = re.sub(
+        r"_an([^_a-z])", r"_an_\1", func_name
+    )  # Fix for patterns like create_anitem -> create_an_item
+    func_name = re.sub(
+        r"_an$", r"_an", func_name
+    )  # Don't change if 'an' is at the end of the name
 
     # Get parameters and request body
     # Resolve parameter references before processing
@@ -240,13 +248,15 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
             if ref_param:
                 resolved_parameters.append(ref_param)
             else:
-                print(f"Warning: Could not resolve parameter reference: {param['$ref']}")
+                print(
+                    f"Warning: Could not resolve parameter reference: {param['$ref']}"
+                )
         else:
             resolved_parameters.append(param)
-    
+
     # Filter out header parameters from the resolved parameters
     parameters = [param for param in resolved_parameters if param.get("in") != "header"]
-    
+
     has_body = "requestBody" in operation
     body_required = has_body and operation["requestBody"].get("required", False)
 
@@ -254,22 +264,29 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
     has_empty_body = False
     if has_body:
         request_body_content = operation["requestBody"].get("content", {})
-        if not request_body_content or all(not content for content_type, content in request_body_content.items()):
+        if not request_body_content or all(
+            not content for content_type, content in request_body_content.items()
+        ):
             has_empty_body = True
         else:
             # Handle empty properties with additionalProperties:true
             for content_type, content in request_body_content.items():
                 if content_type.startswith("application/json") and "schema" in content:
                     schema = content["schema"]
-                    
+
                     # Resolve schema reference if present
                     if "$ref" in schema:
-                        ref_schema = resolve_schema_reference(schema["$ref"], full_schema)
+                        ref_schema = resolve_schema_reference(
+                            schema["$ref"], full_schema
+                        )
                         if ref_schema:
                             schema = ref_schema
-                    
+
                     # Check if properties is empty and additionalProperties is true
-                    if schema.get("type") == "object" and schema.get("additionalProperties", False) is True:
+                    if (
+                        schema.get("type") == "object"
+                        and schema.get("additionalProperties", False) is True
+                    ):
                         properties = schema.get("properties", {})
                         if not properties or len(properties) == 0:
                             has_empty_body = True
@@ -279,25 +296,29 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
     request_body_properties = {}
     is_array_body = False
     array_items_schema = None
-    
+
     if has_body:
-        for content_type, content in operation["requestBody"].get("content", {}).items():
+        for content_type, content in (
+            operation["requestBody"].get("content", {}).items()
+        ):
             if content_type.startswith("application/json") and "schema" in content:
                 schema = content["schema"]
-                
+
                 # Resolve schema reference if present
                 if "$ref" in schema:
                     ref_schema = resolve_schema_reference(schema["$ref"], full_schema)
                     if ref_schema:
                         schema = ref_schema
-                
+
                 # Check if the schema is an array type
                 if schema.get("type") == "array":
                     is_array_body = True
                     array_items_schema = schema.get("items", {})
                     # Try to resolve any reference in items
                     if "$ref" in array_items_schema:
-                        array_items_schema = resolve_schema_reference(array_items_schema["$ref"], full_schema)
+                        array_items_schema = resolve_schema_reference(
+                            array_items_schema["$ref"], full_schema
+                        )
                 else:
                     # Extract required fields from schema
                     if "required" in schema:
@@ -305,23 +326,27 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
                     # Extract properties from schema
                     if "properties" in schema:
                         request_body_properties = schema["properties"]
-                        
+
                         # Check for nested references in properties
                         for prop_name, prop_schema in request_body_properties.items():
                             if "$ref" in prop_schema:
-                                ref_prop_schema = resolve_schema_reference(prop_schema["$ref"], full_schema)
+                                ref_prop_schema = resolve_schema_reference(
+                                    prop_schema["$ref"], full_schema
+                                )
                                 if ref_prop_schema:
                                     request_body_properties[prop_name] = ref_prop_schema
-                
+
                 # Handle schemas with empty properties but additionalProperties: true
                 # by treating them similar to empty bodies
-                if (not request_body_properties or len(request_body_properties) == 0) and schema.get("additionalProperties") is True:
+                if (
+                    not request_body_properties or len(request_body_properties) == 0
+                ) and schema.get("additionalProperties") is True:
                     has_empty_body = True
 
     # Build function arguments
     required_args = []
     optional_args = []
-    
+
     # Add path parameters
     for param_name in path_params_in_url:
         if param_name not in required_args:
@@ -330,12 +355,12 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
     # Add query parameters
     for param in parameters:
         param_name = param["name"]
-        if param_name not in required_args:  
+        if param_name not in required_args:
             if param.get("required", False):
                 required_args.append(param_name)
             else:
                 optional_args.append(f"{param_name}=None")
-    
+
     # Handle array type request body differently
     request_body_params = []
     if has_body:
@@ -347,13 +372,13 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
                 array_param_name = func_name.replace("_list_input", "")
             elif "List" in func_name:
                 array_param_name = func_name.split("List")[0].lower() + "_list"
-            
+
             # Make the array parameter required if the request body is required
             if body_required:
                 required_args.append(array_param_name)
             else:
                 optional_args.append(f"{array_param_name}=None")
-            
+
             # Remember this is an array param
             request_body_params = [array_param_name]
         elif request_body_properties:
@@ -367,7 +392,7 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
                     request_body_params.append(prop_name)
                     if f"{prop_name}=None" not in optional_args:
                         optional_args.append(f"{prop_name}=None")
-    
+
     # If request body is present but empty (content: {}), add a generic request_body parameter
     if has_empty_body and "request_body=None" not in optional_args:
         optional_args.append("request_body=None")
@@ -398,18 +423,19 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
             body_lines.append(f"        request_body = {request_body_params[0]}")
         elif request_body_properties:
             # For object request bodies, build the request body from individual parameters
-            
+
             body_lines.append("        request_body = {")
-            
+
             for prop_name in request_body_params:
                 # Only include non-None values in the request body
                 body_lines.append(f"            '{prop_name}': {prop_name},")
-            
+
             body_lines.append("        }")
-            
-            
-            body_lines.append("        request_body = {k: v for k, v in request_body.items() if v is not None}")
-    
+
+            body_lines.append(
+                "        request_body = {k: v for k, v in request_body.items() if v is not None}"
+            )
+
     # Format URL directly with path parameters
     url_line = f'        url = f"{{self.base_url}}{path}"'
     body_lines.append(url_line)
@@ -428,7 +454,7 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
 
     # Make HTTP request using the proper method
     method_lower = method.lower()
-    
+
     # Determine what to use as the request body argument
     if has_empty_body:
         request_body_arg = "request_body"
@@ -436,19 +462,27 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
         request_body_arg = "{}"
     else:
         request_body_arg = "request_body"
-    
+
     if method_lower == "get":
         body_lines.append("        response = self._get(url, params=query_params)")
     elif method_lower == "post":
-        body_lines.append(f"        response = self._post(url, data={request_body_arg}, params=query_params)")
+        body_lines.append(
+            f"        response = self._post(url, data={request_body_arg}, params=query_params)"
+        )
     elif method_lower == "put":
-        body_lines.append(f"        response = self._put(url, data={request_body_arg}, params=query_params)")
+        body_lines.append(
+            f"        response = self._put(url, data={request_body_arg}, params=query_params)"
+        )
     elif method_lower == "patch":
-        body_lines.append(f"        response = self._patch(url, data={request_body_arg}, params=query_params)")
+        body_lines.append(
+            f"        response = self._patch(url, data={request_body_arg}, params=query_params)"
+        )
     elif method_lower == "delete":
         body_lines.append("        response = self._delete(url, params=query_params)")
     else:
-        body_lines.append(f"        response = self._{method_lower}(url, data={request_body_arg}, params=query_params)")
+        body_lines.append(
+            f"        response = self._{method_lower}(url, data={request_body_arg}, params=query_params)"
+        )
 
     # Handle response
     body_lines.append("        response.raise_for_status()")

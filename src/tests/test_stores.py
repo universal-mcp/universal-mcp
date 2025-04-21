@@ -35,6 +35,7 @@ class TestMemoryStore:
         with pytest.raises(KeyNotFoundError):
             store.delete("nonexistent_key")
 
+
 # Test EnvironmentStore
 class TestEnvironmentStore:
     @pytest.fixture
@@ -63,6 +64,7 @@ class TestEnvironmentStore:
     def test_delete_nonexistent_key(self, store):
         with pytest.raises(KeyNotFoundError):
             store.delete("NONEXISTENT_ENV_KEY")
+
 
 # Test KeyringStore
 class TestKeyringStore:

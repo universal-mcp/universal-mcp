@@ -7,7 +7,6 @@ from universal_mcp.integrations import Integration
 
 
 class GithubApp(APIApplication):
-
     APP_TAGS: ClassVar[list[str]] = ["developers-tools"]
 
     def __init__(self, integration: Integration) -> None:
@@ -28,17 +27,17 @@ class GithubApp(APIApplication):
     def star_repository(self, repo_full_name: str) -> str:
         """
         Stars a GitHub repository using the GitHub API and returns a status message.
-        
+
         Args:
             repo_full_name: The full name of the repository in 'owner/repo' format (e.g., 'octocat/Hello-World')
-        
+
         Returns:
             A string message indicating whether the starring operation was successful, the repository was not found, or an error occurred
-        
+
         Raises:
             RequestException: If there are network connectivity issues or API request failures
             ValueError: If the repository name format is invalid
-        
+
         Tags:
             star, github, api, action, social, repository, important
         """
@@ -55,17 +54,17 @@ class GithubApp(APIApplication):
     def list_commits(self, repo_full_name: str) -> str:
         """
         Retrieves and formats a list of recent commits from a GitHub repository
-        
+
         Args:
             repo_full_name: The full name of the repository in 'owner/repo' format
-        
+
         Returns:
             A formatted string containing the most recent 12 commits, including commit hash, message, and author
-        
+
         Raises:
             requests.exceptions.HTTPError: When the GitHub API request fails (e.g., repository not found, rate limit exceeded)
             requests.exceptions.RequestException: When network issues or other request-related problems occur
-        
+
         Tags:
             list, read, commits, github, history, api, important
         """
@@ -88,17 +87,17 @@ class GithubApp(APIApplication):
     def list_branches(self, repo_full_name: str) -> str:
         """
         Lists all branches for a specified GitHub repository and returns them in a formatted string representation.
-        
+
         Args:
             repo_full_name: The full name of the repository in 'owner/repo' format (e.g., 'octocat/Hello-World')
-        
+
         Returns:
             A formatted string containing the list of branches, or a message indicating no branches were found
-        
+
         Raises:
             HTTPError: When the GitHub API request fails (e.g., repository not found, authentication error)
             RequestException: When there are network connectivity issues or API communication problems
-        
+
         Tags:
             list, branches, github, read, api, repository, important
         """
@@ -118,17 +117,17 @@ class GithubApp(APIApplication):
     def list_pull_requests(self, repo_full_name: str, state: str = "open") -> str:
         """
         Retrieves and formats a list of pull requests for a specified GitHub repository.
-        
+
         Args:
             repo_full_name: The full name of the repository in the format 'owner/repo' (e.g., 'tensorflow/tensorflow')
             state: Filter for pull request state. Can be 'open', 'closed', or 'all'. Defaults to 'open'
-        
+
         Returns:
             A formatted string containing the list of pull requests, including PR number, title, author, and status. Returns a message if no pull requests are found.
-        
+
         Raises:
             HTTPError: Raised when the GitHub API request fails (e.g., invalid repository name, rate limiting, or authentication issues)
-        
+
         Tags:
             list, pull-request, github, api, read, important, fetch, query
         """
@@ -163,7 +162,7 @@ class GithubApp(APIApplication):
     ) -> list[dict[str, Any]]:
         """
         Retrieves a list of issues from a specified GitHub repository with optional filtering parameters.
-        
+
         Args:
             repo_full_name: The full name of the repository in 'owner/repo' format
             state: Filter issues by state ('open', 'closed', 'all'). Defaults to 'open'
@@ -171,14 +170,14 @@ class GithubApp(APIApplication):
             labels: Comma-separated string of label names to filter by (e.g., 'bug,ui,@high')
             per_page: Number of results per page (max 100). Defaults to 30
             page: Page number for pagination. Defaults to 1
-        
+
         Returns:
             List of dictionaries containing issue data from the GitHub API response
-        
+
         Raises:
             HTTPError: When the GitHub API request fails (e.g., invalid repository name, authentication failure)
             RequestException: When there are network connectivity issues or other request-related problems
-        
+
         Tags:
             list, issues, github, api, read, filter, pagination, important, project-management
         """
@@ -196,18 +195,18 @@ class GithubApp(APIApplication):
     def get_pull_request(self, repo_full_name: str, pull_number: int) -> str:
         """
         Retrieves and formats detailed information about a specific GitHub pull request from a repository
-        
+
         Args:
             repo_full_name: The full repository name in 'owner/repo' format (e.g., 'octocat/Hello-World')
             pull_number: The numeric identifier of the pull request to retrieve
-        
+
         Returns:
             A formatted string containing pull request details including title, creator, status, and description
-        
+
         Raises:
             HTTPError: Raised when the GitHub API request fails (e.g., invalid repository name, non-existent PR number, or authentication issues)
             RequestException: Raised when there are network connectivity issues or other request-related problems
-        
+
         Tags:
             get, read, github, pull-request, api, fetch, format, important
         """
@@ -242,7 +241,7 @@ class GithubApp(APIApplication):
     ) -> dict[str, Any]:
         """
         Creates a new pull request in a GitHub repository, optionally converting an existing issue into a pull request.
-        
+
         Args:
             repo_full_name: The full name of the repository (e.g. 'owner/repo')
             head: The name of the branch where your changes are implemented
@@ -252,14 +251,14 @@ class GithubApp(APIApplication):
             issue: An issue number to convert to a pull request. If specified, the issue's title, body, and comments will be used
             maintainer_can_modify: Indicates whether maintainers can modify the pull request
             draft: Indicates whether the pull request is a draft
-        
+
         Returns:
             A dictionary containing the complete GitHub API response
-        
+
         Raises:
             ValueError: Raised when neither 'title' nor 'issue' parameter is specified
             HTTPError: Raised when the GitHub API request fails
-        
+
         Tags:
             create, pull-request, github, api, write, important
         """
@@ -288,19 +287,19 @@ class GithubApp(APIApplication):
     ) -> str:
         """
         Creates a new issue in a specified GitHub repository with a title, body content, and optional labels.
-        
+
         Args:
             repo_full_name: The full name of the repository in 'owner/repo' format
             title: The title of the issue
             body: The contents/description of the issue (defaults to empty string)
             labels: Labels to associate with the issue, as a comma-separated string or list. Only users with push access can set labels
-        
+
         Returns:
             A string containing a confirmation message with the issue number, title, and URL
-        
+
         Raises:
             HTTPError: When the GitHub API request fails (e.g., invalid repository name, authentication issues, or insufficient permissions)
-        
+
         Tags:
             create, issues, github, api, project-management, write, important
         """
@@ -331,19 +330,19 @@ class GithubApp(APIApplication):
     ) -> str:
         """
         Retrieves and formats a list of activities for a specified GitHub repository.
-        
+
         Args:
             repo_full_name: The full name of the repository in 'owner/repo' format
             direction: The sort direction for results ('asc' or 'desc'). Defaults to 'desc'
             per_page: Number of activities to return per page (1-100). Defaults to 30
-        
+
         Returns:
             A formatted string containing a list of repository activities, including timestamps and actor names. Returns a 'No activities' message if no activities are found.
-        
+
         Raises:
             HTTPError: Raised when the GitHub API request fails
             ValueError: May be raised if repo_full_name is invalid or empty after stripping
-        
+
         Tags:
             list, activity, github, read, events, api, query, format
         """
@@ -379,7 +378,7 @@ class GithubApp(APIApplication):
     ) -> dict[str, Any]:
         """
         Updates an existing GitHub issue with specified parameters including title, body, assignee, state, and state reason.
-        
+
         Args:
             repo_full_name: The full name of the repository in 'owner/repo' format
             issue_number: The unique identifier number of the issue to update
@@ -388,14 +387,14 @@ class GithubApp(APIApplication):
             assignee: GitHub username to assign to the issue (optional)
             state: The desired state of the issue ('open' or 'closed') (optional)
             state_reason: The reason for state change ('completed', 'not_planned', 'reopened', or null) (optional)
-        
+
         Returns:
             A dictionary containing the complete GitHub API response with updated issue details
-        
+
         Raises:
             HTTPError: Raised when the GitHub API request fails (e.g., invalid repository, non-existent issue, insufficient permissions)
             RequestException: Raised when there's a network error or API connectivity issue
-        
+
         Tags:
             github, issues, update, api, project-management, write, important
         """

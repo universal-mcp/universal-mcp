@@ -60,23 +60,22 @@ class E2BApp(APIApplication):
         return "\n\n".join(output_parts)
 
     def execute_python_code(
-        self, 
-        code: Annotated[str, "The Python code to execute."]
-        ) -> str:
+        self, code: Annotated[str, "The Python code to execute."]
+    ) -> str:
         """
         Executes Python code in a sandbox environment and returns the formatted output
-        
+
         Args:
             code: String containing the Python code to be executed in the sandbox
-        
+
         Returns:
             A string containing the formatted execution output/logs from running the code
-        
+
         Raises:
             SandboxError: When there are issues with sandbox initialization or code execution
             AuthenticationError: When API key authentication fails during sandbox setup
             ValueError: When provided code string is empty or invalid
-        
+
         Tags:
             execute, sandbox, code-execution, security, important
         """

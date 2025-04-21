@@ -32,20 +32,20 @@ class GoogleMailApp(APIApplication):
     def send_email(self, to: str, subject: str, body: str) -> str:
         """
         Sends an email using the Gmail API and returns a confirmation or error message.
-        
+
         Args:
             to: The email address of the recipient
             subject: The subject line of the email
             body: The main content of the email message
-        
+
         Returns:
             A string containing either a success confirmation message or an error description
-        
+
         Raises:
             NotAuthorizedError: When Gmail API authentication is not valid or has expired
             KeyError: When required configuration keys are missing
             Exception: For any other unexpected errors during the email sending process
-        
+
         Tags:
             send, email, api, communication, important
         """
@@ -100,20 +100,20 @@ class GoogleMailApp(APIApplication):
     def create_draft(self, to: str, subject: str, body: str) -> str:
         """
         Creates a draft email message in Gmail using the Gmail API and returns a confirmation status.
-        
+
         Args:
             to: The email address of the recipient
             subject: The subject line of the draft email
             body: The main content/message of the draft email
-        
+
         Returns:
             A string containing either a success message with the draft ID or an error message describing the failure
-        
+
         Raises:
             NotAuthorizedError: When the user's Gmail API authorization is invalid or expired
             KeyError: When required configuration keys are missing
             Exception: For general API errors, network issues, or other unexpected problems
-        
+
         Tags:
             create, email, draft, gmail, api, important
         """
@@ -149,18 +149,18 @@ class GoogleMailApp(APIApplication):
     def send_draft(self, draft_id: str) -> str:
         """
         Sends an existing draft email using the Gmail API and returns a confirmation message.
-        
+
         Args:
             draft_id: The unique identifier of the Gmail draft to be sent
-        
+
         Returns:
             A string containing either a success message with the sent message ID or an error message detailing the failure reason
-        
+
         Raises:
             NotAuthorizedError: When the user's Gmail API authorization is invalid or expired
             KeyError: When required configuration keys are missing from the API response
             Exception: For other unexpected errors during the API request or response handling
-        
+
         Tags:
             send, email, api, communication, important, draft
         """
@@ -194,19 +194,19 @@ class GoogleMailApp(APIApplication):
     def get_draft(self, draft_id: str, format: str = "full") -> str:
         """
         Retrieves and formats a specific draft email from Gmail by its ID
-        
+
         Args:
             draft_id: String identifier of the draft email to retrieve
             format: Output format of the draft (options: minimal, full, raw, metadata). Defaults to 'full'
-        
+
         Returns:
             A formatted string containing the draft email details (ID, recipient, subject) or an error message if retrieval fails
-        
+
         Raises:
             NotAuthorizedError: When the user's Gmail authorization is invalid or expired
             KeyError: When required configuration keys or response data fields are missing
             Exception: For any other unexpected errors during draft retrieval
-        
+
         Tags:
             retrieve, email, gmail, draft, api, format, important
         """
@@ -261,20 +261,20 @@ class GoogleMailApp(APIApplication):
     ) -> str:
         """
         Retrieves and formats a list of email drafts from the user's Gmail mailbox with optional filtering and pagination.
-        
+
         Args:
             max_results: Maximum number of drafts to return (max 500, default 20)
             q: Search query string to filter drafts using Gmail search syntax (default None)
             include_spam_trash: Boolean flag to include drafts from spam and trash folders (default False)
-        
+
         Returns:
             A formatted string containing the list of draft IDs and count information, or an error message if the request fails
-        
+
         Raises:
             NotAuthorizedError: When the Gmail API authentication is missing or invalid
             KeyError: When required configuration keys are missing
             Exception: For general errors during API communication or data processing
-        
+
         Tags:
             list, email, drafts, gmail, api, search, query, pagination, important
         """
@@ -333,18 +333,18 @@ class GoogleMailApp(APIApplication):
     def get_message(self, message_id: str) -> str:
         """
         Retrieves and formats a specific email message from Gmail API by its ID, including sender, recipient, date, subject, and message preview.
-        
+
         Args:
             message_id: The unique identifier of the Gmail message to retrieve
-        
+
         Returns:
             A formatted string containing the message details (ID, From, To, Date, Subject, Preview) or an error message if the retrieval fails
-        
+
         Raises:
             NotAuthorizedError: When the request lacks proper Gmail API authorization
             KeyError: When required configuration keys or message fields are missing
             Exception: For general API communication errors or unexpected issues
-        
+
         Tags:
             retrieve, email, format, api, gmail, message, important
         """
@@ -406,20 +406,20 @@ class GoogleMailApp(APIApplication):
     ) -> str:
         """
         Retrieves and formats a list of messages from the user's Gmail mailbox with optional filtering and pagination support.
-        
+
         Args:
             max_results: Maximum number of messages to return (max 500, default 20)
             q: Search query string to filter messages using Gmail search syntax
             include_spam_trash: Boolean flag to include messages from spam and trash folders (default False)
-        
+
         Returns:
             A formatted string containing the list of message IDs and thread IDs, or an error message if the operation fails
-        
+
         Raises:
             NotAuthorizedError: When the Gmail API authentication is invalid or missing
             KeyError: When required configuration keys are missing
             Exception: For general API errors, network issues, or other unexpected problems
-        
+
         Tags:
             list, messages, gmail, search, query, pagination, important
         """
@@ -482,17 +482,17 @@ class GoogleMailApp(APIApplication):
     def list_labels(self) -> str:
         """
         Retrieves and formats a list of all labels (both system and user-created) from the user's Gmail account, organizing them by type and sorting them alphabetically.
-        
+
         Args:
             None: This method takes no arguments
-        
+
         Returns:
             A formatted string containing a list of Gmail labels categorized by type (system and user), with their IDs, or an error message if the operation fails.
-        
+
         Raises:
             NotAuthorizedError: Raised when the user's Gmail authorization is invalid or missing
             Exception: Raised when any other unexpected error occurs during the API request or data processing
-        
+
         Tags:
             list, gmail, labels, fetch, organize, important, management
         """
@@ -562,17 +562,17 @@ class GoogleMailApp(APIApplication):
     def create_label(self, name: str) -> str:
         """
         Creates a new Gmail label with specified visibility settings and returns creation status details.
-        
+
         Args:
             name: The display name of the label to create
-        
+
         Returns:
             A formatted string containing the creation status, including the new label's name and ID if successful, or an error message if the creation fails
-        
+
         Raises:
             NotAuthorizedError: Raised when the request lacks proper Gmail API authorization
             Exception: Raised for any other unexpected errors during label creation
-        
+
         Tags:
             create, label, gmail, management, important
         """
@@ -615,17 +615,17 @@ class GoogleMailApp(APIApplication):
     def get_profile(self) -> str:
         """
         Retrieves and formats the user's Gmail profile information including email address, message count, thread count, and history ID.
-        
+
         Args:
             None: This method takes no arguments besides self
-        
+
         Returns:
             A formatted string containing the user's Gmail profile information or an error message if the request fails
-        
+
         Raises:
             NotAuthorizedError: Raised when the user's credentials are invalid or authorization is required
             Exception: Raised for any other unexpected errors during the API request or data processing
-        
+
         Tags:
             fetch, profile, gmail, user-info, api-request, important
         """

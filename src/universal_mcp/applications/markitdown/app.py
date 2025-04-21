@@ -11,7 +11,7 @@ class MarkitdownApp(Application):
     async def convert_to_markdown(self, uri: str) -> str:
         """
         Asynchronously converts a URI to markdown format using the markitdown converter.
-        
+
         This tool aims to extract the main text content from various sources. It supports:
         - Web Pages: General HTML, specific handlers for RSS/Atom feeds, Wikipedia articles (main content), YouTube (transcripts if available), Bing SERPs.
         - Documents: PDF (attempts OCR), DOCX, XLSX, PPTX, XLS, EPUB, Outlook MSG, IPYNB notebooks.
@@ -25,14 +25,14 @@ class MarkitdownApp(Application):
                        - http:// or https:// (Web pages, feeds, APIs)
                        - file:// (Local or accessible network files)
                        - data: (Embedded data)
-        
+
         Returns:
             A string containing the markdown representation of the content at the specified URI
-        
+
         Raises:
             ValueError: If the URI is invalid or empty
             ConnectionError: If the URI cannot be accessed or content cannot be retrieved
-        
+
         Tags:
             convert, markdown, async, uri, transform, document
         """

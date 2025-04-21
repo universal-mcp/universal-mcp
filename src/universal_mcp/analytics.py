@@ -47,9 +47,11 @@ class Analytics:
         except Exception as e:
             logger.error(f"Failed to track app_loaded event: {e}")
 
-    def track_tool_called(self, tool_name: str, status: str, error: str = None, user_id=None):
+    def track_tool_called(
+        self, tool_name: str, status: str, error: str = None, user_id=None
+    ):
         """Track when a tool is called
-        
+
         Args:
             tool_name: Name of the tool being called
             status: Status of the tool call (success/error)

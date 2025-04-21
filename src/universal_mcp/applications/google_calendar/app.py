@@ -61,18 +61,18 @@ class GoogleCalendarApp(APIApplication):
     ) -> str:
         """
         Retrieves and formats events from Google Calendar for today or a specified number of future days, with optional result limiting and timezone specification.
-        
+
         Args:
             days: Number of days to retrieve events for (default: 1, which is just today)
             max_results: Maximum number of events to return (optional)
             time_zone: Time zone used in the response (optional, default is calendar's time zone)
-        
+
         Returns:
             A formatted string containing a list of calendar events with their times and IDs, or a message indicating no events were found
-        
+
         Raises:
             HTTPError: Raised when the API request fails or returns an error status code
-        
+
         Tags:
             fetch, list, calendar, events, date-time, important, api, formatting
         """
@@ -139,19 +139,19 @@ class GoogleCalendarApp(APIApplication):
     ) -> str:
         """
         Retrieves and formats detailed information about a specific Google Calendar event by its ID
-        
+
         Args:
             event_id: The unique identifier of the calendar event to retrieve
             max_attendees: Optional. The maximum number of attendees to include in the response. If None, includes all attendees
             time_zone: Optional. The time zone to use for formatting dates in the response. If None, uses the calendar's default time zone
-        
+
         Returns:
             A formatted string containing comprehensive event details including summary, time, location, description, creator, organizer, recurrence status, and attendee information
-        
+
         Raises:
             HTTPError: Raised when the API request fails or returns an error status code
             JSONDecodeError: Raised when the API response cannot be parsed as JSON
-        
+
         Tags:
             retrieve, calendar, event, format, api, important
         """
@@ -219,7 +219,7 @@ class GoogleCalendarApp(APIApplication):
     ) -> str:
         """
         Retrieves and formats a list of events from Google Calendar with customizable filtering, sorting, and pagination options
-        
+
         Args:
             max_results: Maximum number of events to return (default: 10, max: 2500)
             time_min: Start time in ISO format (e.g., '2023-12-01T00:00:00Z'). Defaults to current time if not specified
@@ -229,13 +229,13 @@ class GoogleCalendarApp(APIApplication):
             single_events: Whether to expand recurring events into individual instances (default: True)
             time_zone: Time zone for response formatting (defaults to calendar's time zone)
             page_token: Token for retrieving a specific page of results in paginated responses
-        
+
         Returns:
             A formatted string containing the list of events with details including summary, ID, start time, and location, or a message if no events are found
-        
+
         Raises:
             HTTPError: Raised when the API request fails or returns an error status code
-        
+
         Tags:
             list, calendar, events, search, filter, pagination, format, important
         """
@@ -307,17 +307,17 @@ class GoogleCalendarApp(APIApplication):
     def quick_add_event(self, text: str, send_updates: str = "none") -> str:
         """
         Creates a calendar event using natural language text input and returns a formatted confirmation message with event details.
-        
+
         Args:
             text: Natural language text describing the event (e.g., 'Meeting with John at Coffee Shop tomorrow 3pm-4pm')
             send_updates: Specifies who should receive event notifications: 'all', 'externalOnly', or 'none' (default)
-        
+
         Returns:
             A formatted string containing the confirmation message with event details including summary, time, location, and event ID
-        
+
         Raises:
             HTTPError: Raised when the API request fails or returns an error status code
-        
+
         Tags:
             create, calendar, event, quick-add, natural-language, important
         """
@@ -358,7 +358,7 @@ class GoogleCalendarApp(APIApplication):
     ) -> str:
         """
         Retrieves and formats all instances of a recurring calendar event within a specified time range, showing details like time, status, and modifications for each occurrence.
-        
+
         Args:
             event_id: ID of the recurring event
             max_results: Maximum number of event instances to return (default: 25, max: 2500)
@@ -367,14 +367,14 @@ class GoogleCalendarApp(APIApplication):
             time_zone: Time zone used in the response (defaults to calendar's time zone)
             show_deleted: Whether to include deleted instances (default: False)
             page_token: Token for retrieving a specific page of results
-        
+
         Returns:
             A formatted string containing a list of event instances with details including time, status, instance ID, and modification information, plus pagination token if applicable.
-        
+
         Raises:
             HTTPError: Raised when the API request fails or returns an error status code
             JSONDecodeError: Raised when the API response cannot be parsed as JSON
-        
+
         Tags:
             list, retrieve, calendar, events, recurring, pagination, formatting, important
         """

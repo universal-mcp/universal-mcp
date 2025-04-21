@@ -8,5 +8,6 @@ class NotAuthorizedError(Exception):
 class ToolError(Exception):
     """Raised when a tool is not found or fails to execute."""
 
+
 class InvalidSignature(Exception):
     """Raised when a signature is invalid."""

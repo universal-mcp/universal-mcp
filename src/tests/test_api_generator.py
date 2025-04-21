@@ -53,9 +53,7 @@ def sample_schema(temp_dir):
 async def test_generate_api_without_output(sample_schema):
     """Test API generation without output file (return code only)."""
     result = await generate_api_from_schema(
-        schema_path=sample_schema, 
-        output_path=None, 
-        add_docstrings=False
+        schema_path=sample_schema, output_path=None, add_docstrings=False
     )
 
     assert "code" in result
@@ -74,9 +72,7 @@ async def test_generate_api_with_output(sample_schema, temp_dir):
     output_path = temp_dir / "test.py"
 
     result = await generate_api_from_schema(
-        schema_path=sample_schema, 
-        output_path=output_path, 
-        add_docstrings=True
+        schema_path=sample_schema, output_path=output_path, add_docstrings=True
     )
 
     assert "app_file" in result
@@ -130,9 +126,7 @@ async def test_generate_api_with_docstrings(sample_schema, temp_dir):
     output_path = temp_dir / "test_with_docs.py"
 
     result = await generate_api_from_schema(
-        schema_path=sample_schema, 
-        output_path=output_path, 
-        add_docstrings=True
+        schema_path=sample_schema, output_path=output_path, add_docstrings=True
     )
 
     app_file = Path(result["app_file"])
@@ -158,9 +152,7 @@ async def test_generate_api_without_docstrings(sample_schema, temp_dir):
     output_path = temp_dir / "test_without_docs.py"
 
     result = await generate_api_from_schema(
-        schema_path=sample_schema, 
-        output_path=output_path, 
-        add_docstrings=False
+        schema_path=sample_schema, output_path=output_path, add_docstrings=False
     )
 
     app_file = Path(result["app_file"])
@@ -235,9 +227,7 @@ async def test_generate_api_with_complex_schema(temp_dir):
 
     output_path = temp_dir / "complex.py"
     result = await generate_api_from_schema(
-        schema_path=schema_file, 
-        output_path=output_path, 
-        add_docstrings=True
+        schema_path=schema_file, output_path=output_path, add_docstrings=True
     )
 
     app_file = Path(result["app_file"])

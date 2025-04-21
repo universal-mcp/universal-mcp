@@ -27,18 +27,18 @@ class ResendApp(APIApplication):
     def send_email(self, to: str, subject: str, content: str) -> str:
         """
         Sends an email using the Resend API with specified recipient, subject, and content
-        
+
         Args:
             to: Email address of the recipient
             subject: Subject line of the email
             content: Main body text content of the email
-        
+
         Returns:
             String message confirming successful email delivery ('Sent Successfully')
-        
+
         Raises:
             ValueError: Raised when no valid credentials are found for the API
-        
+
         Tags:
             send, email, api, communication, important
         """

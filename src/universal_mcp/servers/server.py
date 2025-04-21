@@ -19,10 +19,10 @@ from universal_mcp.tools.tools import ToolManager
 
 class BaseServer(FastMCP, ABC):
     """Base server class with common functionality.
-    
+
     This class provides core server functionality including store setup,
     tool management, and application loading.
-    
+
     Args:
         config: Server configuration
         **kwargs: Additional keyword arguments passed to FastMCP
@@ -30,8 +30,10 @@ class BaseServer(FastMCP, ABC):
 
     def __init__(self, config: ServerConfig, **kwargs):
         super().__init__(config.name, config.description, **kwargs)
-        logger.info(f"Initializing server: {config.name} ({config.type}) with store: {config.store}")
-        
+        logger.info(
+            f"Initializing server: {config.name} ({config.type}) with store: {config.store}"
+        )
+
         self.config = config  # Store config at base level for consistency
         self._tool_manager = ToolManager(warn_on_duplicate_tools=True)
 
@@ -42,7 +44,7 @@ class BaseServer(FastMCP, ABC):
 
     def add_tool(self, tool: Callable) -> None:
         """Add a tool to the server.
-        
+
         Args:
             tool: Tool to add
         """
@@ -50,39 +52,45 @@ class BaseServer(FastMCP, ABC):
 
     async def list_tools(self) -> list[dict]:
         """List all available tools in MCP format.
-        
+
         Returns:
             List of tool definitions
         """
-        return self._tool_manager.list_tools(format='mcp')
-    
+        return self._tool_manager.list_tools(format="mcp")
+
     def _format_tool_result(self, result: Any) -> list[TextContent]:
         """Format tool result into TextContent list.
-        
+
         Args:
             result: Raw tool result
-            
+
         Returns:
             List of TextContent objects
         """
         if isinstance(result, str):
             return [TextContent(type="text", text=result)]
-        elif isinstance(result, list) and all(isinstance(item, TextContent) for item in result):
+        elif isinstance(result, list) and all(
+            isinstance(item, TextContent) for item in result
+        ):
             return result
         else:
-            logger.warning(f"Tool returned unexpected type: {type(result)}. Wrapping in TextContent.")
+            logger.warning(
+                f"Tool returned unexpected type: {type(result)}. Wrapping in TextContent."
+            )
             return [TextContent(type="text", text=str(result))]
-                    
-    async def call_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
+
+    async def call_tool(
+        self, name: str, arguments: dict[str, Any]
+    ) -> list[TextContent]:
         """Call a tool with comprehensive error handling.
-        
+
         Args:
             name: Tool name
             arguments: Tool arguments
-            
+
         Returns:
             List of TextContent results
-            
+
         Raises:
             ToolError: If tool execution fails
         """
@@ -94,7 +102,7 @@ class BaseServer(FastMCP, ABC):
 
 class LocalServer(BaseServer):
     """Local development server implementation.
-    
+
     Args:
         config: Server configuration
         **kwargs: Additional keyword arguments passed to FastMCP
@@ -107,36 +115,36 @@ class LocalServer(BaseServer):
 
     def _setup_store(self, store_config: StoreConfig | None) -> BaseStore | None:
         """Setup and configure the store.
-        
+
         Args:
             store_config: Store configuration
-            
+
         Returns:
             Configured store instance or None if no config provided
         """
         if not store_config:
             return None
-            
+
         store = store_from_config(store_config)
         self.add_tool(store.set)
         self.add_tool(store.delete)
         return store
 
-
     def _load_app(self, app_config: AppConfig) -> Application | None:
         """Load a single application with its integration.
-        
+
         Args:
             app_config: Application configuration
-            
+
         Returns:
             Configured application instance or None if loading fails
         """
         try:
-            integration = integration_from_config(
-                app_config.integration,
-                store=self.store
-            ) if app_config.integration  else None
+            integration = (
+                integration_from_config(app_config.integration, store=self.store)
+                if app_config.integration
+                else None
+            )
             analytics.track_app_loaded(app_config.name)  # Track app loading
             return app_from_slug(app_config.name)(integration=integration)
         except Exception as e:
@@ -154,7 +162,7 @@ class LocalServer(BaseServer):
 
 class AgentRServer(BaseServer):
     """AgentR API-connected server implementation.
-    
+
     Args:
         config: Server configuration
         api_key: Optional API key for AgentR authentication. If not provided,
@@ -165,25 +173,22 @@ class AgentRServer(BaseServer):
     def __init__(self, config: ServerConfig, api_key: str | None = None, **kwargs):
         self.api_key = api_key or os.getenv("AGENTR_API_KEY")
         self.base_url = os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
-        
+
         if not self.api_key:
             raise ValueError("API key required - get one at https://agentr.dev")
         parsed = urlparse(self.base_url)
         if not all([parsed.scheme, parsed.netloc]):
             raise ValueError(f"Invalid base URL format: {self.base_url}")
         super().__init__(config, **kwargs)
-        self.integration = AgentRIntegration(
-                name="agentr",
-                api_key=self.api_key
-            )
+        self.integration = AgentRIntegration(name="agentr", api_key=self.api_key)
         self._load_apps()
 
     def _fetch_apps(self) -> list[AppConfig]:
         """Fetch available apps from AgentR API.
-        
+
         Returns:
             List of application configurations
-            
+
         Raises:
             httpx.HTTPError: If API request fails
         """
@@ -201,18 +206,21 @@ class AgentRServer(BaseServer):
 
     def _load_app(self, app_config: AppConfig) -> Application | None:
         """Load a single application with AgentR integration.
-        
+
         Args:
             app_config: Application configuration
-            
+
         Returns:
             Configured application instance or None if loading fails
         """
         try:
-            integration = AgentRIntegration(
-                name=app_config.integration.name,
-                api_key=self.api_key
-            ) if app_config.integration else None
+            integration = (
+                AgentRIntegration(
+                    name=app_config.integration.name, api_key=self.api_key
+                )
+                if app_config.integration
+                else None
+            )
             analytics.track_app_loaded(app_config.name)  # Track app loading
             return app_from_slug(app_config.name)(integration=integration)
         except Exception as e:
