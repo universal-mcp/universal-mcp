@@ -66,7 +66,7 @@ class BaseServer(FastMCP, ABC):
         """
         self._tool_manager.add_tool(tool)
 
-    async def list_tools(self) -> List[dict]:
+    async def list_tools(self) -> list[dict]:
         """List all available tools in MCP format.
         
         Returns:

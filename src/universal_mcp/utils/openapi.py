@@ -70,6 +70,33 @@ def determine_return_type(operation: dict[str, Any]) -> str:
     return "Any"
 
 
+def resolve_schema_reference(reference, schema):
+    """
+    Resolve a JSON schema reference to its target schema.
+    
+    Args:
+        reference (str): The reference string (e.g., '#/components/schemas/User')
+        schema (dict): The complete OpenAPI schema that contains the reference
+        
+    Returns:
+        dict: The resolved schema, or None if not found
+    """
+    if not reference.startswith('#/'):
+        return None
+    
+    # Split the reference path and navigate through the schema
+    parts = reference[2:].split('/')
+    current = schema
+    
+    for part in parts:
+        if part in current:
+            current = current[part]
+        else:
+            return None
+    
+    return current
+
+
 def generate_api_client(schema):
     """
     Generate a Python API client class from an OpenAPI schema.
@@ -130,7 +157,7 @@ def generate_api_client(schema):
             if method in ["get", "post", "put", "delete", "patch", "options", "head"]:
                 operation = path_info[method]
                 method_code, func_name = generate_method_code(
-                    path, method, operation, tool_name
+                    path, method, operation, schema, tool_name
                 )
                 methods.append(method_code)
                 method_names.append(func_name)
@@ -164,7 +191,7 @@ def generate_api_client(schema):
     return class_code
 
 
-def generate_method_code(path, method, operation, tool_name=None):
+def generate_method_code(path, method, operation, full_schema, tool_name=None):
     """
     Generate the code for a single API method.
 
@@ -172,6 +199,7 @@ def generate_method_code(path, method, operation, tool_name=None):
         path (str): The API path (e.g., '/users/{user_id}').
         method (str): The HTTP method (e.g., 'get').
         operation (dict): The operation details from the schema.
+        full_schema (dict): The complete OpenAPI schema, used for reference resolution.
         tool_name (str, optional): The name of the tool/app to prefix the function name with.
 
     Returns:
@@ -196,10 +224,11 @@ def generate_method_code(path, method, operation, tool_name=None):
                 name_parts.append(part)
         func_name = "_".join(name_parts).replace("-", "_").lower()
     
-   
-   
-    func_name = re.sub(r'_a([^_])', r'_a_\1', func_name)  # Fix for patterns like retrieve_ablock
-    func_name = re.sub(r'_an([^_])', r'_an_\1', func_name)  # Fix for patterns like create_anitem
+    # Only fix isolated 'a' and 'an' as articles, not when they're part of words
+    func_name = re.sub(r'_a([^_a-z])', r'_a_\1', func_name)  # Fix for patterns like retrieve_ablock -> retrieve_a_block
+    func_name = re.sub(r'_a$', r'_a', func_name)  # Don't change if 'a' is at the end of the name
+    func_name = re.sub(r'_an([^_a-z])', r'_an_\1', func_name)  # Fix for patterns like create_anitem -> create_an_item
+    func_name = re.sub(r'_an$', r'_an', func_name)  # Don't change if 'an' is at the end of the name
 
     # Get parameters and request body
     # Filter out header parameters
@@ -207,16 +236,64 @@ def generate_method_code(path, method, operation, tool_name=None):
     has_body = "requestBody" in operation
     body_required = has_body and operation["requestBody"].get("required", False)
 
+    # Check if the requestBody has actual content or is empty
+    has_empty_body = False
+    if has_body:
+        request_body_content = operation["requestBody"].get("content", {})
+        if not request_body_content or all(not content for content_type, content in request_body_content.items()):
+            has_empty_body = True
+            has_body = False  # Treat it as if it doesn't have a body for property extraction
+
+    # Extract request body schema properties and required fields
+    required_fields = []
+    request_body_properties = {}
+    is_array_body = False
+    array_items_schema = None
+    
+    if has_body:
+        for content_type, content in operation["requestBody"].get("content", {}).items():
+            if content_type.startswith("application/json") and "schema" in content:
+                schema = content["schema"]
+                
+                # Resolve schema reference if present
+                if "$ref" in schema:
+                    ref_schema = resolve_schema_reference(schema["$ref"], full_schema)
+                    if ref_schema:
+                        schema = ref_schema
+                
+                # Check if the schema is an array type
+                if schema.get("type") == "array":
+                    is_array_body = True
+                    array_items_schema = schema.get("items", {})
+                    # Try to resolve any reference in items
+                    if "$ref" in array_items_schema:
+                        array_items_schema = resolve_schema_reference(array_items_schema["$ref"], full_schema)
+                else:
+                    # Extract required fields from schema
+                    if "required" in schema:
+                        required_fields = schema["required"]
+                    # Extract properties from schema
+                    if "properties" in schema:
+                        request_body_properties = schema["properties"]
+                        
+                        # Check for nested references in properties
+                        for prop_name, prop_schema in request_body_properties.items():
+                            if "$ref" in prop_schema:
+                                ref_prop_schema = resolve_schema_reference(prop_schema["$ref"], full_schema)
+                                if ref_prop_schema:
+                                    request_body_properties[prop_name] = ref_prop_schema
+                break
+
     # Build function arguments
     required_args = []
     optional_args = []
     
-    
+    # Add path parameters
     for param_name in path_params_in_url:
         if param_name not in required_args:
             required_args.append(param_name)
 
-    
+    # Add query parameters
     for param in parameters:
         param_name = param["name"]
         if param_name not in required_args:  
@@ -224,13 +301,42 @@ def generate_method_code(path, method, operation, tool_name=None):
                 required_args.append(param_name)
             else:
                 optional_args.append(f"{param_name}=None")
-
-    # Add request body parameter
+    
+    # Handle array type request body differently
+    request_body_params = []
     if has_body:
-        if body_required:
-            required_args.append("request_body")
-        else:
-            optional_args.append("request_body=None")
+        if is_array_body:
+            # For array request bodies, add a single parameter for the entire array
+            array_param_name = "items"
+            # Try to get a better name from the operation or path
+            if func_name.endswith("_list_input"):
+                array_param_name = func_name.replace("_list_input", "")
+            elif "List" in func_name:
+                array_param_name = func_name.split("List")[0].lower() + "_list"
+            
+            # Make the array parameter required if the request body is required
+            if body_required:
+                required_args.append(array_param_name)
+            else:
+                optional_args.append(f"{array_param_name}=None")
+            
+            # Remember this is an array param
+            request_body_params = [array_param_name]
+        elif request_body_properties:
+            # For object request bodies, add individual properties as parameters
+            for prop_name in request_body_properties:
+                if prop_name in required_fields:
+                    request_body_params.append(prop_name)
+                    if prop_name not in required_args:
+                        required_args.append(prop_name)
+                else:
+                    request_body_params.append(prop_name)
+                    if f"{prop_name}=None" not in optional_args:
+                        optional_args.append(f"{prop_name}=None")
+    
+    # If request body is present but empty (content: {}), add a generic request_body parameter
+    if has_empty_body:
+        optional_args.append("request_body=None")
 
     # Combine required and optional arguments
     args = required_args + optional_args
@@ -245,19 +351,31 @@ def generate_method_code(path, method, operation, tool_name=None):
 
     # Validate required parameters including path parameters
     for param_name in required_args:
-        if param_name != "request_body":  # Skip validation for request body as it's handled separately
-            body_lines.append(f"        if {param_name} is None:")
-            body_lines.append(
-                f"            raise ValueError(\"Missing required parameter '{param_name}'\")"
-            )
-
-    # Validate required body
-    if has_body and body_required:
-        body_lines.append("        if request_body is None:")
+        body_lines.append(f"        if {param_name} is None:")
         body_lines.append(
-            '            raise ValueError("Missing required request body")'
+            f"            raise ValueError(\"Missing required parameter '{param_name}'\")"
         )
 
+    # Build request body (handle array and object types differently)
+    if has_body:
+        if is_array_body:
+            # For array request bodies, use the array parameter directly
+            body_lines.append("        # Use items array directly as request body")
+            body_lines.append(f"        request_body = {request_body_params[0]}")
+        elif request_body_properties:
+            # For object request bodies, build the request body from individual parameters
+            
+            body_lines.append("        request_body = {")
+            
+            for prop_name in request_body_params:
+                # Only include non-None values in the request body
+                body_lines.append(f"            '{prop_name}': {prop_name},")
+            
+            body_lines.append("        }")
+            
+            
+            body_lines.append("        request_body = {k: v for k, v in request_body.items() if v is not None}")
+    
     # Format URL directly with path parameters
     url_line = f'        url = f"{{self.base_url}}{path}"'
     body_lines.append(url_line)
@@ -276,30 +394,21 @@ def generate_method_code(path, method, operation, tool_name=None):
 
     # Make HTTP request using the proper method
     method_lower = method.lower()
+    # For empty request bodies, use the request_body parameter directly if provided
+    request_body_arg = "request_body" if has_empty_body else "{}" if not has_body else "request_body"
+    
     if method_lower == "get":
         body_lines.append("        response = self._get(url, params=query_params)")
     elif method_lower == "post":
-        if has_body:
-            body_lines.append("        response = self._post(url, data=request_body, params=query_params)")
-        else:
-            body_lines.append("        response = self._post(url, data={}, params=query_params)")
+        body_lines.append(f"        response = self._post(url, data={request_body_arg}, params=query_params)")
     elif method_lower == "put":
-        if has_body:
-            body_lines.append("        response = self._put(url, data=request_body, params=query_params)")
-        else:
-            body_lines.append("        response = self._put(url, data={}, params=query_params)")
+        body_lines.append(f"        response = self._put(url, data={request_body_arg}, params=query_params)")
     elif method_lower == "patch":
-        if has_body:
-            body_lines.append("        response = self._patch(url, data=request_body, params=query_params)")
-        else:
-            body_lines.append("        response = self._patch(url, data={}, params=query_params)")
+        body_lines.append(f"        response = self._patch(url, data={request_body_arg}, params=query_params)")
     elif method_lower == "delete":
         body_lines.append("        response = self._delete(url, params=query_params)")
     else:
-        if has_body:
-            body_lines.append(f"        response = self._{method_lower}(url, data=request_body, params=query_params)")
-        else:
-            body_lines.append(f"        response = self._{method_lower}(url, data={{}}, params=query_params)")
+        body_lines.append(f"        response = self._{method_lower}(url, data={request_body_arg}, params=query_params)")
 
     # Handle response
     body_lines.append("        response.raise_for_status()")

@@ -5,6 +5,7 @@ using LLMs with structured output
 """
 
 import ast
+import json
 import os
 import sys
 import textwrap
@@ -132,8 +133,49 @@ def extract_functions_from_script(file_path: str) -> list[tuple[str, str]]:
         return []
 
 
+def extract_json_from_text(text):
+    """Extract valid JSON from text that might contain additional content.
+    
+    Args:
+        text: Raw text response from the model
+        
+    Returns:
+        Dict containing the extracted JSON data
+        
+    Raises:
+        ValueError: If no valid JSON could be extracted
+    """
+    # Try to find JSON between triple backticks (common markdown pattern)
+    json_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
+    if json_match:
+        try:
+            return json.loads(json_match.group(1))
+        except:
+            pass
+
+    # Try to find the first { and last } for a complete JSON object
+    try:
+        start = text.find('{')
+        if start >= 0:
+            brace_count = 0
+            for i in range(start, len(text)):
+                if text[i] == '{':
+                    brace_count += 1
+                elif text[i] == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        return json.loads(text[start:i+1])
+    except:
+        pass
+    
+    try:
+        return json.loads(text)
+    except:
+        raise ValueError("Could not extract valid JSON from the response")
+
+
 def generate_docstring(
-    function_code: str, model: str = "openai/gpt-4o"
+    function_code: str, model: str = "perplexity/sonar-pro"
 ) -> DocstringOutput:
     """
     Generate a docstring for a Python function using litellm with structured output.
@@ -192,26 +234,18 @@ def generate_docstring(
 
         response_text = response.choices[0].message.content
 
-        import json
-        import re
-
-        json_match = re.search(r"({.*})", response_text.replace("\n", " "), re.DOTALL | re.IGNORECASE)
-        if json_match:
-            json_str = json_match.group(1)
-            parsed_data = json.loads(json_str)
-        else:
-            try:
-                cleaned_text = response_text.strip()
-                if cleaned_text.startswith("```json"):
-                    cleaned_text = cleaned_text[7:].strip()
-                if cleaned_text.endswith("```"):
-                    cleaned_text = cleaned_text[:-3].strip()
-
-                parsed_data = json.loads(cleaned_text)
-            except json.JSONDecodeError:
-                 print(f"Warning: Could not find or parse JSON from LLM response:\n{response_text}", file=sys.stderr)
-                 parsed_data = {}
-
+        
+        try:
+            parsed_data = extract_json_from_text(response_text)
+        except ValueError as e:
+            print(f"JSON extraction failed: {e}")
+            print(f"Raw response: {response_text[:100]}...")  # Log first 100 chars for debugging
+            # Return a default structure if extraction fails
+            return DocstringOutput(
+                summary="Failed to extract docstring information",
+                args={"None": "This function takes no arguments"},
+                returns="Unknown return value"
+            )
         model_args = parsed_data.get("args")
         if not model_args:
              parsed_data["args"] = {"None": "This function takes no arguments"}
@@ -421,7 +455,8 @@ def insert_docstring_into_function(function_code: str, docstring: str) -> str:
         
         return function_code
 
-def process_file(file_path: str, model: str = "openai/gpt-4o") -> int:
+
+def process_file(file_path: str, model: str = "perplexity/sonar-pro") -> int:
     """
     Process a Python file and add docstrings to all functions in it.
 
