@@ -1,12 +1,14 @@
 import os
+
 import pytest
+
 from universal_mcp.stores.store import (
-    MemoryStore,
     EnvironmentStore,
-    KeyringStore,
     KeyNotFoundError,
-    StoreError
+    KeyringStore,
+    MemoryStore,
 )
+
 
 # Test MemoryStore
 class TestMemoryStore:

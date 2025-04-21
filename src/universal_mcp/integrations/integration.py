@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Optional, Union, Any
+from typing import Any
 
 import httpx
 from loguru import logger
@@ -31,12 +31,12 @@ class Integration(ABC):
         store: Store instance for persisting credentials and other data
     """
 
-    def __init__(self, name: str, store: Optional[BaseStore] = None):
+    def __init__(self, name: str, store: BaseStore | None = None):
         self.name = name
         self.store = store
 
     @abstractmethod
-    def authorize(self) -> Union[str, Dict[str, Any]]:
+    def authorize(self) -> str | dict[str, Any]:
         """Authorize the integration.
 
         Returns:
@@ -48,7 +48,7 @@ class Integration(ABC):
         pass
 
     @abstractmethod
-    def get_credentials(self) -> Dict[str, Any]:
+    def get_credentials(self) -> dict[str, Any]:
         """Get credentials for the integration.
 
         Returns:
@@ -60,7 +60,7 @@ class Integration(ABC):
         pass
 
     @abstractmethod
-    def set_credentials(self, credentials: Dict[str, Any]) -> None:
+    def set_credentials(self, credentials: dict[str, Any]) -> None:
         """Set credentials for the integration.
 
         Args:
@@ -89,12 +89,12 @@ class ApiKeyIntegration(Integration):
         store: Store instance for persisting credentials and other data
     """
 
-    def __init__(self, name: str, store: Optional[BaseStore] = None, **kwargs):
+    def __init__(self, name: str, store: BaseStore | None = None, **kwargs):
         sanitized_name = sanitize_api_key_name(name)
         super().__init__(sanitized_name, store, **kwargs)
         logger.info(f"Initializing API Key Integration: {name} with store: {store}")
 
-    def get_credentials(self) -> Dict[str, str]:
+    def get_credentials(self) -> dict[str, str]:
         """Get API key credentials.
 
         Returns:
@@ -109,7 +109,7 @@ class ApiKeyIntegration(Integration):
             raise NotAuthorizedError(action)
         return {"api_key": credentials}
 
-    def set_credentials(self, credentials: Dict[str, Any]) -> None:
+    def set_credentials(self, credentials: dict[str, Any]) -> None:
         """Set API key credentials.
 
         Args:
@@ -161,12 +161,12 @@ class OAuthIntegration(Integration):
     def __init__(
         self,
         name: str,
-        store: Optional[BaseStore] = None,
-        client_id: Optional[str] = None,
-        client_secret: Optional[str] = None,
-        auth_url: Optional[str] = None,
-        token_url: Optional[str] = None,
-        scope: Optional[str] = None,
+        store: BaseStore | None = None,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        auth_url: str | None = None,
+        token_url: str | None = None,
+        scope: str | None = None,
         **kwargs,
     ):
         super().__init__(name, store, **kwargs)
@@ -176,7 +176,7 @@ class OAuthIntegration(Integration):
         self.token_url = token_url
         self.scope = scope
 
-    def get_credentials(self) -> Optional[Dict[str, Any]]:
+    def get_credentials(self) -> dict[str, Any] | None:
         """Get OAuth credentials.
 
         Returns:
@@ -187,7 +187,7 @@ class OAuthIntegration(Integration):
             return None
         return credentials
 
-    def set_credentials(self, credentials: Dict[str, Any]) -> None:
+    def set_credentials(self, credentials: dict[str, Any]) -> None:
         """Set OAuth credentials.
 
         Args:
@@ -202,7 +202,7 @@ class OAuthIntegration(Integration):
             raise ValueError("Credentials must contain access_token")
         self.store.set(self.name, credentials)
 
-    def authorize(self) -> Dict[str, Any]:
+    def authorize(self) -> dict[str, Any]:
         """Get OAuth authorization parameters.
 
         Returns:
@@ -227,7 +227,7 @@ class OAuthIntegration(Integration):
             "token_url": self.token_url,
         }
 
-    def handle_callback(self, code: str) -> Dict[str, Any]:
+    def handle_callback(self, code: str) -> dict[str, Any]:
         """Handle OAuth callback and exchange code for tokens.
 
         Args:
@@ -256,7 +256,7 @@ class OAuthIntegration(Integration):
         self.store.set(self.name, credentials)
         return credentials
 
-    def refresh_token(self) -> Dict[str, Any]:
+    def refresh_token(self) -> dict[str, Any]:
         """Refresh OAuth access token using refresh token.
 
         Returns:

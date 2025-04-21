@@ -5,8 +5,8 @@ using LLMs with structured output
 """
 
 import ast
-import os
 import json
+import os
 import re
 
 import litellm

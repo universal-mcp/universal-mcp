@@ -1,6 +1,6 @@
 import os
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 import httpx
@@ -14,7 +14,6 @@ from universal_mcp.exceptions import NotAuthorizedError, ToolError
 from universal_mcp.integrations import integration_from_config
 from universal_mcp.stores import BaseStore, store_from_config
 from universal_mcp.tools.tools import ToolManager
-
 
 
 class BaseServer(FastMCP, ABC):
@@ -37,7 +36,7 @@ class BaseServer(FastMCP, ABC):
         self._tool_manager = ToolManager(warn_on_duplicate_tools=True)
         self._load_apps()
 
-    def _setup_store(self, store_config: Optional[StoreConfig]) -> Optional[BaseStore]:
+    def _setup_store(self, store_config: StoreConfig | None) -> BaseStore | None:
         """Setup and configure the store.
         
         Args:
@@ -59,7 +58,7 @@ class BaseServer(FastMCP, ABC):
         """Load and register applications."""
         pass
 
-    async def list_tools(self) -> List[dict]:
+    async def list_tools(self) -> list[dict]:
         """List all available tools in MCP format.
         
         Returns:
@@ -67,7 +66,7 @@ class BaseServer(FastMCP, ABC):
         """
         return self._tool_manager.list_tools(format='mcp')
     
-    def _format_tool_result(self, result: Any) -> List[TextContent]:
+    def _format_tool_result(self, result: Any) -> list[TextContent]:
         """Format tool result into TextContent list.
         
         Args:
@@ -84,7 +83,7 @@ class BaseServer(FastMCP, ABC):
             logger.warning(f"Tool returned unexpected type: {type(result)}. Wrapping in TextContent.")
             return [TextContent(type="text", text=str(result))]
                     
-    async def call_tool(self, name: str, arguments: dict[str, Any]) -> List[TextContent]:
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
         """Call a tool with comprehensive error handling.
         
         Args:
@@ -131,7 +130,7 @@ class LocalServer(BaseServer):
     def __init__(self, config: ServerConfig, **kwargs):
         super().__init__(config, **kwargs)
 
-    def _load_app(self, app_config: AppConfig) -> Optional[Application]:
+    def _load_app(self, app_config: AppConfig) -> Application | None:
         """Load a single application with its integration.
         
         Args:
@@ -169,7 +168,7 @@ class AgentRServer(BaseServer):
         **kwargs: Additional keyword arguments passed to FastMCP
     """
 
-    def __init__(self, config: ServerConfig, api_key: Optional[str] = None, **kwargs):
+    def __init__(self, config: ServerConfig, api_key: str | None = None, **kwargs):
         self.api_key = api_key or os.getenv("AGENTR_API_KEY")
         self.base_url = os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
         
@@ -181,7 +180,7 @@ class AgentRServer(BaseServer):
 
         super().__init__(config, **kwargs)
         
-    def _fetch_apps(self) -> List[AppConfig]:
+    def _fetch_apps(self) -> list[AppConfig]:
         """Fetch available apps from AgentR API.
         
         Returns:
@@ -202,7 +201,7 @@ class AgentRServer(BaseServer):
             logger.error(f"Failed to fetch apps from AgentR: {e}", exc_info=True)
             raise
 
-    def _load_app(self, app_config: AppConfig) -> Optional[Application]:
+    def _load_app(self, app_config: AppConfig) -> Application | None:
         """Load a single application with AgentR integration.
         
         Args:
@@ -228,6 +227,6 @@ class AgentRServer(BaseServer):
                 app = self._load_app(app_config)
                 if app:
                     self._tool_manager.register_tools_from_app(app, app_config.actions)
-        except Exception as e:
+        except Exception:
             logger.error("Failed to load apps", exc_info=True)
             raise
