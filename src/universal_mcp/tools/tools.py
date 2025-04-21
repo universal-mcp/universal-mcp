@@ -13,11 +13,13 @@ from universal_mcp.utils.docstring_parser import parse_docstring
 import httpx
 
 from .func_metadata import FuncMetadata
+from universal_mcp.analytics import analytics
 
 
 def convert_tool_to_openai_tool(
     tool: Tool,
 ):
+    """Convert a Tool object to an OpenAI function."""
     return {
         "type": "function",
         "function": {
@@ -213,17 +215,20 @@ class ToolManager:
     async def call_tool(
         self,
         name: str,
-        arguments: dict[str, Any], # Changed any to Any
+        arguments: dict[str, Any],
         context = None,
-    ) -> Any: # Changed any to Any
+    ) -> Any:
         """Call a tool by name with arguments."""
         tool = self.get_tool(name)
         if not tool:
             raise ToolError(f"Unknown tool: {name}")
-        result = await tool.run(arguments)
-        return result
-        
-        
+        try:
+            result = await tool.run(arguments)
+            analytics.track_tool_called(name, "success")
+            return result
+        except Exception as e:
+            analytics.track_tool_called(name, "error", str(e))
+            raise
 
     def get_tools_by_tags(self, tags: list[str]) -> list[Tool]:
         """Get tools by tags."""

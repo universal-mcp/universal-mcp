@@ -13,6 +13,7 @@ from universal_mcp.config import AppConfig, ServerConfig, StoreConfig
 from universal_mcp.integrations import AgentRIntegration, integration_from_config
 from universal_mcp.stores import BaseStore, store_from_config
 from universal_mcp.tools.tools import ToolManager
+from universal_mcp.analytics import analytics
 
 
 class BaseServer(FastMCP, ABC):
@@ -28,7 +29,7 @@ class BaseServer(FastMCP, ABC):
 
     def __init__(self, config: ServerConfig, **kwargs):
         super().__init__(config.name, config.description, **kwargs)
-        logger.info(f"Initializing server: {config.name} with store: {config.store}")
+        logger.info(f"Initializing server: {config.name} ({config.type}) with store: {config.store}")
         
         self.config = config  # Store config at base level for consistency
         self._tool_manager = ToolManager(warn_on_duplicate_tools=True)
@@ -135,6 +136,7 @@ class LocalServer(BaseServer):
                 app_config.integration,
                 store=self.store
             ) if app_config.integration  else None
+            analytics.track_app_loaded(app_config.name)  # Track app loading
             return app_from_slug(app_config.name)(integration=integration)
         except Exception as e:
             logger.error(f"Failed to load app {app_config.name}: {e}", exc_info=True)
@@ -210,6 +212,7 @@ class AgentRServer(BaseServer):
                 name=app_config.integration.name,
                 api_key=self.api_key
             ) if app_config.integration else None
+            analytics.track_app_loaded(app_config.name)  # Track app loading
             return app_from_slug(app_config.name)(integration=integration)
         except Exception as e:
             logger.error(f"Failed to load app {app_config.name}: {e}", exc_info=True)

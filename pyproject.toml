@@ -23,13 +23,13 @@ dependencies = [
 [project.optional-dependencies]
 playground = [
     "fastapi[standard]>=0.115.12",
-    "langchain-anthropic>=0.3.10",
     "langchain-mcp-adapters>=0.0.3",
     "langgraph>=0.3.24",
     "langgraph-checkpoint-sqlite>=2.0.6",
     "streamlit>=1.44.1",
     "python-dotenv>=1.0.1",
     "langchain-openai>=0.3.12",
+    "watchdog>=6.0.0",
 ]
 dev = [
     "ruff>=0.11.4",

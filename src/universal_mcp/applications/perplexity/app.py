@@ -37,7 +37,7 @@ class PerplexityApp(APIApplication):
 
     def _get_headers(self) -> dict[str, str]:
         self._set_api_key()
-        logger.info(f"Perplexity API Key: {self.api_key}")
+        logger.debug(f"Perplexity API Key: {self.api_key}")
         return {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
