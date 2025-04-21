@@ -32,7 +32,6 @@ class BaseServer(FastMCP, ABC):
         
         self.config = config  # Store config at base level for consistency
         self._tool_manager = ToolManager(warn_on_duplicate_tools=True)
-        self._load_apps()
 
     @abstractmethod
     def _load_apps(self) -> None:
@@ -102,7 +101,8 @@ class LocalServer(BaseServer):
     def __init__(self, config: ServerConfig, **kwargs):
         super().__init__(config, **kwargs)
         self.store = self._setup_store(config.store)
-    
+        self._load_apps()
+
     def _setup_store(self, store_config: StoreConfig | None) -> BaseStore | None:
         """Setup and configure the store.
         
@@ -168,13 +168,13 @@ class AgentRServer(BaseServer):
         parsed = urlparse(self.base_url)
         if not all([parsed.scheme, parsed.netloc]):
             raise ValueError(f"Invalid base URL format: {self.base_url}")
+        super().__init__(config, **kwargs)
         self.integration = AgentRIntegration(
                 name="agentr",
                 api_key=self.api_key
             )
+        self._load_apps()
 
-        super().__init__(config, **kwargs)
-        
     def _fetch_apps(self) -> list[AppConfig]:
         """Fetch available apps from AgentR API.
         
