@@ -47,7 +47,9 @@ def determine_return_type(operation: dict[str, Any]) -> str:
     # Find successful response (2XX)
     success_response = None
     for code in responses:
-        if code.startswith("2"):
+        # Convert status code to string if it's an integer
+        code_str = str(code) if isinstance(code, int) else code
+        if code_str.startswith("2"):
             success_response = responses[code]
             break
 
@@ -57,7 +59,9 @@ def determine_return_type(operation: dict[str, Any]) -> str:
     # Check if there's content with schema
     if "content" in success_response:
         for content_type, content_info in success_response["content"].items():
-            if content_type.startswith("application/json") and "schema" in content_info:
+            # Ensure content_type is a string before calling startswith
+            content_type_str = str(content_type) if not isinstance(content_type, str) else content_type
+            if content_type_str.startswith("application/json") and "schema" in content_info:
                 schema = content_info["schema"]
 
                 # Only determine if it's a list, dict, or unknown (Any)
@@ -259,7 +263,9 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
         else:
             # Handle empty properties with additionalProperties:true
             for content_type, content in request_body_content.items():
-                if content_type.startswith("application/json") and "schema" in content:
+                # Ensure content_type is a string before calling startswith
+                content_type_str = str(content_type) if not isinstance(content_type, str) else content_type
+                if content_type_str.startswith("application/json") and "schema" in content:
                     schema = content["schema"]
                     
                     # Resolve schema reference if present
@@ -282,7 +288,9 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
     
     if has_body:
         for content_type, content in operation["requestBody"].get("content", {}).items():
-            if content_type.startswith("application/json") and "schema" in content:
+            # Ensure content_type is a string before calling startswith
+            content_type_str = str(content_type) if not isinstance(content_type, str) else content_type
+            if content_type_str.startswith("application/json") and "schema" in content:
                 schema = content["schema"]
                 
                 # Resolve schema reference if present
