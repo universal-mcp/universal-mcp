@@ -1,6 +1,6 @@
 import os
 from abc import ABC, abstractmethod
-from typing import Optional, Any
+from typing import Any
 
 import keyring
 from loguru import logger
@@ -204,7 +204,7 @@ class KeyringStore(BaseStore):
             if value is None:
                 raise KeyNotFoundError(f"Key '{key}' not found in keyring")
             return value
-        except Exception as e:
+        except Exception:
             raise KeyNotFoundError(f"Key '{key}' not found in keyring")
 
     def set(self, key: str, value: str) -> None:
@@ -238,5 +238,5 @@ class KeyringStore(BaseStore):
         try:
             logger.info(f"Deleting password for {key} from keyring")
             keyring.delete_password(self.app_name, key)
-        except Exception as e:
+        except Exception:
             raise KeyNotFoundError(f"Key '{key}' not found in keyring")
