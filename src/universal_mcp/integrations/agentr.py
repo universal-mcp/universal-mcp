@@ -29,7 +29,7 @@ class AgentRIntegration(Integration):
                 "API key for AgentR is missing. Please visit https://agentr.dev to create an API key, then set it as AGENTR_API_KEY environment variable."
             )
             raise ValueError("AgentR API key required - get one at https://agentr.dev")
-        self.base_url = os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
+        self.base_url = os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev").rstrip("/")
         self._credentials = None
 
     def set_credentials(self, credentials: dict | None = None):
