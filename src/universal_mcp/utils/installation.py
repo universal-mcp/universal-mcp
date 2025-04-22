@@ -132,7 +132,7 @@ def install_cline(api_key: str) -> None:
 def install_continue(api_key: str) -> None:
     """Install Continue"""
     print("[bold blue]Installing Continue configuration...[/bold blue]")
-    
+
     # Determine platform-specific config path
     if sys.platform == "darwin":  # macOS
         config_path = Path.home() / "Library/Application Support/Continue/mcp.json"
@@ -168,7 +168,7 @@ def install_continue(api_key: str) -> None:
 def install_goose(api_key: str) -> None:
     """Install Goose"""
     print("[bold blue]Installing Goose configuration...[/bold blue]")
-    
+
     # Determine platform-specific config path
     if sys.platform == "darwin":  # macOS
         config_path = Path.home() / "Library/Application Support/Goose/mcp-config.json"
@@ -204,7 +204,7 @@ def install_goose(api_key: str) -> None:
 def install_windsurf(api_key: str) -> None:
     """Install Windsurf"""
     print("[bold blue]Installing Windsurf configuration...[/bold blue]")
-    
+
     # Determine platform-specific config path
     if sys.platform == "darwin":  # macOS
         config_path = Path.home() / "Library/Application Support/Windsurf/mcp.json"
@@ -240,7 +240,7 @@ def install_windsurf(api_key: str) -> None:
 def install_zed(api_key: str) -> None:
     """Install Zed"""
     print("[bold blue]Installing Zed configuration...[/bold blue]")
-    
+
     # Set up Zed config path
     config_dir = Path.home() / ".config/zed"
     config_path = config_dir / "mcp_servers.json"
@@ -258,31 +258,34 @@ def install_zed(api_key: str) -> None:
 
     if not isinstance(config, list):
         config = []
-    
+
     # Check if universal_mcp is already in the config
     existing_config = False
     for server in config:
         if server.get("name") == "universal_mcp":
             existing_config = True
-            server.update({
+            server.update(
+                {
+                    "command": get_uvx_path(),
+                    "args": ["universal_mcp[all]@latest", "run"],
+                    "env": {"AGENTR_API_KEY": api_key},
+                }
+            )
+            break
+
+    if not existing_config:
+        config.append(
+            {
+                "name": "universal_mcp",
                 "command": get_uvx_path(),
                 "args": ["universal_mcp[all]@latest", "run"],
                 "env": {"AGENTR_API_KEY": api_key},
-            })
-            break
-    
-    if not existing_config:
-        config.append({
-            "name": "universal_mcp",
-            "command": get_uvx_path(),
-            "args": ["universal_mcp[all]@latest", "run"],
-            "env": {"AGENTR_API_KEY": api_key},
-        })
+            }
+        )
 
     with open(config_path, "w") as f:
         json.dump(config, f, indent=4)
     print("[green]✓[/green] Zed configuration installed successfully")
-
 
 
 def install_app(app_name: str, api_key: str) -> None:
