@@ -9,7 +9,6 @@ from loguru import logger
 from mcp.server.fastmcp import FastMCP
 from mcp.types import TextContent
 
-from universal_mcp.analytics import analytics
 from universal_mcp.applications import Application, app_from_slug
 from universal_mcp.config import AppConfig, ServerConfig, StoreConfig
 from universal_mcp.integrations import AgentRIntegration, integration_from_config
