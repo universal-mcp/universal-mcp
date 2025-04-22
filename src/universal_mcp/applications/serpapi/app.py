@@ -1,5 +1,4 @@
 import httpx
-from loguru import logger
 from serpapi import SerpApiClient as SerpApiSearch
 
 from universal_mcp.applications.application import APIApplication
@@ -8,7 +7,6 @@ from universal_mcp.applications.application import APIApplication
 class SerpapiApp(APIApplication):
     def __init__(self, **kwargs):
         super().__init__(name="serpapi", **kwargs)
-    
 
     async def search(self, params: dict[str, any] = None) -> str:
         """

@@ -1,7 +1,5 @@
 from typing import Any
 
-from loguru import logger
-
 from universal_mcp.applications.application import APIApplication
 from universal_mcp.integrations import Integration
 

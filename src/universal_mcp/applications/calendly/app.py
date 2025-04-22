@@ -1193,5 +1193,3 @@ class CalendlyApp(APIApplication):
             self.create_one_off_event_type,
             self.get_sample_webhook_data,
         ]
-
-
