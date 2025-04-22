@@ -1,9 +1,6 @@
 from typing import Any
 
-from loguru import logger
-
 from universal_mcp.applications import APIApplication
-from universal_mcp.exceptions import NotAuthorizedError
 from universal_mcp.integrations import Integration
 
 

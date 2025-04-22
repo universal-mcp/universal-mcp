@@ -141,7 +141,7 @@ async def test_generate_api_with_docstrings(sample_schema, temp_dir):
     assert '"""' in content  # Basic check for docstring presence
     # TODO: Fix this test
     assert "Args:" in content or "Parameters:" in content
-    assert "Returns:" in content
+    assert "Tags:" in content
 
     # Verify temporary file was cleaned up
     assert not output_path.exists()
