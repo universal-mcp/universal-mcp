@@ -1,5 +1,4 @@
 import httpx
-from loguru import logger
 from serpapi import SerpApiClient as SerpApiSearch
 
 from universal_mcp.applications.application import APIApplication
