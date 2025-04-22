@@ -32,7 +32,9 @@ class APIApplication(Application):
         super().__init__(name, **kwargs)
         self.default_timeout = 30
         self.integration = integration
-        logger.debug(f"Initializing APIApplication '{name}' with integration: {integration}")
+        logger.debug(
+            f"Initializing APIApplication '{name}' with integration: {integration}"
+        )
 
     def _get_headers(self):
         if not self.integration:
@@ -40,7 +42,7 @@ class APIApplication(Application):
             return {}
         credentials = self.integration.get_credentials()
         logger.debug(f"Got credentials for integration: {credentials.keys()}")
-        
+
         # Check if direct headers are provided
         headers = credentials.get("headers")
         if headers:
@@ -79,7 +81,9 @@ class APIApplication(Application):
                 url, headers=headers, params=params, timeout=self.default_timeout
             )
             response.raise_for_status()
-            logger.debug(f"GET request successful with status code: {response.status_code}")
+            logger.debug(
+                f"GET request successful with status code: {response.status_code}"
+            )
             return response
         except NotAuthorizedError as e:
             logger.warning(f"Authorization needed: {e.message}")
@@ -91,7 +95,9 @@ class APIApplication(Application):
     def _post(self, url, data, params=None):
         try:
             headers = self._get_headers()
-            logger.debug(f"Making POST request to {url} with params: {params} and data: {data}")
+            logger.debug(
+                f"Making POST request to {url} with params: {params} and data: {data}"
+            )
             response = httpx.post(
                 url,
                 headers=headers,
@@ -100,7 +106,9 @@ class APIApplication(Application):
                 timeout=self.default_timeout,
             )
             response.raise_for_status()
-            logger.debug(f"POST request successful with status code: {response.status_code}")
+            logger.debug(
+                f"POST request successful with status code: {response.status_code}"
+            )
             return response
         except NotAuthorizedError as e:
             logger.warning(f"Authorization needed: {e.message}")
@@ -118,7 +126,9 @@ class APIApplication(Application):
     def _put(self, url, data, params=None):
         try:
             headers = self._get_headers()
-            logger.debug(f"Making PUT request to {url} with params: {params} and data: {data}")
+            logger.debug(
+                f"Making PUT request to {url} with params: {params} and data: {data}"
+            )
             response = httpx.put(
                 url,
                 headers=headers,
@@ -127,7 +137,9 @@ class APIApplication(Application):
                 timeout=self.default_timeout,
             )
             response.raise_for_status()
-            logger.debug(f"PUT request successful with status code: {response.status_code}")
+            logger.debug(
+                f"PUT request successful with status code: {response.status_code}"
+            )
             return response
         except NotAuthorizedError as e:
             logger.warning(f"Authorization needed: {e.message}")
@@ -144,7 +156,9 @@ class APIApplication(Application):
                 url, headers=headers, params=params, timeout=self.default_timeout
             )
             response.raise_for_status()
-            logger.debug(f"DELETE request successful with status code: {response.status_code}")
+            logger.debug(
+                f"DELETE request successful with status code: {response.status_code}"
+            )
             return response
         except NotAuthorizedError as e:
             logger.warning(f"Authorization needed: {e.message}")
@@ -156,7 +170,9 @@ class APIApplication(Application):
     def _patch(self, url, data, params=None):
         try:
             headers = self._get_headers()
-            logger.debug(f"Making PATCH request to {url} with params: {params} and data: {data}")
+            logger.debug(
+                f"Making PATCH request to {url} with params: {params} and data: {data}"
+            )
             response = httpx.patch(
                 url,
                 headers=headers,
@@ -165,7 +181,9 @@ class APIApplication(Application):
                 timeout=self.default_timeout,
             )
             response.raise_for_status()
-            logger.debug(f"PATCH request successful with status code: {response.status_code}")
+            logger.debug(
+                f"PATCH request successful with status code: {response.status_code}"
+            )
             return response
         except NotAuthorizedError as e:
             logger.warning(f"Authorization needed: {e.message}")
