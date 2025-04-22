@@ -13,7 +13,6 @@ class GoogleMailApp(APIApplication):
         super().__init__(name="google-mail", integration=integration)
         self.base_api_url = "https://gmail.googleapis.com/gmail/v1/users/me"
 
-
     def send_email(self, to: str, subject: str, body: str) -> str:
         """
         Sends an email using the Gmail API and returns a confirmation or error message.

@@ -65,7 +65,9 @@ class AgentRIntegration(Integration):
             headers={"accept": "application/json", "X-API-KEY": self.api_key},
         )
         if response.status_code == 404:
-            logger.warning(f"No credentials found for {self.name}. Requesting authorization...")
+            logger.warning(
+                f"No credentials found for {self.name}. Requesting authorization..."
+            )
             action = self.authorize()
             raise NotAuthorizedError(action)
         response.raise_for_status()

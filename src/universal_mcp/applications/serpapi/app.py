@@ -7,7 +7,6 @@ from universal_mcp.applications.application import APIApplication
 class SerpapiApp(APIApplication):
     def __init__(self, **kwargs):
         super().__init__(name="serpapi", **kwargs)
-    
 
     async def search(self, params: dict[str, any] = None) -> str:
         """

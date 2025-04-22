@@ -11,7 +11,6 @@ class GoogleCalendarApp(APIApplication):
         super().__init__(name="google-calendar", integration=integration)
         self.base_api_url = "https://www.googleapis.com/calendar/v3/calendars/primary"
 
-
     def _format_datetime(self, dt_string: str) -> str:
         """Format a datetime string from ISO format to a human-readable format.
 

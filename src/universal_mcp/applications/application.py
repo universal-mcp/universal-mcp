@@ -34,12 +34,12 @@ class APIApplication(Application):
         if not self.integration:
             return {}
         credentials = self.integration.get_credentials()
-        
+
         # Check if direct headers are provided
         headers = credentials.get("headers")
         if headers:
             return headers
-        
+
         # Check if api key is provided
         api_key = (
             credentials.get("api_key")
@@ -51,7 +51,7 @@ class APIApplication(Application):
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
             }
-        
+
         # Check if access token is provided
         access_token = credentials.get("access_token")
         if access_token:

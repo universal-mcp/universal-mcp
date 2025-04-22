@@ -8,7 +8,6 @@ class TavilyApp(APIApplication):
         self.base_url = "https://api.tavily.com"
         super().__init__(name=name, integration=integration)
 
-
     def search(self, query: str) -> str:
         """
         Performs a web search using Tavily's search API and returns either a direct answer or a summary of top results.

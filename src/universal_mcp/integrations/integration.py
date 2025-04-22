@@ -95,7 +95,7 @@ class ApiKeyIntegration(Integration):
         sanitized_name = sanitize_api_key_name(name)
         super().__init__(sanitized_name, store, **kwargs)
         logger.info(f"Initializing API Key Integration: {name} with store: {store}")
-        self._api_key : str | None = None
+        self._api_key: str | None = None
 
     @property
     def api_key(self) -> str | None:
@@ -107,7 +107,6 @@ class ApiKeyIntegration(Integration):
                 action = self.authorize()
                 raise NotAuthorizedError(action) from e
         return self._api_key
-
 
     def get_credentials(self) -> dict[str, str]:
         """Get API key credentials.
