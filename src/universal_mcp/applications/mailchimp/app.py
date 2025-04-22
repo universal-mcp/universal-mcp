@@ -4,10 +4,10 @@ from universal_mcp.applications import APIApplication
 from universal_mcp.integrations import Integration
 
 
-class MailchimpMarketingApiApp(APIApplication):
+class MailchimpApp(APIApplication):
     def __init__(self, integration: Integration = None, **kwargs) -> None:
-        super().__init__(name='mailchimpmarketingapiapp', integration=integration, **kwargs)
-        self.base_url = "https://server.api.mailchimp.com/3.0"
+        super().__init__(name='mailchimp', integration=integration, **kwargs)
+        self.base_url = "https://us6.api.mailchimp.com/3.0"
 
     def root_list_resources(self, fields=None, exclude_fields=None) -> dict[str, Any]:
         """
@@ -24,7 +24,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised when the HTTP request returns an unsuccessful status code.
         
         Tags:
-            list, resources, api, get, root, important
+            list, resources, api, get, root
         """
         url = f"{self.base_url}/"
         query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields)] if v is not None}
@@ -47,7 +47,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request fails with a status code indicating an error.
         
         Tags:
-            fetch, scrape, async-optional, feed-management, important
+            fetch, scrape, async-optional, feed-management
         """
         url = f"{self.base_url}/activity-feed/chimp-chatter"
         query_params = {k: v for k, v in [('count', count), ('offset', offset)] if v is not None}
@@ -72,7 +72,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API endpoint fails or returns an error status code.
         
         Tags:
-            list, account-exports, management, batch, api, important
+            list, account-exports, management, batch, api
         """
         url = f"{self.base_url}/account-exports"
         query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields), ('count', count), ('offset', offset)] if v is not None}
@@ -96,7 +96,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request fails or the server responds with an error status.
         
         Tags:
-            create, account-exports, start, async-job, management, important
+            create, account-exports, start, async-job, management
         """
         if include_stages is None:
             raise ValueError("Missing required parameter 'include_stages'")
@@ -128,7 +128,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised when the HTTP request fails or returns an error status code.
         
         Tags:
-            retrieve, export, account, info, api, important
+            retrieve, export, account, info, api
         """
         if export_id is None:
             raise ValueError("Missing required parameter 'export_id'")
@@ -155,7 +155,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request returned an unsuccessful status code.
         
         Tags:
-            list, authorized-apps, management, pagination, important
+            list, authorized-apps, management, pagination
         """
         url = f"{self.base_url}/authorized-apps"
         query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields), ('count', count), ('offset', offset)] if v is not None}
@@ -180,7 +180,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.exceptions.HTTPError: Raised if the HTTP request to fetch application information fails.
         
         Tags:
-            get-info, authorized-apps, management, important
+            get-info, authorized-apps, management
         """
         if app_id is None:
             raise ValueError("Missing required parameter 'app_id'")
@@ -212,7 +212,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request to the automations endpoint returns an unsuccessful status code.
         
         Tags:
-            list, summary, automations, management, filter, important
+            list, summary, automations, management, filter
         """
         url = f"{self.base_url}/automations"
         query_params = {k: v for k, v in [('count', count), ('offset', offset), ('fields', fields), ('exclude_fields', exclude_fields), ('before_create_time', before_create_time), ('since_create_time', since_create_time), ('before_start_time', before_start_time), ('since_start_time', since_start_time), ('status', status)] if v is not None}
@@ -237,7 +237,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to create the automation fails (non-2xx status code).
         
         Tags:
-            create, automation, classic, api, important
+            create, automation, classic, api
         """
         if recipients is None:
             raise ValueError("Missing required parameter 'recipients'")
@@ -272,7 +272,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the HTTP request to the API fails (non-2xx response).
         
         Tags:
-            get, automation, workflow, management, important
+            get, automation, workflow, management
         """
         if workflow_id is None:
             raise ValueError("Missing required parameter 'workflow_id'")
@@ -297,7 +297,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to pause emails fails.
         
         Tags:
-            pause, workflow, emails, async-job, automations, important
+            pause, workflow, emails, async-job, automations
         """
         if workflow_id is None:
             raise ValueError("Missing required parameter 'workflow_id'")
@@ -322,7 +322,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to start emails fails.
         
         Tags:
-            start, automations, emails, management, important
+            start, automations, emails, management
         """
         if workflow_id is None:
             raise ValueError("Missing required parameter 'workflow_id'")
@@ -347,7 +347,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request to the API fails.
         
         Tags:
-            archive, automation, management, api, important
+            archive, automation, management, api
         """
         if workflow_id is None:
             raise ValueError("Missing required parameter 'workflow_id'")
@@ -372,7 +372,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API endpoint returns an unsuccessful status code.
         
         Tags:
-            fetch, list, emails, workflow, api, important
+            fetch, list, emails, workflow, api
         """
         if workflow_id is None:
             raise ValueError("Missing required parameter 'workflow_id'")
@@ -398,7 +398,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails.
         
         Tags:
-            get, email, automation, management, important
+            get, email, automation, management
         """
         if workflow_id is None:
             raise ValueError("Missing required parameter 'workflow_id'")
@@ -426,7 +426,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to delete the workflow email fails.
         
         Tags:
-            delete, workflow, email, automations, api, important
+            delete, workflow, email, automations, api
         """
         if workflow_id is None:
             raise ValueError("Missing required parameter 'workflow_id'")
@@ -456,7 +456,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the API request fails or returns an unsuccessful status code.
         
         Tags:
-            update, workflow, email, automation, management, important
+            update, workflow, email, automation, management
         """
         if workflow_id is None:
             raise ValueError("Missing required parameter 'workflow_id'")
@@ -489,7 +489,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the HTTP GET request to the API fails or returns an unsuccessful status code.
         
         Tags:
-            list, queue, emails, automation, important
+            list, queue, emails, automation
         """
         if workflow_id is None:
             raise ValueError("Missing required parameter 'workflow_id'")
@@ -518,7 +518,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request returns an unsuccessful status code.
         
         Tags:
-            add, subscriber, automations, workflow, email, api, important
+            add, subscriber, automations, workflow, email, api
         """
         if workflow_id is None:
             raise ValueError("Missing required parameter 'workflow_id'")
@@ -547,7 +547,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the automation API fails or returns a non-successful status code.
         
         Tags:
-            retrieve, subscriber-info, automation, classic, api, important
+            retrieve, subscriber-info, automation, classic, api
         """
         if workflow_id is None:
             raise ValueError("Missing required parameter 'workflow_id'")
@@ -577,7 +577,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails or returns an error status.
         
         Tags:
-            pause, automated-email, workflow, api, management, important
+            pause, automated-email, workflow, api, management
         """
         if workflow_id is None:
             raise ValueError("Missing required parameter 'workflow_id'")
@@ -605,7 +605,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the API response indicates an unsuccessful HTTP status.
         
         Tags:
-            start, automations, email, async-job, api, important
+            start, automations, email, async-job, api
         """
         if workflow_id is None:
             raise ValueError("Missing required parameter 'workflow_id'")
@@ -632,7 +632,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails or returns an unsuccessful status code.
         
         Tags:
-            get, removed-subscribers, automation, api, important
+            get, removed-subscribers, automation, api
         """
         if workflow_id is None:
             raise ValueError("Missing required parameter 'workflow_id'")
@@ -658,7 +658,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API results in an error response.
         
         Tags:
-            automations, remove, subscriber-management, api, important
+            automations, remove, subscriber-management, api
         """
         if workflow_id is None:
             raise ValueError("Missing required parameter 'workflow_id'")
@@ -684,7 +684,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the server fails or returns an error status.
         
         Tags:
-            get, subscriber, async-job, management, important
+            get, subscriber, async-job, management
         """
         if workflow_id is None:
             raise ValueError("Missing required parameter 'workflow_id'")
@@ -713,7 +713,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request to the batch requests endpoint fails or returns an error status code.
         
         Tags:
-            list, batches, requests, summary, api, important
+            list, batches, requests, summary, api
         """
         url = f"{self.base_url}/batches"
         query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields), ('count', count), ('offset', offset)] if v is not None}
@@ -736,7 +736,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request to the remote service fails or returns a non-success status code.
         
         Tags:
-            batches, start, async-job, management, important
+            batches, start, async-job, management
         """
         if operations is None:
             raise ValueError("Missing required parameter 'operations'")
@@ -767,7 +767,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request for batch status information fails.
         
         Tags:
-            get, batch, status, ai, management, important
+            get, batch, status, ai, management
         """
         if batch_id is None:
             raise ValueError("Missing required parameter 'batch_id'")
@@ -792,7 +792,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to stop the batch job fails.
         
         Tags:
-            stop, batch, async-job, management, important
+            stop, batch, async-job, management
         """
         if batch_id is None:
             raise ValueError("Missing required parameter 'batch_id'")
@@ -819,7 +819,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.exceptions.HTTPError: If the HTTP request to the webhooks API fails or returns an unsuccessful status code.
         
         Tags:
-            list, batch, webhooks, api, management, important
+            list, batch, webhooks, api, management
         """
         url = f"{self.base_url}/batch-webhooks"
         query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields), ('count', count), ('offset', offset)] if v is not None}
@@ -843,7 +843,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the HTTP request encounters an error.
         
         Tags:
-            add, webhook, batch, important
+            add, webhook, batch
         """
         if url is None:
             raise ValueError("Missing required parameter 'url'")
@@ -875,7 +875,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: When the API request fails.
         
         Tags:
-            get, retrieve, info, batch, webhook, api, important
+            get, retrieve, info, batch, webhook, api
         """
         if batch_webhook_id is None:
             raise ValueError("Missing required parameter 'batch_webhook_id'")
@@ -902,7 +902,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request fails or the server returns an error status code.
         
         Tags:
-            update, webhook, batch, management, important
+            update, webhook, batch, management
         """
         if batch_webhook_id is None:
             raise ValueError("Missing required parameter 'batch_webhook_id'")
@@ -932,7 +932,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to remove the webhook fails with a non-success status code.
         
         Tags:
-            remove, webhook, batch, management, important
+            remove, webhook, batch, management
         """
         if batch_webhook_id is None:
             raise ValueError("Missing required parameter 'batch_webhook_id'")
@@ -959,7 +959,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns a non-success status code.
         
         Tags:
-            list, template-folders, api, management, important
+            list, template-folders, api, management
         """
         url = f"{self.base_url}/template-folders"
         query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields), ('count', count), ('offset', offset)] if v is not None}
@@ -981,7 +981,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.exceptions.HTTPError: If the server returns an unsuccessful status code.
         
         Tags:
-            add, template-folder, api, post, important
+            add, template-folder, api, post
         """
         url = f"{self.base_url}/template-folders"
         query_params = {}
@@ -1006,7 +1006,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            get, retrieve, template, folder, information, important
+            get, retrieve, template, folder, information
         """
         if folder_id is None:
             raise ValueError("Missing required parameter 'folder_id'")
@@ -1032,7 +1032,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the PATCH request fails or the server returns an error status code.
         
         Tags:
-            update, template-folder, api, patch, management, important
+            update, template-folder, api, patch, management
         """
         if folder_id is None:
             raise ValueError("Missing required parameter 'folder_id'")
@@ -1057,7 +1057,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to delete the folder fails.
         
         Tags:
-            delete, template-folder, api, management, important
+            delete, template-folder, api, management
         """
         if folder_id is None:
             raise ValueError("Missing required parameter 'folder_id'")
@@ -1084,7 +1084,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request fails or the response status code indicates an error.
         
         Tags:
-            list, campaign-folders, api, management, important
+            list, campaign-folders, api, management
         """
         url = f"{self.base_url}/campaign-folders"
         query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields), ('count', count), ('offset', offset)] if v is not None}
@@ -1106,7 +1106,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request returned an unsuccessful status code.
         
         Tags:
-            create, campaign-folder, api, post, important
+            create, campaign-folder, api, post
         """
         url = f"{self.base_url}/campaign-folders"
         query_params = {}
@@ -1131,7 +1131,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the API request returns an unsuccessful HTTP status code.
         
         Tags:
-            get, campaign-folder, ai, management, important
+            get, campaign-folder, ai, management
         """
         if folder_id is None:
             raise ValueError("Missing required parameter 'folder_id'")
@@ -1157,7 +1157,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised when the HTTP request fails.
         
         Tags:
-            update, campaign, folder, management, important
+            update, campaign, folder, management
         """
         if folder_id is None:
             raise ValueError("Missing required parameter 'folder_id'")
@@ -1182,7 +1182,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to delete the folder fails.
         
         Tags:
-            delete, campaign-folder, management, important
+            delete, campaign-folder, management
         """
         if folder_id is None:
             raise ValueError("Missing required parameter 'folder_id'")
@@ -1321,7 +1321,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the HTTP request to update the campaign fails.
         
         Tags:
-            update, campaign, settings, api, management, important
+            update, campaign, settings, api, management
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -1357,7 +1357,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request to remove the campaign fails (non-2xx status code).
         
         Tags:
-            remove, campaign, management, api, important
+            remove, campaign, management, api
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -1382,7 +1382,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to cancel the campaign send fails.
         
         Tags:
-            cancel, campaigns, management, important
+            cancel, campaigns, management
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -1407,7 +1407,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the API request fails (e.g., network errors or non-successful HTTP response).
         
         Tags:
-            replicate, campaign, api, action, important
+            replicate, campaign, api, action
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -1432,7 +1432,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to send the campaign fails with a bad status code.
         
         Tags:
-            send, campaigns, actions, api, important
+            send, campaigns, actions, api
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -1460,7 +1460,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the API request fails or returns an error status code.
         
         Tags:
-            schedule, campaign, delivery, async-job, email, management, important
+            schedule, campaign, delivery, async-job, email, management
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -1493,7 +1493,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the unschedule endpoint returns an unsuccessful status code.
         
         Tags:
-            unschedule, campaign, action, api, important
+            unschedule, campaign, action, api
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -1520,7 +1520,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised when the API request fails (via raise_for_status()).
         
         Tags:
-            send, test, email, campaign, important
+            send, test, email, campaign
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -1554,7 +1554,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to pause the campaign fails with a non-success status code.
         
         Tags:
-            pause, campaign, rss, api, management, important
+            pause, campaign, rss, api, management
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -1579,7 +1579,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            resume, campaign, rss, action, management, important
+            resume, campaign, rss, action, management
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -1605,7 +1605,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.exceptions.HTTPError: Raised if the API response contains an HTTP error status.
         
         Tags:
-            resend, campaign, action, async_job, api, management, important
+            resend, campaign, action, async_job, api, management
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -1636,7 +1636,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to retrieve campaign content fails.
         
         Tags:
-            get, campaign, content, api, management, important
+            get, campaign, content, api, management
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -1667,7 +1667,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request fails or the API returns an error response.
         
         Tags:
-            set-content, campaign-management, update, api, http, important
+            set-content, campaign-management, update, api, http
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -1703,7 +1703,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request to the feedback endpoint fails.
         
         Tags:
-            list, feedback, campaign, ai, important
+            list, feedback, campaign, ai
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -1731,7 +1731,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the API response contains an HTTP error status.
         
         Tags:
-            feedback, campaign, submit, management, api, important
+            feedback, campaign, submit, management, api
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -1767,7 +1767,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails.
         
         Tags:
-            get, feedback, campaign, api, data-retrieval, important
+            get, feedback, campaign, api, data-retrieval
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -1798,7 +1798,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP PATCH request to the API fails with an error status code.
         
         Tags:
-            update, feedback, campaign, api, important
+            update, feedback, campaign, api
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -1832,7 +1832,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP DELETE request to the API fails.
         
         Tags:
-            remove, feedback, campaign, api, management, important
+            remove, feedback, campaign, api, management
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -1861,7 +1861,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the HTTP request to the API fails (non-2xx response).
         
         Tags:
-            get, campaign, checklist, api, important
+            get, campaign, checklist, api
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -1888,7 +1888,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the underlying HTTP request fails or returns a non-successful status code.
         
         Tags:
-            list, connected-sites, api, management, important
+            list, connected-sites, api, management
         """
         url = f"{self.base_url}/connected-sites"
         query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields), ('count', count), ('offset', offset)] if v is not None}
@@ -1912,7 +1912,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the Mailchimp API fails.
         
         Tags:
-            create, connected-sites, mailchimp, api, important
+            create, connected-sites, mailchimp, api
         """
         if foreign_id is None:
             raise ValueError("Missing required parameter 'foreign_id'")
@@ -1946,7 +1946,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an error status code.
         
         Tags:
-            get, connected-site, info, api, management, important
+            get, connected-site, info, api, management
         """
         if connected_site_id is None:
             raise ValueError("Missing required parameter 'connected_site_id'")
@@ -1971,7 +1971,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to remove the site fails.
         
         Tags:
-            remove, connected-site, management, api, important
+            remove, connected-site, management, api
         """
         if connected_site_id is None:
             raise ValueError("Missing required parameter 'connected_site_id'")
@@ -1996,7 +1996,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the verification endpoint fails or returns an error status.
         
         Tags:
-            verify, connected-site, ai, important
+            verify, connected-site, ai
         """
         if connected_site_id is None:
             raise ValueError("Missing required parameter 'connected_site_id'")
@@ -2026,7 +2026,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised when the API request returns an error status code.
         
         Tags:
-            list, retrieve, conversations, filter, api, important
+            list, retrieve, conversations, filter, api
         """
         url = f"{self.base_url}/conversations"
         query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields), ('count', count), ('offset', offset), ('has_unread_messages', has_unread_messages), ('list_id', list_id), ('campaign_id', campaign_id)] if v is not None}
@@ -2051,7 +2051,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to retrieve the conversation fails.
         
         Tags:
-            get, conversations, api, management, important
+            get, conversations, api, management
         """
         if conversation_id is None:
             raise ValueError("Missing required parameter 'conversation_id'")
@@ -2081,7 +2081,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            list, retrieve, messages, conversation, important
+            list, retrieve, messages, conversation
         """
         if conversation_id is None:
             raise ValueError("Missing required parameter 'conversation_id'")
@@ -2109,7 +2109,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the server fails or returns an error status.
         
         Tags:
-            get, message, conversations, api, important
+            get, message, conversations, api
         """
         if conversation_id is None:
             raise ValueError("Missing required parameter 'conversation_id'")
@@ -2138,7 +2138,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the underlying HTTP request fails or returns an error status.
         
         Tags:
-            trigger, customer-journey, action, api, important
+            trigger, customer-journey, action, api
         """
         if journey_id is None:
             raise ValueError("Missing required parameter 'journey_id'")
@@ -2175,7 +2175,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the file manager service fails or returns an error status.
         
         Tags:
-            upload, file-manager, api, management, important
+            upload, file-manager, api, management
         """
         if name is None:
             raise ValueError("Missing required parameter 'name'")
@@ -2210,7 +2210,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the file manager service fails with a non-2xx status code.
         
         Tags:
-            get, file-manager, fetch, api, metadata, important
+            get, file-manager, fetch, api, metadata
         """
         if file_id is None:
             raise ValueError("Missing required parameter 'file_id'")
@@ -2237,7 +2237,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the PATCH request to the server fails with a client or server error response.
         
         Tags:
-            update, file-management, async-job, api, important
+            update, file-management, async-job, api
         """
         if file_id is None:
             raise ValueError("Missing required parameter 'file_id'")
@@ -2267,7 +2267,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to delete the file fails.
         
         Tags:
-            remove, file, management, important
+            remove, file, management
         """
         if file_id is None:
             raise ValueError("Missing required parameter 'file_id'")
@@ -2297,7 +2297,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the file manager API fails or returns an error status code.
         
         Tags:
-            list, file-manager, folders, filter, api, batch, important
+            list, file-manager, folders, filter, api, batch
         """
         url = f"{self.base_url}/file-manager/folders"
         query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields), ('count', count), ('offset', offset), ('created_by', created_by), ('before_created_at', before_created_at), ('since_created_at', since_created_at)] if v is not None}
@@ -2319,7 +2319,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to create the new folder fails or returns an unsuccessful status code.
         
         Tags:
-            file-manager, add, folder, create, api, important
+            file-manager, add, folder, create, api
         """
         url = f"{self.base_url}/file-manager/folders"
         query_params = {}
@@ -2344,7 +2344,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised when the API request fails (via raise_for_status()).
         
         Tags:
-            get, retrieve, folder, file-manager, information, important
+            get, retrieve, folder, file-manager, information
         """
         if folder_id is None:
             raise ValueError("Missing required parameter 'folder_id'")
@@ -2370,7 +2370,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised when the API request fails (via raise_for_status()).
         
         Tags:
-            update, folder, file-manager, management, important
+            update, folder, file-manager, management
         """
         if folder_id is None:
             raise ValueError("Missing required parameter 'folder_id'")
@@ -2395,7 +2395,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the HTTP request to delete the folder fails.
         
         Tags:
-            delete, file-manager, folder, api, important
+            delete, file-manager, folder, api
         """
         if folder_id is None:
             raise ValueError("Missing required parameter 'folder_id'")
@@ -2430,7 +2430,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the API request fails or returns an HTTP error status.
         
         Tags:
-            list, file-manager, async-job, storage, important
+            list, file-manager, async-job, storage
         """
         if folder_id is None:
             raise ValueError("Missing required parameter 'folder_id'")
@@ -2466,7 +2466,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an error status.
         
         Tags:
-            list, get, retrieve, filter, sort, batch, api, important
+            list, get, retrieve, filter, sort, batch, api
         """
         url = f"{self.base_url}/lists"
         query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields), ('count', count), ('offset', offset), ('before_date_created', before_date_created), ('since_date_created', since_date_created), ('before_campaign_last_sent', before_campaign_last_sent), ('since_campaign_last_sent', since_campaign_last_sent), ('email', email), ('sort_field', sort_field), ('sort_dir', sort_dir), ('has_ecommerce_store', has_ecommerce_store), ('include_total_contacts', include_total_contacts)] if v is not None}
@@ -2498,7 +2498,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to create the list fails (non-2xx response).
         
         Tags:
-            create, list-management, api, async_job, important
+            create, list-management, api, async_job
         """
         if name is None:
             raise ValueError("Missing required parameter 'name'")
@@ -2547,7 +2547,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the remote API fails.
         
         Tags:
-            get, list, retrieve, details, api, important
+            get, list, retrieve, details, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -2582,7 +2582,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the API response returns an unsuccessful HTTP status.
         
         Tags:
-            update, list-management, settings, api, important
+            update, list-management, settings, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -2630,7 +2630,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to delete the list fails (non-2xx response status).
         
         Tags:
-            delete, list, management, important
+            delete, list, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -2660,7 +2660,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the API request fails or returns an unsuccessful HTTP status code.
         
         Tags:
-            list, batch, subscribe, unsubscribe, management, important
+            list, batch, subscribe, unsubscribe, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -2697,7 +2697,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an error status.
         
         Tags:
-            list, get, abuse-reports, api, management, important
+            list, get, abuse-reports, api, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -2727,7 +2727,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request for the abuse report fails.
         
         Tags:
-            get, list, abuse-report, management, important
+            get, list, abuse-report, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -2758,7 +2758,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the backend API fails or returns an error status code.
         
         Tags:
-            list, get, activity, stats, api, management, important
+            list, get, activity, stats, api, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -2785,7 +2785,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request fails or returns an error status.
         
         Tags:
-            list, email-clients, fetch, management, important
+            list, email-clients, fetch, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -2816,7 +2816,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API endpoint fails.
         
         Tags:
-            list, get, growth-history, fetch, management, important
+            list, get, growth-history, fetch, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -2844,7 +2844,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request to retrieve the growth history fails.
         
         Tags:
-            get, list, growth-history, status, management, important
+            get, list, growth-history, status, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -2876,7 +2876,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails or returns a non-success status code.
         
         Tags:
-            list, interest-categories, fetch, pagination, filter, api, important
+            list, interest-categories, fetch, pagination, filter, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -2902,7 +2902,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if there is an HTTP error (e.g., server error, invalid request) during the POST request.
         
         Tags:
-            add, category, management, api, important
+            add, category, management, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -2930,7 +2930,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails (e.g., non-2xx response).
         
         Tags:
-            get, list, interest-category, mailchimp, api, important
+            get, list, interest-category, mailchimp, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -2959,7 +2959,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request to update the category fails.
         
         Tags:
-            update, interest-category, list, management, api, important
+            update, interest-category, list, management, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -2987,7 +2987,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the server returns an error response status code.
         
         Tags:
-            delete, interest-category, list, api, management, important
+            delete, interest-category, list, api, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3019,7 +3019,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the Mailchimp API fails or returns a non-2xx status code.
         
         Tags:
-            list, category, interests, retrieve, mailchimp, api, important
+            list, category, interests, retrieve, mailchimp, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3048,7 +3048,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the API request fails or the response status is an HTTP error.
         
         Tags:
-            add, interest, management, lists, api, important
+            add, interest, management, lists, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3078,7 +3078,7 @@ class MailchimpMarketingApiApp(APIApplication):
             ValueError: If any of the required parameters (list_id, interest_category_id, interest_id) are missing.
         
         Tags:
-            retrieve, interest, list, management, important
+            retrieve, interest, list, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3110,7 +3110,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an unsuccessful status code.
         
         Tags:
-            update, api, interest, patch, management, important
+            update, api, interest, patch, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3141,7 +3141,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the API request fails or returns an error status code.
         
         Tags:
-            delete, list-management, interest, category, api, important
+            delete, list-management, interest, category, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3182,7 +3182,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the API request fails (e.g., network issues, authentication errors, invalid parameters).
         
         Tags:
-            list, get, segments, management, important
+            list, get, segments, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3210,7 +3210,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or responds with an error status code.
         
         Tags:
-            add, segment, list-management, api, important
+            add, segment, list-management, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3249,7 +3249,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to retrieve the segment information fails.
         
         Tags:
-            list, segment, get, info, api, management, important
+            list, segment, get, info, api, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3277,7 +3277,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the API responds with an HTTP error status.
         
         Tags:
-            delete, segment-management, lists, api, important
+            delete, segment-management, lists, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3308,7 +3308,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the HTTP request to update the segment fails (as triggered by response.raise_for_status()).
         
         Tags:
-            update, list-segment, management, api, important
+            update, list-segment, management, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3346,7 +3346,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the server fails (e.g., due to 4xx or 5xx status codes).
         
         Tags:
-            lists, batch, add, remove, management, important
+            lists, batch, add, remove, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3386,7 +3386,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an unsuccessful status code.
         
         Tags:
-            list, segment, members, get, retrieve, filtering, pagination, api, important
+            list, segment, members, get, retrieve, filtering, pagination, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3415,7 +3415,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the API request fails or returns a non-success status code.
         
         Tags:
-            add, member, segment, list, api, management, important
+            add, member, segment, list, api, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3480,7 +3480,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the external API fails (non-2xx response).
         
         Tags:
-            search, tags, list, api, important
+            search, tags, list, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3523,7 +3523,7 @@ class MailchimpMarketingApiApp(APIApplication):
             ValueError: Raised when the 'list_id' parameter is missing.
         
         Tags:
-            fetch, members, list-management, api-call, import, important
+            fetch, members, list-management, api-call, import
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3562,7 +3562,7 @@ class MailchimpMarketingApiApp(APIApplication):
             ValueError: Raised when required parameters (list_id, email_address, status) are missing.
         
         Tags:
-            add, member, list, important, management
+            add, member, list, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3611,7 +3611,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the Mailchimp API fails or returns a non-successful status code.
         
         Tags:
-            get, list-member, mailchimp, api, info, important
+            get, list-member, mailchimp, api, info
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3717,7 +3717,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the underlying API request fails with an HTTP error status.
         
         Tags:
-            update, list, member, management, important
+            update, list, member, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3761,7 +3761,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the underlying HTTP DELETE request fails with an error response.
         
         Tags:
-            lists, archive, member, delete, api, important
+            lists, archive, member, delete, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3792,7 +3792,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the Mailchimp API fails or returns a non-success status code.
         
         Tags:
-            list, view, recent-activity, events, member, fetch, api, management, important
+            list, view, recent-activity, events, member, fetch, api, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3825,7 +3825,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            list, member, activity, retrieve, api, important
+            list, member, activity, retrieve, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3857,7 +3857,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails (e.g., network error or non-2xx response).
         
         Tags:
-            list, get, tags, member, management, important
+            list, get, tags, member, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3887,7 +3887,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the HTTP response contains an unsuccessful status code.
         
         Tags:
-            add, member, tag, management, important
+            add, member, tag, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3925,7 +3925,7 @@ class MailchimpMarketingApiApp(APIApplication):
             ValueError: Raised when either list_id or subscriber_hash is None.
         
         Tags:
-            list, retrieve, member, events, api, important
+            list, retrieve, member, events, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3957,7 +3957,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the API request fails or returns a non-successful status code.
         
         Tags:
-            add, event, list-member, api, post, important
+            add, event, list-member, api, post
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3996,7 +3996,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the Mailchimp API fails.
         
         Tags:
-            list, get, member, goal, api, mailchimp, important
+            list, get, member, goal, api, mailchimp
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4030,7 +4030,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the API request fails (e.g., network error, permission issue).
         
         Tags:
-            list, get, member, notes, search, batch, api, management, important
+            list, get, member, notes, search, batch, api, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4059,7 +4059,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to add the note fails (e.g., due to a client or server error).
         
         Tags:
-            add, list-management, member, note, api-call, important
+            add, list-management, member, note, api-call
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4090,7 +4090,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request to the API fails or returns an error status.
         
         Tags:
-            get, list, member, note, api, management, important
+            get, list, member, note, api, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4122,7 +4122,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the API response status code indicates an error.
         
         Tags:
-            update, list-member, note, management, api, important
+            update, list-member, note, management, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4153,7 +4153,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the HTTP request to delete the note fails (e.g., due to a non-2xx response code).
         
         Tags:
-            delete, note-management, list, subscriber, api, important
+            delete, note-management, list, subscriber, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4183,7 +4183,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails, such as due to network issues or an unsuccessful response.
         
         Tags:
-            remove, member-management, list, api, important
+            remove, member-management, list, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4216,7 +4216,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API endpoint fails.
         
         Tags:
-            list, merge-fields, retrieve, api, management, important
+            list, merge-fields, retrieve, api, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4249,7 +4249,7 @@ class MailchimpMarketingApiApp(APIApplication):
             ValueError: Raised when any of the required parameters (list_id, name, type) are None.
         
         Tags:
-            add, merge-field, list, create, important
+            add, merge-field, list, create
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4293,7 +4293,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the API request fails with an error response.
         
         Tags:
-            get, merge-field, list, management, api, important
+            get, merge-field, list, management, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4329,7 +4329,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request to update the merge field fails.
         
         Tags:
-            update, merge-field, list, management, api, important
+            update, merge-field, list, management, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4370,7 +4370,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the HTTP request to the API fails or returns an error status code.
         
         Tags:
-            delete, merge-field, list-management, api, important
+            delete, merge-field, list-management, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4397,7 +4397,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.exceptions.HTTPError: If the HTTP request to fetch webhooks fails.
         
         Tags:
-            list, get, webhooks, fetch, info, important
+            list, get, webhooks, fetch, info
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4423,7 +4423,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the API response contains an HTTP error status code.
         
         Tags:
-            create, webhook, api, list, important
+            create, webhook, api, list
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4449,7 +4449,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to retrieve webhook information fails.
         
         Tags:
-            get, webhook, list, management, api, important
+            get, webhook, list, management, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4477,7 +4477,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request returns an unsuccessful status code.
         
         Tags:
-            delete, webhook, management, lists, important
+            delete, webhook, management, lists
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4506,7 +4506,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the API response contains an HTTP error status.
         
         Tags:
-            update, webhook, list, management, api, important
+            update, webhook, list, management, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4533,7 +4533,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP response contains an unsuccessful status code.
         
         Tags:
-            list, get, signup-forms, api, important
+            list, get, signup-forms, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4561,7 +4561,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the API response contains an HTTP error status.
         
         Tags:
-            lists, customize, signup-form, update, api, important
+            lists, customize, signup-form, update, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4594,7 +4594,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to fetch locations fails or returns an error response.
         
         Tags:
-            list, get, locations, api, important
+            list, get, locations, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4619,7 +4619,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the HTTP request to retrieve survey information fails.
         
         Tags:
-            list, get, surveys, info, api, important
+            list, get, surveys, info, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4645,7 +4645,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request to the API fails or returns an error status.
         
         Tags:
-            get, survey, details, list, api, important
+            get, survey, details, list, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4673,7 +4673,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to publish the survey fails.
         
         Tags:
-            publish, survey, action, management, important
+            publish, survey, action, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4701,7 +4701,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request returns an unsuccessful status code.
         
         Tags:
-            unpublish, survey, action, mailing-list, api, important
+            unpublish, survey, action, mailing-list, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4729,7 +4729,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails with a non-successful status.
         
         Tags:
-            generate, campaign, survey, email, api, important
+            generate, campaign, survey, email, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -4789,7 +4789,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the server returns an unsuccessful status code in response to the API request.
         
         Tags:
-            create, landing-page, mailchimp, api, important
+            create, landing-page, mailchimp, api
         """
         request_body = {
             'title': title,
@@ -4856,7 +4856,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to update the landing page fails (e.g., network error or non-2xx status).
         
         Tags:
-            update, patch, landing-pages, management, important
+            update, patch, landing-pages, management
         """
         if page_id is None:
             raise ValueError("Missing required parameter 'page_id'")
@@ -4890,7 +4890,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the DELETE request to the server fails or the response contains an HTTP error status.
         
         Tags:
-            delete, landing-page, management, important
+            delete, landing-page, management
         """
         if page_id is None:
             raise ValueError("Missing required parameter 'page_id'")
@@ -4915,7 +4915,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request fails with a status error.
         
         Tags:
-            publish, landing-page, async_job, action, important
+            publish, landing-page, async_job, action
         """
         if page_id is None:
             raise ValueError("Missing required parameter 'page_id'")
@@ -4940,7 +4940,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request returns an unsuccessful status code.
         
         Tags:
-            unpublish, landing-page, async-job, management, important
+            unpublish, landing-page, async-job, management
         """
         if page_id is None:
             raise ValueError("Missing required parameter 'page_id'")
@@ -4967,7 +4967,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to retrieve the landing page content fails.
         
         Tags:
-            get, landing-pages, content, api, async-job, important
+            get, landing-pages, content, api, async-job
         """
         if page_id is None:
             raise ValueError("Missing required parameter 'page_id'")
@@ -4997,7 +4997,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the reports endpoint fails or returns an unsuccessful status code.
         
         Tags:
-            list, reports, campaign, fetch, api, management, important
+            list, reports, campaign, fetch, api, management
         """
         url = f"{self.base_url}/reports"
         query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields), ('count', count), ('offset', offset), ('type', type), ('before_send_time', before_send_time), ('since_send_time', since_send_time)] if v is not None}
@@ -5022,7 +5022,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to fetch the report fails or returns an error response.
         
         Tags:
-            reports, fetch, campaign, filtering, api-call, important
+            reports, fetch, campaign, filtering, api-call
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5049,7 +5049,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request to the remote reports API fails or returns an unsuccessful status code.
         
         Tags:
-            list, reports, abuse-reports, campaign, api, important
+            list, reports, abuse-reports, campaign, api
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5077,7 +5077,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails (non-success status code).
         
         Tags:
-            get, report, abuse, status, management, api, important
+            get, report, abuse, status, management, api
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5106,7 +5106,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an unsuccessful status code.
         
         Tags:
-            reports, list, campaign, feedback, api-call, important
+            reports, list, campaign, feedback, api-call
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5137,7 +5137,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the HTTP request to the API fails (e.g., due to network issues or invalid responses).
         
         Tags:
-            reports, get, campaign, click-details, api, read, important
+            reports, get, campaign, click-details, api, read
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5165,7 +5165,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            retrieve, report, link-details, campaign, api, important
+            retrieve, report, link-details, campaign, api
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5197,7 +5197,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            list, reports, subscribers, clicks, campaign, important
+            list, reports, subscribers, clicks, campaign
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5228,7 +5228,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request made to retrieve the report fails (non-2xx status code).
         
         Tags:
-            reports, subscriber, link, retrieve, get, campaign, analytics, important
+            reports, subscriber, link, retrieve, get, campaign, analytics
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5264,7 +5264,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the report endpoint returns an unsuccessful status code.
         
         Tags:
-            list, report, campaign, management, important
+            list, report, campaign, management
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5292,7 +5292,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the reports API fails with a non-success status code.
         
         Tags:
-            fetch, reports, subscriber, campaign, details, ai, important
+            fetch, reports, subscriber, campaign, details, ai
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5321,7 +5321,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API endpoint fails or returns an error response.
         
         Tags:
-            reports, list, domain-performance, api, stats, important
+            reports, list, domain-performance, api, stats
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5348,7 +5348,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request to the API fails or returns an unsuccessful status code.
         
         Tags:
-            list, retrieve, reports, campaign, management, important
+            list, retrieve, reports, campaign, management
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5378,7 +5378,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails with an error response.
         
         Tags:
-            reports, list, email-activity, api, important
+            reports, list, email-activity, api
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5407,7 +5407,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            get, activity, reports, email, subscriber, campaign, important
+            get, activity, reports, email, subscriber, campaign
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5438,7 +5438,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the reports API fails or returns an unsuccessful status code.
         
         Tags:
-            list, reports, open-locations, campaign, management, important
+            list, reports, open-locations, campaign, management
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5467,7 +5467,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails or returns a non-success status code.
         
         Tags:
-            list, recipients, campaign, reports, api, management, important
+            list, recipients, campaign, reports, api, management
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5495,7 +5495,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the reports API endpoint fails.
         
         Tags:
-            reports, fetch, campaign, recipient-info, api, important
+            reports, fetch, campaign, recipient-info, api
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5524,7 +5524,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            list, reports, campaigns, important
+            list, reports, campaigns
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5552,7 +5552,7 @@ class MailchimpMarketingApiApp(APIApplication):
             ValueError: Raised if the 'campaign_id' is None.
         
         Tags:
-            list, report, campaign, unsubscribed, management, important
+            list, report, campaign, unsubscribed, management
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5580,7 +5580,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails.
         
         Tags:
-            reports, get, member-info, unsubscribed, api, important
+            reports, get, member-info, unsubscribed, api
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5612,7 +5612,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the API request fails or returns a non-successful HTTP response.
         
         Tags:
-            reports, get, campaign, product-activity, api, fetch, important
+            reports, get, campaign, product-activity, api, fetch
         """
         if campaign_id is None:
             raise ValueError("Missing required parameter 'campaign_id'")
@@ -5648,7 +5648,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the templates endpoint fails or returns an error status code.
         
         Tags:
-            list, templates, filter, management, important
+            list, templates, filter, management
         """
         url = f"{self.base_url}/templates"
         query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields), ('count', count), ('offset', offset), ('created_by', created_by), ('since_date_created', since_date_created), ('before_date_created', before_date_created), ('type', type), ('category', category), ('folder_id', folder_id), ('sort_field', sort_field), ('content_type', content_type), ('sort_dir', sort_dir)] if v is not None}
@@ -5670,7 +5670,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request to the templates endpoint returns an unsuccessful status code.
         
         Tags:
-            create, template, api, post, important
+            create, template, api, post
         """
         url = f"{self.base_url}/templates"
         query_params = {}
@@ -5695,7 +5695,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to retrieve the template fails.
         
         Tags:
-            get, templates, info, api, management, important
+            get, templates, info, api, management
         """
         if template_id is None:
             raise ValueError("Missing required parameter 'template_id'")
@@ -5721,7 +5721,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP PATCH request to the template endpoint fails (e.g., network issues, server returns error status).
         
         Tags:
-            update, template, patch, api, important
+            update, template, patch, api
         """
         if template_id is None:
             raise ValueError("Missing required parameter 'template_id'")
@@ -5746,7 +5746,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request for deletion fails.
         
         Tags:
-            delete, template, api, management, important
+            delete, template, api, management
         """
         if template_id is None:
             raise ValueError("Missing required parameter 'template_id'")
@@ -5773,7 +5773,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to retrieve the template content fails.
         
         Tags:
-            fetch, template, default-content, api, http, important
+            fetch, template, default-content, api, http
         """
         if template_id is None:
             raise ValueError("Missing required parameter 'template_id'")
@@ -5804,7 +5804,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the request to the ecommerce API fails or returns an unsuccessful status code.
         
         Tags:
-            list, ecommerce, orders, account, filter, api, important
+            list, ecommerce, orders, account, filter, api
         """
         url = f"{self.base_url}/ecommerce/orders"
         query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields), ('count', count), ('offset', offset), ('campaign_id', campaign_id), ('outreach_id', outreach_id), ('customer_id', customer_id), ('has_outreach', has_outreach)] if v is not None}
@@ -5829,7 +5829,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the API request returns an unsuccessful status code.
         
         Tags:
-            list, ecommerce, stores, api, management, important
+            list, ecommerce, stores, api, management
         """
         url = f"{self.base_url}/ecommerce/stores"
         query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields), ('count', count), ('offset', offset)] if v is not None}
@@ -5864,7 +5864,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if there is an HTTP error during the POST request.
         
         Tags:
-            store, ecommerce, mailchimp, management, important
+            store, ecommerce, mailchimp, management
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -5913,7 +5913,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails (e.g., network error, 4xx or 5xx status codes).
         
         Tags:
-            get, ecommerce, store, info, api, important
+            get, ecommerce, store, info, api
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -5949,7 +5949,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            update, ecommerce, store, api, management, important
+            update, ecommerce, store, api, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -5988,7 +5988,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP DELETE request fails or returns an error status code.
         
         Tags:
-            delete, ecommerce, api, management, important
+            delete, ecommerce, api, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6017,7 +6017,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to fetch carts fails (non-2xx status code).
         
         Tags:
-            get, list, carts, ecommerce, api, management, important
+            get, list, carts, ecommerce, api, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6050,7 +6050,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the API response indicates an unsuccessful request.
         
         Tags:
-            add, cart, ecommerce, store, api, important
+            add, cart, ecommerce, store, api
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6099,7 +6099,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the API request fails or returns an unsuccessful status code.
         
         Tags:
-            get, ecommerce, cart, info, api, important
+            get, ecommerce, cart, info, api
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6134,7 +6134,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request fails (non-2xx response code).
         
         Tags:
-            update, cart, ecommerce, async-job, api, management, important
+            update, cart, ecommerce, async-job, api, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6172,7 +6172,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request fails or returns an error status.
         
         Tags:
-            remove, cart, ecommerce, management, important
+            remove, cart, ecommerce, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6204,7 +6204,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the server fails (e.g., non-2xx response).
         
         Tags:
-            list, ecommerce, cart, batch, important
+            list, ecommerce, cart, batch
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6237,7 +6237,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the ecommerce API fails (e.g., returns a non-success status code).
         
         Tags:
-            add, cart, ecommerce, management, important
+            add, cart, ecommerce, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6286,7 +6286,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request returned an unsuccessful status code.
         
         Tags:
-            get, ecommerce, cart, line-item, management, important
+            get, ecommerce, cart, line-item, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6321,7 +6321,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the HTTP PATCH request to update the cart line item fails.
         
         Tags:
-            update, cart, ecommerce, line-item, management, important
+            update, cart, ecommerce, line-item, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6359,7 +6359,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to delete the cart line item fails.
         
         Tags:
-            delete, ecommerce, cart, line-item, management, important
+            delete, ecommerce, cart, line-item, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6392,7 +6392,7 @@ class MailchimpMarketingApiApp(APIApplication):
             ValueError: Raised if the required 'store_id' parameter is missing.
         
         Tags:
-            ecommerce, customer-retrieval, important
+            ecommerce, customer-retrieval
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6424,7 +6424,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP response status code indicates an error.
         
         Tags:
-            ecommerce, add, customer, create, management, important
+            ecommerce, add, customer, create, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6468,7 +6468,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to retrieve customer information fails.
         
         Tags:
-            get, customer-info, ecommerce, api, important
+            get, customer-info, ecommerce, api
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6503,7 +6503,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to update or add the customer fails (non-2xx response).
         
         Tags:
-            add, update, customer, ecommerce, important
+            add, update, customer, ecommerce
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6552,7 +6552,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the HTTP request to update the customer fails.
         
         Tags:
-            update, ecommerce, customer, management, important
+            update, ecommerce, customer, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6587,7 +6587,7 @@ class MailchimpMarketingApiApp(APIApplication):
             ValueError: Raised if either the store_id or customer_id is missing
         
         Tags:
-            remove, ecommerce, customer-management, api-call, important
+            remove, ecommerce, customer-management, api-call
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6618,7 +6618,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request to the API fails or an unexpected status code is received.
         
         Tags:
-            get, ecommerce, promo-rules, list, important
+            get, ecommerce, promo-rules, list
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6654,7 +6654,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the API request fails or returns an unsuccessful status code.
         
         Tags:
-            add, promo-rule, ecommerce, management, important
+            add, promo-rule, ecommerce, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6706,7 +6706,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the underlying HTTP request to the API fails or returns an error status code.
         
         Tags:
-            get, ecommerce, promo-rule, management, important
+            get, ecommerce, promo-rule, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6744,7 +6744,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            update, ecommerce, promotion, patch, api, important
+            update, ecommerce, promotion, patch, api
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6785,7 +6785,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to delete the promotional rule fails.
         
         Tags:
-            delete, promo-rule, ecommerce, api, important
+            delete, promo-rule, ecommerce, api
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6817,7 +6817,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the API request fails or returns an unsuccessful status code.
         
         Tags:
-            get, ecommerce, promo-codes, management, list, important
+            get, ecommerce, promo-codes, management, list
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6852,7 +6852,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the API request fails or returns an error status code.
         
         Tags:
-            add, promo-code, ecommerce, api, important
+            add, promo-code, ecommerce, api
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6898,7 +6898,7 @@ class MailchimpMarketingApiApp(APIApplication):
             ValueError: Raised when any of the required parameters (store_id, promo_rule_id, promo_code_id) are missing.
         
         Tags:
-            get, promo, ecommerce, important
+            get, promo, ecommerce
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6935,7 +6935,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to update the promo code fails.
         
         Tags:
-            update, ecommerce, promo-code, management, important
+            update, ecommerce, promo-code, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -6975,7 +6975,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to delete the promo code fails.
         
         Tags:
-            delete, ecommerce, promo-code, management, important
+            delete, ecommerce, promo-code, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7012,7 +7012,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request fails or returns an error response.
         
         Tags:
-            list, ecommerce, orders, api, management, important
+            list, ecommerce, orders, api, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7061,7 +7061,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the API request fails (non-success HTTP status code).
         
         Tags:
-            add, order, ecommerce, store, api, important
+            add, order, ecommerce, store, api
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7126,7 +7126,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an error status.
         
         Tags:
-            get, order-info, ecommerce, api, important
+            get, order-info, ecommerce, api
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7177,7 +7177,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an error status code.
         
         Tags:
-            update, order, ecommerce, api, management, important
+            update, order, ecommerce, api, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7230,7 +7230,7 @@ class MailchimpMarketingApiApp(APIApplication):
             ValueError: Raised when either 'store_id' or 'order_id' is missing.
         
         Tags:
-            delete, ecommerce, order-management, important
+            delete, ecommerce, order-management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7262,7 +7262,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request fails or an error response is returned.
         
         Tags:
-            get, list, order-lines, ecommerce, management, important
+            get, list, order-lines, ecommerce, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7296,7 +7296,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an error response.
         
         Tags:
-            ecommerce, add, order-line, api, important
+            ecommerce, add, order-line, api
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7346,7 +7346,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an error status code.
         
         Tags:
-            get, order, order-line-item, ecommerce, fetch, api, important
+            get, order, order-line-item, ecommerce, fetch, api
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7382,7 +7382,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to update the order line fails (e.g., invalid data, network issue, server error).
         
         Tags:
-            ecommerce, update, order-line, api, management, important
+            ecommerce, update, order-line, api, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7421,7 +7421,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the API response contains an HTTP error status.
         
         Tags:
-            delete, ecommerce, order-management, api, important
+            delete, ecommerce, order-management, api
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7453,7 +7453,7 @@ class MailchimpMarketingApiApp(APIApplication):
             ValueError: If the required parameter 'store_id' is missing
         
         Tags:
-            ecommerce, store-products, important
+            ecommerce, store-products
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7489,7 +7489,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an unsuccessful status code.
         
         Tags:
-            add, product, ecommerce, store-management, important
+            add, product, ecommerce, store-management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7537,7 +7537,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the HTTP request to the API fails or returns an unsuccessful status code.
         
         Tags:
-            fetch, get, ecommerce, product-info, api, important
+            fetch, get, ecommerce, product-info, api
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7575,7 +7575,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the API request fails with a non-success HTTP status code.
         
         Tags:
-            update, ecommerce, product-management, api, important
+            update, ecommerce, product-management, api
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7616,7 +7616,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the API request fails or returns an unsuccessful status code.
         
         Tags:
-            delete, ecommerce, product-management, api, important
+            delete, ecommerce, product-management, api
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7648,7 +7648,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the e-commerce API fails or the response status indicates an error.
         
         Tags:
-            list, ecommerce, product-variants, management, important
+            list, ecommerce, product-variants, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7677,7 +7677,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the API request fails with a non-successful HTTP status code.
         
         Tags:
-            ecommerce, add, product-variant, api-call, important
+            ecommerce, add, product-variant, api-call
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7708,7 +7708,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.exceptions.HTTPError: Raised if the HTTP request to the API fails or returns an unsuccessful status code.
         
         Tags:
-            get, ecommerce, product-variant, info, api, important
+            get, ecommerce, product-variant, info, api
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7740,7 +7740,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails or returns an error status code.
         
         Tags:
-            ecommerce, add, update, product-variant, management, important
+            ecommerce, add, update, product-variant, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7779,7 +7779,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the server returns an unsuccessful status code during the PATCH request.
         
         Tags:
-            update, ecommerce, product-variant, api, management, important
+            update, ecommerce, product-variant, api, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7821,7 +7821,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request returned an unsuccessful status code.
         
         Tags:
-            delete, ecommerce, variant, management, important
+            delete, ecommerce, variant, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7854,7 +7854,7 @@ class MailchimpMarketingApiApp(APIApplication):
             ValueError: Raised if either 'store_id' or 'product_id' is missing.
         
         Tags:
-            retrieve, ecommerce, images, management, important
+            retrieve, ecommerce, images, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7885,7 +7885,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the API request fails and an HTTP error is encountered.
         
         Tags:
-            add, product-image, ecommerce, api, management, important
+            add, product-image, ecommerce, api, management
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7926,7 +7926,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the e-commerce API fails (e.g., returns a non-2xx status code).
         
         Tags:
-            get, ecommerce, product-image, detail, important
+            get, ecommerce, product-image, detail
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7960,7 +7960,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP PATCH request to the API endpoint fails or returns an error response.
         
         Tags:
-            update, ecommerce, product-management, image, api, important
+            update, ecommerce, product-management, image, api
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -7997,7 +7997,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the HTTP request to delete the image fails (e.g., non-2xx response status).
         
         Tags:
-            delete, ecommerce, image-management, product, important
+            delete, ecommerce, image-management, product
         """
         if store_id is None:
             raise ValueError("Missing required parameter 'store_id'")
@@ -8028,7 +8028,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the campaigns API endpoint fails with a non-successful status code.
         
         Tags:
-            search, campaigns, api, async_job, important
+            search, campaigns, api, async_job
         """
         if query is None:
             raise ValueError("Missing required parameter 'query'")
@@ -8056,7 +8056,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an error status.
         
         Tags:
-            search, list, members, api, batch, important
+            search, list, members, api, batch
         """
         if query is None:
             raise ValueError("Missing required parameter 'query'")
@@ -8080,7 +8080,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the health check endpoint returns an unsuccessful status code.
         
         Tags:
-            health-check, ping, status, api, important
+            health-check, ping, status, api
         """
         url = f"{self.base_url}/ping"
         query_params = {}
@@ -8107,7 +8107,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the Facebook Ads endpoint fails or returns an unsuccessful status code.
         
         Tags:
-            list, facebook-ads, management, pagination, filtering, important
+            list, facebook-ads, management, pagination, filtering
         """
         url = f"{self.base_url}/facebook-ads"
         query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields), ('count', count), ('offset', offset), ('sort_field', sort_field), ('sort_dir', sort_dir)] if v is not None}
@@ -8132,7 +8132,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the HTTP request to the Facebook Ads API fails or returns a non-2xx response.
         
         Tags:
-            get, facebook-ads, info, api, important
+            get, facebook-ads, info, api
         """
         if outreach_id is None:
             raise ValueError("Missing required parameter 'outreach_id'")
@@ -8161,7 +8161,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the reporting service fails or returns an unsuccessful status code.
         
         Tags:
-            list, reporting, facebook-ads, async_job, management, important
+            list, reporting, facebook-ads, async_job, management
         """
         url = f"{self.base_url}/reporting/facebook-ads"
         query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields), ('count', count), ('offset', offset), ('sort_field', sort_field), ('sort_dir', sort_dir)] if v is not None}
@@ -8186,7 +8186,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the reporting endpoint fails or returns a non-success status code.
         
         Tags:
-            report, facebook-ads, fetch, sync, api, important
+            report, facebook-ads, fetch, sync, api
         """
         if outreach_id is None:
             raise ValueError("Missing required parameter 'outreach_id'")
@@ -8216,7 +8216,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            list, report, facebook, ecommerce, product-activity, reporting, important
+            list, report, facebook, ecommerce, product-activity, reporting
         """
         if outreach_id is None:
             raise ValueError("Missing required parameter 'outreach_id'")
@@ -8243,7 +8243,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the reporting API fails or returns an error status.
         
         Tags:
-            report, get, landing-page, api, important
+            report, get, landing-page, api
         """
         if outreach_id is None:
             raise ValueError("Missing required parameter 'outreach_id'")
@@ -8270,7 +8270,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the reporting API fails or returns an unsuccessful status code.
         
         Tags:
-            list, reporting, landing-pages, sync, important
+            list, reporting, landing-pages, sync
         """
         url = f"{self.base_url}/reporting/landing-pages"
         query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields), ('count', count), ('offset', offset)] if v is not None}
@@ -8295,7 +8295,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the reporting API fails or returns a non-success status code.
         
         Tags:
-            list, reporting, survey, api, pagination, important
+            list, reporting, survey, api, pagination
         """
         url = f"{self.base_url}/reporting/surveys"
         query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields), ('count', count), ('offset', offset)] if v is not None}
@@ -8319,7 +8319,7 @@ class MailchimpMarketingApiApp(APIApplication):
             ValueError: Raised if the required 'survey_id' parameter is missing.
         
         Tags:
-            reporting, survey, management, important
+            reporting, survey, management
         """
         if survey_id is None:
             raise ValueError("Missing required parameter 'survey_id'")
@@ -8346,7 +8346,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request to the reporting API fails or returns an error status.
         
         Tags:
-            reporting, list, survey, questions, reports, api, important
+            reporting, list, survey, questions, reports, api
         """
         if survey_id is None:
             raise ValueError("Missing required parameter 'survey_id'")
@@ -8374,7 +8374,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: Raised if the HTTP request to the API fails with an unsuccessful status code.
         
         Tags:
-            report, survey, question, fetch, api, important
+            report, survey, question, fetch, api
         """
         if survey_id is None:
             raise ValueError("Missing required parameter 'survey_id'")
@@ -8405,7 +8405,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or an invalid response is received.
         
         Tags:
-            list, reporting, survey, question-answers, filter, api-call, important
+            list, reporting, survey, question-answers, filter, api-call
         """
         if survey_id is None:
             raise ValueError("Missing required parameter 'survey_id'")
@@ -8437,7 +8437,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: If the HTTP request for survey responses fails (e.g., non-2xx status code).
         
         Tags:
-            list, survey, reporting, filtering, management, important
+            list, survey, reporting, filtering, management
         """
         if survey_id is None:
             raise ValueError("Missing required parameter 'survey_id'")
@@ -8463,7 +8463,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to retrieve the survey response fails.
         
         Tags:
-            reporting, survey, fetch, single-response, api, important
+            reporting, survey, fetch, single-response, api
         """
         if survey_id is None:
             raise ValueError("Missing required parameter 'survey_id'")
@@ -8490,7 +8490,7 @@ class MailchimpMarketingApiApp(APIApplication):
             HTTPError: If the HTTP request to retrieve the domain information fails.
         
         Tags:
-            get, verified-domain, info, management, important
+            get, verified-domain, info, management
         """
         if domain_name is None:
             raise ValueError("Missing required parameter 'domain_name'")
@@ -8515,7 +8515,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP DELETE request returns an unsuccessful status code.
         
         Tags:
-            delete, domain-management, api, important
+            delete, domain-management, api
         """
         if domain_name is None:
             raise ValueError("Missing required parameter 'domain_name'")
@@ -8541,7 +8541,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP response status is not successful.
         
         Tags:
-            verify, domain, sending, api, async_job, important
+            verify, domain, sending, api, async_job
         """
         if domain_name is None:
             raise ValueError("Missing required parameter 'domain_name'")
@@ -8571,7 +8571,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.exceptions.HTTPError: Raised if the HTTP request to the verified domains endpoint fails with a non-2xx status code.
         
         Tags:
-            list, sending-domains, verified-domains, api, important
+            list, sending-domains, verified-domains, api
         """
         url = f"{self.base_url}/verified-domains"
         query_params = {}
@@ -8594,7 +8594,7 @@ class MailchimpMarketingApiApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to add the domain fails.
         
         Tags:
-            verified-domains, add, account-management, post, important
+            verified-domains, add, account-management, post
         """
         if verification_email is None:
             raise ValueError("Missing required parameter 'verification_email'")
