@@ -2,9 +2,9 @@ from typing import Any
 from universal_mcp.applications import APIApplication
 from universal_mcp.integrations import Integration
 
-class FigmaApiApp(APIApplication):
+class FigmaApp(APIApplication):
     def __init__(self, integration: Integration = None, **kwargs) -> None:
-        super().__init__(name='figmaapiapp', integration=integration, **kwargs)
+        super().__init__(name='figmaapp', integration=integration, **kwargs)
         self.base_url = "https://api.figma.com/v1"
 
     def get_design(self, file_key) -> Any:
