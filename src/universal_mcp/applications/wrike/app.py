@@ -19,7 +19,6 @@ class WrikeApp(APIApplication):
         super().__init__(name="wrike", integration=integration, **kwargs)
         self.base_url = "https://www.wrike.com/api/v4"
 
-
     def get_contacts(self, deleted=None, fields=None, metadata=None) -> Any:
         """
         Retrieves a list of contacts from the server, with optional filtering and field selection.

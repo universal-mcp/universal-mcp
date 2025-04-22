@@ -17,7 +17,6 @@ class GoogleDriveApp(APIApplication):
         super().__init__(name="google-drive", integration=integration)
         self.base_url = "https://www.googleapis.com/drive/v3"
 
-
     def get_drive_info(self) -> dict[str, Any]:
         """
         Retrieves detailed information about the user's Google Drive storage and account.

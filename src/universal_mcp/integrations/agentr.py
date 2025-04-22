@@ -29,7 +29,9 @@ class AgentRIntegration(Integration):
                 "API key for AgentR is missing. Please visit https://agentr.dev to create an API key, then set it as AGENTR_API_KEY environment variable."
             )
             raise ValueError("AgentR API key required - get one at https://agentr.dev")
-        self.base_url = os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
+        self.base_url = os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev").rstrip(
+            "/"
+        )
         self._credentials = None
 
     def set_credentials(self, credentials: dict | None = None):
@@ -65,7 +67,9 @@ class AgentRIntegration(Integration):
             headers={"accept": "application/json", "X-API-KEY": self.api_key},
         )
         if response.status_code == 404:
-            logger.warning(f"No credentials found for {self.name}. Requesting authorization...")
+            logger.warning(
+                f"No credentials found for {self.name}. Requesting authorization..."
+            )
             action = self.authorize()
             raise NotAuthorizedError(action)
         response.raise_for_status()

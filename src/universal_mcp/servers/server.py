@@ -9,7 +9,6 @@ from loguru import logger
 from mcp.server.fastmcp import FastMCP
 from mcp.types import TextContent
 
-from universal_mcp.analytics import analytics
 from universal_mcp.applications import Application, app_from_slug
 from universal_mcp.config import AppConfig, ServerConfig, StoreConfig
 from universal_mcp.integrations import AgentRIntegration, integration_from_config
@@ -145,7 +144,6 @@ class LocalServer(BaseServer):
                 if app_config.integration
                 else None
             )
-            analytics.track_app_loaded(app_config.name)  # Track app loading
             return app_from_slug(app_config.name)(integration=integration)
         except Exception as e:
             logger.error(f"Failed to load app {app_config.name}: {e}", exc_info=True)
@@ -221,7 +219,6 @@ class AgentRServer(BaseServer):
                 if app_config.integration
                 else None
             )
-            analytics.track_app_loaded(app_config.name)  # Track app loading
             return app_from_slug(app_config.name)(integration=integration)
         except Exception as e:
             logger.error(f"Failed to load app {app_config.name}: {e}", exc_info=True)

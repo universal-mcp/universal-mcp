@@ -19,7 +19,6 @@ class YoutubeApp(APIApplication):
         super().__init__(name="youtube", integration=integration, **kwargs)
         self.base_url = "https://www.googleapis.com/youtube/v3"
 
-
     def get_jobs_job_reports(
         self,
         jobId,
