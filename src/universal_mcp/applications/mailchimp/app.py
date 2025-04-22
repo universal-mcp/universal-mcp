@@ -1,6 +1,8 @@
 from typing import Any
+
 from universal_mcp.applications import APIApplication
 from universal_mcp.integrations import Integration
+
 
 class MailchimpMarketingApiApp(APIApplication):
     def __init__(self, integration: Integration = None, **kwargs) -> None:
@@ -2154,36 +2156,7 @@ class MailchimpMarketingApiApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def file_manager_list_stored_files(self, fields=None, exclude_fields=None, count=None, offset=None, type=None, created_by=None, before_created_at=None, since_created_at=None, sort_field=None, sort_dir=None) -> dict[str, Any]:
-        """
-        Retrieves a list of stored files from the file manager, supporting filtering, pagination, field selection, sorting, and date range queries.
-        
-        Args:
-            fields: Optional[str or list]: Comma-separated list or list of specific fields to return for each file.
-            exclude_fields: Optional[str or list]: Comma-separated list or list of fields to exclude from the response.
-            count: Optional[int]: Number of records to return, for pagination.
-            offset: Optional[int]: Number of records to skip, for pagination.
-            type: Optional[str]: Filter files by type.
-            created_by: Optional[str]: Filter files by the creator's identifier.
-            before_created_at: Optional[str]: Filter files created before this UTC timestamp (ISO 8601 format).
-            since_created_at: Optional[str]: Filter files created since this UTC timestamp (ISO 8601 format).
-            sort_field: Optional[str]: Field name to sort the results by.
-            sort_dir: Optional[str]: Sort direction, either 'ASC' or 'DESC'.
-        
-        Returns:
-            dict: A dictionary containing the list of stored files and associated metadata as returned by the remote API.
-        
-        Raises:
-            requests.HTTPError: If the HTTP request fails or returns a non-2xx status code.
-        
-        Tags:
-            list, file-management, filter, query, pagination, async-job, important
-        """
-        url = f"{self.base_url}/file-manager/files"
-        query_params = {k: v for k, v in [('fields', fields), ('exclude_fields', exclude_fields), ('count', count), ('offset', offset), ('type', type), ('created_by', created_by), ('before_created_at', before_created_at), ('since_created_at', since_created_at), ('sort_field', sort_field), ('sort_dir', sort_dir)] if v is not None}
-        response = self._get(url, params=query_params)
-        response.raise_for_status()
-        return response.json()
+
 
     def file_manager_upload_file(self, name, file_data, folder_id=None) -> dict[str, Any]:
         """
@@ -8713,7 +8686,6 @@ class MailchimpMarketingApiApp(APIApplication):
             self.conversations_list_messages_from_conversation,
             self.conversations_get_message_by_id,
             self.customer_journeys_trigger_step_action,
-            self.file_manager_list_stored_files,
             self.file_manager_upload_file,
             self.file_manager_get_file,
             self.file_manager_update_file,
@@ -8723,7 +8695,6 @@ class MailchimpMarketingApiApp(APIApplication):
             self.file_manager_get_folder_info,
             self.file_manager_update_specific_folder,
             self.file_manager_delete_folder_by_id,
-            self.file_manager_list_stored_files,
             self.lists_get_all_info,
             self.lists_create_new_list,
             self.lists_get_list_info,

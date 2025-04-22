@@ -97,7 +97,6 @@ This tool can be integrated with any service that supports HTTP requests.
 | conversations_list_messages_from_conversation | Retrieves messages from a specified conversation. |
 | conversations_get_message_by_id | Retrieve a specific message from a conversation by its ID, with optional control over included and excluded fields. |
 | customer_journeys_trigger_step_action | Triggers a specific action for a step in a customer journey for the given email address. |
-| file_manager_list_stored_files | Retrieves a list of stored files within a specified folder, allowing optional filtering, sorting, and field selection. |
 | file_manager_upload_file | Uploads a file to the file manager service, associating it with a specified name and optionally a folder. |
 | file_manager_get_file | Retrieves the details of a file from the file manager by its unique ID, optionally including or excluding specific fields. |
 | file_manager_update_file | Updates the specified file's metadata in the file manager, such as its folder or name. |
@@ -107,7 +106,6 @@ This tool can be integrated with any service that supports HTTP requests.
 | file_manager_get_folder_info | Retrieves information about a specific folder from the file manager service. |
 | file_manager_update_specific_folder | Updates a specific folder in the file manager system. |
 | file_manager_delete_folder_by_id | Deletes a folder from the file manager by its unique identifier. |
-| file_manager_list_stored_files | Retrieves a list of stored files within a specified folder, allowing optional filtering, sorting, and field selection. |
 | lists_get_all_info | Retrieves detailed information about all lists, with support for filtering, sorting, and field selection. |
 | lists_create_new_list | Creates a new mailing list with the specified parameters and returns the created list's details. |
 | lists_get_list_info | Retrieves detailed information about a specific list, including optional field selection and total contacts count. |
