@@ -69,6 +69,13 @@ class BaseStore(ABC):
         """
         pass
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}()"
+    
+    def __str__(self):
+        return self.__repr__()
+    
+    
 
 class MemoryStore(BaseStore):
     """

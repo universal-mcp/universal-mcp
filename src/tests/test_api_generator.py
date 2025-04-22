@@ -9,7 +9,7 @@ from universal_mcp.utils.api_generator import generate_api_from_schema
 @pytest.fixture
 def temp_dir(tmp_path):
     """Create a temporary directory for test files."""
-    return Path("/tmp/test_api_generator")
+    return tmp_path
 
 
 # Fixture for a sample OpenAPI schema

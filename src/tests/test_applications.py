@@ -21,6 +21,7 @@ from universal_mcp.applications import app_from_slug
         "firecrawl",
         "serpapi",
         "notion",
+        "hashnode",
     ],
 )
 def test_application(app_name):

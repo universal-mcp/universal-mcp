@@ -1,9 +1,9 @@
 from markitdown import MarkItDown
 
-from universal_mcp.applications.application import Application
+from universal_mcp.applications import BaseApplication
 
 
-class MarkitdownApp(Application):
+class MarkitdownApp(BaseApplication):
     def __init__(self, **kwargs):
         super().__init__(name="markitdown", **kwargs)
         self.markitdown = MarkItDown()
