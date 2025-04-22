@@ -145,7 +145,6 @@ class LocalServer(BaseServer):
                 if app_config.integration
                 else None
             )
-            analytics.track_app_loaded(app_config.name)  # Track app loading
             return app_from_slug(app_config.name)(integration=integration)
         except Exception as e:
             logger.error(f"Failed to load app {app_config.name}: {e}", exc_info=True)
@@ -221,7 +220,6 @@ class AgentRServer(BaseServer):
                 if app_config.integration
                 else None
             )
-            analytics.track_app_loaded(app_config.name)  # Track app loading
             return app_from_slug(app_config.name)(integration=integration)
         except Exception as e:
             logger.error(f"Failed to load app {app_config.name}: {e}", exc_info=True)
