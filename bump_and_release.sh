@@ -22,13 +22,16 @@ else
         RC_NUM=$(echo $PATCH | grep -o 'rc[0-9]*' | sed 's/rc//')
         NEW_VERSION="$MAJOR.$MINOR.$PATCH_NUM-rc$((RC_NUM + 1))"
     else
+        echo "No rc suffix found, adding rc1"
+        # Increase patch number by 1
+        PATCH_NUM=$((PATCH_NUM + 1))
         # Add rc1
         NEW_VERSION="$MAJOR.$MINOR.$PATCH_NUM-rc1"
     fi
 fi
 
 # Update version in pyproject.toml
-sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" pyproject.toml
+sed -i '' "s/^version = \".*\"/version = \"$NEW_VERSION\"/" pyproject.toml
 
 echo "Version bumped from $CURRENT_VERSION to $NEW_VERSION"
 
