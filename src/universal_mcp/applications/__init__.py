@@ -2,7 +2,11 @@ import importlib
 
 from loguru import logger
 
-from universal_mcp.applications.application import APIApplication, BaseApplication, GraphQLApplication
+from universal_mcp.applications.application import (
+    APIApplication,
+    BaseApplication,
+    GraphQLApplication,
+)
 
 # Name are in the format of "app-name", eg, google-calendar
 # Folder name is "app_name", eg, google_calendar
