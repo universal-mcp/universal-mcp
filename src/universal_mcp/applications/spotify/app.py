@@ -4,7 +4,7 @@ from universal_mcp.integrations import Integration
 
 class SpotifyApp(APIApplication):
     def __init__(self, integration: Integration = None, **kwargs) -> None:
-        super().__init__(name='spotifyapp', integration=integration, **kwargs)
+        super().__init__(name='spotify', integration=integration, **kwargs)
         self.base_url = "https://api.spotify.com/v1"
 
     def get_an_album(self, id, market=None) -> Any:
