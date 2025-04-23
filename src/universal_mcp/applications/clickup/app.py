@@ -26,7 +26,7 @@ class ClickupApp(APIApplication):
             HTTPError: If the HTTP request to the OAuth token endpoint fails with a non-success status code.
         
         Tags:
-            authorization, oauth2, get, access-token, important
+            authorization, oauth2, get, access-token
         """
         if client_id is None:
             raise ValueError("Missing required parameter 'client_id'")
@@ -54,7 +54,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the GET request to fetch user details returns an unsuccessful HTTP status code.
         
         Tags:
-            authorization, view, account, details, api, important
+            authorization, view, account, details, api
         """
         url = f"{self.base_url}/user"
         query_params = {}
@@ -76,7 +76,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to the authorization service fails or returns a non-success status code.
         
         Tags:
-            get, list, workspaces, authorization, important
+            get, list, workspaces, authorization
         """
         url = f"{self.base_url}/team"
         query_params = {}
@@ -102,7 +102,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the API request fails or returns an unsuccessful status code.
         
         Tags:
-            create, checklist, task-management, api, important
+            create, checklist, task-management, api
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -135,7 +135,7 @@ class ClickupApp(APIApplication):
             HTTPError: Raised if the HTTP response contains an unsuccessful status code.
         
         Tags:
-            update, checklist, management, api, important
+            update, checklist, management, api
         """
         if checklist_id is None:
             raise ValueError("Missing required parameter 'checklist_id'")
@@ -165,7 +165,7 @@ class ClickupApp(APIApplication):
             HTTPError: If the HTTP request to delete the checklist fails (non-2xx status code).
         
         Tags:
-            remove, checklist, delete, management, important
+            remove, checklist, delete, management
         """
         if checklist_id is None:
             raise ValueError("Missing required parameter 'checklist_id'")
@@ -192,7 +192,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to add the checklist item fails.
         
         Tags:
-            add, checklist, line-item, management, important
+            add, checklist, line-item, management
         """
         if checklist_id is None:
             raise ValueError("Missing required parameter 'checklist_id'")
@@ -227,7 +227,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the API request fails or the server returns an unsuccessful status code.
         
         Tags:
-            update, checklist, management, item, important
+            update, checklist, management, item
         """
         if checklist_id is None:
             raise ValueError("Missing required parameter 'checklist_id'")
@@ -262,7 +262,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to delete the checklist item fails (e.g., due to network issues, authorization problems, or the item not existing).
         
         Tags:
-            remove, checklist, delete, management, important
+            remove, checklist, delete, management
         """
         if checklist_id is None:
             raise ValueError("Missing required parameter 'checklist_id'")
@@ -293,7 +293,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to retrieve comments fails (e.g., due to network errors or server-side issues).
         
         Tags:
-            list, comments, task, search, management, important
+            list, comments, task, search, management
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -323,7 +323,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to create the comment fails or the response status indicates an error.
         
         Tags:
-            create, comment, task, api, management, important
+            create, comment, task, api, management
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -362,7 +362,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request for comments fails (e.g., connection errors, non-2xx response).
         
         Tags:
-            get, comments, view, api, pagination, important
+            get, comments, view, api, pagination
         """
         if view_id is None:
             raise ValueError("Missing required parameter 'view_id'")
@@ -389,7 +389,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to create the comment fails.
         
         Tags:
-            comments, create, chat, api, important
+            comments, create, chat, api
         """
         if view_id is None:
             raise ValueError("Missing required parameter 'view_id'")
@@ -425,7 +425,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails with an error status code.
         
         Tags:
-            comments, list, retrieve, api, batch, important
+            comments, list, retrieve, api, batch
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -453,7 +453,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or an unsuccessful status code is returned.
         
         Tags:
-            add, comment, list, assignment, notify, api, important
+            add, comment, list, assignment, notify, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -493,7 +493,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to update the comment fails.
         
         Tags:
-            update, comment, task-management, api, important
+            update, comment, task-management, api
         """
         if comment_id is None:
             raise ValueError("Missing required parameter 'comment_id'")
@@ -555,7 +555,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request fails with an error status code.
         
         Tags:
-            get, list, custom-fields, api, important
+            get, list, custom-fields, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -583,7 +583,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to remove the field value fails.
         
         Tags:
-            custom-fields, remove, task-management, api, important
+            custom-fields, remove, task-management, api
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -614,7 +614,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to add the dependency fails or returns an error status.
         
         Tags:
-            add, task-relationship, dependency, management, important
+            add, task-relationship, dependency, management
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -680,7 +680,7 @@ class ClickupApp(APIApplication):
             HTTPError: If the HTTP request to link tasks fails (non-2xx response).
         
         Tags:
-            link, task-relationship, api, management, important
+            link, task-relationship, api, management
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -710,7 +710,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request fails or the API returns an error status code.
         
         Tags:
-            remove, task-relationships, api, management, important
+            remove, task-relationships, api, management
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -738,7 +738,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the backend API fails.
         
         Tags:
-            get, list, folders, contents, management, api, important
+            get, list, folders, contents, management, api
         """
         if space_id is None:
             raise ValueError("Missing required parameter 'space_id'")
@@ -764,7 +764,7 @@ class ClickupApp(APIApplication):
             HTTPError: Raised when the HTTP request to create the folder fails.
         
         Tags:
-            create, folder, management, important
+            create, folder, management
         """
         if space_id is None:
             raise ValueError("Missing required parameter 'space_id'")
@@ -795,7 +795,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to retrieve the folder content fails with an unsuccessful status code.
         
         Tags:
-            get, folder, content, api, important
+            get, folder, content, api
         """
         if folder_id is None:
             raise ValueError("Missing required parameter 'folder_id'")
@@ -821,7 +821,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to update the folder fails.
         
         Tags:
-            rename, folder-management, put, api, important
+            rename, folder-management, put, api
         """
         if folder_id is None:
             raise ValueError("Missing required parameter 'folder_id'")
@@ -852,7 +852,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the API response contains an HTTP error status code.
         
         Tags:
-            remove, folder-management, api, important
+            remove, folder-management, api
         """
         if folder_id is None:
             raise ValueError("Missing required parameter 'folder_id'")
@@ -878,7 +878,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the backend API fails with a non-success status.
         
         Tags:
-            get, list, goal-management, fetch, important
+            get, list, goal-management, fetch
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -908,7 +908,7 @@ class ClickupApp(APIApplication):
             ValueError: Raised when any required parameter ('team_id', 'description', 'name', 'due_date', 'multiple_owners', 'owners', 'color') is missing.
         
         Tags:
-            manage, goals, create, team-management, important
+            manage, goals, create, team-management
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -953,7 +953,7 @@ class ClickupApp(APIApplication):
             ValueError: Raised when the goal_id parameter is missing.
         
         Tags:
-            get, details, management, important
+            get, details, management
         """
         if goal_id is None:
             raise ValueError("Missing required parameter 'goal_id'")
@@ -984,7 +984,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the server returns an unsuccessful status code during the update request.
         
         Tags:
-            update, goal-management, async_job, important
+            update, goal-management, async_job
         """
         if goal_id is None:
             raise ValueError("Missing required parameter 'goal_id'")
@@ -1030,7 +1030,7 @@ class ClickupApp(APIApplication):
             HTTPError: Raised when the HTTP request to delete the goal fails.
         
         Tags:
-            remove, delete, goal, management, important
+            remove, delete, goal, management
         """
         if goal_id is None:
             raise ValueError("Missing required parameter 'goal_id'")
@@ -1063,7 +1063,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request fails (non-success response status).
         
         Tags:
-            add, key-result, goals, management, important
+            add, key-result, goals, management
         """
         if goal_id is None:
             raise ValueError("Missing required parameter 'goal_id'")
@@ -1117,7 +1117,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP PUT request fails (non-success response from the server).
         
         Tags:
-            update, goals, management, key-result, important
+            update, goals, management, key-result
         """
         if key_result_id is None:
             raise ValueError("Missing required parameter 'key_result_id'")
@@ -1151,7 +1151,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the DELETE HTTP request fails or returns an error status.
         
         Tags:
-            remove, management, api, important
+            remove, management, api
         """
         if key_result_id is None:
             raise ValueError("Missing required parameter 'key_result_id'")
@@ -1182,7 +1182,7 @@ class ClickupApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            invite, guest, workspace, permission, management, important
+            invite, guest, workspace, permission, management
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -1228,7 +1228,7 @@ class ClickupApp(APIApplication):
             ValueError: Raised when either team_id or guest_id is missing.
         
         Tags:
-            fetch, guest, management, important
+            fetch, guest, management
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -1262,7 +1262,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to update the guest fails (e.g., due to network errors or unsuccessful response status).
         
         Tags:
-            edit, guest-management, workspace, api, permissions, important
+            edit, guest-management, workspace, api, permissions
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -1311,7 +1311,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request fails (non-2xx response).
         
         Tags:
-            revoke, access-control, guest-management, workspace, important
+            revoke, access-control, guest-management, workspace
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -1342,7 +1342,7 @@ class ClickupApp(APIApplication):
             ValueError: Raised when task_id, guest_id, or permission_level is missing.
         
         Tags:
-            add, manage, task, guest, permission, async_job, important
+            add, manage, task, guest, permission, async_job
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -1379,7 +1379,7 @@ class ClickupApp(APIApplication):
             HTTPError: If the API request to revoke access fails.
         
         Tags:
-            guests, revoke, access, task, management, important
+            guests, revoke, access, task, management
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -1409,7 +1409,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to share the list fails (e.g., due to network issues or invalid input).
         
         Tags:
-            share, list, permission-management, guest, important
+            share, list, permission-management, guest
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -1444,7 +1444,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to remove the guest fails.
         
         Tags:
-            guests, remove, management, list, important
+            guests, remove, management, list
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -1474,7 +1474,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to the server fails or returns an error status.
         
         Tags:
-            add, guest-management, folder-permissions, api-call, important
+            add, guest-management, folder-permissions, api-call
         """
         if folder_id is None:
             raise ValueError("Missing required parameter 'folder_id'")
@@ -1509,7 +1509,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to revoke access fails.
         
         Tags:
-            guests, revoke, access, folder-management, api, important
+            guests, revoke, access, folder-management, api
         """
         if folder_id is None:
             raise ValueError("Missing required parameter 'folder_id'")
@@ -1537,7 +1537,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to fetch the folder's lists fails (e.g., non-2xx response).
         
         Tags:
-            list, get, folder, search, api, important
+            list, get, folder, search, api , important
         """
         if folder_id is None:
             raise ValueError("Missing required parameter 'folder_id'")
@@ -1569,7 +1569,7 @@ class ClickupApp(APIApplication):
             HTTPError: If the API request fails or returns an error status code.
         
         Tags:
-            list, add, folder, management, api, important
+            list, add, folder, management, api
         """
         if folder_id is None:
             raise ValueError("Missing required parameter 'folder_id'")
@@ -1639,7 +1639,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the API request fails with an HTTP error status.
         
         Tags:
-            list, create, management, api, important
+            list, create, management, api
         """
         if space_id is None:
             raise ValueError("Missing required parameter 'space_id'")
@@ -1676,7 +1676,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request fails or the response contains an unsuccessful status code.
         
         Tags:
-            get, list, details, api, important
+            get, list, details, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -1709,7 +1709,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request fails or returns an error status code.
         
         Tags:
-            update, list-management, async-job, api, important
+            update, list-management, async-job, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -1761,7 +1761,7 @@ class ClickupApp(APIApplication):
             HTTPError: If the HTTP DELETE request fails with an error status code.
         
         Tags:
-            remove, list, delete, management, api, important
+            remove, list, delete, management, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -1787,7 +1787,7 @@ class ClickupApp(APIApplication):
             HTTPError: If the HTTP request returns an unsuccessful status code.
         
         Tags:
-            add, task, list, management, important
+            add, task, list, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -1815,7 +1815,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to remove the task fails.
         
         Tags:
-            remove, task, list, api, management, important
+            remove, task, list, api, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -1842,7 +1842,7 @@ class ClickupApp(APIApplication):
             HTTPError: Raised if the HTTP request to retrieve the task members fails.
         
         Tags:
-            members, get, task, access, fetch, important
+            members, get, task, access, fetch
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -1867,7 +1867,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to fetch the list members fails.
         
         Tags:
-            get, list, users, management, important
+            get, list, users, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -1892,7 +1892,7 @@ class ClickupApp(APIApplication):
             ValueError: Raised when the 'team_id' parameter is missing.
         
         Tags:
-            list, custom-roles, team-management, important
+            list, custom-roles, team-management
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -1917,7 +1917,7 @@ class ClickupApp(APIApplication):
             HTTPError: Raised when the HTTP request fails (via raise_for_status()).
         
         Tags:
-            retrieve, view, hierarchy, team, shared, important
+            retrieve, view, hierarchy, team, shared
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -1943,7 +1943,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API endpoint fails.
         
         Tags:
-            get, spaces, team-management, api-call, important
+            get, spaces, team-management, api-call
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -1971,7 +1971,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the POST request to the API endpoint fails or returns an unsuccessful status code.
         
         Tags:
-            add, create, space, workspace, management, api, important
+            add, create, space, workspace, management, api
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -2008,7 +2008,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to retrieve the space details fails.
         
         Tags:
-            get, details, space, api, important
+            get, details, space, api
         """
         if space_id is None:
             raise ValueError("Missing required parameter 'space_id'")
@@ -2039,7 +2039,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the server returns an error response status.
         
         Tags:
-            update, spaces, management, http, api, important
+            update, spaces, management, http, api
         """
         if space_id is None:
             raise ValueError("Missing required parameter 'space_id'")
@@ -2085,7 +2085,7 @@ class ClickupApp(APIApplication):
             HTTPError: Raised when the HTTP request fails or returns an error status code.
         
         Tags:
-            remove, delete, space, management, important
+            remove, delete, space, management
         """
         if space_id is None:
             raise ValueError("Missing required parameter 'space_id'")
@@ -2110,7 +2110,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to retrieve tags fails (non-2xx response).
         
         Tags:
-            get, list, space, tags, api, important
+            get, list, space, tags, api
         """
         if space_id is None:
             raise ValueError("Missing required parameter 'space_id'")
@@ -2136,7 +2136,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API endpoint returns an unsuccessful status code.
         
         Tags:
-            create, tag, space, api, important
+            create, tag, space, api
         """
         if space_id is None:
             raise ValueError("Missing required parameter 'space_id'")
@@ -2169,7 +2169,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request returns an unsuccessful status code.
         
         Tags:
-            update, tag, api, space-management, important
+            update, tag, api, space-management
         """
         if space_id is None:
             raise ValueError("Missing required parameter 'space_id'")
@@ -2204,7 +2204,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to remove the tag fails (non-2xx response).
         
         Tags:
-            tag-remove, space-management, api, important
+            tag-remove, space-management, api
         """
         if space_id is None:
             raise ValueError("Missing required parameter 'space_id'")
@@ -2240,7 +2240,7 @@ class ClickupApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            add, tag, task, management, important
+            add, tag, task, management
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -2269,7 +2269,7 @@ class ClickupApp(APIApplication):
             ValueError: Raised when either 'task_id' or 'tag_name' is missing.
         
         Tags:
-            remove, task, management, tag, important
+            remove, task, management, tag
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -2411,7 +2411,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request for task details fails due to a client or server error.
         
         Tags:
-            get, task, details, status, management, important
+            get, task, details, status, management
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -2451,7 +2451,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to update the task fails.
         
         Tags:
-            update, task, management, api, important
+            update, task, management, api
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -2494,7 +2494,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to remove the task fails (non-success response status).
         
         Tags:
-            remove, task, management, api, important
+            remove, task, management, api
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -2544,7 +2544,7 @@ class ClickupApp(APIApplication):
             HTTPError: If the HTTP request fails or the API returns an unsuccessful status code.
         
         Tags:
-            filter, tasks, list, team, management, api, important
+            filter, tasks, list, team, management, api
         """
         if team_Id is None:
             raise ValueError("Missing required parameter 'team_Id'")
@@ -2571,7 +2571,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to the server fails or returns an unsuccessful status code.
         
         Tags:
-            get, task, status, management, important
+            get, task, status, management
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -2598,7 +2598,7 @@ class ClickupApp(APIApplication):
             HTTPError: Raised if the HTTP request to the API fails (e.g., non-2xx response code).
         
         Tags:
-            get, task-management, status, bulk, important
+            get, task-management, status, bulk
         """
         if task_ids is None:
             raise ValueError("Missing required parameter 'task_ids'")
@@ -2624,7 +2624,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request returns an unsuccessful status code.
         
         Tags:
-            get, list, task-templates, team, important
+            get, list, task-templates, team
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -2653,7 +2653,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to create the task template fails.
         
         Tags:
-            create, task-template, list, api, important
+            create, task-template, list, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -2686,7 +2686,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to fetch seat information fails.
         
         Tags:
-            get, workspace, seats, team, api, management, important
+            get, workspace, seats, team, api, management
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -2711,7 +2711,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to retrieve the plan details fails.
         
         Tags:
-            get, workspace-plan, team-management, important
+            get, workspace-plan, team-management
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -2738,7 +2738,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to create the group fails.
         
         Tags:
-            create, team-user-group, management, api, important
+            create, team-user-group, management, api
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -2772,7 +2772,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to the server fails or returns a non-successful status code.
         
         Tags:
-            get, custom-task-types, list, api, management, important
+            get, custom-task-types, list, api, management
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -2800,7 +2800,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to update the group fails.
         
         Tags:
-            update, group-management, teams, user-groups, api, important
+            update, group-management, teams, user-groups, api
         """
         if group_id is None:
             raise ValueError("Missing required parameter 'group_id'")
@@ -2831,7 +2831,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to delete the group fails with an error status code.
         
         Tags:
-            remove, group-management, teams, http-delete, important
+            remove, group-management, teams, http-delete
         """
         if group_id is None:
             raise ValueError("Missing required parameter 'group_id'")
@@ -2856,7 +2856,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request fails or the response status indicates an error.
         
         Tags:
-            get, user-groups, team-management, api, important
+            get, user-groups, team-management, api
         """
         url = f"{self.base_url}/group"
         query_params = {k: v for k, v in [('team_id', team_id), ('group_ids', group_ids)] if v is not None}
@@ -2881,7 +2881,7 @@ class ClickupApp(APIApplication):
             HTTPError: Raised when the API request fails (via raise_for_status()).
         
         Tags:
-            get, retrieve, time-tracking, task, legacy, important
+            get, retrieve, time-tracking, task, legacy
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -2910,7 +2910,7 @@ class ClickupApp(APIApplication):
             ValueError: Raised if any of the required parameters (task_id, start, end, time) are missing.
         
         Tags:
-            record, time-tracking, legacy, important
+            record, time-tracking, legacy
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -2953,7 +2953,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request fails or the server responds with an error status code.
         
         Tags:
-            edit, time-tracking, task-management, api, update, important
+            edit, time-tracking, task-management, api, update
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -2994,7 +2994,7 @@ class ClickupApp(APIApplication):
             ValueError: Raised if either 'task_id' or 'interval_id' is missing.
         
         Tags:
-            remove, time-tracking, task-management, async_job, important
+            remove, time-tracking, task-management, async_job
         """
         if task_id is None:
             raise ValueError("Missing required parameter 'task_id'")
@@ -3032,7 +3032,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails (e.g., due to network issues or API errors).
         
         Tags:
-            get, list, time-tracking, management, filter, api, important
+            get, list, time-tracking, management, filter, api
         """
         if team_Id is None:
             raise ValueError("Missing required parameter 'team_Id'")
@@ -3068,7 +3068,7 @@ class ClickupApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            create, time-entry, tracking, important, api-interaction, team
+            create, time-entry, tracking, api-interaction, team
         """
         if team_Id is None:
             raise ValueError("Missing required parameter 'team_Id'")
@@ -3111,7 +3111,7 @@ class ClickupApp(APIApplication):
             ValueError: Raised if 'team_id' or 'timer_id' is None.
         
         Tags:
-            time-tracking, get, async-job, management, important
+            time-tracking, get, async-job, management
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -3139,7 +3139,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the API request to delete the time entry fails.
         
         Tags:
-            remove, time-tracking, management, api, important
+            remove, time-tracking, management, api
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -3175,7 +3175,7 @@ class ClickupApp(APIApplication):
             ValueError: Raised when required parameters (team_id, timer_id, tags) are missing
         
         Tags:
-            update, time-entry, management, important
+            update, time-entry, management
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -3216,7 +3216,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the time tracking service fails with an error status.
         
         Tags:
-            get, time-tracking, history, api, important
+            get, time-tracking, history, api
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -3244,7 +3244,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails with an unsuccessful status code.
         
         Tags:
-            get, time-tracking, current-status, important, api, management
+            get, time-tracking, current-status, api, management
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -3271,7 +3271,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the API request fails or returns an unsuccessful HTTP status.
         
         Tags:
-            remove, tags, time-entries, management, batch, important
+            remove, tags, time-entries, management, batch
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -3305,7 +3305,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to the server fails or returns an unsuccessful status code.
         
         Tags:
-            get, list, tags, time-tracking, management, important
+            get, list, tags, time-tracking, management
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -3332,7 +3332,7 @@ class ClickupApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            add, tags, time-entries, management, important
+            add, tags, time-entries, management
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -3370,7 +3370,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to update the tag fails.
         
         Tags:
-            update, tag-management, time-tracking, team, api, important
+            update, tag-management, time-tracking, team, api
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -3416,7 +3416,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the API request fails or returns a non-success status code.
         
         Tags:
-            start, timer, time-tracking, async-job, team-management, important
+            start, timer, time-tracking, async-job, team-management
         """
         if team_Id is None:
             raise ValueError("Missing required parameter 'team_Id'")
@@ -3448,7 +3448,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to stop the time entry fails.
         
         Tags:
-            time-tracking, stop, management, important
+            time-tracking, stop, management
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -3476,7 +3476,7 @@ class ClickupApp(APIApplication):
             HTTPError: Raised when the API request fails or returns an error status code.
         
         Tags:
-            invite, user, workspace, team, management, important
+            invite, user, workspace, team, management
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -3543,7 +3543,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to update the user fails.
         
         Tags:
-            update, user-management, api, important
+            update, user-management, api
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -3583,7 +3583,7 @@ class ClickupApp(APIApplication):
             HTTPError: Raised if the API request fails (non-2xx status code).
         
         Tags:
-            deactivate, user-management, api, important
+            deactivate, user-management, api
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -3610,7 +3610,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to fetch the data fails.
         
         Tags:
-            get, views, team, api, important
+            get, views, team, api
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -3644,7 +3644,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the backend fails (e.g., non-2xx response code).
         
         Tags:
-            create, workspace-view, management, api, important
+            create, workspace-view, management, api
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -3699,7 +3699,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API endpoint fails or returns an unsuccessful status code.
         
         Tags:
-            get, view, space, management, api, important
+            get, view, space, management, api
         """
         if space_id is None:
             raise ValueError("Missing required parameter 'space_id'")
@@ -3733,7 +3733,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: If the HTTP request to create the view fails (non-2xx response).
         
         Tags:
-            add, view, space, management, api, important
+            add, view, space, management, api
         """
         if space_id is None:
             raise ValueError("Missing required parameter 'space_id'")
@@ -3788,7 +3788,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to retrieve the folder views fails.
         
         Tags:
-            get, views, folder, api, important
+            get, views, folder, api
         """
         if folder_id is None:
             raise ValueError("Missing required parameter 'folder_id'")
@@ -3822,7 +3822,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails.
         
         Tags:
-            add, view, management, api, important
+            add, view, management, api
         """
         if folder_id is None:
             raise ValueError("Missing required parameter 'folder_id'")
@@ -3877,7 +3877,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to fetch views fails.
         
         Tags:
-            list, views, fetch, api, important
+            list, views, fetch, api
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3911,7 +3911,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to create the view fails (e.g., due to a network error or invalid response).
         
         Tags:
-            add, view, list, api, management, important
+            add, view, list, api, management
         """
         if list_id is None:
             raise ValueError("Missing required parameter 'list_id'")
@@ -3966,7 +3966,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to fetch the view information fails with a non-success status code.
         
         Tags:
-            get, view-info, api, important
+            get, view-info, api
         """
         if view_id is None:
             raise ValueError("Missing required parameter 'view_id'")
@@ -4001,7 +4001,7 @@ class ClickupApp(APIApplication):
             HTTPError: If the API request fails and returns a non-success status code.
         
         Tags:
-            update, view-management, api, important
+            update, view-management, api
         """
         if view_id is None:
             raise ValueError("Missing required parameter 'view_id'")
@@ -4059,7 +4059,7 @@ class ClickupApp(APIApplication):
             HTTPError: Raised when the API request fails or returns an error status code.
         
         Tags:
-            delete, view, management, important
+            delete, view, management
         """
         if view_id is None:
             raise ValueError("Missing required parameter 'view_id'")
@@ -4077,7 +4077,7 @@ class ClickupApp(APIApplication):
             view_id: The unique identifier of the view to retrieve tasks for. Must not be None.
             page: The page number of tasks to retrieve. Must not be None.
         
-        Returns:
+        Ret
             A dictionary containing the JSON response with the tasks for the specified view and page.
         
         Raises:
@@ -4085,7 +4085,7 @@ class ClickupApp(APIApplication):
             HTTPError: Raised if the HTTP request to retrieve tasks fails.
         
         Tags:
-            get, list, tasks, view, pagination, important
+            get, list, tasks, view, pagination
         """
         if view_id is None:
             raise ValueError("Missing required parameter 'view_id'")
@@ -4112,7 +4112,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the server fails or an error response is received.
         
         Tags:
-            get, webhooks, workspace, management, important
+            get, webhooks, workspace, management
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -4142,7 +4142,7 @@ class ClickupApp(APIApplication):
             ValueError: Raised when required parameters 'team_id', 'endpoint', or 'events' are missing.
         
         Tags:
-            webhook, create, api-call, important
+            webhook, create, api-call
         """
         if team_id is None:
             raise ValueError("Missing required parameter 'team_id'")
@@ -4183,7 +4183,7 @@ class ClickupApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to update the webhook fails (non-2xx status code).
         
         Tags:
-            update, webhook, management, important
+            update, webhook, management
         """
         if webhook_id is None:
             raise ValueError("Missing required parameter 'webhook_id'")
@@ -4220,7 +4220,7 @@ class ClickupApp(APIApplication):
             HTTPError: If the API request fails or returns an error status code.
         
         Tags:
-            remove, delete, webhook, management, important
+            remove, delete, webhook, management
         """
         if webhook_id is None:
             raise ValueError("Missing required parameter 'webhook_id'")
