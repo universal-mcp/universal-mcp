@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import httpx
 from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport
+from graphql import DocumentNode
 from loguru import logger
 
 from universal_mcp.analytics import analytics
@@ -237,12 +238,12 @@ class GraphQLApplication(BaseApplication):
             self._client = Client(transport=transport, fetch_schema_from_transport=True)
         return self._client
 
-    def mutate(self, mutation: str | gql, variables: dict = None):
+    def mutate(self, mutation: str | DocumentNode, variables: dict = None):
         if isinstance(mutation, str):
             mutation = gql(mutation)
         return self.client.execute(mutation, variable_values=variables)
 
-    def query(self, query: str | gql, variables: dict = None):
+    def query(self, query: str | DocumentNode, variables: dict = None):
         if isinstance(query, str):
             query = gql(query)
         return self.client.execute(query, variable_values=variables)
