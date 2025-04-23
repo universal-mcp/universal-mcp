@@ -23,7 +23,7 @@ class SpotifyApp(APIApplication):
             HTTPError: If the HTTP request to the API fails or returns an unsuccessful status code.
         
         Tags:
-            get, album, api, fetch, important
+            get, album, api, fetch
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -49,7 +49,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails with a status error.
         
         Tags:
-            get, albums, api, list, important
+            get, albums, api, list
         """
         if ids is None:
             raise ValueError("Missing required parameter 'ids'")
@@ -77,7 +77,7 @@ class SpotifyApp(APIApplication):
             HTTPError: If the HTTP request to the API fails (e.g., due to network issues or an invalid album ID).
         
         Tags:
-            get, list, tracks, album, api, important
+            get, list, tracks, album, api
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -102,7 +102,7 @@ class SpotifyApp(APIApplication):
             requests.exceptions.HTTPError: Raised if the HTTP request to fetch the artist fails (e.g., non-2xx status code).
         
         Tags:
-            get, artist, api, fetch, important
+            get, artist, api, fetch
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -127,7 +127,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the artists endpoint fails.
         
         Tags:
-            get, artists, api, list, important
+            get, artists, api, list
         """
         if ids is None:
             raise ValueError("Missing required parameter 'ids'")
@@ -156,7 +156,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an error status code.
         
         Tags:
-            get, list, albums, artist, api, important
+            get, list, albums, artist, api
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -182,7 +182,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API is unsuccessful.
         
         Tags:
-            get, artist, top-tracks, api, music, important
+            get, artist, top-tracks, api, music
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -207,7 +207,7 @@ class SpotifyApp(APIApplication):
             HTTPError: Raised if the HTTP request to fetch related artists fails (non-success response).
         
         Tags:
-            fetch, related-artists, ai, api, important
+            fetch, related-artists, ai, api
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -233,7 +233,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request for the show details fails.
         
         Tags:
-            get, show, api, fetch, important
+            get, show, api, fetch
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -259,7 +259,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: Raised if an HTTP error occurs during the API request.
         
         Tags:
-            get, list, shows, api, batch, important
+            get, list, shows, api, batch
         """
         if ids is None:
             raise ValueError("Missing required parameter 'ids'")
@@ -287,7 +287,7 @@ class SpotifyApp(APIApplication):
             HTTPError: If the HTTP request to the API fails (non-2xx status code).
         
         Tags:
-            get, episodes, api, list, management, important
+            get, episodes, api, list, management
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -313,7 +313,7 @@ class SpotifyApp(APIApplication):
             requests.exceptions.HTTPError: Raised if the HTTP request to retrieve the episode fails.
         
         Tags:
-            get, episode, api, fetch, single-item, important
+            get, episode, api, fetch, single-item
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -339,7 +339,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API endpoint returns an unsuccessful status code.
         
         Tags:
-            get, episodes, batch, podcast, api, important
+            get, episodes, batch, podcast, api
         """
         if ids is None:
             raise ValueError("Missing required parameter 'ids'")
@@ -365,7 +365,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the audiobook API fails (non-2xx status code).
         
         Tags:
-            get, audiobook, api, details, fetch, important
+            get, audiobook, api, details, fetch
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -391,7 +391,7 @@ class SpotifyApp(APIApplication):
             requests.exceptions.HTTPError: Raised if the API response contains a failed HTTP status.
         
         Tags:
-            get, audiobook, batch, api, important
+            get, audiobook, batch, api
         """
         if ids is None:
             raise ValueError("Missing required parameter 'ids'")
@@ -419,7 +419,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the API request fails with a non-successful HTTP status code.
         
         Tags:
-            get, audiobook, chapters, api, fetch, important
+            get, audiobook, chapters, api, fetch
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -444,7 +444,7 @@ class SpotifyApp(APIApplication):
             requests.exceptions.HTTPError: If the HTTP request to the API fails or returns an unsuccessful status code.
         
         Tags:
-            get, list, audiobooks, user-data, api, important
+            get, list, audiobooks, user-data, api
         """
         url = f"{self.base_url}/me/audiobooks"
         query_params = {k: v for k, v in [('limit', limit), ('offset', offset)] if v is not None}
@@ -467,7 +467,7 @@ class SpotifyApp(APIApplication):
             HTTPError: If the API request fails due to an unsuccessful HTTP response status.
         
         Tags:
-            save, audiobooks, user, management, api, important
+            save, audiobooks, user, management, api
         """
         if ids is None:
             raise ValueError("Missing required parameter 'ids'")
@@ -492,7 +492,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to delete audiobooks does not succeed.
         
         Tags:
-            remove, audiobooks, user-library, management, important
+            remove, audiobooks, user-library, management
         """
         if ids is None:
             raise ValueError("Missing required parameter 'ids'")
@@ -517,7 +517,7 @@ class SpotifyApp(APIApplication):
             HTTPError: Raised if the HTTP request to the API fails with an error status.
         
         Tags:
-            check, audiobooks, user-library, api, important
+            check, audiobooks, user-library, api
         """
         if ids is None:
             raise ValueError("Missing required parameter 'ids'")
@@ -543,7 +543,7 @@ class SpotifyApp(APIApplication):
             HTTPError: Raised if the HTTP request to the API fails or returns an unsuccessful status.
         
         Tags:
-            get, chapter, api, data-retrieval, important
+            get, chapter, api, data-retrieval
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -569,7 +569,7 @@ class SpotifyApp(APIApplication):
             HTTPError: If the HTTP request to the chapters endpoint returns an error response.
         
         Tags:
-            get, chapters, batch, api, important
+            get, chapters, batch, api
         """
         if ids is None:
             raise ValueError("Missing required parameter 'ids'")
@@ -595,7 +595,7 @@ class SpotifyApp(APIApplication):
             HTTPError: If the API request returns an unsuccessful HTTP status code.
         
         Tags:
-            get, track, api, fetch, important
+            get, track, api, fetch
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -621,7 +621,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns a non-success status code.
         
         Tags:
-            get, tracks, api, metadata, important
+            get, tracks, api, metadata
         """
         if ids is None:
             raise ValueError("Missing required parameter 'ids'")
@@ -677,7 +677,7 @@ class SpotifyApp(APIApplication):
             requests.exceptions.HTTPError: If the HTTP request returned an unsuccessful status code.
         
         Tags:
-            get, profile, user, api, important
+            get, profile, user, api
         """
         url = f"{self.base_url}/me"
         query_params = {}
@@ -732,7 +732,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: Raised if the API request returns an unsuccessful status code.
         
         Tags:
-            change, update, playlist, management, api, important
+            change, update, playlist, management, api
         """
         if playlist_id is None:
             raise ValueError("Missing required parameter 'playlist_id'")
@@ -831,7 +831,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails (e.g., due to invalid parameters or network issues).
         
         Tags:
-            reorder, replace, playlist, tracks, management, api, important
+            reorder, replace, playlist, tracks, management, api
         """
         if playlist_id is None:
             raise ValueError("Missing required parameter 'playlist_id'")
@@ -864,7 +864,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns a non-success status code.
         
         Tags:
-            list, playlists, user, api, important
+            list, playlists, user, api
         """
         url = f"{self.base_url}/me/playlists"
         query_params = {k: v for k, v in [('limit', limit), ('offset', offset)] if v is not None}
@@ -888,7 +888,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the Spotify API fails or returns an unsuccessful status code.
         
         Tags:
-            get, list, albums, user-library, spotify, api, important
+            get, list, albums, user-library, spotify, api
         """
         url = f"{self.base_url}/me/albums"
         query_params = {k: v for k, v in [('limit', limit), ('offset', offset), ('market', market)] if v is not None}
@@ -911,7 +911,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the Spotify API fails.
         
         Tags:
-            check, spotify, albums, user-library, important
+            check, spotify, albums, user-library
         """
         if ids is None:
             raise ValueError("Missing required parameter 'ids'")
@@ -937,7 +937,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the Spotify API fails or returns a non-success status code.
         
         Tags:
-            list, get, user-data, spotify, tracks, batch, important
+            list, get, user-data, spotify, tracks, batch
         """
         url = f"{self.base_url}/me/tracks"
         query_params = {k: v for k, v in [('market', market), ('limit', limit), ('offset', offset)] if v is not None}
@@ -960,7 +960,7 @@ class SpotifyApp(APIApplication):
             HTTPError: If the HTTP request to save tracks fails (raised by response.raise_for_status()).
         
         Tags:
-            save, user-library, tracks, api, important
+            save, user-library, tracks, api
         """
         if ids is None:
             raise ValueError("Missing required parameter 'ids'")
@@ -989,7 +989,7 @@ class SpotifyApp(APIApplication):
             HTTPError: Raised if the HTTP request to the Spotify API fails.
         
         Tags:
-            check, user-library, spotify, status, important
+            check, user-library, spotify, status
         """
         if ids is None:
             raise ValueError("Missing required parameter 'ids'")
@@ -1015,7 +1015,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request fails or the API returns a non-success status code.
         
         Tags:
-            get, list, user-content, episodes, ai, important
+            get, list, user-content, episodes, ai
         """
         url = f"{self.base_url}/me/episodes"
         query_params = {k: v for k, v in [('market', market), ('limit', limit), ('offset', offset)] if v is not None}
@@ -1038,7 +1038,7 @@ class SpotifyApp(APIApplication):
             HTTPError: Raised if the HTTP PUT request to the server fails.
         
         Tags:
-            save, episodes, user-management, async-job, important
+            save, episodes, user-management, async-job
         """
         if ids is None:
             raise ValueError("Missing required parameter 'ids'")
@@ -1067,7 +1067,7 @@ class SpotifyApp(APIApplication):
             HTTPError: Raised if the HTTP request to the remote service fails with a non-success status code.
         
         Tags:
-            check, status, async_job, ai, management, important
+            check, status, async_job, ai, management
         """
         if ids is None:
             raise ValueError("Missing required parameter 'ids'")
@@ -1092,7 +1092,7 @@ class SpotifyApp(APIApplication):
             HTTPError: Raised if the HTTP request to the Spotify API returns an unsuccessful status code.
         
         Tags:
-            get, list, shows, spotify, user-content, important
+            get, list, shows, spotify, user-content
         """
         url = f"{self.base_url}/me/shows"
         query_params = {k: v for k, v in [('limit', limit), ('offset', offset)] if v is not None}
@@ -1115,7 +1115,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an error status code.
         
         Tags:
-            check, library, status, async-job, ai, important
+            check, library, status, async-job, ai
         """
         if ids is None:
             raise ValueError("Missing required parameter 'ids'")
@@ -1140,7 +1140,7 @@ class SpotifyApp(APIApplication):
             requests.exceptions.HTTPError: Raised if the HTTP request to fetch the user's profile fails (non-success status code).
         
         Tags:
-            get, profile, user, api, important
+            get, profile, user, api
         """
         if user_id is None:
             raise ValueError("Missing required parameter 'user_id'")
@@ -1167,7 +1167,7 @@ class SpotifyApp(APIApplication):
             HTTPError: Raised when the HTTP request fails.
         
         Tags:
-            retrieve, list, playlists, user, pagination, api, important
+            retrieve, list, playlists, user, pagination, api
         """
         if user_id is None:
             raise ValueError("Missing required parameter 'user_id'")
@@ -1231,7 +1231,7 @@ class SpotifyApp(APIApplication):
             HTTPError: If the HTTP request fails or the API returns an error status.
         
         Tags:
-            follow, playlist, api, async-job, important
+            follow, playlist, api, async-job
         """
         if playlist_id is None:
             raise ValueError("Missing required parameter 'playlist_id'")
@@ -1260,7 +1260,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the API request fails and returns an unsuccessful HTTP status code.
         
         Tags:
-            unfollow, playlist-management, delete, async-job, important
+            unfollow, playlist-management, delete, async-job
         """
         if playlist_id is None:
             raise ValueError("Missing required parameter 'playlist_id'")
@@ -1286,7 +1286,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the Spotify API fails or returns an unsuccessful status code.
         
         Tags:
-            get, list, playlists, featured, api, music, important
+            get, list, playlists, featured, api, music
         """
         url = f"{self.base_url}/browse/featured-playlists"
         query_params = {k: v for k, v in [('locale', locale), ('limit', limit), ('offset', offset)] if v is not None}
@@ -1310,7 +1310,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API endpoint returns an unsuccessful status code.
         
         Tags:
-            get, list, categories, api, important
+            get, list, categories, api
         """
         url = f"{self.base_url}/browse/categories"
         query_params = {k: v for k, v in [('locale', locale), ('limit', limit), ('offset', offset)] if v is not None}
@@ -1334,7 +1334,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an unsuccessful status code.
         
         Tags:
-            get, category, api, important
+            get, category, api
         """
         if category_id is None:
             raise ValueError("Missing required parameter 'category_id'")
@@ -1361,7 +1361,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the API request fails or returns a non-success status code.
         
         Tags:
-            get, list, playlists, categories, api, management, important
+            get, list, playlists, categories, api, management
         """
         if category_id is None:
             raise ValueError("Missing required parameter 'category_id'")
@@ -1386,7 +1386,7 @@ class SpotifyApp(APIApplication):
             HTTPError: Raised if the HTTP request to retrieve the cover images fails.
         
         Tags:
-            get, playlist, cover-image, api, important
+            get, playlist, cover-image, api
         """
         if playlist_id is None:
             raise ValueError("Missing required parameter 'playlist_id'")
@@ -1411,7 +1411,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to fetch new releases returns an unsuccessful status code.
         
         Tags:
-            get, list, browse, music, async-job, api, important
+            get, list, browse, music, async-job, api
         """
         url = f"{self.base_url}/browse/new-releases"
         query_params = {k: v for k, v in [('limit', limit), ('offset', offset)] if v is not None}
@@ -1436,7 +1436,7 @@ class SpotifyApp(APIApplication):
             HTTPError: If the HTTP request to the API fails (raised by requests.Response.raise_for_status()).
         
         Tags:
-            get, list, follow-management, api, important
+            get, list, follow-management, api
         """
         if type is None:
             raise ValueError("Missing required parameter 'type'")
@@ -1462,7 +1462,7 @@ class SpotifyApp(APIApplication):
             HTTPError: If the API request fails or returns an error status code.
         
         Tags:
-            follow, users, artists, api, important
+            follow, users, artists, api
         """
         if type is None:
             raise ValueError("Missing required parameter 'type'")
@@ -1494,7 +1494,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an error status.
         
         Tags:
-            check, follows, spotify, user, artist, api, important
+            check, follows, spotify, user, artist, api
         """
         if type is None:
             raise ValueError("Missing required parameter 'type'")
@@ -1522,7 +1522,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the API request fails or returns an error response.
         
         Tags:
-            check, playlist, followers, api, important
+            check, playlist, followers, api
         """
         if playlist_id is None:
             raise ValueError("Missing required parameter 'playlist_id'")
@@ -1549,7 +1549,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the audio features endpoint fails.
         
         Tags:
-            get, audio-features, batch, ai, important
+            get, audio-features, batch, ai
         """
         if ids is None:
             raise ValueError("Missing required parameter 'ids'")
@@ -1574,7 +1574,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails with a bad status code.
         
         Tags:
-            get, audio-features, api, fetch, important
+            get, audio-features, api, fetch
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -1599,7 +1599,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the audio analysis endpoint fails (e.g., network error or non-2xx response).
         
         Tags:
-            get, audio-analysis, api, fetch, important
+            get, audio-analysis, api, fetch
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -1670,7 +1670,7 @@ class SpotifyApp(APIApplication):
             requests.RequestException: If a network-related error occurs during the request.
         
         Tags:
-            get, recommendations, ai, music, filter, important
+            get, recommendations, ai, music, filter
         """
         url = f"{self.base_url}/recommendations"
         query_params = {k: v for k, v in [('limit', limit), ('market', market), ('seed_artists', seed_artists), ('seed_genres', seed_genres), ('seed_tracks', seed_tracks), ('min_acousticness', min_acousticness), ('max_acousticness', max_acousticness), ('target_acousticness', target_acousticness), ('min_danceability', min_danceability), ('max_danceability', max_danceability), ('target_danceability', target_danceability), ('min_duration_ms', min_duration_ms), ('max_duration_ms', max_duration_ms), ('target_duration_ms', target_duration_ms), ('min_energy', min_energy), ('max_energy', max_energy), ('target_energy', target_energy), ('min_instrumentalness', min_instrumentalness), ('max_instrumentalness', max_instrumentalness), ('target_instrumentalness', target_instrumentalness), ('min_key', min_key), ('max_key', max_key), ('target_key', target_key), ('min_liveness', min_liveness), ('max_liveness', max_liveness), ('target_liveness', target_liveness), ('min_loudness', min_loudness), ('max_loudness', max_loudness), ('target_loudness', target_loudness), ('min_mode', min_mode), ('max_mode', max_mode), ('target_mode', target_mode), ('min_popularity', min_popularity), ('max_popularity', max_popularity), ('target_popularity', target_popularity), ('min_speechiness', min_speechiness), ('max_speechiness', max_speechiness), ('target_speechiness', target_speechiness), ('min_tempo', min_tempo), ('max_tempo', max_tempo), ('target_tempo', target_tempo), ('min_time_signature', min_time_signature), ('max_time_signature', max_time_signature), ('target_time_signature', target_time_signature), ('min_valence', min_valence), ('max_valence', max_valence), ('target_valence', target_valence)] if v is not None}
@@ -1692,7 +1692,7 @@ class SpotifyApp(APIApplication):
             requests.exceptions.HTTPError: If the HTTP request to the API fails or returns an error status code.
         
         Tags:
-            get, list, api, recommendation, genres, important
+            get, list, api, recommendation, genres
         """
         url = f"{self.base_url}/recommendations/available-genre-seeds"
         query_params = {}
@@ -1715,7 +1715,7 @@ class SpotifyApp(APIApplication):
             requests.exceptions.HTTPError: If the HTTP request to the music service API fails or returns an error status code.
         
         Tags:
-            get, playback, user, status, api, important
+            get, playback, user, status, api
         """
         url = f"{self.base_url}/me/player"
         query_params = {k: v for k, v in [('market', market), ('additional_types', additional_types)] if v is not None}
@@ -1739,7 +1739,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: Raised if the underlying HTTP request fails or returns an error status code.
         
         Tags:
-            transfer, playback, management, api-call, important
+            transfer, playback, management, api-call
         """
         if device_ids is None:
             raise ValueError("Missing required parameter 'device_ids'")
@@ -1768,7 +1768,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the devices endpoint fails or returns a non-success status code.
         
         Tags:
-            get, list, devices, user, important, management
+            get, list, devices, user, management
         """
         url = f"{self.base_url}/me/player/devices"
         query_params = {}
@@ -1791,7 +1791,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the underlying HTTP request fails or returns an unsuccessful status code.
         
         Tags:
-            get, track, player, user, async_job, important
+            get, track, player, user, async_job
         """
         url = f"{self.base_url}/me/player/currently-playing"
         query_params = {k: v for k, v in [('market', market), ('additional_types', additional_types)] if v is not None}
@@ -1817,7 +1817,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the underlying HTTP request fails or an error response is returned from the Spotify Web API.
         
         Tags:
-            start, playback, ai, management, async_job, important
+            start, playback, ai, management, async_job
         """
         request_body = {
             'context_uri': context_uri,
@@ -1846,7 +1846,7 @@ class SpotifyApp(APIApplication):
             HTTPError: Raised when the Spotify API returns an error response, such as when the user doesn't have an active device, the user doesn't have a premium account, or there's an authentication issue.
         
         Tags:
-            pause, playback, control, spotify, important
+            pause, playback, control, spotify
         """
         url = f"{self.base_url}/me/player/pause"
         query_params = {k: v for k, v in [('device_id', device_id)] if v is not None}
@@ -1868,7 +1868,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to skip to the next track fails with an unsuccessful status code.
         
         Tags:
-            skip, playback-control, user, important, spotify-api
+            skip, playback-control, user, spotify-api
         """
         url = f"{self.base_url}/me/player/next"
         query_params = {k: v for k, v in [('device_id', device_id)] if v is not None}
@@ -1890,7 +1890,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the playback API fails or returns an error status.
         
         Tags:
-            playback-control, skip, previous-track, user, api, important
+            playback-control, skip, previous-track, user, api
         """
         url = f"{self.base_url}/me/player/previous"
         query_params = {k: v for k, v in [('device_id', device_id)] if v is not None}
@@ -1914,7 +1914,7 @@ class SpotifyApp(APIApplication):
             requests.exceptions.HTTPError: If the HTTP request to seek fails with a bad status code.
         
         Tags:
-            seek, player-control, api, important
+            seek, player-control, api
         """
         if position_ms is None:
             raise ValueError("Missing required parameter 'position_ms'")
@@ -1940,7 +1940,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the Spotify API fails (e.g., due to a bad request or authorization error).
         
         Tags:
-            set, playback, repeat, management, important
+            set, playback, repeat, management
         """
         if state is None:
             raise ValueError("Missing required parameter 'state'")
@@ -1966,7 +1966,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an error response.
         
         Tags:
-            set, volume, playback, user-management, important
+            set, volume, playback, user-management
         """
         if volume_percent is None:
             raise ValueError("Missing required parameter 'volume_percent'")
@@ -1992,7 +1992,7 @@ class SpotifyApp(APIApplication):
             HTTPError: If the server returns an unsuccessful status code.
         
         Tags:
-            toggle, shuffle, playback, user, management, spotify, important
+            toggle, shuffle, playback, user, management, spotify
         """
         if state is None:
             raise ValueError("Missing required parameter 'state'")
@@ -2018,7 +2018,7 @@ class SpotifyApp(APIApplication):
             requests.exceptions.HTTPError: If the HTTP request returned an unsuccessful status code.
         
         Tags:
-            get, list, spotify-api, user-library, recently-played, important
+            get, list, spotify-api, user-library, recently-played
         """
         url = f"{self.base_url}/me/player/recently-played"
         query_params = {k: v for k, v in [('limit', limit), ('after', after), ('before', before)] if v is not None}
@@ -2040,7 +2040,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the player queue endpoint returns an unsuccessful status code.
         
         Tags:
-            get, queue, api, player, important
+            get, queue, api, player
         """
         url = f"{self.base_url}/me/player/queue"
         query_params = {}
@@ -2064,7 +2064,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the Spotify API fails.
         
         Tags:
-            add, queue, spotify, api, player, important
+            add, queue, spotify, api, player
         """
         if uri is None:
             raise ValueError("Missing required parameter 'uri'")
@@ -2088,7 +2088,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API endpoint fails or an error status code is returned.
         
         Tags:
-            get, markets, api, list, fetch, important
+            get, markets, api, list, fetch
         """
         url = f"{self.base_url}/markets"
         query_params = {}
@@ -2112,7 +2112,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the API request fails or returns an unsuccessful HTTP status code.
         
         Tags:
-            get, list, artists, user, important, ai, batch
+            get, list, artists, user, ai, batch
         """
         url = f"{self.base_url}/me/top/artists"
         query_params = {k: v for k, v in [('time_range', time_range), ('limit', limit), ('offset', offset)] if v is not None}
@@ -2136,7 +2136,7 @@ class SpotifyApp(APIApplication):
             requests.HTTPError: If the HTTP request fails or returns an unsuccessful status code.
         
         Tags:
-            get, list, user, tracks, ai, important
+            get, list, user, tracks, ai
         """
         url = f"{self.base_url}/me/top/tracks"
         query_params = {k: v for k, v in [('time_range', time_range), ('limit', limit), ('offset', offset)] if v is not None}
