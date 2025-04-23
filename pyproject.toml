@@ -1,6 +1,6 @@
 [project]
 name = "universal-mcp"
-version = "0.1.8rc2"
+version = "0.1.9-rc1"
 description = "Universal MCP acts as a middle ware for your API applications. It can store your credentials, authorize, enable disable apps on the fly and much more."
 readme = "README.md"
 authors = [
@@ -18,18 +18,19 @@ dependencies = [
     "rich>=14.0.0",
     "posthog>=3.24.0",
     "mcp>=1.6.0",
+    "gql[all]>=3.5.2",
 ]
 
 [project.optional-dependencies]
 playground = [
     "fastapi[standard]>=0.115.12",
-    "langchain-anthropic>=0.3.10",
     "langchain-mcp-adapters>=0.0.3",
     "langgraph>=0.3.24",
     "langgraph-checkpoint-sqlite>=2.0.6",
     "streamlit>=1.44.1",
     "python-dotenv>=1.0.1",
     "langchain-openai>=0.3.12",
+    "watchdog>=6.0.0",
 ]
 dev = [
     "ruff>=0.11.4",

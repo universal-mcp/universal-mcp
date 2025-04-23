@@ -28,11 +28,11 @@ class DocstringOutput(BaseModel):
     returns: str = Field(description="Description of what the function returns")
     raises: dict[str, str] = Field(
         default_factory=dict,
-        description="Dictionary mapping potential exception types/reasons to their descriptions"
+        description="Dictionary mapping potential exception types/reasons to their descriptions",
     )
     tags: list[str] = Field(
         default_factory=list,
-        description="List of relevant tags for the function (e.g., action, job type, async status, importance)"
+        description="List of relevant tags for the function (e.g., action, job type, async status, importance)",
     )
 
 
@@ -62,7 +62,7 @@ class FunctionExtractor(ast.NodeVisitor):
     def visit_FunctionDef(self, node: ast.FunctionDef):
         """Visits a regular function definition and collects it if not excluded."""
         # Add the exclusion logic here
-        if not node.name.startswith('_') and node.name != 'list_tools':
+        if not node.name.startswith("_") and node.name != "list_tools":
             source_code = self._get_source_segment(node)
             if source_code:
                 self.functions.append((node.name, source_code))
@@ -72,7 +72,7 @@ class FunctionExtractor(ast.NodeVisitor):
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
         """Visits an asynchronous function definition and collects it if not excluded."""
         # Add the exclusion logic here
-        if not node.name.startswith('_') and node.name != 'list_tools':
+        if not node.name.startswith("_") and node.name != "list_tools":
             source_code = self._get_source_segment(node)
             if source_code:
                 self.functions.append((node.name, source_code))
@@ -136,13 +136,13 @@ def extract_functions_from_script(file_path: str) -> list[tuple[str, str]]:
 
 def extract_json_from_text(text):
     """Extract valid JSON from text that might contain additional content.
-    
+
     Args:
         text: Raw text response from the model
-        
+
     Returns:
         Dict containing the extracted JSON data
-        
+
     Raises:
         ValueError: If no valid JSON could be extracted
     """
@@ -156,19 +156,19 @@ def extract_json_from_text(text):
 
     # Try to find the first { and last } for a complete JSON object
     try:
-        start = text.find('{')
+        start = text.find("{")
         if start >= 0:
             brace_count = 0
             for i in range(start, len(text)):
-                if text[i] == '{':
+                if text[i] == "{":
                     brace_count += 1
-                elif text[i] == '}':
+                elif text[i] == "}":
                     brace_count -= 1
                     if brace_count == 0:
-                        return json.loads(text[start:i+1])
+                        return json.loads(text[start : i + 1])
     except json.JSONDecodeError:
         pass
-    
+
     try:
         return json.loads(text)
     except json.JSONDecodeError as e:
@@ -235,28 +235,29 @@ def generate_docstring(
 
         response_text = response.choices[0].message.content
 
-        
         try:
             parsed_data = extract_json_from_text(response_text)
         except ValueError as e:
             print(f"JSON extraction failed: {e}")
-            print(f"Raw response: {response_text[:100]}...")  # Log first 100 chars for debugging
+            print(
+                f"Raw response: {response_text[:100]}..."
+            )  # Log first 100 chars for debugging
             # Return a default structure if extraction fails
             return DocstringOutput(
                 summary="Failed to extract docstring information",
                 args={"None": "This function takes no arguments"},
-                returns="Unknown return value"
+                returns="Unknown return value",
             )
         model_args = parsed_data.get("args")
         if not model_args:
-             parsed_data["args"] = {"None": "This function takes no arguments"}
+            parsed_data["args"] = {"None": "This function takes no arguments"}
 
         return DocstringOutput(
             summary=parsed_data.get("summary", "No documentation available"),
             args=parsed_data.get("args", {"None": "This function takes no arguments"}),
             returns=parsed_data.get("returns", "None"),
             raises=parsed_data.get("raises", {}),
-            tags=parsed_data.get("tags", []) # Get tags, default to empty list
+            tags=parsed_data.get("tags", []),  # Get tags, default to empty list
         )
 
     except Exception as e:
@@ -267,8 +268,9 @@ def generate_docstring(
             args={"None": "This function takes no arguments"},
             returns="None",
             raises={},
-            tags=["generation-error"]
+            tags=["generation-error"],
         )
+
 
 def format_docstring(docstring: DocstringOutput) -> str:
     """
@@ -289,23 +291,29 @@ def format_docstring(docstring: DocstringOutput) -> str:
     if summary:
         parts.append(summary)
 
-    filtered_args = {name: desc for name, desc in docstring.args.items() if name not in ('self', 'cls')}
+    filtered_args = {
+        name: desc
+        for name, desc in docstring.args.items()
+        if name not in ("self", "cls")
+    }
     args_lines = []
     if filtered_args:
         args_lines.append("Args:")
         for arg_name, arg_desc in filtered_args.items():
-             arg_desc_cleaned = arg_desc.strip()
-             args_lines.append(f"    {arg_name}: {arg_desc_cleaned}")
-    elif docstring.args.get('None'): # Include the 'None' placeholder if it was generated
+            arg_desc_cleaned = arg_desc.strip()
+            args_lines.append(f"    {arg_name}: {arg_desc_cleaned}")
+    elif docstring.args.get(
+        "None"
+    ):  # Include the 'None' placeholder if it was generated
         args_lines.append("Args:")
-        none_desc_cleaned = docstring.args['None'].strip()
+        none_desc_cleaned = docstring.args["None"].strip()
         args_lines.append(f"    None: {none_desc_cleaned}")
 
     if args_lines:
-         parts.append("\n".join(args_lines))
+        parts.append("\n".join(args_lines))
 
     returns_desc_cleaned = docstring.returns.strip()
-    if returns_desc_cleaned and returns_desc_cleaned.lower() not in ('none', ''):
+    if returns_desc_cleaned and returns_desc_cleaned.lower() not in ("none", ""):
         parts.append(f"Returns:\n    {returns_desc_cleaned}")
 
     raises_lines = []
@@ -313,10 +321,14 @@ def format_docstring(docstring: DocstringOutput) -> str:
         raises_lines.append("Raises:")
         for exception_type, exception_desc in docstring.raises.items():
             exception_desc_cleaned = exception_desc.strip()
-            if exception_type.strip() and exception_desc_cleaned: # Ensure type and desc are not empty
-                raises_lines.append(f"    {exception_type.strip()}: {exception_desc_cleaned}")
+            if (
+                exception_type.strip() and exception_desc_cleaned
+            ):  # Ensure type and desc are not empty
+                raises_lines.append(
+                    f"    {exception_type.strip()}: {exception_desc_cleaned}"
+                )
     if raises_lines:
-         parts.append("\n".join(raises_lines))
+        parts.append("\n".join(raises_lines))
 
     cleaned_tags = [tag.strip() for tag in docstring.tags if tag and tag.strip()]
     if cleaned_tags:
@@ -324,6 +336,7 @@ def format_docstring(docstring: DocstringOutput) -> str:
         parts.append(f"Tags:\n    {tags_string}")
 
     return "\n\n".join(parts)
+
 
 def insert_docstring_into_function(function_code: str, docstring: str) -> str:
     """
@@ -350,43 +363,51 @@ def insert_docstring_into_function(function_code: str, docstring: str) -> str:
         lines = function_code.splitlines(keepends=True)
 
         tree = ast.parse(function_code)
-        if not tree.body or not isinstance(tree.body[0], ast.FunctionDef | ast.AsyncFunctionDef):
-            print("Warning: Could not parse function definition from code snippet. Returning original code.", file=sys.stderr)
-            return function_code # Return original code if parsing fails or isn't a function
+        if not tree.body or not isinstance(
+            tree.body[0], ast.FunctionDef | ast.AsyncFunctionDef
+        ):
+            print(
+                "Warning: Could not parse function definition from code snippet. Returning original code.",
+                file=sys.stderr,
+            )
+            return function_code  # Return original code if parsing fails or isn't a function
 
         func_node = tree.body[0]
-        func_name = getattr(func_node, 'name', 'unknown_function')
+        func_name = getattr(func_node, "name", "unknown_function")
 
         insert_idx = func_node.end_lineno
 
         if func_node.body:
             insert_idx = func_node.body[0].lineno - 1
 
-        body_indent = "    " # Default indentation (PEP 8)
+        body_indent = "    "  # Default indentation (PEP 8)
 
         indent_source_idx = insert_idx
         actual_first_body_line_idx = -1
         for i in range(indent_source_idx, len(lines)):
             line = lines[i]
             stripped = line.lstrip()
-            if stripped and not stripped.startswith('#'):
+            if stripped and not stripped.startswith("#"):
                 actual_first_body_line_idx = i
                 break
 
         # If a meaningful line was found at or after insertion point, use its indentation
         if actual_first_body_line_idx != -1:
             body_line = lines[actual_first_body_line_idx]
-            body_indent = body_line[:len(body_line) - len(body_line.lstrip())]
+            body_indent = body_line[: len(body_line) - len(body_line.lstrip())]
         else:
-            if func_node.lineno - 1 < len(lines): # Ensure def line exists
-                 def_line = lines[func_node.lineno - 1]
-                 def_line_indent = def_line[:len(def_line) - len(def_line.lstrip())]
-                 body_indent = def_line_indent + "    " # Standard 4 spaces relative indent
-
+            if func_node.lineno - 1 < len(lines):  # Ensure def line exists
+                def_line = lines[func_node.lineno - 1]
+                def_line_indent = def_line[: len(def_line) - len(def_line.lstrip())]
+                body_indent = (
+                    def_line_indent + "    "
+                )  # Standard 4 spaces relative indent
 
         # Format the new docstring lines with the calculated indentation
         new_docstring_lines_formatted = [f'{body_indent}"""\n']
-        new_docstring_lines_formatted.extend([f"{body_indent}{line}\n" for line in docstring.splitlines()])
+        new_docstring_lines_formatted.extend(
+            [f"{body_indent}{line}\n" for line in docstring.splitlines()]
+        )
         new_docstring_lines_formatted.append(f'{body_indent}"""\n')
 
         output_lines = []
@@ -398,62 +419,93 @@ def insert_docstring_into_function(function_code: str, docstring: str) -> str:
 
         remaining_body_code = "".join(remaining_body_lines)
 
-        if remaining_body_code.strip(): # Only parse if there's non-whitespace content
+        if remaining_body_code.strip():  # Only parse if there's non-whitespace content
             try:
                 dummy_code = f"def _dummy_func():\n{textwrap.indent(remaining_body_code, body_indent)}"
                 dummy_tree = ast.parse(dummy_code)
-                dummy_body_statements = dummy_tree.body[0].body if dummy_tree.body and isinstance(dummy_tree.body[0], ast.FunctionDef | ast.AsyncFunctionDef) else []
+                dummy_body_statements = (
+                    dummy_tree.body[0].body
+                    if dummy_tree.body
+                    and isinstance(
+                        dummy_tree.body[0], ast.FunctionDef | ast.AsyncFunctionDef
+                    )
+                    else []
+                )
                 cleaned_body_parts = []
                 for _node in dummy_body_statements:
-                    break # Exit this loop, we'll process func_node.body instead
+                    break  # Exit this loop, we'll process func_node.body instead
                 cleaned_body_parts = []
-                start_stmt_index = 1 if func_node.body and isinstance(func_node.body[0], ast.Expr) and isinstance(func_node.body[0].value, ast.Constant) and isinstance(func_node.body[0].value.value, str) else 0
+                start_stmt_index = (
+                    1
+                    if func_node.body
+                    and isinstance(func_node.body[0], ast.Expr)
+                    and isinstance(func_node.body[0].value, ast.Constant)
+                    and isinstance(func_node.body[0].value.value, str)
+                    else 0
+                )
 
                 for i in range(start_stmt_index, len(func_node.body)):
-                     stmt_node = func_node.body[i]
+                    stmt_node = func_node.body[i]
 
-                     is_just_string_stmt = isinstance(stmt_node, ast.Expr) and isinstance(stmt_node.value, ast.Constant) and isinstance(stmt_node.value.value, str)
+                    is_just_string_stmt = (
+                        isinstance(stmt_node, ast.Expr)
+                        and isinstance(stmt_node.value, ast.Constant)
+                        and isinstance(stmt_node.value.value, str)
+                    )
 
-                     if not is_just_string_stmt:
-                         stmt_start_idx = stmt_node.lineno - 1
-                         stmt_end_idx = stmt_node.end_lineno - 1 # Inclusive end line index
+                    if not is_just_string_stmt:
+                        stmt_start_idx = stmt_node.lineno - 1
+                        stmt_end_idx = (
+                            stmt_node.end_lineno - 1
+                        )  # Inclusive end line index
 
-                         cleaned_body_parts.extend(lines[stmt_start_idx : stmt_end_idx + 1])
+                        cleaned_body_parts.extend(
+                            lines[stmt_start_idx : stmt_end_idx + 1]
+                        )
 
                 if func_node.body:
                     last_stmt_end_idx = func_node.body[-1].end_lineno - 1
-                    for line in lines[last_stmt_end_idx + 1:]:
-                         if line.strip():
-                              cleaned_body_parts.append(line)
+                    for line in lines[last_stmt_end_idx + 1 :]:
+                        if line.strip():
+                            cleaned_body_parts.append(line)
                 cleaned_body_lines = cleaned_body_parts
 
             except SyntaxError as parse_e:
-                print(f"WARNING: Could not parse function body for cleaning, keeping all body lines: {parse_e}", file=sys.stderr)
+                print(
+                    f"WARNING: Could not parse function body for cleaning, keeping all body lines: {parse_e}",
+                    file=sys.stderr,
+                )
                 traceback.print_exc(file=sys.stderr)
                 cleaned_body_lines = remaining_body_lines
             except Exception as other_e:
-                 print(f"WARNING: Unexpected error processing function body for cleaning, keeping all body lines: {other_e}", file=sys.stderr)
-                 traceback.print_exc(file=sys.stderr)
-                 cleaned_body_lines = remaining_body_lines
+                print(
+                    f"WARNING: Unexpected error processing function body for cleaning, keeping all body lines: {other_e}",
+                    file=sys.stderr,
+                )
+                traceback.print_exc(file=sys.stderr)
+                cleaned_body_lines = remaining_body_lines
         else:
-             cleaned_body_lines = []
-             output_lines.extend(lines[func_node.end_lineno:])
+            cleaned_body_lines = []
+            output_lines.extend(lines[func_node.end_lineno :])
 
         if func_node.body or not remaining_body_code.strip():
-             output_lines.extend(cleaned_body_lines)
+            output_lines.extend(cleaned_body_lines)
 
         final_code = "".join(output_lines)
         ast.parse(final_code)
         return final_code
 
     except SyntaxError as e:
-        print(f"WARNING: Generated code snippet for '{func_name}' has syntax error: {e}", file=sys.stderr)
+        print(
+            f"WARNING: Generated code snippet for '{func_name}' has syntax error: {e}",
+            file=sys.stderr,
+        )
         traceback.print_exc(file=sys.stderr)
         return function_code
     except Exception as e:
         print(f"Error processing function snippet for insertion: {e}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
-        
+
         return function_code
 
 
@@ -508,7 +560,7 @@ def process_file(file_path: str, model: str = "perplexity/sonar-pro") -> int:
             f.write(updated_content)
         print(f"Updated {count} functions in {file_path}")
     else:
-        print(updated_function, "formatted docstring",formatted_docstring) 
+        print(updated_function, "formatted docstring", formatted_docstring)
         print(f"No changes made to {file_path}")
 
     return count

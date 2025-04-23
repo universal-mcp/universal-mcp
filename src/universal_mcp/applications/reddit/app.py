@@ -47,19 +47,19 @@ class RedditApp(APIApplication):
     ) -> str:
         """
         Retrieves and formats top posts from a specified subreddit within a given timeframe using the Reddit API
-        
+
         Args:
             subreddit: The name of the subreddit (e.g., 'python', 'worldnews') without the 'r/' prefix
             limit: The maximum number of posts to return (default: 5, max: 100)
             timeframe: The time period for top posts. Valid options: 'hour', 'day', 'week', 'month', 'year', 'all' (default: 'day')
-        
+
         Returns:
             A formatted string containing a numbered list of top posts, including titles, authors, scores, and URLs, or an error message if the request fails
-        
+
         Raises:
             RequestException: When the HTTP request to the Reddit API fails
             JSONDecodeError: When the API response contains invalid JSON
-        
+
         Tags:
             fetch, reddit, api, list, social-media, important, read-only
         """
@@ -107,19 +107,19 @@ class RedditApp(APIApplication):
     ) -> str:
         """
         Searches Reddit for subreddits matching a given query string and returns a formatted list of results including subreddit names, subscriber counts, and descriptions.
-        
+
         Args:
             query: The text to search for in subreddit names and descriptions
             limit: The maximum number of subreddits to return, between 1 and 100 (default: 5)
             sort: The order of results, either 'relevance' or 'activity' (default: 'relevance')
-        
+
         Returns:
             A formatted string containing a list of matching subreddits with their names, subscriber counts, and descriptions, or an error message if the search fails or parameters are invalid
-        
+
         Raises:
             RequestException: When the HTTP request to Reddit's API fails
             JSONDecodeError: When the API response contains invalid JSON
-        
+
         Tags:
             search, important, reddit, api, query, format, list, validation
         """
@@ -177,17 +177,17 @@ class RedditApp(APIApplication):
     def get_post_flairs(self, subreddit: str):
         """
         Retrieves a list of available post flairs for a specified subreddit using the Reddit API.
-        
+
         Args:
             subreddit: The name of the subreddit (e.g., 'python', 'worldnews') without the 'r/' prefix
-        
+
         Returns:
             A list of dictionaries containing flair details if flairs exist, or a string message indicating no flairs are available
-        
+
         Raises:
             RequestException: When the API request fails or network connectivity issues occur
             JSONDecodeError: When the API response contains invalid JSON data
-        
+
         Tags:
             fetch, get, reddit, flair, api, read-only
         """
@@ -210,7 +210,7 @@ class RedditApp(APIApplication):
     ):
         """
         Creates a new Reddit post in a specified subreddit with support for text posts, link posts, and image posts
-        
+
         Args:
             subreddit: The name of the subreddit (e.g., 'python', 'worldnews') without the 'r/'
             title: The title of the post
@@ -218,13 +218,13 @@ class RedditApp(APIApplication):
             text: The text content of the post; required if kind is 'self'
             url: The URL of the link or image; required if kind is 'link'. Must end with valid image extension for image posts
             flair_id: The ID of the flair to assign to the post
-        
+
         Returns:
             The JSON response from the Reddit API, or an error message as a string if the API returns an error
-        
+
         Raises:
             ValueError: Raised when kind is invalid or when required parameters (text for self posts, url for link posts) are missing
-        
+
         Tags:
             create, post, social-media, reddit, api, important
         """
@@ -263,17 +263,17 @@ class RedditApp(APIApplication):
     def get_comment_by_id(self, comment_id: str) -> dict:
         """
         Retrieves a specific Reddit comment using its unique identifier.
-        
+
         Args:
             comment_id: The full unique identifier of the comment (prefixed with 't1_', e.g., 't1_abcdef')
-        
+
         Returns:
             A dictionary containing the comment data including attributes like author, body, score, etc. If the comment is not found, returns a dictionary with an error message.
-        
+
         Raises:
             HTTPError: When the Reddit API request fails due to network issues or invalid authentication
             JSONDecodeError: When the API response cannot be parsed as valid JSON
-        
+
         Tags:
             retrieve, get, reddit, comment, api, fetch, single-item, important
         """
@@ -289,18 +289,18 @@ class RedditApp(APIApplication):
     def post_comment(self, parent_id: str, text: str) -> dict:
         """
         Posts a comment to a Reddit post or comment using the Reddit API
-        
+
         Args:
             parent_id: The full ID of the parent comment or post (e.g., 't3_abc123' for a post, 't1_def456' for a comment)
             text: The text content of the comment to be posted
-        
+
         Returns:
             A dictionary containing the Reddit API response with details about the posted comment
-        
+
         Raises:
             RequestException: If the API request fails or returns an error status code
             JSONDecodeError: If the API response cannot be parsed as JSON
-        
+
         Tags:
             post, comment, social, reddit, api, important
         """
@@ -316,18 +316,18 @@ class RedditApp(APIApplication):
     def edit_content(self, content_id: str, text: str) -> dict:
         """
         Edits the text content of an existing Reddit post or comment using the Reddit API
-        
+
         Args:
             content_id: The full ID of the content to edit (e.g., 't3_abc123' for a post, 't1_def456' for a comment)
             text: The new text content to replace the existing content
-        
+
         Returns:
             A dictionary containing the API response with details about the edited content
-        
+
         Raises:
             RequestException: When the API request fails or network connectivity issues occur
             ValueError: When invalid content_id format or empty text is provided
-        
+
         Tags:
             edit, update, content, reddit, api, important
         """
@@ -343,17 +343,17 @@ class RedditApp(APIApplication):
     def delete_content(self, content_id: str) -> dict:
         """
         Deletes a specified Reddit post or comment using the Reddit API.
-        
+
         Args:
             content_id: The full ID of the content to delete (e.g., 't3_abc123' for a post, 't1_def456' for a comment)
-        
+
         Returns:
             A dictionary containing a success message with the deleted content ID
-        
+
         Raises:
             HTTPError: When the API request fails or returns an error status code
             RequestException: When there are network connectivity issues or API communication problems
-        
+
         Tags:
             delete, content-management, api, reddit, important
         """

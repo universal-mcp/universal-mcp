@@ -5,40 +5,22 @@ from universal_mcp.integrations import Integration
 class ResendApp(APIApplication):
     def __init__(self, integration: Integration) -> None:
         super().__init__(name="resend", integration=integration)
-        self.api_key = None
-
-    def _get_headers(self):
-        if not self.api_key:
-            credentials = self.integration.get_credentials()
-            if not credentials:
-                raise ValueError("No credentials found")
-            api_key = (
-                credentials.get("api_key")
-                or credentials.get("API_KEY")
-                or credentials.get("apiKey")
-            )
-            if not api_key:
-                raise ValueError("No API key found")
-            self.api_key = api_key
-        return {
-            "Authorization": f"Bearer {self.api_key}",
-        }
 
     def send_email(self, to: str, subject: str, content: str) -> str:
         """
         Sends an email using the Resend API with specified recipient, subject, and content
-        
+
         Args:
             to: Email address of the recipient
             subject: Subject line of the email
             content: Main body text content of the email
-        
+
         Returns:
             String message confirming successful email delivery ('Sent Successfully')
-        
+
         Raises:
             ValueError: Raised when no valid credentials are found for the API
-        
+
         Tags:
             send, email, api, communication, important
         """

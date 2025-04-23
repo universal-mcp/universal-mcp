@@ -15,41 +15,11 @@ class FirecrawlApp(APIApplication):
 
     def __init__(self, integration: Integration | None = None) -> None:
         super().__init__(name="firecrawl", integration=integration)
-        self.api_key: str | None = None
-
-    def _set_api_key(self):
-        """
-        Ensures the API key is loaded from the integration.
-        Raises ValueError if the integration or key is missing/misconfigured.
-        """
-        if self.api_key:
-            return
-
-        if not self.integration:
-            raise ValueError("Integration is None. Cannot retrieve Firecrawl API Key.")
-
-        credentials = self.integration.get_credentials()
-        if not credentials:
-            raise ValueError(
-                f"Failed to retrieve Firecrawl API Key using integration '{self.integration.name}'. "
-                f"Check store configuration (e.g., ensure the correct source like environment variable is set)."
-            )
-        api_key = (
-            credentials.get("api_key")
-            or credentials.get("API_KEY")
-            or credentials.get("apiKey")
-        )
-        if not api_key:
-            raise ValueError(
-                f"Failed to retrieve Firecrawl API Key using integration '{self.integration.name}'. "
-                f"Check store configuration (e.g., ensure the correct environment variable is set)."
-            )
-        self.api_key = api_key
 
     def _get_client(self) -> FirecrawlApiClient:
         """Initializes and returns the Firecrawl client after ensuring API key is set."""
-        self._set_api_key()
-        return FirecrawlApiClient(api_key=self.api_key)
+        api_key = self.integration.get_credentials().get("api_key")
+        return FirecrawlApiClient(api_key=api_key)
 
     def scrape_url(
         self, url: str, params: dict[str, Any] | None = None

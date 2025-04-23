@@ -8,11 +8,13 @@ from loguru import logger
 
 class StoreError(Exception):
     """Base exception class for store-related errors."""
+
     pass
 
 
 class KeyNotFoundError(StoreError):
     """Exception raised when a key is not found in the store."""
+
     pass
 
 
@@ -29,10 +31,10 @@ class BaseStore(ABC):
 
         Args:
             key (str): The key to look up
-        
+
         Returns:
             Any: The stored value
-            
+
         Raises:
             KeyNotFoundError: If the key is not found in the store
             StoreError: If there is an error accessing the store
@@ -67,6 +69,13 @@ class BaseStore(ABC):
         """
         pass
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}()"
+    
+    def __str__(self):
+        return self.__repr__()
+    
+    
 
 class MemoryStore(BaseStore):
     """
@@ -223,7 +232,7 @@ class KeyringStore(BaseStore):
             keyring.set_password(self.app_name, key, value)
         except Exception as e:
             raise StoreError(f"Error storing in keyring: {str(e)}") from e
-        
+
     def delete(self, key: str) -> None:
         """
         Delete a password from the system keyring.

@@ -4,16 +4,23 @@ from typing import Any
 
 def parse_docstring(docstring: str | None) -> dict[str, Any]:
     """
-    Parses a standard Python docstring into summary, args, returns, raises, and tags.
+    Parses a Python docstring into structured components: summary, arguments,
+    return value, raised exceptions, and custom tags.
+
+    Supports multi-line descriptions for each section. Recognizes common section
+    headers like 'Args:', 'Returns:', 'Raises:', 'Tags:', etc. Also attempts
+    to parse key-value pairs within 'Args:' and 'Raises:' sections.
 
     Args:
-        docstring: The docstring to parse.
+        docstring: The docstring string to parse, or None.
 
     Returns:
-        A dictionary with keys 'summary', 'args', 'returns', 'raises', 'tags'.
-        'args' is a dict mapping arg names to descriptions.
-        'raises' is a dict mapping exception type names to descriptions.
-        'tags' is a list of strings extracted from the 'Tags:' section, comma-separated.
+        A dictionary containing the parsed components:
+        - 'summary': The first paragraph of the docstring.
+        - 'args': A dictionary mapping argument names to their descriptions.
+        - 'returns': The description of the return value.
+        - 'raises': A dictionary mapping exception types to their descriptions.
+        - 'tags': A list of strings found in the 'Tags:' section.
     """
     if not docstring:
         return {"summary": "", "args": {}, "returns": "", "raises": {}, "tags": []}
@@ -22,112 +29,194 @@ def parse_docstring(docstring: str | None) -> dict[str, Any]:
     if not lines:
         return {"summary": "", "args": {}, "returns": "", "raises": {}, "tags": []}
 
-    summary = lines[0].strip()
-    args = {}
-    returns = ""
-    raises = {}
-    tags: list[str] = []  # Final list of parsed tags
-    current_section = None
-    current_key = None
-    current_desc_lines = [] # Accumulator for multi-line descriptions/tag content
+    summary: str = ""
+    summary_lines: list[str] = []
+    args: dict[str, str] = {}
+    returns: str = ""
+    raises: dict[str, str] = {}
+    tags: list[str] = []
+
+    current_section: str | None = None
+    current_key: str | None = None
+    current_desc_lines: list[str] = []
+
+    # Pattern to capture item key and the start of its description
+    # Matches "key:" or "key (type):" followed by description
     key_pattern = re.compile(r"^\s*([\w\.]+)\s*(?:\(.*\))?:\s*(.*)")
 
     def finalize_current_item():
-        """Helper function to finalize the currently parsed item."""
-        nonlocal returns, tags # Allow modification of outer scope variables
+        """Processes the collected current_desc_lines and assigns them."""
+        nonlocal returns, tags, args, raises
         desc = " ".join(current_desc_lines).strip()
+
         if current_section == "args" and current_key:
-            args[current_key] = desc
+            if desc:
+                args[current_key] = desc
         elif current_section == "raises" and current_key:
-            raises[current_key] = desc
+            if desc:
+                 raises[current_key] = desc
         elif current_section == "returns":
             returns = desc
-        # SIM102 applied: Combine nested if
-        elif current_section == "tags" and desc: # Only process if there's content
-            tags = [tag.strip() for tag in desc.split(',') if tag.strip()]
+        elif current_section == "tags":
+            # Tags section content is treated as a comma-separated list
+            tags.clear() # Clear existing tags in case of multiple tag sections (unlikely but safe)
+            tags.extend([tag.strip() for tag in desc.split(",") if tag.strip()])
+        # 'other' sections are ignored in the final output
 
-    # B007 applied: Rename unused loop variable i to _
-    for _, line in enumerate(lines[1:]):
-        stripped_line = line.strip()
-        original_indentation = len(line) - len(line.lstrip(' '))
-
-        section_line = stripped_line.lower()
-        is_new_section_header = False
-        new_section_type = None
+    def check_for_section_header(line: str) -> tuple[bool, str | None, str]:
+        """Checks if a line is a recognized section header."""
+        stripped_lower = line.strip().lower()
+        section_type: str | None = None
         header_content = ""
 
-        if section_line in ("args:", "arguments:", "parameters:"):
-            new_section_type = "args"
-            is_new_section_header = True
-        elif section_line in ("returns:", "yields:"):
-            new_section_type = "returns"
-            is_new_section_header = True
-        elif section_line.startswith(("raises ", "raises:", "errors:", "exceptions:")):
-            new_section_type = "raises"
-            is_new_section_header = True
-        elif section_line.startswith(("tags:", "tags")): # Match "Tags:" or "Tags" potentially followed by content
-            new_section_type = "tags"
-            is_new_section_header = True
-            if ":" in stripped_line:
-                header_content = stripped_line.split(":", 1)[1].strip()
-        elif section_line.endswith(":") and section_line[:-1] in ("attributes", "see also", "example", "examples", "notes"):
-             new_section_type = "other"
-             is_new_section_header = True
+        if stripped_lower in ("args:", "arguments:", "parameters:"):
+            section_type = "args"
+        elif stripped_lower in ("returns:", "yields:"):
+            section_type = "returns"
+        elif stripped_lower in ("raises:", "errors:", "exceptions:"):
+             section_type = "raises"
+        elif stripped_lower in ("tags:",):
+             section_type = "tags"
+        # Allow "Raises Description:" or "Tags content:"
+        elif stripped_lower.startswith(("raises ", "errors ", "exceptions ")):
+             section_type = "raises"
+             # Capture content after header word and potential colon/space
+             parts = re.split(r"[:\s]+", line.strip(), maxsplit=1) # B034: Use keyword maxsplit
+             if len(parts) > 1:
+                header_content = parts[1].strip()
+        elif stripped_lower.startswith(("tags",)):
+            section_type = "tags"
+            # Capture content after header word and potential colon/space
+            parts = re.split(r"[:\s]+", line.strip(), maxsplit=1) # B034: Use keyword maxsplit
+            if len(parts) > 1:
+                header_content = parts[1].strip()
 
-        finalize_previous = False
-        if is_new_section_header:
-            finalize_previous = True
-        elif current_section in ["args", "raises"] and current_key:
-            if key_pattern.match(line) or (original_indentation == 0 and stripped_line):
-                 finalize_previous = True
-        elif current_section in ["returns", "tags"] and current_desc_lines:
-             if original_indentation == 0 and stripped_line:
-                  finalize_previous = True
-        # SIM102 applied: Combine nested if/elif
-        elif (not stripped_line and current_desc_lines and current_section in ["args", "raises", "returns", "tags"]
-              and (current_section not in ["args", "raises"] or current_key)):
-             finalize_previous = True
 
-        if finalize_previous:
+        # Identify other known sections, but don't store their content
+        elif stripped_lower.endswith(":") and stripped_lower[:-1] in (
+            "attributes", "see also", "example", "examples", "notes", "todo", "fixme", "warning", "warnings"
+        ):
+            section_type = "other"
+
+        return section_type is not None, section_type, header_content
+
+
+    in_summary = True
+
+    for line in lines:
+        stripped_line = line.strip()
+        original_indentation = len(line) - len(line.lstrip(" "))
+
+        is_new_section_header, new_section_type_this_line, header_content_this_line = check_for_section_header(line)
+
+        should_finalize_previous = False
+
+        # --- Summary Handling ---
+        if in_summary:
+            if not stripped_line or is_new_section_header:
+                # Empty line or section header marks the end of the summary
+                in_summary = False
+                summary = " ".join(summary_lines).strip()
+                summary_lines = [] # Clear summary_lines after finalizing summary
+
+                if not stripped_line:
+                     # If the line was just empty, continue to the next line
+                     # The new_section_header check will happen on the next iteration if it exists
+                     continue
+                # If it was a header, fall through to section handling below
+
+            else:
+                # Still in summary, append line
+                summary_lines.append(stripped_line)
+                continue # Process next line
+
+
+        # --- Section and Item Handling ---
+
+        # Decide if the previous item/section block should be finalized BEFORE processing the current line
+        # Finalize if:
+        # 1. A new section header is encountered.
+        # 2. An empty line is encountered AFTER we've started collecting content for an item or section.
+        # 3. In 'args' or 'raises', we encounter a line that looks like a new key: value pair, or a non-indented line.
+        # 4. In 'returns', 'tags', or 'other', we encounter a non-indented line after collecting content.
+        if is_new_section_header or (not stripped_line and (current_desc_lines or current_key is not None)) or \
+           (current_section in ["args", "raises"] and current_key is not None and (key_pattern.match(line) or (original_indentation == 0 and stripped_line))) or \
+           (current_section in ["returns", "tags", "other"] and current_desc_lines and original_indentation == 0 and stripped_line):
+            should_finalize_previous = True
+        elif current_section in ["args", "raises"] and current_key is not None:
+            # Inside args/raises, processing an item (current_key is set)
+            pass # Logic moved to the combined if statement
+        elif current_section in ["returns", "tags", "other"] and current_desc_lines:
+            # Inside returns/tags/other, collecting description lines
+            pass # Logic moved to the combined if statement
+
+        # If finalizing the previous item/section
+        if should_finalize_previous:
             finalize_current_item()
-            current_key = None
-            current_desc_lines = []
-            if not is_new_section_header or new_section_type == "other":
-                 current_section = None
+            # Reset state after finalizing the previous item/section block
+            # If it was a new section header, reset everything
+            # If it was an end-of-item/block signal within a section, reset key and description lines
+            # (The condition for resetting key here is complex but matches the original logic)
+            if is_new_section_header or (current_section in ["args", "raises"] and current_key is not None and not key_pattern.match(line) and (not stripped_line or original_indentation == 0)):
+                 current_key = None
+            current_desc_lines = [] # Always clear description lines
 
-        if is_new_section_header and new_section_type != "other":
-            current_section = new_section_type
-            # If Tags header had content, start accumulating it
-            if new_section_type == "tags" and header_content:
-                current_desc_lines.append(header_content)
-            # Don't process the header line itself further
-            continue
+        # --- Process the current line ---
 
+        # If the current line is a section header
+        if is_new_section_header:
+            current_section = new_section_type_this_line
+            if header_content_this_line:
+                 # Add content immediately following the header on the same line
+                 current_desc_lines.append(header_content_this_line)
+            continue # Move to the next line, header is processed
+
+        # If the line is empty, and not a section header (handled above), skip it
         if not stripped_line:
             continue
 
+        # If we are inside a section, process the line's content
         if current_section == "args" or current_section == "raises":
             match = key_pattern.match(line)
             if match:
+                # Found a new key: value item within args/raises
                 current_key = match.group(1)
                 current_desc_lines = [match.group(2).strip()] # Start new description
-            elif current_key and original_indentation > 0: # Check for indentation for continuation
-                current_desc_lines.append(stripped_line)
-
-        elif current_section == "returns":
-            if not current_desc_lines or original_indentation > 0:
-                current_desc_lines.append(stripped_line)
-
-        elif current_section == "tags":
-             if original_indentation > 0 or not current_desc_lines: # Indented or first line
+            elif current_key is not None:
+                 # Not a new key, but processing an existing item - append to description
                  current_desc_lines.append(stripped_line)
+            # Lines that don't match key_pattern and occur when current_key is None
+            # within args/raises are effectively ignored by this block, which seems
+            # consistent with needing a key: description format.
 
+        elif current_section in ["returns", "tags", "other"]:
+            # In these sections, all non-empty, non-header lines are description lines
+            current_desc_lines.append(stripped_line)
+
+    # --- Finalization after loop ---
+    # Finalize any pending item/section block that was being collected
     finalize_current_item()
-    return {"summary": summary, "args": args, "returns": returns, "raises": raises, "tags": tags}
 
+    # If the docstring only had a summary (no empty line or section header)
+    # ensure the summary is captured. This check is technically redundant
+    # because summary is finalized upon hitting the first empty line or header,
+    # or falls through to the final finalize call if neither occurs.
+    # Keeping it for clarity, though the logic flow should cover it.
+    if in_summary:
+         summary = " ".join(summary_lines).strip()
+
+
+    return {
+        "summary": summary,
+        "args": args,
+        "returns": returns,
+        "raises": raises,
+        "tags": tags,
+    }
 
 docstring_example = """
-    Starts a crawl job for a given URL using Firecrawl. Returns the job ID immediately.
+    Starts a crawl job for a given URL using Firecrawl.
+Returns the job ID immediately.
 
     Args:
         url: The starting URL for the crawl.
@@ -141,16 +230,17 @@ docstring_example = """
         or a string containing an error message on failure. This description
         can also span multiple lines.
 
-    Raises:
+Raises:
         ValueError: If the URL is invalid.
-        requests.exceptions.ConnectionError: If connection fails.
+        ConnectionError: If connection fails.
 
     Tags:
         crawl, async_job, start, api,  long_tag_example , another
         , final_tag
-"""
+    """
 
 if __name__ == "__main__":
-    parsed = parse_docstring(docstring_example)
     import json
+
+    parsed = parse_docstring(docstring_example)
     print(json.dumps(parsed, indent=4))

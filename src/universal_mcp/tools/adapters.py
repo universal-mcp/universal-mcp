@@ -5,16 +5,19 @@ def convert_tool_to_mcp_tool(
     tool: Tool,
 ):
     from mcp.server.fastmcp.server import MCPTool
+
     return MCPTool(
         name=tool.name,
         description=tool.description or "",
         inputSchema=tool.parameters,
     )
 
+
 def convert_tool_to_langchain_tool(
     tool: Tool,
 ):
     from langchain_core.tools import StructuredTool
+
     """Convert an tool to a LangChain tool.
 
     NOTE: this tool can be executed only in a context of an active MCP client session.

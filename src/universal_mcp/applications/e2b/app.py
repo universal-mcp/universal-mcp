@@ -1,7 +1,6 @@
 from typing import Annotated
 
 from e2b_code_interpreter import Sandbox
-from loguru import logger
 
 from universal_mcp.applications.application import APIApplication
 from universal_mcp.integrations import Integration
@@ -15,31 +14,6 @@ class E2BApp(APIApplication):
 
     def __init__(self, integration: Integration | None = None) -> None:
         super().__init__(name="e2b", integration=integration)
-        self.api_key: str | None = None
-
-    def _set_api_key(self):
-        if self.api_key:
-            return
-
-        if not self.integration:
-            raise ValueError("Integration is None. Cannot retrieve E2B API Key.")
-
-        credentials = self.integration.get_credentials()
-        if not credentials:
-            raise ValueError(
-                f"Invalid credential format received for E2B API Key via integration '{self.integration.name}'. "
-            )
-        api_key = (
-            credentials.get("api_key")
-            or credentials.get("API_KEY")
-            or credentials.get("apiKey")
-        )
-        if not api_key:
-            raise ValueError(
-                f"Invalid credential format received for E2B API Key via integration '{self.integration.name}'. "
-            )
-        self.api_key = api_key
-        logger.info("E2B API Key successfully retrieved via integration.")
 
     def _format_execution_output(self, logs) -> str:
         """Helper function to format the E2B execution logs nicely."""
@@ -60,28 +34,27 @@ class E2BApp(APIApplication):
         return "\n\n".join(output_parts)
 
     def execute_python_code(
-        self, 
-        code: Annotated[str, "The Python code to execute."]
-        ) -> str:
+        self, code: Annotated[str, "The Python code to execute."]
+    ) -> str:
         """
         Executes Python code in a sandbox environment and returns the formatted output
-        
+
         Args:
             code: String containing the Python code to be executed in the sandbox
-        
+
         Returns:
             A string containing the formatted execution output/logs from running the code
-        
+
         Raises:
             SandboxError: When there are issues with sandbox initialization or code execution
             AuthenticationError: When API key authentication fails during sandbox setup
             ValueError: When provided code string is empty or invalid
-        
+
         Tags:
             execute, sandbox, code-execution, security, important
         """
-        self._set_api_key()
-        with Sandbox(api_key=self.api_key) as sandbox:
+        api_key = self.integration.get_credentials().get("api_key")
+        with Sandbox(api_key=api_key) as sandbox:
             execution = sandbox.run_code(code=code)
             result = self._format_execution_output(execution.logs)
             return result
