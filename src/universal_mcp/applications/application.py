@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
 
+
 import httpx
+from gql import Client, gql
+from gql.transport.requests import RequestsHTTPTransport
 from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport
 from loguru import logger
