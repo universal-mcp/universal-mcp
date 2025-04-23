@@ -13,5 +13,5 @@ def setup_logger():
     # STDERR
     logger.add(
         sink=sys.stderr,
-        level="DEBUG",
+        level="INFO",
     )
