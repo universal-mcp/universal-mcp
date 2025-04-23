@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import httpx
 from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport
+from graphql import DocumentNode
 from loguru import logger
 
 from universal_mcp.analytics import analytics
@@ -37,6 +38,8 @@ class APIApplication(BaseApplication):
             f"Initializing APIApplication '{name}' with integration: {integration}"
         )
         self._client = None
+        # base_url should be set by subclasses, e.g., self.base_url = "https://api.example.com"
+        self.base_url: str = "" # Initialize, but subclasses should set this
 
     def _get_headers(self):
         if not self.integration:
@@ -79,7 +82,16 @@ class APIApplication(BaseApplication):
     def client(self):
         if not self._client:
             headers = self._get_headers()
-            self._client = httpx.Client(headers=headers, timeout=self.default_timeout)
+            if not self.base_url:
+                 logger.warning(f"APIApplication '{self.name}' base_url is not set.")
+                 # Fallback: Initialize client without base_url, requiring full URLs in methods
+                 self._client = httpx.Client(headers=headers, timeout=self.default_timeout)
+            else:
+                self._client = httpx.Client(
+                    base_url=self.base_url, # Pass the base_url here
+                    headers=headers,
+                    timeout=self.default_timeout
+                )
         return self._client
 
     def _get(self, url, params=None):
@@ -107,7 +119,7 @@ class APIApplication(BaseApplication):
             f"POST request successful with status code: {response.status_code}"
         )
         return response
-    
+
 
     def _put(self, url, data, params=None):
         logger.debug(
@@ -123,9 +135,10 @@ class APIApplication(BaseApplication):
             f"PUT request successful with status code: {response.status_code}"
         )
         return response
-    
+
 
     def _delete(self, url, params=None):
+        # Now `url` can be a relative path if base_url is set in the client
         logger.debug(f"Making DELETE request to {url} with params: {params}")
         response = self.client.delete(
             url, params=params, timeout=self.default_timeout
@@ -138,6 +151,7 @@ class APIApplication(BaseApplication):
 
 
     def _patch(self, url, data, params=None):
+        # Now `url` can be a relative path if base_url is set in the client
         logger.debug(
             f"Making PATCH request to {url} with params: {params} and data: {data}"
         )
@@ -154,8 +168,6 @@ class APIApplication(BaseApplication):
 
     def validate(self):
         pass
-
-
 
 
 class GraphQLApplication(BaseApplication):
@@ -216,13 +228,13 @@ class GraphQLApplication(BaseApplication):
             )
             self._client = Client(transport=transport, fetch_schema_from_transport=True)
         return self._client
-    
-    def mutate(self, mutation: str | gql, variables: dict = None):
+
+    def mutate(self, mutation: str | DocumentNode, variables: dict = None):
         if isinstance(mutation, str):
             mutation = gql(mutation)
         return self.client.execute(mutation, variable_values=variables)
-    
-    def query(self, query: str | gql, variables: dict = None):
+
+    def query(self, query: str | DocumentNode, variables: dict = None):
         if isinstance(query, str):
             query = gql(query)
         return self.client.execute(query, variable_values=variables)
