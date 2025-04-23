@@ -3,40 +3,22 @@ from typing import Any
 from loguru import logger
 from universal_mcp.applications import APIApplication
 from universal_mcp.integrations import Integration
+from base64 import b64encode
 
 class AmplitudeApp(APIApplication):
     def __init__(self, integration: Integration = None, **kwargs) -> None:
         super().__init__(name='amplitude', integration=integration, **kwargs)
         self.base_url = "https://data-api.amplitude.com"
-        self.api_key: str | None = None
-        
-    
-    def _set_api_key(self):
-        if self.api_key:
-            return
-
-        if not self.integration:
-            raise ValueError("Integration is None. Cannot retrieve Amplitude API Key.")
-        
-        credentials = self.integration.get_credentials()
-        if not credentials:
-            raise ValueError(
-                f"Failed to retrieve Amplitude API Key using integration '{self.integration.name}'. "
-            )
-        api_key = (credentials.get("api_key")
-        or credentials.get("API_KEY")
-        or credentials.get("apiKey")
-    
-        )
-        if not api_key:
-            raise ValueError("Amplitude API Key not found in credentials.")
-        self.api_key = api_key
+        # self.api_key: str | None = None
+        # self.secret: str | None = None
 
     def _get_headers(self) -> dict[str, str]:
-        self._set_api_key()
-        logger.info(f"Amplitude API Key: {self.api_key}")
+        credentials = self.integration.get_credentials()
+        api_key = credentials.get("api_key")
+        secret = credentials.get("secret")
+        api_key_b64 = b64encode(f"{api_key}:{secret}".encode()).decode()
         return {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Basic {api_key_b64}",
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
@@ -56,7 +38,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request fails or returns a non-success status code.
         
         Tags:
-            post, attribution, api, important
+            post, attribution, api
         """
         url = f"{self.base_url}/attribution"
         query_params = {k: v for k, v in [('api_key', api_key), ('event', event)] if v is not None}
@@ -79,7 +61,7 @@ class AmplitudeApp(APIApplication):
             requests.exceptions.RequestException: Raised for any other request-related errors.
         
         Tags:
-            batch, api-post, important
+            batch, api-post
         """
         url = f"{self.base_url}/batch"
         query_params = {}
@@ -102,7 +84,7 @@ class AmplitudeApp(APIApplication):
             ConnectionError: Raised when there are network connectivity issues.
         
         Tags:
-            get, list, cohorts, data-retrieval, api, important
+            get, list, cohorts, data-retrieval, api
         """
         url = f"{self.base_url}/api/3/cohorts"
         query_params = {k: v for k, v in [('includeSyncInfo', includeSyncInfo)] if v is not None}
@@ -127,7 +109,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails.
         
         Tags:
-            get, cohort, api, management, important
+            get, cohort, api, management
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -152,7 +134,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the status endpoint fails.
         
         Tags:
-            get, cohorts, status, important, management
+            get, cohorts, status, management
         """
         if request_id is None:
             raise ValueError("Missing required parameter 'request_id'")
@@ -176,7 +158,7 @@ class AmplitudeApp(APIApplication):
             ValueError: Raised when the 'requestId' parameter is missing or None.
         
         Tags:
-            fetch, cohorts, file, management, important
+            fetch, cohorts, file, management
         """
         if requestId is None:
             raise ValueError("Missing required parameter 'requestId'")
@@ -200,7 +182,7 @@ class AmplitudeApp(APIApplication):
             requests.RequestException: If there's an issue with the HTTP request, such as a network problem or if the API returns an unsuccessful status code.
         
         Tags:
-            upload, cohorts, api_call, important
+            upload, cohorts, api_call
         """
         url = f"{self.base_url}/api/3/cohorts/upload"
         query_params = {}
@@ -222,7 +204,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: If the server returns a response with an HTTP status code indicating an error.
         
         Tags:
-            post, cohorts, membership, api, important
+            post, cohorts, membership, api
         """
         url = f"{self.base_url}/api/3/cohorts/membership"
         query_params = {}
@@ -245,7 +227,7 @@ class AmplitudeApp(APIApplication):
             requests.RequestException: Raised for other request-related errors, such as network issues.
         
         Tags:
-            post, dsar, api, management, important
+            post, dsar, api, management
         """
         url = f"{self.base_url}/api/2/dsar/requests"
         query_params = {}
@@ -267,7 +249,7 @@ class AmplitudeApp(APIApplication):
             ValueError: Raised if the required parameter 'request_id' is missing.
         
         Tags:
-            fetch, dsar, api-call, data-retrieval, important
+            fetch, dsar, api-call, data-retrieval
         """
         if request_id is None:
             raise ValueError("Missing required parameter 'request_id'")
@@ -293,7 +275,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the remote API fails.
         
         Tags:
-            get, dsar, output, api, important
+            get, dsar, output, api
         """
         if request_id is None:
             raise ValueError("Missing required parameter 'request_id'")
@@ -323,7 +305,7 @@ class AmplitudeApp(APIApplication):
             requests.exceptions.HTTPError: Raised if the HTTP POST request fails or if the server returns an error response.
         
         Tags:
-            post, annotations, api, http, important
+            post, annotations, api, http
         """
         url = f"{self.base_url}/api/2/annotations"
         query_params = {k: v for k, v in [('app_id', app_id), ('date', date), ('label', label), ('chart_id', chart_id), ('details', details)] if v is not None}
@@ -347,7 +329,7 @@ class AmplitudeApp(APIApplication):
             AttributeError: If the required instance attributes (such as base_url or _get) are missing or misconfigured.
         
         Tags:
-            get, annotations, api, data-retrieval, important
+            get, annotations, api, data-retrieval
         """
         url = f"{self.base_url}/api/2/annotations"
         query_params = {}
@@ -377,7 +359,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: If the HTTP request to the funnel API fails or returns a non-success status code.
         
         Tags:
-            get, funnel, analytics, data-retrieval, important
+            get, funnel, analytics, data-retrieval
         """
         url = f"{self.base_url}/api/2/funnels"
         query_params = {k: v for k, v in [('e', e), ('start', start), ('end', end), ('mode', mode), ('n', n), ('s', s), ('g', g), ('cs', cs), ('limit', limit)] if v is not None}
@@ -407,7 +389,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the retention API fails or an error status is returned.
         
         Tags:
-            get, retention, api, filter, important
+            get, retention, api, filter
         """
         url = f"{self.base_url}/api/2/retention"
         query_params = {k: v for k, v in [('se', se), ('re', re), ('rm', rm), ('rb', rb), ('start', start), ('end', end), ('i', i), ('s', s), ('g', g)] if v is not None}
@@ -432,7 +414,7 @@ class AmplitudeApp(APIApplication):
             requests.RequestException: For other network-related errors during the API request.
         
         Tags:
-            get, user-activity, api, sync, important
+            get, user-activity, api, sync
         """
         url = f"{self.base_url}/api/2/useractivity"
         query_params = {k: v for k, v in [('user', user), ('offset', offset), ('limit', limit)] if v is not None}
@@ -533,7 +515,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the sessions API endpoint returns an unsuccessful status code.
         
         Tags:
-            get, sessions, per-user, api, batch, management, important
+            get, sessions, per-user, api, batch, management
         """
         url = f"{self.base_url}/api/2/sessions/peruser"
         query_params = {k: v for k, v in [('start', start), ('end', end)] if v is not None}
@@ -556,7 +538,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: If the API request fails or returns a non-success HTTP status code.
         
         Tags:
-            get, session-metrics, api, statistics, important
+            get, session-metrics, api, statistics
         """
         url = f"{self.base_url}/api/2/sessions/average"
         query_params = {k: v for k, v in [('start', start), ('end', end)] if v is not None}
@@ -578,7 +560,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: If the HTTP request fails or the server returns an error response.
         
         Tags:
-            get, user-search, api, important
+            get, user-search, api
         """
         url = f"{self.base_url}/api/2/usersearch"
         query_params = {k: v for k, v in [('user', user)] if v is not None}
@@ -611,7 +593,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: If the HTTP request fails or the API returns a non-success status code.
         
         Tags:
-            get, segmentation, api, fetch, data-retrieval, important
+            get, segmentation, api, fetch, data-retrieval
         """
         url = f"{self.base_url}/api/2/segmentation"
         query_params = {k: v for k, v in [('e', e), ('start', start), ('end', end), ('i', i), ('m', m), ('n', n), ('s', s), ('g', g), ('limit', limit), ('formula', formula), ('rollingWindow', rollingWindow), ('rollingAverage', rollingAverage)] if v is not None}
@@ -633,7 +615,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the events API fails or returns an unsuccessful status code.
         
         Tags:
-            get, events, list, api, important
+            get, events, list, api
         """
         url = f"{self.base_url}/api/2/events/list"
         query_params = {}
@@ -656,7 +638,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP response contains an unsuccessful status code.
         
         Tags:
-            get, chart, query, api, important
+            get, chart, query, api
         """
         if chart_id is None:
             raise ValueError("Missing required parameter 'chart_id'")
@@ -681,7 +663,7 @@ class AmplitudeApp(APIApplication):
             requests.exceptions.RequestException: If a network-related error occurs during the request.
         
         Tags:
-            get, base, sync, api, important
+            get, base, sync, api
         """
         url = f"{self.base_url}/"
         query_params = {}
@@ -708,7 +690,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: If the underlying HTTP request to the LTV API endpoint fails or returns a non-success status code.
         
         Tags:
-            get, revenue, ltv, api, important
+            get, revenue, ltv, api
         """
         url = f"{self.base_url}/api/2/revenue/ltv"
         query_params = {k: v for k, v in [('start', start), ('end', end), ('m', m), ('i', i), ('s', s), ('g', g)] if v is not None}
@@ -733,7 +715,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: If the HTTP request to the delivery metrics summary endpoint fails (e.g., network error or non-2xx status code).
         
         Tags:
-            get, metrics, event-streaming, summary, important
+            get, metrics, event-streaming, summary
         """
         url = f"{self.base_url}/api/2/event-streaming/delivery-metrics-summary"
         query_params = {k: v for k, v in [('sync_id', sync_id), ('time_period', time_period), ('start', start), ('end', end)] if v is not None}
@@ -756,7 +738,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API export endpoint fails or returns an error status code.
         
         Tags:
-            get, export, api, data-retrieval, important
+            get, export, api, data-retrieval
         """
         url = f"{self.base_url}/api/2/export"
         query_params = {k: v for k, v in [('start', start), ('end', end)] if v is not None}
@@ -782,7 +764,7 @@ class AmplitudeApp(APIApplication):
             RequestException: Raised for other errors encountered during the POST request, such as network issues.
         
         Tags:
-            post, group-identify, api, async-job, important
+            post, group-identify, api, async-job
         """
         url = f"{self.base_url}/groupidentify"
         query_params = {k: v for k, v in [('api_key', api_key), ('identification', identification)] if v is not None}
@@ -805,7 +787,7 @@ class AmplitudeApp(APIApplication):
             AuthenticationError: If authentication credentials (such as an API key) are missing or invalid.
         
         Tags:
-            post, http, api, request, important
+            post, http, api, request
         """
         url = f"{self.base_url}/2/httpapi"
         query_params = {}
@@ -829,7 +811,7 @@ class AmplitudeApp(APIApplication):
             AuthenticationError: Raised if authentication credentials, such as API keys, are missing or invalid.
         
         Tags:
-            post, identify, api-call, network, important
+            post, identify, api-call, network
         """
         url = f"{self.base_url}/identify"
         query_params = {}
@@ -852,7 +834,7 @@ class AmplitudeApp(APIApplication):
             HTTPError: Raised when the HTTP request fails or returns an error status code.
         
         Tags:
-            identify, authentication, get, api, important
+            identify, authentication, get, api
         """
         url = f"{self.base_url}/identify"
         query_params = {k: v for k, v in [('api_key', api_key), ('identification', identification)] if v is not None}
@@ -897,7 +879,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: If the underlying HTTP request fails or returns an error status.
         
         Tags:
-            get, lookup-table, api, fetch, important
+            get, lookup-table, api, fetch
         """
         if name is None:
             raise ValueError("Missing required parameter 'name'")
@@ -923,7 +905,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails (non-success status code).
         
         Tags:
-            post, lookup-table, api, management, important
+            post, lookup-table, api, management
         """
         if name is None:
             raise ValueError("Missing required parameter 'name'")
@@ -953,7 +935,7 @@ class AmplitudeApp(APIApplication):
             HTTPError: Raised if the server responds with an error status code during the PATCH request.
         
         Tags:
-            patch, update, async-job, management, important
+            patch, update, async-job, management
         """
         if name is None:
             raise ValueError("Missing required parameter 'name'")
@@ -982,7 +964,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to delete the lookup table fails.
         
         Tags:
-            delete, lookup-table, api, important
+            delete, lookup-table, api
         """
         if name is None:
             raise ValueError("Missing required parameter 'name'")
@@ -1007,7 +989,7 @@ class AmplitudeApp(APIApplication):
             requests.RequestException: For network-related errors during the POST request.
         
         Tags:
-            post, release, api, network, important
+            post, release, api, network
         """
         url = f"{self.base_url}/api/2/release"
         query_params = {}
@@ -1031,7 +1013,7 @@ class AmplitudeApp(APIApplication):
             requests.exceptions.HTTPError: Raised if an HTTP error occurs during the request, such as a non-200 status code.
         
         Tags:
-            scim, users, query, important
+            scim, users, query
         """
         url = f"{self.base_url}/scim/1/Users"
         query_params = {k: v for k, v in [('start_index', start_index), ('items_per_page', items_per_page), ('filter', filter)] if v is not None}
@@ -1054,7 +1036,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: If the HTTP request to the SCIM endpoint fails with an unsuccessful status code.
         
         Tags:
-            get, scim, user, api, important
+            get, scim, user, api
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -1080,7 +1062,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the SCIM API fails with a non-success status code.
         
         Tags:
-            update, scim, user-management, put, important
+            update, scim, user-management, put
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -1106,7 +1088,7 @@ class AmplitudeApp(APIApplication):
             HTTPError: Raised if the HTTP response status code indicates an error.
         
         Tags:
-            patch, scim, users, update, management, important
+            patch, scim, users, update, management
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -1131,7 +1113,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP response contains an unsuccessful status code.
         
         Tags:
-            delete, scim, user-management, api, important
+            delete, scim, user-management, api
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -1156,7 +1138,7 @@ class AmplitudeApp(APIApplication):
             JSONDecodeError: Raised when the response cannot be parsed as JSON.
         
         Tags:
-            create, user, scim, post, identity, management, important
+            create, user, scim, post, identity, management
         """
         url = f"{self.base_url}/scim/1/Users/"
         query_params = {}
@@ -1178,7 +1160,7 @@ class AmplitudeApp(APIApplication):
             requests.exceptions.HTTPError: Raised if the HTTP request returns an unsuccessful status code.
         
         Tags:
-            scim, groups, api-call, important
+            scim, groups, api-call
         """
         url = f"{self.base_url}/scim/1/Groups"
         query_params = {}
@@ -1200,7 +1182,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the SCIM endpoint fails or returns an error status code.
         
         Tags:
-            post, scim, group-management, api, important
+            post, scim, group-management, api
         """
         url = f"{self.base_url}/scim/1/Groups"
         query_params = {}
@@ -1223,7 +1205,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the SCIM API fails or returns an error status code.
         
         Tags:
-            retrieve, scim, group, get, api, important
+            retrieve, scim, group, get, api
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -1249,7 +1231,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request fails (e.g., the server returns an error status code).
         
         Tags:
-            patch, scim, group-management, api, update, important
+            patch, scim, group-management, api, update
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -1274,7 +1256,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to delete the group fails.
         
         Tags:
-            delete, scim, group-management, api, important
+            delete, scim, group-management, api
         """
         if id is None:
             raise ValueError("Missing required parameter 'id'")
@@ -1298,7 +1280,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: If the API response contains an unsuccessful HTTP status code.
         
         Tags:
-            post, taxonomy, category, api, important
+            post, taxonomy, category, api
         """
         url = f"{self.base_url}/api/2/taxonomy/category"
         query_params = {}
@@ -1320,7 +1302,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if an HTTP error occurs during the request.
         
         Tags:
-            fetch, taxonomy, api-call, important, taxonomy-management
+            fetch, taxonomy, api-call, taxonomy-management
         """
         url = f"{self.base_url}/api/2/taxonomy/category"
         query_params = {}
@@ -1343,7 +1325,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the API request fails (non-success HTTP status code).
         
         Tags:
-            get, taxonomy, category, api, important
+            get, taxonomy, category, api
         """
         if category_name is None:
             raise ValueError("Missing required parameter 'category_name'")
@@ -1368,7 +1350,7 @@ class AmplitudeApp(APIApplication):
             ValueError: Raised if the category_id parameter is missing.
         
         Tags:
-            update, taxonomy, api-call, important
+            update, taxonomy, api-call
         """
         if category_id is None:
             raise ValueError("Missing required parameter 'category_id'")
@@ -1393,7 +1375,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: If the API request fails or returns an unsuccessful status code.
         
         Tags:
-            delete, taxonomy, category, management, important
+            delete, taxonomy, category, management
         """
         if category_id is None:
             raise ValueError("Missing required parameter 'category_id'")
@@ -1417,7 +1399,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: If the HTTP request returns an unsuccessful status code.
         
         Tags:
-            post, taxonomy, event, api, important
+            post, taxonomy, event, api
         """
         url = f"{self.base_url}/api/2/taxonomy/event"
         query_params = {}
@@ -1462,7 +1444,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API returns an unsuccessful status code.
         
         Tags:
-            get, taxonomy, event-type, api-call, important
+            get, taxonomy, event-type, api-call
         """
         if event_type is None:
             raise ValueError("Missing required parameter 'event_type'")
@@ -1488,7 +1470,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: If the HTTP request fails or returns an unsuccessful status code.
         
         Tags:
-            put, taxonomy, event, update, api, important
+            put, taxonomy, event, update, api
         """
         if event_type is None:
             raise ValueError("Missing required parameter 'event_type'")
@@ -1513,7 +1495,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to delete the event fails.
         
         Tags:
-            delete, taxonomy, event, management, important
+            delete, taxonomy, event, management
         """
         if event_type is None:
             raise ValueError("Missing required parameter 'event_type'")
@@ -1537,7 +1519,7 @@ class AmplitudeApp(APIApplication):
             HTTPError: Raised when the API request fails due to client or server errors (4xx or 5xx responses).
         
         Tags:
-            create, post, taxonomy, event-property, api, important
+            create, post, taxonomy, event-property, api
         """
         url = f"{self.base_url}/api/2/taxonomy/event-property"
         query_params = {}
@@ -1559,7 +1541,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an unsuccessful status code.
         
         Tags:
-            get, taxonomy, event-property, api, important
+            get, taxonomy, event-property, api
         """
         url = f"{self.base_url}/api/2/taxonomy/event-property"
         query_params = {k: v for k, v in [('event_property', event_property)] if v is not None}
@@ -1581,7 +1563,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails or returns an unsuccessful status code.
         
         Tags:
-            post, taxonomy, user-property, api, important
+            post, taxonomy, user-property, api
         """
         url = f"{self.base_url}/api/2/taxonomy/user-property"
         query_params = {}
@@ -1603,7 +1585,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an error status.
         
         Tags:
-            get, taxonomy, user-property, api, important
+            get, taxonomy, user-property, api
         """
         url = f"{self.base_url}/api/2/taxonomy/user-property"
         query_params = {}
@@ -1626,7 +1608,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails.
         
         Tags:
-            get, user-property, taxonomy, api, important
+            get, user-property, taxonomy, api
         """
         if user_property is None:
             raise ValueError("Missing required parameter 'user_property'")
@@ -1652,7 +1634,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request returns an unsuccessful status code.
         
         Tags:
-            put, user-property, taxonomy, update, api, important
+            put, user-property, taxonomy, update, api
         """
         if user_property is None:
             raise ValueError("Missing required parameter 'user_property'")
@@ -1677,7 +1659,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the API response returns an unsuccessful status code.
         
         Tags:
-            delete, taxonomy, user-property, api, management, important
+            delete, taxonomy, user-property, api, management
         """
         if user_property is None:
             raise ValueError("Missing required parameter 'user_property'")
@@ -1702,7 +1684,7 @@ class AmplitudeApp(APIApplication):
             requests.exceptions.HTTPError: Raised when the API call results in an HTTP error.
         
         Tags:
-            post, map, api, important
+            post, map, api
         """
         url = f"{self.base_url}/usermap"
         query_params = {k: v for k, v in [('mapping', mapping), ('api_key', api_key)] if v is not None}
@@ -1724,7 +1706,7 @@ class AmplitudeApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the server fails or an invalid response is received.
         
         Tags:
-            delete, users, api, post, important
+            delete, users, api, post
         """
         url = f"{self.base_url}/api/2/deletions/users"
         query_params = {}
@@ -1771,7 +1753,7 @@ class AmplitudeApp(APIApplication):
             requests.exceptions.HTTPError: Raised if the HTTP request returns a bad status code.
         
         Tags:
-            delete, api-call, management, important
+            delete, api-call, management
         """
         if amplitude_id_or_user_id is None:
             raise ValueError("Missing required parameter 'amplitude_id_or_user_id'")
@@ -1800,7 +1782,7 @@ class AmplitudeApp(APIApplication):
             requests.RequestException: For network-related errors or issues during the HTTP request.
         
         Tags:
-            get, user-profile, api, important
+            get, user-profile, api
         """
         url = f"{self.base_url}/v1/userprofile"
         query_params = {k: v for k, v in [('user_id', user_id), ('get_recs', get_recs), ('rec_id', rec_id)] if v is not None}
