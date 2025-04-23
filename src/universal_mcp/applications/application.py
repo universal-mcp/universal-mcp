@@ -1,7 +1,7 @@
-from abc import ABC, abstractmethod
-from typing import Union
 import httpx
 from loguru import logger
+from abc import ABC, abstractmethod
+from typing import Union
 
 from universal_mcp.analytics import analytics
 from universal_mcp.integrations import Integration
@@ -37,6 +37,8 @@ class APIApplication(BaseApplication):
             f"Initializing APIApplication '{name}' with integration: {integration}"
         )
         self._client = None
+        # base_url should be set by subclasses, e.g., self.base_url = "https://api.example.com"
+        self.base_url: str = "" # Initialize, but subclasses should set this
 
     def _get_headers(self):
         if not self.integration:
@@ -74,15 +76,25 @@ class APIApplication(BaseApplication):
             }
         logger.debug("No authentication found in credentials, returning empty headers")
         return {}
-    
+
     @property
     def client(self):
         if not self._client:
             headers = self._get_headers()
-            self._client = httpx.Client(headers=headers, timeout=self.default_timeout)
+            if not self.base_url:
+                 logger.warning(f"APIApplication '{self.name}' base_url is not set.")
+                 # Fallback: Initialize client without base_url, requiring full URLs in methods
+                 self._client = httpx.Client(headers=headers, timeout=self.default_timeout)
+            else:
+                self._client = httpx.Client(
+                    base_url=self.base_url, # Pass the base_url here
+                    headers=headers,
+                    timeout=self.default_timeout
+                )
         return self._client
 
     def _get(self, url, params=None):
+        # Now `url` can be a relative path if base_url is set in the client
         logger.debug(f"Making GET request to {url} with params: {params}")
         response = self.client.get(
             url, params=params
@@ -94,6 +106,7 @@ class APIApplication(BaseApplication):
         return response
 
     def _post(self, url, data, params=None):
+        # Now `url` can be a relative path if base_url is set in the client
         logger.debug(
             f"Making POST request to {url} with params: {params} and data: {data}"
         )
@@ -107,9 +120,10 @@ class APIApplication(BaseApplication):
             f"POST request successful with status code: {response.status_code}"
         )
         return response
-    
+
 
     def _put(self, url, data, params=None):
+        # Now `url` can be a relative path if base_url is set in the client
         logger.debug(
             f"Making PUT request to {url} with params: {params} and data: {data}"
         )
@@ -123,9 +137,10 @@ class APIApplication(BaseApplication):
             f"PUT request successful with status code: {response.status_code}"
         )
         return response
-    
+
 
     def _delete(self, url, params=None):
+        # Now `url` can be a relative path if base_url is set in the client
         logger.debug(f"Making DELETE request to {url} with params: {params}")
         response = self.client.delete(
             url, params=params, timeout=self.default_timeout
@@ -138,6 +153,7 @@ class APIApplication(BaseApplication):
 
 
     def _patch(self, url, data, params=None):
+        # Now `url` can be a relative path if base_url is set in the client
         logger.debug(
             f"Making PATCH request to {url} with params: {params} and data: {data}"
         )
@@ -154,8 +170,6 @@ class APIApplication(BaseApplication):
 
     def validate(self):
         pass
-
-
 
 
 class GraphQLApplication(BaseApplication):
@@ -216,12 +230,12 @@ class GraphQLApplication(BaseApplication):
             )
             self._client = Client(transport=transport, fetch_schema_from_transport=True)
         return self._client
-    
+
     def mutate(self, mutation: Union[str, gql], variables: dict = None):
         if isinstance(mutation, str):
             mutation = gql(mutation)
         return self.client.execute(mutation, variable_values=variables)
-    
+
     def query(self, query: Union[str, gql], variables: dict = None):
         if isinstance(query, str):
             query = gql(query)
