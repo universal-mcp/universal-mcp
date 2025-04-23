@@ -45,16 +45,7 @@ class APIApplication(BaseApplication):
         if not self.integration:
             logger.debug("No integration configured, returning empty headers")
             return {}
-
-        try:
-            credentials = self.integration.get_credentials()
-        except Exception as e:
-            raise ValueError(f"Failed to get credentials for integration '{self.name}'. Check integration configuration.") from e
-
-        if credentials is None:
-             logger.error(f"Integration '{self.name}' get_credentials() unexpectedly returned None.")
-             raise ValueError(f"Integration '{self.name}' get_credentials() unexpectedly returned None. Please check the integration implementation.")
-        
+        credentials = self.integration.get_credentials()
         logger.debug(f"Got credentials for integration: {credentials.keys()}")
 
         # Check if direct headers are provided
@@ -86,7 +77,7 @@ class APIApplication(BaseApplication):
             }
         logger.debug("No authentication found in credentials, returning empty headers")
         return {}
-
+    
     @property
     def client(self):
         if not self._client:
