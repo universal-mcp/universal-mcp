@@ -9,7 +9,7 @@ from loguru import logger
 from mcp.server.fastmcp import FastMCP
 from mcp.types import TextContent
 
-from universal_mcp.applications import Application, app_from_slug
+from universal_mcp.applications import BaseApplication, app_from_slug
 from universal_mcp.config import AppConfig, ServerConfig, StoreConfig
 from universal_mcp.integrations import AgentRIntegration, integration_from_config
 from universal_mcp.stores import BaseStore, store_from_config
@@ -129,7 +129,7 @@ class LocalServer(BaseServer):
         self.add_tool(store.delete)
         return store
 
-    def _load_app(self, app_config: AppConfig) -> Application | None:
+    def _load_app(self, app_config: AppConfig) -> BaseApplication | None:
         """Load a single application with its integration.
 
         Args:
@@ -202,7 +202,7 @@ class AgentRServer(BaseServer):
             logger.error(f"Failed to fetch apps from AgentR: {e}", exc_info=True)
             raise
 
-    def _load_app(self, app_config: AppConfig) -> Application | None:
+    def _load_app(self, app_config: AppConfig) -> BaseApplication | None:
         """Load a single application with AgentR integration.
 
         Args:

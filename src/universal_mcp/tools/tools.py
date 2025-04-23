@@ -9,7 +9,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 from universal_mcp.analytics import analytics
-from universal_mcp.applications.application import Application
+from universal_mcp.applications import BaseApplication
 from universal_mcp.exceptions import NotAuthorizedError, ToolError
 from universal_mcp.utils.docstring_parser import parse_docstring
 
@@ -253,7 +253,7 @@ class ToolManager:
 
     def register_tools_from_app(
         self,
-        app: Application,
+        app: BaseApplication,
         tools: list[str] | None = None,
         tags: list[str] | None = None,
     ) -> None:

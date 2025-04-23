@@ -7,7 +7,6 @@ from universal_mcp.integrations import Integration
 class PerplexityApp(APIApplication):
     def __init__(self, integration: Integration | None = None) -> None:
         super().__init__(name="perplexity", integration=integration)
-        self.api_key: str | None = None
         self.base_url = "https://api.perplexity.ai"
 
     def chat(

@@ -9,7 +9,7 @@ from universal_mcp.utils.api_generator import generate_api_from_schema
 @pytest.fixture
 def temp_dir(tmp_path):
     """Create a temporary directory for test files."""
-    return Path("/tmp/test_api_generator")
+    return tmp_path
 
 
 # Fixture for a sample OpenAPI schema
@@ -140,8 +140,8 @@ async def test_generate_api_with_docstrings(sample_schema, temp_dir):
     assert "def test_operation" in content
     assert '"""' in content  # Basic check for docstring presence
     # TODO: Fix this test
-    # assert "Args:" in content or "Parameters:" in content
-    assert "Returns:" in content
+    assert "Args:" in content or "Parameters:" in content
+    assert "Tags:" in content
 
     # Verify temporary file was cleaned up
     assert not output_path.exists()

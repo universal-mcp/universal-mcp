@@ -2,7 +2,7 @@ import importlib
 
 from loguru import logger
 
-from universal_mcp.applications.application import APIApplication, Application
+from universal_mcp.applications.application import APIApplication, BaseApplication, GraphQLApplication
 
 # Name are in the format of "app-name", eg, google-calendar
 # Folder name is "app_name", eg, google_calendar
@@ -21,6 +21,7 @@ def app_from_slug(slug: str):
 
 __all__ = [
     "app_from_slug",
-    "Application",
+    "BaseApplication",
     "APIApplication",
+    "GraphQLApplication",
 ]

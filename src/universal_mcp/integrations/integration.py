@@ -102,7 +102,7 @@ class ApiKeyIntegration(Integration):
         if not self._api_key:
             try:
                 credentials = self.store.get(self.name)
-                self.api_key = credentials
+                self._api_key = credentials
             except KeyNotFoundError as e:
                 action = self.authorize()
                 raise NotAuthorizedError(action) from e
