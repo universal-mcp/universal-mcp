@@ -1,578 +1,856 @@
-# universal_mcp/applications/replicate/app.py
+import json
+from typing import Any, Dict, List, Literal, Union
 
-import base64
-import httpx
-from typing import Any, Dict, Optional, Literal
+from loguru import logger
 
+# Import the base APIApplication class
 from universal_mcp.applications.application import APIApplication
+
+# Import the Integration class
 from universal_mcp.integrations import Integration
 
-QUALITY_PRESETS = {
-    "id": "quality-presets",
-    "name": "Quality Presets",
-    "description": "Common quality presets for different generation scenarios",
-    "model_type": "any",
-    "presets": {
-        "draft": {
-            "description": "Fast draft quality for quick iterations",
-            "parameters": {
-                "num_inference_steps": 20,
-                "guidance_scale": 5.0,
-                "width": 512,
-                "height": 512,
-            },
-        },
-        "balanced": {
-            "description": "Balanced quality and speed for most use cases",
-            "parameters": {
-                "num_inference_steps": 30,
-                "guidance_scale": 7.5,
-                "width": 768,
-                "height": 768,
-            },
-        },
-        "quality": {
-            "description": "High quality for final outputs",
-            "parameters": {
-                "num_inference_steps": 50,
-                "guidance_scale": 7.5,
-                "width": 1024,
-                "height": 1024,
-            },
-        },
-        "extreme": {
-            "description": "Maximum quality, very slow",
-            "parameters": {
-                "num_inference_steps": 150,
-                "guidance_scale": 8.0,
-                "width": 1536,
-                "height": 1536,
-            },
-        },
-    },
-    "version": "1.0.0",
-}
-
-STYLE_PRESETS = {
-    "id": "style-presets",
-    "name": "Style Presets",
-    "description": "Common style presets for different artistic looks",
-    "model_type": "any",
-    "presets": {
-        "photorealistic": {
-            "description": "Highly detailed photorealistic style",
-            "parameters": {
-                "prompt_prefix": "professional photograph, photorealistic, highly detailed, 8k uhd",
-                "negative_prompt": "painting, drawing, illustration, anime, cartoon, artistic, unrealistic",
-                "guidance_scale": 8.0,
-            },
-        },
-        "cinematic": {
-            "description": "Dramatic cinematic style",
-            "parameters": {
-                "prompt_prefix": "cinematic shot, dramatic lighting, movie scene, high budget film",
-                "negative_prompt": "low quality, amateur, poorly lit",
-                "guidance_scale": 7.5,
-            },
-        },
-        "anime": {
-            "description": "Anime/manga style",
-            "parameters": {
-                "prompt_prefix": "anime style, manga art, clean lines, vibrant colors",
-                "negative_prompt": "photorealistic, 3d render, photograph, western art style",
-                "guidance_scale": 7.0,
-            },
-        },
-        "digital_art": {
-            "description": "Digital art style",
-            "parameters": {
-                "prompt_prefix": "digital art, vibrant colors, detailed illustration",
-                "negative_prompt": "photograph, realistic, grainy, noisy",
-                "guidance_scale": 7.0,
-            },
-        },
-        "oil_painting": {
-            "description": "Oil painting style",
-            "parameters": {
-                "prompt_prefix": "oil painting, textured brushstrokes, artistic, rich colors",
-                "negative_prompt": "photograph, digital art, 3d render, smooth",
-                "guidance_scale": 7.0,
-            },
-        },
-    },
-    "version": "1.0.0",
-}
-
-# Hardcoded SDXL version ID used in the original server's generate_image tool
-# This should be defined consistently or made configurable if other models are needed for generate_image
-SDXL_V1_0_VERSION = "39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b"
-
-# --- Replicate Application ---
 
 class ReplicateApp(APIApplication):
     """
-    Application for interacting with the Replicate API for running models and generating content.
+    Application for interacting with the Replicate HTTP API.
 
-    Requires a Replicate API token configured via integration (e.g., ApiKeyIntegration).
-    The integration name should match the expected environment variable or store key, e.g., 'REPLICATE_API_TOKEN'.
+    Exposes Replicate operations as tools, allowing interaction with models,
+    predictions, trainings, deployments, etc.
     """
 
-    def __init__(self, integration: Integration | None = None, **kwargs) -> None:
-        # The integration name should ideally align with the required API key env var name (e.g., REPLICATE_API_TOKEN)
-        super().__init__(name="replicate", integration=integration, **kwargs)
+    def __init__(self, integration: Integration = None) -> None:
+        """
+        Initializes the ReplicateApp.
+
+        Args:
+            integration: The integration object providing authentication credentials.
+                         Expected to provide a Replicate API token as 'api_key'.
+        """
+        # Call the parent constructor with the application name and integration
+        super().__init__(name="replicate", integration=integration)
+
+        # Set the base URL for the Replicate API (from the OpenAPI schema's servers section)
         self.base_url = "https://api.replicate.com/v1"
-        # The APIApplication base class handles setting self.client with headers using integration credentials
+        logger.debug(f"ReplicateApp initialized with base_url: {self.base_url}")
 
+    # --- Account Operations ---
 
-    def list_models(self, owner: str | None = None) -> dict[str, Any]:
+    def account_get(self) -> Dict[str, Any]:
         """
-        Lists available models on Replicate with optional filtering by owner.
+        [IMPORTANT] Gets information about the authenticated account.
+
+        Returns:
+            A dictionary containing account details (type, username, name, etc.).
+
+        Tags:
+            account, get, read, important
+        """
+        url = f"{self.base_url}/account"
+        response = self._get(url)
+        response.raise_for_status()
+        return response.json()
+
+    # --- Collection Operations ---
+
+    def collections_list(self) -> Dict[str, Any]:
+        """
+        Lists collections of models on Replicate.
+
+        Returns:
+            A dictionary containing a paginated list of collection objects.
+
+        Tags:
+            collections, list, read
+        """
+        url = f"{self.base_url}/collections"
+        response = self._get(url)
+        response.raise_for_status()
+        return response.json()
+
+    def collections_get(self, collection_slug: str) -> Dict[str, Any]:
+        """
+        Gets a specific collection of models by its slug.
 
         Args:
-            owner: Optional owner username to filter models.
+            collection_slug: The slug of the collection (e.g., 'super-resolution').
 
         Returns:
-            A dictionary containing a list of models and pagination info.
-
-        Raises:
-            httpx.HTTPStatusError: If the API request fails.
+            A dictionary containing the collection object and a list of models.
 
         Tags:
-            list, models, replicate, read, api, important
+            collections, get, read
         """
-        params = {}
-        if owner:
-            params["owner"] = owner
-        response = self._get("/models", params=params)
+        url = f"{self.base_url}/collections/{collection_slug}"
+        response = self._get(url)
+        response.raise_for_status()
         return response.json()
 
-    def search_models(self, query: str) -> dict[str, Any]:
-        """
-        Searches for models on Replicate using a query.
+    # --- Deployment Operations ---
 
-        Note: Replicate uses a specific endpoint/method for semantic search.
-        This implementation uses the standard GET /models endpoint with a 'q' parameter
-        if available, otherwise it would require a custom request type not
-        standard in APIApplication.
+    def deployments_list(self) -> Dict[str, Any]:
+        """
+        Lists deployments associated with the authenticated account.
+
+        Returns:
+            A dictionary containing a paginated list of deployment objects.
+
+        Tags:
+            deployments, list, read
+        """
+        url = f"{self.base_url}/deployments"
+        response = self._get(url)
+        response.raise_for_status()
+        return response.json()
+
+    def deployments_create(
+        self,
+        name: str,
+        model: str,
+        version: str,
+        hardware: str,
+        min_instances: int,
+        max_instances: int,
+    ) -> Dict[str, Any]:
+        """
+        Creates a new deployment.
 
         Args:
-            query: Search query string.
+            name: The name of the deployment.
+            model: The full name of the model (e.g., 'stability-ai/sdxl').
+            version: The 64-character string ID of the model version.
+            hardware: The SKU for the hardware (e.g., 'gpu-t4').
+            min_instances: The minimum number of instances (0-5).
+            max_instances: The maximum number of instances (0-20).
 
         Returns:
-            A dictionary containing the search results.
-
-        Raises:
-            httpx.HTTPStatusError: If the API request fails.
+            A dictionary describing the created deployment.
 
         Tags:
-            search, models, replicate, read, api, query, important
+            deployments, create, write, important
         """
-        # The original ReplicateClient used a 'QUERY' method which is non-standard.
-        # Standard REST search is often GET /models/search?q=... or POST /models/search with body.
-        # Using GET /models with 'q' parameter as a likely alternative if supported.
-        # If this doesn't work, a custom request using self.client.request might be needed.
-        response = self._get("/models", params={"q": query})
+        url = f"{self.base_url}/deployments"
+        request_body = {
+            "name": name,
+            "model": model,
+            "version": version,
+            "hardware": hardware,
+            "min_instances": min_instances,
+            "max_instances": max_instances,
+        }
+        response = self._post(url, data=request_body)
+        response.raise_for_status()
         return response.json()
 
-    def get_model_details(self, model_id: str) -> dict[str, Any]:
+    def deployments_get(self, deployment_owner: str, deployment_name: str) -> Dict[str, Any]:
         """
-        Retrieves detailed information about a specific model.
+        Gets information about a specific deployment by name.
 
         Args:
-            model_id: Model identifier in format owner/name (e.g., 'stability-ai/sdxl').
+            deployment_owner: The owner's username or organization name.
+            deployment_name: The name of the deployment.
 
         Returns:
-            A dictionary containing detailed model information.
-
-        Raises:
-            httpx.HTTPStatusError: If the model is not found or API request fails.
+            A dictionary describing the deployment.
 
         Tags:
-            get, models, replicate, read, api, details, important
+            deployments, get, read, important
         """
-        response = self._get(f"/models/{model_id}")
+        url = f"{self.base_url}/deployments/{deployment_owner}/{deployment_name}"
+        response = self._get(url)
+        response.raise_for_status()
         return response.json()
 
-    def get_model_versions(self, model_id: str) -> list[dict[str, Any]]:
+    def deployments_update(
+        self,
+        deployment_owner: str,
+        deployment_name: str,
+        hardware: str = None,
+        max_instances: int = None,
+        min_instances: int = None,
+        version: str = None,
+    ) -> Dict[str, Any]:
         """
-        Retrieves available versions for a specific model.
+        Updates properties of an existing deployment.
 
         Args:
-            model_id: Model identifier in format owner/name.
+            deployment_owner: The owner's username or organization name.
+            deployment_name: The name of the deployment.
+            hardware: The new SKU for the hardware (optional).
+            max_instances: The new maximum number of instances (optional).
+            min_instances: The new minimum number of instances (optional).
+            version: The new ID of the model version (optional).
 
         Returns:
-            A list of dictionaries, each representing a model version.
-
-        Raises:
-            httpx.HTTPStatusError: If the model is not found or API request fails.
+            A dictionary describing the updated deployment.
 
         Tags:
-            list, versions, models, replicate, read, api, important
+            deployments, update, write, important
         """
-        response = self._get(f"/models/{model_id}/versions")
+        url = f"{self.base_url}/deployments/{deployment_owner}/{deployment_name}"
+        update_data = {
+            "hardware": hardware,
+            "max_instances": max_instances,
+            "min_instances": min_instances,
+            "version": version,
+        }
+        # Remove None values
+        update_data = {k: v for k, v in update_data.items() if v is not None}
+
+        if not update_data:
+             return {"message": "No update parameters provided."}
+
+        response = self._patch(url, data=update_data)
+        response.raise_for_status()
         return response.json()
 
-    def list_hardware(self) -> list[dict[str, str]]:
+    def deployments_delete(self, deployment_owner: str, deployment_name: str) -> str:
         """
-        Lists available hardware options for running models on Replicate.
-
-        Returns:
-            A list of dictionaries, each representing a hardware option.
-
-        Raises:
-            httpx.HTTPStatusError: If the API request fails.
-
-        Tags:
-            list, hardware, replicate, read, api
-        """
-        response = self._get("/hardware")
-        return response.json()
-
-    def list_collections(self) -> list[dict[str, Any]]:
-        """
-        Lists available model collections on Replicate.
-
-        Returns:
-            A list of dictionaries, each representing a model collection.
-
-        Raises:
-            httpx.HTTPStatusError: If the API request fails.
-
-        Tags:
-            list, collections, replicate, read, api
-        """
-        response = self._get("/collections")
-        return response.json().get("results", []) # API returns a result object
-
-    def get_collection_details(self, collection_slug: str) -> dict[str, Any]:
-        """
-        Retrieves detailed information about a specific collection.
+        Deletes a deployment.
 
         Args:
-            collection_slug: The slug identifier of the collection (e.g., 'text-to-image').
+            deployment_owner: The owner's username or organization name.
+            deployment_name: The name of the deployment.
 
         Returns:
-            A dictionary containing detailed collection information including its models.
+            A success message if deletion is successful.
 
         Raises:
-            httpx.HTTPStatusError: If the collection is not found or API request fails.
+            HTTPError: If deletion fails (e.g., deployment is in use).
 
         Tags:
-            get, collections, replicate, read, api, details
+            deployments, delete, management
         """
-        response = self._get(f"/collections/{collection_slug}")
+        url = f"{self.base_url}/deployments/{deployment_owner}/{deployment_name}"
+        response = self._delete(url)
+        response.raise_for_status()
+        return f"Deployment '{deployment_owner}/{deployment_name}' deleted successfully." # Assuming 204 No Content
+
+
+    # --- Deployments Predictions Operations ---
+    # Note: The 'Prefer: wait' header is not directly supported by default _post.
+    # The response will likely be 201 or 202, requiring polling via predictions_get.
+
+    def deployments_predictions_create(
+        self,
+        deployment_owner: str,
+        deployment_name: str,
+        input: Dict[str, Any],
+        stream: bool = None, # Deprecated according to schema
+        webhook: str = None,
+        webhook_events_filter: List[Literal["start", "output", "logs", "completed"]] = None,
+    ) -> Dict[str, Any]:
+        """
+        [IMPORTANT] Creates a prediction using a specific deployment.
+
+        Args:
+            deployment_owner: The owner's username or organization name.
+            deployment_name: The name of the deployment.
+            input: The model's input as a JSON object.
+            stream: DEPRECATED. Request a URL for streaming output (optional).
+            webhook: An HTTPS URL for receiving prediction updates (optional).
+            webhook_events_filter: List of events to trigger webhooks (optional).
+
+        Returns:
+            A dictionary describing the initial state of the prediction.
+            Poll the prediction ID using predictions_get for the final result.
+
+        Tags:
+            deployments, predictions, create, write, async, important
+        """
+        url = f"{self.base_url}/deployments/{deployment_owner}/{deployment_name}/predictions"
+        request_body = {
+            "input": input,
+            "stream": stream, # Included for completeness, though deprecated
+            "webhook": webhook,
+            "webhook_events_filter": webhook_events_filter,
+        }
+        # Remove None values, but keep False/empty lists if explicitly set
+        request_body = {k: v for k, v in request_body.items() if v is not None}
+
+        response = self._post(url, data=request_body)
+        response.raise_for_status()
         return response.json()
 
-    def create_prediction(
+
+    # --- Hardware Operations ---
+
+    def hardware_list(self) -> List[Dict[str, Any]]:
+        """
+        Lists available hardware options for running models.
+
+        Returns:
+            A list of hardware objects, each with 'name' and 'sku'.
+
+        Tags:
+            hardware, list, read
+        """
+        url = f"{self.base_url}/hardware"
+        response = self._get(url)
+        response.raise_for_status()
+        return response.json()
+
+
+    # --- Model Operations ---
+
+    def models_list(self) -> Dict[str, Any]:
+        """
+        Lists public models on Replicate.
+
+        Returns:
+            A dictionary containing a paginated list of model objects.
+
+        Tags:
+            models, list, read
+        """
+        url = f"{self.base_url}/models"
+        response = self._get(url)
+        response.raise_for_status()
+        return response.json()
+
+    def models_create(
+        self,
+        owner: str,
+        name: str,
+        visibility: Literal["public", "private"],
+        hardware: str,
+        cover_image_url: str = None,
+        description: str = None,
+        github_url: str = None,
+        license_url: str = None,
+        paper_url: str = None,
+    ) -> Dict[str, Any]:
+        """
+        Creates a new model.
+
+        Args:
+            owner: The username or organization name that will own the model.
+            name: The name of the model (must be unique for the owner).
+            visibility: Whether the model is 'public' or 'private'.
+            hardware: The SKU for the hardware.
+            cover_image_url: URL for the model's cover image (optional).
+            description: A description of the model (optional).
+            github_url: URL for the source code (optional).
+            license_url: URL for the license (optional).
+            paper_url: URL for the paper (optional).
+
+        Returns:
+            A dictionary describing the created model.
+
+        Tags:
+            models, create, write, management
+        """
+        url = f"{self.base_url}/models"
+        request_body = {
+            "owner": owner,
+            "name": name,
+            "visibility": visibility,
+            "hardware": hardware,
+            "cover_image_url": cover_image_url,
+            "description": description,
+            "github_url": github_url,
+            "license_url": license_url,
+            "paper_url": paper_url,
+        }
+         # Remove None values
+        request_body = {k: v for k, v in request_body.items() if v is not None}
+
+        response = self._post(url, data=request_body)
+        response.raise_for_status()
+        return response.json()
+
+    def models_search(self, query: str) -> Dict[str, Any]:
+        """
+        Searches public models matching a query.
+
+        Args:
+            query: The search query string.
+
+        Returns:
+            A dictionary containing a paginated list of matching model objects.
+
+        Tags:
+            models, search, query, read
+        """
+        url = f"{self.base_url}/models"
+        # The OpenAPI uses a custom 'QUERY' method, which the generator
+        # translates to a POST with text/plain body. Emulate this.
+        headers = self._get_headers()
+        # Need to explicitly set Content-Type for text/plain
+        headers["Content-Type"] = "text/plain"
+
+        try:
+            # Use httpx directly to send raw text body
+            response = self.client.post(
+                url, content=query, headers=headers, timeout=self.client.timeout
+            )
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+             logger.error(f"Error during models_search: {e}")
+             raise
+
+
+    def models_get(self, model_owner: str, model_name: str) -> Dict[str, Any]:
+        """
+        Gets information about a specific model by name.
+
+        Args:
+            model_owner: The owner's username or organization name.
+            model_name: The name of the model.
+
+        Returns:
+            A dictionary describing the model, including latest version and example.
+
+        Tags:
+            models, get, read, important
+        """
+        url = f"{self.base_url}/models/{model_owner}/{model_name}"
+        response = self._get(url)
+        response.raise_for_status()
+        return response.json()
+
+    def models_delete(self, model_owner: str, model_name: str) -> str:
+        """
+        Deletes a model. Requires the model to be private and have no versions.
+
+        Args:
+            model_owner: The owner's username or organization name.
+            model_name: The name of the model.
+
+        Returns:
+            A success message if deletion is successful.
+
+        Raises:
+            HTTPError: If deletion fails due to restrictions.
+
+        Tags:
+            models, delete, management
+        """
+        url = f"{self.base_url}/models/{model_owner}/{model_name}"
+        response = self._delete(url)
+        response.raise_for_status() # Expecting 204 No Content
+        return f"Model '{model_owner}/{model_name}' deleted successfully."
+
+
+    # --- Model Examples Operations ---
+
+    def models_examples_list(self, model_owner: str, model_name: str) -> Dict[str, Any]:
+        """
+        Lists example predictions for a model.
+
+        Args:
+            model_owner: The owner's username or organization name.
+            model_name: The name of the model.
+
+        Returns:
+            A dictionary containing a paginated list of example prediction objects.
+
+        Tags:
+            models, examples, list, read
+        """
+        url = f"{self.base_url}/models/{model_owner}/{model_name}/examples"
+        response = self._get(url)
+        response.raise_for_status()
+        return response.json()
+
+
+    # --- Model Predictions Operations ---
+     # Note: The 'Prefer: wait' header is not directly supported by default _post.
+    # The response will likely be 201 or 202, requiring polling via predictions_get.
+
+    def models_predictions_create(
+        self,
+        model_owner: str,
+        model_name: str,
+        input: Dict[str, Any],
+        stream: bool = None, # Deprecated according to schema
+        webhook: str = None,
+        webhook_events_filter: List[Literal["start", "output", "logs", "completed"]] = None,
+    ) -> Dict[str, Any]:
+        """
+        [IMPORTANT] Creates a prediction using a specific official model.
+
+        Args:
+            model_owner: The owner's username or organization name.
+            model_name: The name of the model.
+            input: The model's input as a JSON object.
+            stream: DEPRECATED. Request a URL for streaming output (optional).
+            webhook: An HTTPS URL for receiving prediction updates (optional).
+            webhook_events_filter: List of events to trigger webhooks (optional).
+
+        Returns:
+            A dictionary describing the initial state of the prediction.
+            Poll the prediction ID using predictions_get for the final result.
+
+        Tags:
+            models, predictions, create, write, async, important
+        """
+        url = f"{self.base_url}/models/{model_owner}/{model_name}/predictions"
+        request_body = {
+            "input": input,
+            "stream": stream, # Included for completeness, though deprecated
+            "webhook": webhook,
+            "webhook_events_filter": webhook_events_filter,
+        }
+        # Remove None values, but keep False/empty lists if explicitly set
+        request_body = {k: v for k, v in request_body.items() if v is not None}
+
+        response = self._post(url, data=request_body)
+        response.raise_for_status()
+        return response.json()
+
+
+    # --- Model Readme Operations ---
+
+    def models_readme_get(self, model_owner: str, model_name: str) -> str:
+        """
+        Gets the README content for a model in Markdown format.
+
+        Args:
+            model_owner: The owner's username or organization name.
+            model_name: The name of the model.
+
+        Returns:
+            A string containing the README content in Markdown.
+
+        Tags:
+            models, readme, get, read
+        """
+        url = f"{self.base_url}/models/{model_owner}/{model_name}/readme"
+        response = self._get(url)
+        response.raise_for_status()
+        return response.text # README is text/plain
+
+
+    # --- Model Versions Operations ---
+
+    def models_versions_list(self, model_owner: str, model_name: str) -> Dict[str, Any]:
+        """
+        Lists versions for a model.
+
+        Args:
+            model_owner: The owner's username or organization name.
+            model_name: The name of the model.
+
+        Returns:
+            A dictionary containing a paginated list of model version objects.
+
+        Tags:
+            models, versions, list, read
+        """
+        url = f"{self.base_url}/models/{model_owner}/{model_name}/versions"
+        response = self._get(url)
+        response.raise_for_status()
+        return response.json()
+
+    def models_versions_get(self, model_owner: str, model_name: str, version_id: str) -> Dict[str, Any]:
+        """
+        Gets information about a specific model version.
+
+        Args:
+            model_owner: The owner's username or organization name.
+            model_name: The name of the model.
+            version_id: The ID of the version.
+
+        Returns:
+            A dictionary describing the model version, including its OpenAPI schema.
+
+        Tags:
+            models, versions, get, read
+        """
+        url = f"{self.base_url}/models/{model_owner}/{model_name}/versions/{version_id}"
+        response = self._get(url)
+        response.raise_for_status()
+        return response.json()
+
+    def models_versions_delete(self, model_owner: str, model_name: str, version_id: str) -> str:
+        """
+        Deletes a model version and its associated predictions/output.
+
+        Args:
+            model_owner: The owner's username or organization name.
+            model_name: The name of the model.
+            version_id: The ID of the version.
+
+        Returns:
+            A success message indicating the deletion request was accepted.
+
+        Raises:
+            HTTPError: If deletion fails due to restrictions.
+
+        Tags:
+            models, versions, delete, management
+        """
+        url = f"{self.base_url}/models/{model_owner}/{model_name}/versions/{version_id}"
+        response = self._delete(url)
+        response.raise_for_status() # Expecting 202 Accepted or 204 No Content
+        return f"Deletion request for version '{version_id}' of model '{model_owner}/{model_name}' accepted."
+
+
+    # --- Training Operations (via Model Version) ---
+
+    def trainings_create(
+        self,
+        model_owner: str,
+        model_name: str,
+        version_id: str,
+        destination: str,
+        input: Dict[str, Any],
+        webhook: str = None,
+        webhook_events_filter: List[Literal["start", "output", "logs", "completed"]] = None,
+    ) -> Dict[str, Any]:
+        """
+        [IMPORTANT] Starts a new training job for a specific model version.
+
+        Args:
+            model_owner: The owner's username or organization name of the base model.
+            model_name: The name of the base model.
+            version_id: The ID of the model version to train from.
+            destination: The target model identifier string in '{new_owner}/{new_name}' format.
+            input: An object containing inputs for the training function.
+            webhook: An HTTPS URL for receiving training updates (optional).
+            webhook_events_filter: List of events to trigger webhooks (optional).
+
+        Returns:
+            A dictionary describing the initial state of the training.
+            Poll the training ID using trainings_get for the final result.
+
+        Tags:
+            trainings, create, write, async, important
+        """
+        url = f"{self.base_url}/models/{model_owner}/{model_name}/versions/{version_id}/trainings"
+        request_body = {
+            "destination": destination,
+            "input": input,
+            "webhook": webhook,
+            "webhook_events_filter": webhook_events_filter,
+        }
+        # Remove None values, but keep False/empty lists if explicitly set
+        request_body = {k: v for k, v in request_body.items() if v is not None}
+
+        response = self._post(url, data=request_body)
+        response.raise_for_status()
+        return response.json()
+
+
+    # --- Prediction Operations ---
+
+    def predictions_list(
+        self,
+        created_after: str = None, # ISO 8601 date-time
+        created_before: str = None, # ISO 8601 date-time
+    ) -> Dict[str, Any]:
+        """
+        Lists all predictions created by the authenticated account.
+
+        Args:
+            created_after: Include predictions created at or after this time (optional).
+            created_before: Include predictions created before this time (optional).
+
+        Returns:
+            A dictionary containing a paginated list of prediction objects.
+
+        Tags:
+            predictions, list, read
+        """
+        url = f"{self.base_url}/predictions"
+        query_params = {
+            "created_after": created_after,
+            "created_before": created_before,
+        }
+        # Remove None values
+        query_params = {k: v for k, v in query_params.items() if v is not None}
+
+        response = self._get(url, params=query_params)
+        response.raise_for_status()
+        return response.json()
+
+    # Note: The 'Prefer: wait' header is not directly supported by default _post.
+    # The response will likely be 201 or 202, requiring polling via predictions_get.
+
+    def predictions_create(
         self,
         version: str,
         input: Dict[str, Any],
-        webhook: Optional[str] = None,
-        # webhook_events: Optional[List[Literal["start", "output", "logs", "completed"]]] = None # Enum typing requires Pydantic model in args
-    ) -> dict[str, Any]:
+        stream: bool = None, # Deprecated according to schema
+        webhook: str = None,
+        webhook_events_filter: List[Literal["start", "output", "logs", "completed"]] = None,
+    ) -> Dict[str, Any]:
         """
-        Creates a new prediction using a specific model version on Replicate.
+        [IMPORTANT] Creates a prediction using a specific model version.
 
         Args:
-            version: Model version ID (a hash like '39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b').
-            input: Model-specific input parameters as a dictionary. Refer to the model's documentation for schema.
-            webhook: Optional webhook URL for prediction updates.
-            # webhook_events: Optional list of event types to trigger the webhook.
+            version: The ID of the model version to run.
+            input: The model's input as a JSON object.
+            stream: DEPRECATED. Request a URL for streaming output (optional).
+            webhook: An HTTPS URL for receiving prediction updates (optional).
+            webhook_events_filter: List of events to trigger webhooks (optional).
 
         Returns:
-            A dictionary containing the initial prediction details (status, ID, URLs etc.).
-
-        Raises:
-            httpx.HTTPStatusError: If the API request fails (e.g., invalid version, bad input).
+            A dictionary describing the initial state of the prediction.
+            Poll the prediction ID using predictions_get for the final result.
 
         Tags:
-            create, prediction, replicate, write, api, async_job, start, important
+            predictions, create, write, async, important
         """
-        payload = {
+        url = f"{self.base_url}/predictions"
+        request_body = {
             "version": version,
             "input": input,
+            "stream": stream, # Included for completeness, though deprecated
+            "webhook": webhook,
+            "webhook_events_filter": webhook_events_filter,
         }
-        if webhook:
-            payload["webhook"] = webhook
-        # if webhook_events: # Needs Pydantic model for args
-        #     payload["webhook_events"] = webhook_events
+        # Remove None values, but keep False/empty lists if explicitly set
+        request_body = {k: v for k, v in request_body.items() if v is not None}
 
-        response = self._post("/predictions", data=payload)
+        response = self._post(url, data=request_body)
+        response.raise_for_status()
         return response.json()
 
-    def get_prediction(self, prediction_id: str) -> dict[str, Any]:
+
+    def predictions_get(self, prediction_id: str) -> Dict[str, Any]:
         """
-        Retrieves the status and results of a specific prediction.
+        [IMPORTANT] Gets the current state of a prediction by ID.
 
         Args:
-            prediction_id: The unique identifier for the prediction.
+            prediction_id: The ID of the prediction.
 
         Returns:
-            A dictionary containing the prediction details (status, output, logs, etc.).
-
-        Raises:
-            httpx.HTTPStatusError: If the prediction ID is not found or API request fails.
+            A dictionary describing the prediction's current state.
 
         Tags:
-            get, prediction, replicate, read, api, async_job, status, important
+            predictions, get, read, status, important
         """
-        response = self._get(f"/predictions/{prediction_id}")
+        url = f"{self.base_url}/predictions/{prediction_id}"
+        response = self._get(url)
+        response.raise_for_status()
         return response.json()
 
-    def cancel_prediction(self, prediction_id: str) -> dict[str, Any]:
+    def predictions_cancel(self, prediction_id: str) -> str: # Schema shows no content for 200 success
         """
-        Cancels a running prediction.
+        Cancels a prediction by ID.
 
         Args:
-            prediction_id: The unique identifier for the prediction to cancel.
+            prediction_id: The ID of the prediction to cancel.
 
         Returns:
-            A dictionary containing the updated prediction details (status should be 'canceled').
-
-        Raises:
-            httpx.HTTPStatusError: If the prediction ID is not found or API request fails.
+            A success message indicating the prediction was cancelled.
 
         Tags:
-            cancel, prediction, replicate, write, api, async_job, management, important
+            predictions, cancel, management
         """
-        response = self._post(f"/predictions/{prediction_id}/cancel", data={})
+        url = f"{self.base_url}/predictions/{prediction_id}/cancel"
+        response = self._post(url, data={}) # POST with empty body for cancel according to typical patterns
+        response.raise_for_status() # Expecting 200 Success or similar
+        return f"Prediction '{prediction_id}' cancelled successfully."
+
+    # --- Training Operations ---
+
+    def trainings_list(self) -> Dict[str, Any]:
+        """
+        Lists all training jobs created by the authenticated account.
+
+        Returns:
+            A dictionary containing a paginated list of training objects.
+
+        Tags:
+            trainings, list, read
+        """
+        url = f"{self.base_url}/trainings"
+        response = self._get(url)
+        response.raise_for_status()
         return response.json()
 
-    def list_predictions(
-        self, status: Literal["starting", "processing", "succeeded", "failed", "canceled"] | None = None,
-        limit: int = 10,
-    ) -> list[dict[str, Any]]:
+    def trainings_get(self, training_id: str) -> Dict[str, Any]:
         """
-        Lists recent predictions with optional filtering by status.
+        [IMPORTANT] Gets the current state of a training job by ID.
 
         Args:
-            status: Optional status to filter predictions by.
-            limit: Maximum number of predictions to return (1-100). Defaults to 10.
+            training_id: The ID of the training.
 
         Returns:
-            A list of dictionaries, each representing a prediction.
-
-        Raises:
-            ValueError: If limit is outside the range 1-100.
-            httpx.HTTPStatusError: If the API request fails.
+            A dictionary describing the training's current state.
 
         Tags:
-            list, predictions, replicate, read, api, filter, pagination, important
+            trainings, get, read, status, important
         """
-        if not 1 <= limit <= 100:
-             raise ValueError("limit must be between 1 and 100")
-
-        params = {"limit": limit}
-        if status:
-            params["status"] = status
-
-        response = self._get("/predictions", params=params)
+        url = f"{self.base_url}/trainings/{training_id}"
+        response = self._get(url)
+        response.raise_for_status()
         return response.json()
 
-    def generate_image(
-        self,
-        prompt: str,
-        style: str | None = None,
-        quality: Literal["draft", "balanced", "quality", "extreme"] = "balanced",
-        width: int | None = None,
-        height: int | None = None,
-        num_outputs: int = 1,
-        seed: int | None = None,
-        negative_prompt: str | None = None,
-    ) -> dict[str, Any]:
+    def trainings_cancel(self, training_id: str) -> Dict[str, Any]:
         """
-        Generates an image using the SDXL model with various presets and parameters.
-
-        This is a higher-level helper tool that wraps the create_prediction call
-        for a specific common image generation model (SDXL v1.0).
+        Cancels a training job by ID.
 
         Args:
-            prompt: The positive text prompt for the image generation.
-            style: Optional style preset ('photorealistic', 'cinematic', 'anime', 'digital_art', 'oil_painting'). Applies prefix/negative prompt modifications.
-            quality: Quality preset ('draft', 'balanced', 'quality', 'extreme'). Adjusts steps, scale, and size. Defaults to 'balanced'.
-            width: Optional image width in pixels. Overrides the quality preset size. Must be a multiple of 8.
-            height: Optional image height in pixels. Overrides the quality preset size. Must be a multiple of 8.
-            num_outputs: Number of images to generate in parallel (1-4). Defaults to 1.
-            seed: Random seed for reproducible generation. Use None for random.
-            negative_prompt: Text prompt for elements to avoid in the image. Overrides negative prompts from style presets.
+            training_id: The ID of the training to cancel.
 
         Returns:
-            A dictionary containing the initial prediction details, including the prediction ID.
-            The image URL/data will be available once the prediction is completed via get_prediction or get_generation_image.
-
-        Raises:
-            ValueError: If invalid quality or style preset is provided.
-            httpx.HTTPStatusError: If the prediction creation API request fails.
+            A dictionary describing the training's state after cancellation attempt.
 
         Tags:
-            generate, image, replicate, ai, sdxl, create, important
+            trainings, cancel, management
         """
-        # Get quality preset parameters
-        quality_preset = QUALITY_PRESETS["presets"].get(
-            quality, QUALITY_PRESETS["presets"]["balanced"]
-        )
-        parameters = quality_preset["parameters"].copy()
-
-        # Apply style preset if specified
-        processed_prompt = prompt # Start with the base prompt
-        effective_negative_prompt = negative_prompt # Use provided negative prompt if any
-
-        if style:
-            style_preset = STYLE_PRESETS["presets"].get(style.lower())
-            if style_preset:
-                style_params = style_preset["parameters"]
-                # Merge prompt prefixes
-                if "prompt_prefix" in style_params:
-                    processed_prompt = f"{style_params['prompt_prefix']}, {prompt}"
-                # Merge negative prompts - provided negative prompt takes precedence
-                if "negative_prompt" in style_params and effective_negative_prompt is None:
-                     effective_negative_prompt = style_params["negative_prompt"]
-
-                # Copy other parameters from style preset (e.g., guidance_scale)
-                for k, v in style_params.items():
-                    if k not in ("prompt_prefix", "negative_prompt"):
-                         parameters[k] = v
-
-        # Override size if specified
-        if width is not None:
-            if width % 8 != 0:
-                 raise ValueError("Width must be a multiple of 8")
-            parameters["width"] = width
-        if height is not None:
-            if height % 8 != 0:
-                 raise ValueError("Height must be a multiple of 8")
-            parameters["height"] = height
-
-        # Add mandatory and optional parameters
-        parameters.update(
-            {
-                "prompt": processed_prompt,
-                "num_outputs": num_outputs,
-            }
-        )
-        if effective_negative_prompt is not None:
-            parameters["negative_prompt"] = effective_negative_prompt
-        if seed is not None:
-            parameters["seed"] = seed
-
-
-        # Create prediction using the hardcoded SDXL model version
-        result = self.create_prediction(
-            version=SDXL_V1_0_VERSION,
-            input=parameters,
-            # Note: webhook is not exposed in this helper tool
-        )
-
-        # Return the initial prediction result
-        return result # This includes the 'id' which is the prediction_id
-
-
-    def get_generation_image(self, prediction_id: str) -> dict[str, Any] | str:
-        """
-        Retrieves the image data for a completed generation.
-
-        Args:
-            prediction_id: The unique identifier for the completed prediction.
-
-        Returns:
-            A dictionary containing 'mimeType' (str) and 'blob' (str, base64 encoded image data)
-            if the generation succeeded and has output. Returns a status message string otherwise.
-
-        Raises:
-            httpx.HTTPStatusError: If the prediction ID is not found or API request fails.
-            ValueError: If the generation did not succeed or has no output.
-
-        Tags:
-            get, image, replicate, read, api, data
-        """
-        prediction = self.get_prediction(prediction_id)
-
-        if prediction["status"] != "succeeded":
-            return f"Generation {prediction_id} is not completed. Current status: {prediction['status']}"
-
-        if not prediction.get("output"):
-            return f"Generation {prediction_id} succeeded but has no image output."
-
-        # Get image URL
-        # Output is typically a list for image models, but could be a single string
-        image_url = prediction["output"][0] if isinstance(prediction["output"], list) else prediction["output"]
-
-        try:
-            # Download image using the shared httpx client instance
-            img_response = self.client.get(image_url)
-            img_response.raise_for_status()
-
-            # Determine mime type from URL extension
-            ext = image_url.split(".")[-1].lower()
-            mime_type = {
-                "png": "image/png",
-                "jpg": "image/jpeg",
-                "jpeg": "image/jpeg",
-                "gif": "image/gif",
-                "webp": "image/webp",
-            }.get(ext, "application/octet-stream") # Default to generic if unknown
-
-            # Return blob contents (base64 encoded)
-            return {
-                "mimeType": mime_type,
-                "blob": base64.b64encode(img_response.content).decode("ascii"),
-                "url": image_url, # Also include the URL for convenience
-            }
-        except httpx.HTTPStatusError as e:
-             return f"Failed to download image from {image_url}: HTTP Error {e.response.status_code}"
-        except Exception as e:
-            # Catch other potential errors during download or base64 encoding
-            return f"An error occurred while processing the image from {image_url}: {type(e).__name__} - {e}"
-
-
-    # The get_webhook_secret and verify_webhook tools are related to webhook *receiving*
-    # by the server, not typically called by an agent *using* the application.
-    # The original server had get_webhook_secret as a tool, which an agent *could* call
-    # to configure their own webhook sender. verify_webhook is server-side verification.
-    # Let's include get_webhook_secret as it's an API call.
-
-    def get_webhook_secret(self) -> dict[str, str]:
-        """
-        Retrieves the signing secret for verifying webhook requests from Replicate.
-
-        This secret is used to ensure webhook requests are authentic.
-
-        Returns:
-            A dictionary containing the webhook signing secret with key 'key'.
-
-        Raises:
-            httpx.HTTPStatusError: If the API request fails.
-
-        Tags:
-            get, webhook, replicate, read, api, security
-        """
-        # Note: The endpoint /webhooks/default/secret might be specific to some Replicate setups
-        # or tools. The standard API docs don't explicitly list this. Based on replicate_client.py.
-        response = self._get("/webhooks/default/secret")
+        url = f"{self.base_url}/trainings/{training_id}/cancel"
+        response = self._post(url, data={}) # POST with empty body for cancel
+        response.raise_for_status()
         return response.json()
 
+    # --- Webhooks Operations ---
+
+    def webhooks_default_secret_get(self) -> Dict[str, str]:
+        """
+        Gets the signing secret for the default webhook endpoint.
+
+        Returns:
+            A dictionary containing the 'key' for the signing secret.
+
+        Tags:
+            webhooks, secret, get, read, security
+        """
+        url = f"{self.base_url}/webhooks/default/secret"
+        response = self._get(url)
+        response.raise_for_status()
+        return response.json()
+
+
+    # --- Required list_tools method ---
 
     def list_tools(self):
         """
-        Returns a list of methods exposed as tools.
+        Returns a list of methods exposed as tools by this application.
         """
         return [
-            self.list_models,
-            self.search_models,
-            self.get_model_details,
-            self.get_model_versions,
-            self.list_hardware,
-            self.list_collections,
-            self.get_collection_details,
-            self.create_prediction,
-            self.get_prediction,
-            self.cancel_prediction,
-            self.list_predictions,
-            self.generate_image, # High-level image generation helper
-            self.get_generation_image, # Get image data after completion
-            self.get_webhook_secret, # Tool to get webhook secret
-            # verify_webhook is a local utility, not an API tool
-            # Subscription tools are server-side and not part of the app
-            # Template/parameter tools are local data/validation, not API tools
-            # open_image_with_system is a local system action, not an API tool
+            self.account_get,
+            self.collections_list,
+            self.collections_get,
+            self.deployments_list,
+            self.deployments_create,
+            self.deployments_get,
+            self.deployments_update,
+            self.deployments_delete,
+            self.deployments_predictions_create,
+            self.hardware_list,
+            self.models_list,
+            self.models_create,
+            self.models_search,
+            self.models_get,
+            self.models_delete,
+            self.models_examples_list,
+            self.models_predictions_create,
+            self.models_readme_get,
+            self.models_versions_list,
+            self.models_versions_get,
+            self.models_versions_delete,
+            self.trainings_create, # Training is started via model version path
+            self.predictions_list,
+            self.predictions_create,
+            self.predictions_get,
+            self.predictions_cancel,
+            self.trainings_list,
+            self.trainings_get,
+            self.trainings_cancel,
+            self.webhooks_default_secret_get,
         ]

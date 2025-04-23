@@ -44,7 +44,16 @@ class APIApplication(BaseApplication):
         if not self.integration:
             logger.debug("No integration configured, returning empty headers")
             return {}
-        credentials = self.integration.get_credentials()
+
+        try:
+            credentials = self.integration.get_credentials()
+        except Exception as e:
+            raise ValueError(f"Failed to get credentials for integration '{self.name}'. Check integration configuration.") from e
+
+        if credentials is None:
+             logger.error(f"Integration '{self.name}' get_credentials() unexpectedly returned None.")
+             raise ValueError(f"Integration '{self.name}' get_credentials() unexpectedly returned None. Please check the integration implementation.")
+        
         logger.debug(f"Got credentials for integration: {credentials.keys()}")
 
         # Check if direct headers are provided
@@ -94,7 +103,6 @@ class APIApplication(BaseApplication):
         return self._client
 
     def _get(self, url, params=None):
-        # Now `url` can be a relative path if base_url is set in the client
         logger.debug(f"Making GET request to {url} with params: {params}")
         response = self.client.get(
             url, params=params
@@ -106,7 +114,6 @@ class APIApplication(BaseApplication):
         return response
 
     def _post(self, url, data, params=None):
-        # Now `url` can be a relative path if base_url is set in the client
         logger.debug(
             f"Making POST request to {url} with params: {params} and data: {data}"
         )
@@ -123,7 +130,6 @@ class APIApplication(BaseApplication):
 
 
     def _put(self, url, data, params=None):
-        # Now `url` can be a relative path if base_url is set in the client
         logger.debug(
             f"Making PUT request to {url} with params: {params} and data: {data}"
         )
