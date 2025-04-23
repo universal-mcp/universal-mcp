@@ -1,5 +1,4 @@
-import json
-from typing import Any, Dict, List, Literal, Union
+from typing import Any, Literal
 
 from loguru import logger
 
@@ -35,7 +34,7 @@ class ReplicateApp(APIApplication):
 
     # --- Account Operations ---
 
-    def account_get(self) -> Dict[str, Any]:
+    def account_get(self) -> dict[str, Any]:
         """
         Gets information about the authenticated account.
         
@@ -59,7 +58,7 @@ class ReplicateApp(APIApplication):
 
     # --- Collection Operations ---
 
-    def collections_list(self) -> Dict[str, Any]:
+    def collections_list(self) -> dict[str, Any]:
         """
         Lists collections of models available on Replicate, returning a paginated list of collection objects.
         
@@ -80,7 +79,7 @@ class ReplicateApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def collections_get(self, collection_slug: str) -> Dict[str, Any]:
+    def collections_get(self, collection_slug: str) -> dict[str, Any]:
             """
             Retrieves detailed information about a specific model collection, with automatic truncation of large model lists to manage response size.
             
@@ -137,7 +136,7 @@ class ReplicateApp(APIApplication):
 
     # --- Deployment Operations ---
 
-    def deployments_list(self) -> Dict[str, Any]:
+    def deployments_list(self) -> dict[str, Any]:
         """
         Lists all deployments associated with the authenticated account.
         
@@ -167,7 +166,7 @@ class ReplicateApp(APIApplication):
         hardware: str,
         min_instances: int,
         max_instances: int,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Creates a new model deployment with specified configuration parameters.
         
@@ -201,7 +200,7 @@ class ReplicateApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def deployments_get(self, deployment_owner: str, deployment_name: str) -> Dict[str, Any]:
+    def deployments_get(self, deployment_owner: str, deployment_name: str) -> dict[str, Any]:
         """
         Retrieves detailed information about a specific deployment by its owner and name.
         
@@ -231,7 +230,7 @@ class ReplicateApp(APIApplication):
         max_instances: int = None,
         min_instances: int = None,
         version: str = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Updates configurable properties of an existing deployment, such as hardware specifications and instance scaling parameters.
         
@@ -297,11 +296,11 @@ class ReplicateApp(APIApplication):
         self,
         deployment_owner: str,
         deployment_name: str,
-        input: Dict[str, Any],
+        input: dict[str, Any],
         stream: bool = None, # Deprecated according to schema
         webhook: str = None,
-        webhook_events_filter: List[Literal["start", "output", "logs", "completed"]] = None,
-    ) -> Dict[str, Any]:
+        webhook_events_filter: list[Literal["start", "output", "logs", "completed"]] = None,
+    ) -> dict[str, Any]:
         """
         Creates an asynchronous prediction using a specified deployment, optionally configuring webhook notifications for status updates.
         
@@ -338,7 +337,7 @@ class ReplicateApp(APIApplication):
 
     # --- Hardware Operations ---
 
-    def hardware_list(self) -> List[Dict[str, Any]]:
+    def hardware_list(self) -> list[dict[str, Any]]:
         """
         Retrieves a list of available hardware options for running models.
         
@@ -359,7 +358,7 @@ class ReplicateApp(APIApplication):
 
     # --- Model Operations ---
 
-    def models_list(self) -> Dict[str, Any]:
+    def models_list(self) -> dict[str, Any]:
         """
         Retrieves a paginated list of publicly available models from the Replicate API.
         
@@ -389,7 +388,7 @@ class ReplicateApp(APIApplication):
         github_url: str = None,
         license_url: str = None,
         paper_url: str = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Creates a new model in the system with specified parameters and metadata.
         
@@ -430,7 +429,7 @@ class ReplicateApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def models_search(self, query: str) -> Dict[str, Any]:
+    def models_search(self, query: str) -> dict[str, Any]:
         """
         Searches for public models based on a provided query string
         
@@ -462,7 +461,7 @@ class ReplicateApp(APIApplication):
              raise
 
 
-    def models_get(self, model_owner: str, model_name: str) -> Dict[str, Any]:
+    def models_get(self, model_owner: str, model_name: str) -> dict[str, Any]:
         """
         Retrieves detailed information about a specific AI model by its owner and name
         
@@ -509,7 +508,7 @@ class ReplicateApp(APIApplication):
 
     # --- Model Examples Operations ---
 
-    def models_examples_list(self, model_owner: str, model_name: str) -> Dict[str, Any]:
+    def models_examples_list(self, model_owner: str, model_name: str) -> dict[str, Any]:
         """
         Retrieves a list of example predictions associated with a specific model.
         
@@ -541,11 +540,11 @@ class ReplicateApp(APIApplication):
         self,
         model_owner: str,
         model_name: str,
-        input: Dict[str, Any],
+        input: dict[str, Any],
         stream: bool = None, # Deprecated according to schema
         webhook: str = None,
-        webhook_events_filter: List[Literal["start", "output", "logs", "completed"]] = None,
-    ) -> Dict[str, Any]:
+        webhook_events_filter: list[Literal["start", "output", "logs", "completed"]] = None,
+    ) -> dict[str, Any]:
         """
         Creates an asynchronous prediction request using a specified machine learning model.
         
@@ -607,7 +606,7 @@ class ReplicateApp(APIApplication):
 
     # --- Model Versions Operations ---
 
-    def models_versions_list(self, model_owner: str, model_name: str) -> Dict[str, Any]:
+    def models_versions_list(self, model_owner: str, model_name: str) -> dict[str, Any]:
         """
         Lists all available versions of a specified model.
         
@@ -629,7 +628,7 @@ class ReplicateApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def models_versions_get(self, model_owner: str, model_name: str, version_id: str) -> Dict[str, Any]:
+    def models_versions_get(self, model_owner: str, model_name: str, version_id: str) -> dict[str, Any]:
         """
         Retrieves detailed information about a specific version of a model by querying the API.
         
@@ -684,10 +683,10 @@ class ReplicateApp(APIApplication):
         model_name: str,
         version_id: str,
         destination: str,
-        input: Dict[str, Any],
+        input: dict[str, Any],
         webhook: str = None,
-        webhook_events_filter: List[Literal["start", "output", "logs", "completed"]] = None,
-    ) -> Dict[str, Any]:
+        webhook_events_filter: list[Literal["start", "output", "logs", "completed"]] = None,
+    ) -> dict[str, Any]:
         """
         Initiates a new asynchronous training job for a specific model version, with optional webhook notifications for progress updates.
         
@@ -728,7 +727,7 @@ class ReplicateApp(APIApplication):
         self,
         created_after: str = None, # ISO 8601 date-time
         created_before: str = None, # ISO 8601 date-time
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Lists all predictions created by the authenticated account within an optional time range.
         
@@ -762,11 +761,11 @@ class ReplicateApp(APIApplication):
     def predictions_create(
         self,
         version: str,
-        input: Dict[str, Any],
+        input: dict[str, Any],
         stream: bool = None, # Deprecated according to schema
         webhook: str = None,
-        webhook_events_filter: List[Literal["start", "output", "logs", "completed"]] = None,
-    ) -> Dict[str, Any]:
+        webhook_events_filter: list[Literal["start", "output", "logs", "completed"]] = None,
+    ) -> dict[str, Any]:
         """
         Creates an asynchronous prediction request using a specified model version.
         
@@ -800,7 +799,7 @@ class ReplicateApp(APIApplication):
         return response.json()
 
 
-    def predictions_get(self, prediction_id: str) -> Dict[str, Any]:
+    def predictions_get(self, prediction_id: str) -> dict[str, Any]:
         """
         Retrieves the current state and details of a prediction by its ID.
         
@@ -846,7 +845,7 @@ class ReplicateApp(APIApplication):
 
     # --- Training Operations ---
 
-    def trainings_list(self) -> Dict[str, Any]:
+    def trainings_list(self) -> dict[str, Any]:
         """
         Lists all training jobs created by the authenticated account.
         
@@ -865,7 +864,7 @@ class ReplicateApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def trainings_get(self, training_id: str) -> Dict[str, Any]:
+    def trainings_get(self, training_id: str) -> dict[str, Any]:
         """
         Retrieves the current state of a training job by its ID.
         
@@ -886,7 +885,7 @@ class ReplicateApp(APIApplication):
         response.raise_for_status()
         return response.json()
 
-    def trainings_cancel(self, training_id: str) -> Dict[str, Any]:
+    def trainings_cancel(self, training_id: str) -> dict[str, Any]:
         """
         Cancels a specific training job in progress.
         
@@ -910,7 +909,7 @@ class ReplicateApp(APIApplication):
 
     # --- Webhooks Operations ---
 
-    def webhooks_default_secret_get(self) -> Dict[str, str]:
+    def webhooks_default_secret_get(self) -> dict[str, str]:
         """
         Retrieves the signing secret for the default webhook endpoint.
         
