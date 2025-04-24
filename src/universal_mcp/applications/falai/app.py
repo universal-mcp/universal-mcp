@@ -10,7 +10,7 @@ from universal_mcp.integrations import Integration
 
 Priority = Literal["normal", "low"]
 
-class FalAiApp(APIApplication):
+class FalaiApp(APIApplication):
     """
     Application for interacting with the Fal AI platform.
 
@@ -22,7 +22,7 @@ class FalAiApp(APIApplication):
     """
 
     def __init__(self, integration: Integration, **kwargs) -> None:
-        super().__init__(name="fal_ai", integration=integration, **kwargs)
+        super().__init__(name="falai", integration=integration, **kwargs)
 
         fal_api_key = None
         try:
