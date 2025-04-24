@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
-from typing import Union
+
 import httpx
+from gql import Client, gql
+from gql.transport.requests import RequestsHTTPTransport
+from graphql import DocumentNode
 from loguru import logger
 
 from universal_mcp.analytics import analytics
 from universal_mcp.integrations import Integration
-from gql import Client, gql
-from gql.transport.requests import RequestsHTTPTransport
 
 
 class BaseApplication(ABC):
@@ -217,12 +218,12 @@ class GraphQLApplication(BaseApplication):
             self._client = Client(transport=transport, fetch_schema_from_transport=True)
         return self._client
     
-    def mutate(self, mutation: Union[str, gql], variables: dict = None):
+    def mutate(self, mutation: str | DocumentNode, variables: dict = None):
         if isinstance(mutation, str):
             mutation = gql(mutation)
         return self.client.execute(mutation, variable_values=variables)
     
-    def query(self, query: Union[str, gql], variables: dict = None):
+    def query(self, query: str | DocumentNode, variables: dict = None):
         if isinstance(query, str):
             query = gql(query)
         return self.client.execute(query, variable_values=variables)

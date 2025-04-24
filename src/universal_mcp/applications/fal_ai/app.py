@@ -1,31 +1,12 @@
-# universal_mcp/applications/fal_ai/app.py
-
-import asyncio
-import logging  # Used for standard library logging, aligning with fal_client if needed, but loguru is preferred for tool logging.
-from typing import Any, Optional, Literal, Dict
 from pathlib import Path
+from typing import Any, Literal
 
-# Import necessary components from the fal_client library
-# The fal_client library is assumed to be installed and handle its own auth
-from fal_client import (
-    AsyncClient,
-    AsyncRequestHandle,
-    Status,
-    Queued,
-    InProgress,
-    Completed,
-)
+from fal_client import AsyncClient, AsyncRequestHandle, Status
+from loguru import logger
 
 from universal_mcp.applications import APIApplication
+from universal_mcp.exceptions import NotAuthorizedError, ToolError
 from universal_mcp.integrations import Integration
-from universal_mcp.exceptions import ToolError
-from loguru import logger # Using loguru for consistent tool logging
-
-# Setup logging for the fal_client itself to be visible via loguru
-# This pipes fal_client's internal logs through loguru
-logging.basicConfig(handlers=[logger.sink], level=logging.INFO)
-logging.getLogger("httpx").setLevel(logging.WARNING) # Suppress chatty httpx logs
-logging.getLogger("httpx_sse").setLevel(logging.WARNING) # Suppress chatty httpx_sse logs
 
 Priority = Literal["normal", "low"]
 
@@ -36,59 +17,64 @@ class FalAiApp(APIApplication):
     Provides tools to run, submit, check status, retrieve results, cancel jobs,
     upload files to the Fal CDN, and a specialized tool for generating images.
 
-    Authentication is handled by the underlying fal_client library, typically
-    via the FAL_KEY environment variable.
+    Authentication is handled by the configured Integration provided by the
+    Universal MCP server, fetching the necessary API key.
     """
 
-    def __init__(self, integration: Optional[Integration] = None, **kwargs) -> None:
-        """
-        Initialize the Fal AI Application.
-
-        Args:
-            integration: The integration instance (ignored by FalClient which uses env vars).
-            **kwargs: Additional keyword arguments passed to APIApplication.
-        """
-        # The Fal client handles its own authentication via env vars (FAL_KEY etc.).
-        # So, we initialize it without passing explicit credentials from the integration.
-        # The `integration` parameter exists here to match the expected signature
-        # for APIApplication subclasses, but its value isn't directly used by self._fal_client.
+    def __init__(self, integration: Integration, **kwargs) -> None:
         super().__init__(name="fal_ai", integration=integration, **kwargs)
-        self._fal_client = AsyncClient()  # Instantiate the async client
 
-        logger.info("FalAIApp initialized with AsyncClient.")
+        fal_api_key = None
+        try:
+            credentials = self.integration.get_credentials()
+
+            if isinstance(credentials, dict) and "api_key" in credentials:
+                 fal_api_key = credentials["api_key"]
+            else:
+                 logger.error(f"Integration {type(self.integration).__name__} returned credentials in unexpected format.")
+                 raise ValueError("Integration did not provide credentials in the expected 'api_key' format.")
+
+
+            if not fal_api_key:
+                 raise NotAuthorizedError("Integration returned empty or invalid API key.")
+
+        except NotAuthorizedError as e:
+             logger.error(f"Authentication failed via integration for {self.name}: {e}")
+             raise e
+        except Exception as e:
+             logger.error(f"An unexpected error occurred while fetching credentials via integration for {self.name}: {e}", exc_info=True)
+             raise NotAuthorizedError(f"Failed to get credentials for {self.name}: {e}") from e
+
+        self._fal_client = AsyncClient(key=fal_api_key)
+
 
     async def run(
         self,
         arguments: Any,
-        application: str = "fal-ai/flux/dev", 
+        application: str = "fal-ai/flux/dev",
         path: str = "",
-        timeout: Optional[float] = None,
-        hint: Optional[str] = None,
+        timeout: float | None = None,
+        hint: str | None = None,
     ) -> Any:
         """
-        Run a Fal AI application directly and wait for the result.
-
-        This is suitable for short-running applications. Execution is synchronous
-        from the caller's perspective, but the tool itself uses Fal's async client.
-
+        Run a Fal AI application directly and wait for the result. Suitable for short-running applications with synchronous execution from the caller's perspective.
+        
         Args:
-            application: The name or ID of the Fal application. Currently limited
-                         to "fal-ai/flux/dev" by the tool's Literal type hint.
-            arguments: A dictionary of arguments for the application.
-            path: Optional subpath for the application endpoint.
-            timeout: Optional timeout in seconds for the request.
-            hint: Optional hint for runner selection.
-
+            arguments: A dictionary of arguments for the application
+            application: The name or ID of the Fal application (defaults to 'fal-ai/flux/dev')
+            path: Optional subpath for the application endpoint
+            timeout: Optional timeout in seconds for the request
+            hint: Optional hint for runner selection
+        
         Returns:
-            Any: The result of the application execution (JSON response converted to Python dict/list).
-
+            The result of the application execution as a Python object (converted from JSON response)
+        
         Raises:
-            ToolError: If the Fal API request fails.
-
+            ToolError: Raised when the Fal API request fails, wrapping the original exception
+        
         Tags:
-            fal, ai, run, important
+            run, execute, ai, synchronous, fal, important
         """
-        logger.info(f"Running Fal application: {application}") # Log arguments less verbosely
         try:
             result = await self._fal_client.run(
                 application=application,
@@ -97,7 +83,6 @@ class FalAiApp(APIApplication):
                 timeout=timeout,
                 hint=hint,
             )
-            logger.info(f"Fal application {application} run completed successfully.")
             return result
         except Exception as e:
             logger.error(f"Error running Fal application {application}: {e}", exc_info=True)
@@ -107,38 +92,32 @@ class FalAiApp(APIApplication):
     async def submit(
         self,
         arguments: Any,
-        application: str = "fal-ai/flux/dev", 
+        application: str = "fal-ai/flux/dev",
         path: str = "",
-        hint: Optional[str] = None,
-        webhook_url: Optional[str] = None,
-        priority: Optional[Priority] = None,
+        hint: str | None = None,
+        webhook_url: str | None = None,
+        priority: Priority | None = None,
     ) -> str:
         """
-        Submit a request to the Fal AI queue for asynchronous processing.
-
-        This is suitable for long-running applications. The tool returns the request ID
-        immediately. Use the `status` and `result` tools with this ID to monitor
-        and retrieve the result.
-
+        Submits a request to the Fal AI queue for asynchronous processing and returns a request ID for tracking the job.
+        
         Args:
-            application: The name or ID of the Fal application. Currently limited
-                         to "fal-ai/flux/dev" by the tool's Literal type hint.
-            arguments: A dictionary of arguments for the application.
-            path: Optional subpath for the application endpoint.
-            hint: Optional hint for runner selection.
-            webhook_url: Optional URL to receive a webhook when the request completes.
-            priority: Optional queue priority ('normal' or 'low').
-
+            arguments: A dictionary of arguments for the application
+            application: The name or ID of the Fal application, defaulting to 'fal-ai/flux/dev'
+            path: Optional subpath for the application endpoint
+            hint: Optional hint for runner selection
+            webhook_url: Optional URL to receive a webhook when the request completes
+            priority: Optional queue priority ('normal' or 'low')
+        
         Returns:
-            str: The request ID of the submitted job.
-
+            The request ID (str) of the submitted asynchronous job
+        
         Raises:
-            ToolError: If the Fal API request fails.
-
+            ToolError: Raised when the Fal API request fails, wrapping the original exception
+        
         Tags:
-            fal, ai, submit, async_job, start, important
+            submit, async_job, start, ai, queue
         """
-        logger.info(f"Submitting Fal application: {application}") # Log arguments less verbosely
         try:
             handle: AsyncRequestHandle = await self._fal_client.submit(
                 application=application,
@@ -146,10 +125,9 @@ class FalAiApp(APIApplication):
                 path=path,
                 hint=hint,
                 webhook_url=webhook_url,
-                priority=priority, # Pass priority
+                priority=priority,
             )
             request_id = handle.request_id
-            logger.info(f"Fal application {application} submitted with request_id: {request_id}")
             return request_id
         except Exception as e:
             logger.error(f"Error submitting Fal application {application}: {e}", exc_info=True)
@@ -162,28 +140,25 @@ class FalAiApp(APIApplication):
         with_logs: bool = False
     ) -> Status:
         """
-        Check the status of a submitted Fal AI request.
-
+        Checks the status of a previously submitted Fal AI request and retrieves its current execution state
+        
         Args:
-            application: The name or ID of the Fal application. Currently limited
-                         to "fal-ai/flux/dev" by the tool's Literal type hint.
-            request_id: The ID of the submitted request obtained from `submit`.
-            with_logs: Whether to include logs in the status response.
-
+            request_id: The unique identifier of the submitted request, obtained from a previous submit operation
+            application: The name or ID of the Fal application (defaults to 'fal-ai/flux/dev')
+            with_logs: Boolean flag to include execution logs in the status response (defaults to False)
+        
         Returns:
-            Status: An object indicating the status (Queued, InProgress, or Completed).
-
+            A Status object containing the current state of the request (Queued, InProgress, or Completed)
+        
         Raises:
-            ToolError: If the Fal API request fails or the request ID is invalid.
-
+            ToolError: Raised when the Fal API request fails or when the provided request ID is invalid
+        
         Tags:
-            fal, ai, status, async_job
+            status, check, async_job, monitoring, ai
         """
-        logger.info(f"Checking status for Fal request_id: {request_id} (App: {application})")
         try:
             handle = self._fal_client.get_handle(application=application, request_id=request_id)
             status = await handle.status(with_logs=with_logs)
-            logger.info(f"Status for request_id {request_id}: {type(status).__name__}")
             return status
         except Exception as e:
             logger.error(f"Error getting status for Fal request_id {request_id}: {e}", exc_info=True)
@@ -195,29 +170,24 @@ class FalAiApp(APIApplication):
         application: str = "fal-ai/flux/dev"
     ) -> Any:
         """
-        Retrieve the result of a completed Fal AI request.
-
-        This tool will wait until the request is completed if it's still running.
-
+        Retrieves the result of a completed Fal AI request, waiting for completion if the request is still running.
+        
         Args:
-            application: The name or ID of the Fal application. Currently limited
-                         to "fal-ai/flux/dev" by the tool's Literal type hint.
-            request_id: The ID of the submitted request.
-
+            request_id: The unique identifier of the submitted request
+            application: The name or ID of the Fal application (defaults to 'fal-ai/flux/dev')
+        
         Returns:
-            Any: The result of the application execution (JSON response converted to Python dict/list).
-
+            The result of the application execution, converted from JSON response to Python data structures (dict/list)
+        
         Raises:
-            ToolError: If the Fal API request fails or the request did not complete successfully.
-
+            ToolError: When the Fal API request fails or the request does not complete successfully
+        
         Tags:
-            fal, ai, result, async_job
+            result, async-job, status, wait, ai
         """
-        logger.info(f"Getting result for Fal request_id: {request_id} (App: {application})")
         try:
             handle = self._fal_client.get_handle(application=application, request_id=request_id)
             result = await handle.get()
-            logger.info(f"Result retrieved for request_id {request_id} successfully.")
             return result
         except Exception as e:
             logger.error(f"Error getting result for Fal request_id {request_id}: {e}", exc_info=True)
@@ -229,24 +199,24 @@ class FalAiApp(APIApplication):
         application: str = "fal-ai/flux/dev"
     ) -> None:
         """
-        Cancel a submitted Fal AI request.
-
+        Asynchronously cancels a running or queued Fal AI request.
+        
         Args:
-            application: The name or ID of the Fal application. Currently limited
-                         to "fal-ai/flux/dev" by the tool's Literal type hint.
-            request_id: The ID of the submitted request.
-
+            request_id: The unique identifier of the submitted Fal AI request to cancel
+            application: The name or ID of the Fal application (defaults to 'fal-ai/flux/dev')
+        
+        Returns:
+            None. The function doesn't return any value.
+        
         Raises:
-            ToolError: If the Fal API request fails or the request cannot be cancelled.
-
+            ToolError: Raised when the cancellation request fails due to API errors or if the request cannot be cancelled
+        
         Tags:
-            fal, ai, cancel, async_job
+            cancel, async_job, ai, fal, management
         """
-        logger.info(f"Cancelling Fal request_id: {request_id} (App: {application})")
         try:
             handle = self._fal_client.get_handle(application=application, request_id=request_id)
             await handle.cancel()
-            logger.info(f"Request_id {request_id} cancelled successfully.")
             return None
         except Exception as e:
             logger.error(f"Error cancelling Fal request_id {request_id}: {e}", exc_info=True)
@@ -254,31 +224,26 @@ class FalAiApp(APIApplication):
 
     async def upload_file(self, path: str) -> str:
         """
-        Upload a local file to the Fal CDN.
-
-        Note: The file must be accessible from the machine running the Universal MCP server.
-
+        Uploads a local file to the Fal CDN and returns its public URL
+        
         Args:
-            path: The absolute or relative path to the local file.
-
+            path: The absolute or relative path to the local file
+        
         Returns:
-            str: The public URL of the uploaded file on the CDN.
-
+            A string containing the public URL of the uploaded file on the CDN
+        
         Raises:
-            ToolError: If the file is not found or the upload fails.
-
+            ToolError: If the file is not found or if the upload operation fails
+        
         Tags:
-            fal, upload, file, important
+            upload, file, cdn, storage, async, important
         """
-        logger.info(f"Uploading file to Fal CDN: {path}")
         try:
-            # Use Path object as expected by fal_client.upload_file
             file_url = await self._fal_client.upload_file(Path(path))
-            logger.info(f"File {path} uploaded successfully to {file_url}")
             return file_url
-        except FileNotFoundError:
+        except FileNotFoundError as e:
             logger.error(f"File not found for upload: {path}", exc_info=True)
-            raise ToolError(f"File not found: {path}")
+            raise ToolError(f"File not found: {path}") from e
         except Exception as e:
             logger.error(f"Error uploading file {path} to Fal CDN: {e}", exc_info=True)
             raise ToolError(f"Failed to upload file {path}: {e}") from e
@@ -286,62 +251,47 @@ class FalAiApp(APIApplication):
     async def generate_image(
         self,
         prompt: str,
-        seed: Optional[int] = 6252023,
-        image_size: Optional[str] = "landscape_4_3",
-        num_images: Optional[int] = 1,
-        extra_arguments: Optional[Dict[str, Any]] = None,
-        # Pass-through arguments for the underlying fal_client.run call
+        seed: int | None = 6252023,
+        image_size: str | None = "landscape_4_3",
+        num_images: int | None = 1,
+        extra_arguments: dict[str, Any] | None = None,
         path: str = "",
-        timeout: Optional[float] = None,
-        hint: Optional[str] = None,
+        timeout: float | None = None,
+        hint: str | None = None,
     ) -> Any:
         """
-        Generate an image using the 'fal-ai/flux/dev' application.
-
-        This tool simplifies the process of generating an image by providing default
-        values for common arguments like seed, image size, and number of images.
-        It uses the `run` method internally, waiting for the result.
-
+        Asynchronously generates images using the 'fal-ai/flux/dev' application with customizable parameters and default settings
+        
         Args:
-            prompt: The text prompt to use for image generation.
-            seed: Optional random seed for reproducibility. Defaults to 6252023.
-            image_size: Optional image size. Defaults to "landscape_4_3".
-            num_images: Optional number of images to generate. Defaults to 1.
-            extra_arguments: Optional dictionary of additional arguments to pass
-                             to the 'fal-ai/flux/dev' application, potentially
-                             overriding the defaults (seed, image_size, num_images)
-                             or adding others.
-            path: Optional subpath for the application endpoint (rarely needed for Flux).
-            timeout: Optional timeout in seconds for the request.
-            hint: Optional hint for runner selection.
-
+            prompt: The text prompt used to guide the image generation
+            seed: Random seed for reproducible image generation (default: 6252023)
+            image_size: Dimensions of the generated image (default: 'landscape_4_3')
+            num_images: Number of images to generate in one request (default: 1)
+            extra_arguments: Additional arguments dictionary to pass to the application, can override defaults
+            path: Subpath for the application endpoint (rarely used)
+            timeout: Maximum time in seconds to wait for the request to complete
+            hint: Hint string for runner selection
+        
         Returns:
-            Any: The result of the image generation, typically a dictionary
-                 containing the generated image URLs.
-
+            A dictionary containing the generated image URLs and related metadata
+        
         Raises:
-            ToolError: If the image generation request fails.
-
+            ToolError: When the image generation request fails or encounters an error
+        
         Tags:
-            fal, ai, generate, image, important, default
+            generate, image, ai, async, important, flux, customizable, default
         """
         application = "fal-ai/flux/dev"
-
-        # Build the arguments dictionary
         arguments = {
             "prompt": prompt,
             "seed": seed,
             "image_size": image_size,
             "num_images": num_images,
         }
-
-        # Merge extra arguments, allowing them to override defaults
         if extra_arguments:
             arguments.update(extra_arguments)
             logger.debug(f"Merged extra_arguments. Final arguments: {arguments}")
-
         try:
-            # Call the underlying run method
             result = await self.run(
                 application=application,
                 arguments=arguments,
@@ -349,20 +299,11 @@ class FalAiApp(APIApplication):
                 timeout=timeout,
                 hint=hint,
             )
-            logger.info(f"Image generation completed successfully for prompt: '{prompt[:50]}...'")
             return result
-        except Exception as e:
-             raise # Re-raise the ToolError from self.run
+        except Exception:
+             raise
 
     def list_tools(self) -> list[callable]:
-        """
-        List the available tools from the Fal AI application.
-
-        These tools wrap methods of the fal_client.AsyncClient.
-
-        Returns:
-            list[callable]: A list of callable tool functions/methods.
-        """
         return [
             self.run,
             self.submit,
