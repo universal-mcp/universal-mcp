@@ -957,7 +957,6 @@ class SupabaseApp(APIApplication):
             raise ValueError("Missing required parameter 'ref'")
         if items is None:
             raise ValueError("Missing required parameter 'items'")
-        request_body = items
         url = f"{self.base_url}/v1/projects/{ref}/secrets"
         query_params = {}
         response = self._delete(url, params=query_params)
