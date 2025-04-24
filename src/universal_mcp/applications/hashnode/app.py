@@ -17,7 +17,6 @@ class HashnodeApp(GraphQLApplication):
         tags: list[str] = None,
         slug: str = None,
         subtitle: str = None,
-        brief: str = None,
     ) -> str:
         """
         Publishes a post to Hashnode using the GraphQL API.
@@ -29,7 +28,6 @@ class HashnodeApp(GraphQLApplication):
             tags: Optional list of tag names to add to the post. Example: ["blog", "release-notes", "python", "ai"]
             slug: Optional custom URL slug for the post. Example: "my-post"
             subtitle: Optional subtitle for the post. Example: "A subtitle for my post"
-            brief: Optional brief description/excerpt for the post. Example: "This is a brief description of my post"
 
         Returns:
             The URL of the published post
@@ -60,7 +58,7 @@ class HashnodeApp(GraphQLApplication):
 
         if tags:
             variables["input"]["tags"] = [
-                {"name": tag, "slug": tag.lower()} for tag in tags
+                {"name": tag, "slug": tag.replace(" ", "-").lower()} for tag in tags
             ]
         
         if slug:
@@ -68,9 +66,6 @@ class HashnodeApp(GraphQLApplication):
             
         if subtitle:
             variables["input"]["subtitle"] = subtitle
-            
-        if brief:
-            variables["input"]["brief"] = brief
             
 
         result = self.mutate(publish_post_mutation, variables)

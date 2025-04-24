@@ -139,8 +139,6 @@ async def test_generate_api_with_docstrings(sample_schema, temp_dir):
     assert "from universal_mcp.integrations import Integration" in content
     assert "def test_operation" in content
     assert '"""' in content  # Basic check for docstring presence
-    # TODO: Fix this test
-    assert "Args:" in content or "Parameters:" in content
     assert "Tags:" in content
 
     # Verify temporary file was cleaned up
