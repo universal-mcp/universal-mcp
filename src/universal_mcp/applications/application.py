@@ -228,12 +228,12 @@ class GraphQLApplication(BaseApplication):
             )
             self._client = Client(transport=transport, fetch_schema_from_transport=True)
         return self._client
-
+    
     def mutate(self, mutation: str | DocumentNode, variables: dict = None):
         if isinstance(mutation, str):
             mutation = gql(mutation)
         return self.client.execute(mutation, variable_values=variables)
-
+    
     def query(self, query: str | DocumentNode, variables: dict = None):
         if isinstance(query, str):
             query = gql(query)
