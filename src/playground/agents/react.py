@@ -3,9 +3,7 @@ from contextlib import asynccontextmanager
 
 from langchain_core.messages import HumanMessage
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from langchain_openai import AzureChatOpenAI, ChatOpenAI
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_cerebras import ChatCerebras
+from langchain_openai import AzureChatOpenAI
 from langgraph.prebuilt import create_react_agent
 
 
@@ -25,15 +23,9 @@ async def load_tools():
 
 @asynccontextmanager
 async def create_agent():
-    # llm = AzureChatOpenAI(
-    #     model="gpt-4o",
-    #     api_version="2024-12-01-preview",
-    # )
-    import os
-    os.environ["GOOGLE_API_KEY"] = "AIzaSyCphTP3cRf_nQi_kicBnD5FgbJPyxICQIY"
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash-001",
-        # api_key="AIzaSyB61D6bCM3VvJ1YWx5pM1c5WL4L0qGl3gs",
+    llm = AzureChatOpenAI(
+        model="gpt-4o",
+        api_version="2024-12-01-preview",
     )
     async with load_tools() as tools:
         yield create_react_agent(

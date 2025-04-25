@@ -39,7 +39,7 @@ class APIApplication(BaseApplication):
         )
         self._client = None
         # base_url should be set by subclasses, e.g., self.base_url = "https://api.example.com"
-        self.base_url: str = "" # Initialize, but subclasses should set this
+        self.base_url: str = ""  # Initialize, but subclasses should set this
 
     def _get_headers(self):
         if not self.integration:
@@ -77,32 +77,30 @@ class APIApplication(BaseApplication):
             }
         logger.debug("No authentication found in credentials, returning empty headers")
         return {}
-    
+
     @property
     def client(self):
         if not self._client:
             headers = self._get_headers()
             if not self.base_url:
-                 logger.warning(f"APIApplication '{self.name}' base_url is not set.")
-                 # Fallback: Initialize client without base_url, requiring full URLs in methods
-                 self._client = httpx.Client(headers=headers, timeout=self.default_timeout)
+                logger.warning(f"APIApplication '{self.name}' base_url is not set.")
+                # Fallback: Initialize client without base_url, requiring full URLs in methods
+                self._client = httpx.Client(
+                    headers=headers, timeout=self.default_timeout
+                )
             else:
                 self._client = httpx.Client(
-                    base_url=self.base_url, # Pass the base_url here
+                    base_url=self.base_url,  # Pass the base_url here
                     headers=headers,
-                    timeout=self.default_timeout
+                    timeout=self.default_timeout,
                 )
         return self._client
 
     def _get(self, url, params=None):
         logger.debug(f"Making GET request to {url} with params: {params}")
-        response = self.client.get(
-            url, params=params
-        )
+        response = self.client.get(url, params=params)
         response.raise_for_status()
-        logger.debug(
-            f"GET request successful with status code: {response.status_code}"
-        )
+        logger.debug(f"GET request successful with status code: {response.status_code}")
         return response
 
     def _post(self, url, data, params=None):
@@ -120,7 +118,6 @@ class APIApplication(BaseApplication):
         )
         return response
 
-
     def _put(self, url, data, params=None):
         logger.debug(
             f"Making PUT request to {url} with params: {params} and data: {data}"
@@ -131,24 +128,18 @@ class APIApplication(BaseApplication):
             params=params,
         )
         response.raise_for_status()
-        logger.debug(
-            f"PUT request successful with status code: {response.status_code}"
-        )
+        logger.debug(f"PUT request successful with status code: {response.status_code}")
         return response
-
 
     def _delete(self, url, params=None):
         # Now `url` can be a relative path if base_url is set in the client
         logger.debug(f"Making DELETE request to {url} with params: {params}")
-        response = self.client.delete(
-            url, params=params, timeout=self.default_timeout
-        )
+        response = self.client.delete(url, params=params, timeout=self.default_timeout)
         response.raise_for_status()
         logger.debug(
             f"DELETE request successful with status code: {response.status_code}"
         )
         return response
-
 
     def _patch(self, url, data, params=None):
         # Now `url` can be a relative path if base_url is set in the client
@@ -175,8 +166,10 @@ class GraphQLApplication(BaseApplication):
     GraphQLApplication is a collection of tools that can be used by an agent.
     """
 
-    def __init__(self, name: str, base_url: str, integration: Integration = None, **kwargs):
-        super().__init__(name,**kwargs)
+    def __init__(
+        self, name: str, base_url: str, integration: Integration = None, **kwargs
+    ):
+        super().__init__(name, **kwargs)
         self.base_url = base_url
         logger.debug(f"Initializing Application '{name}' with kwargs: {kwargs}")
         analytics.track_app_loaded(name)  # Track app loading
@@ -217,23 +210,19 @@ class GraphQLApplication(BaseApplication):
         logger.debug("No authentication found in credentials, returning empty headers")
         return {}
 
-
     @property
     def client(self):
         if not self._client:
             headers = self._get_headers()
-            transport = RequestsHTTPTransport(
-                url=self.base_url,
-                headers=headers
-            )
+            transport = RequestsHTTPTransport(url=self.base_url, headers=headers)
             self._client = Client(transport=transport, fetch_schema_from_transport=True)
         return self._client
-    
+
     def mutate(self, mutation: str | DocumentNode, variables: dict = None):
         if isinstance(mutation, str):
             mutation = gql(mutation)
         return self.client.execute(mutation, variable_values=variables)
-    
+
     def query(self, query: str | DocumentNode, variables: dict = None):
         if isinstance(query, str):
             query = gql(query)

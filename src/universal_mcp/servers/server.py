@@ -235,6 +235,7 @@ class AgentRServer(BaseServer):
             logger.error("Failed to load apps", exc_info=True)
             raise
 
+
 class SingleMCPServer(BaseServer):
     """
     Minimal server implementation hosting a single BaseApplication instance.
@@ -252,16 +253,25 @@ class SingleMCPServer(BaseServer):
         **kwargs: Additional keyword arguments passed to FastMCP parent class.
     """
 
-    def __init__(self, app_instance: BaseApplication, config: ServerConfig | None = None, **kwargs):
+    def __init__(
+        self,
+        app_instance: BaseApplication,
+        config: ServerConfig | None = None,
+        **kwargs,
+    ):
         server_config = ServerConfig(
             type="local",
-            name = f"{app_instance.name.title()} MCP Server for Local Development" if app_instance else "Unnamed MCP Server",
-            description = f"Minimal MCP server for the local {app_instance.name} application." if app_instance else "Minimal MCP server with no application loaded."
+            name=f"{app_instance.name.title()} MCP Server for Local Development"
+            if app_instance
+            else "Unnamed MCP Server",
+            description=f"Minimal MCP server for the local {app_instance.name} application."
+            if app_instance
+            else "Minimal MCP server with no application loaded.",
         )
         if not config:
             config = server_config
         super().__init__(config, **kwargs)
-        
+
         self.app_instance = app_instance
         self._load_apps()
 

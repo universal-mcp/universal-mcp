@@ -71,6 +71,7 @@ def test_func_metadata_required():
         "required": ["a", "b"],
     }
 
+
 def test_func_metadata_none_type():
     def func(a: None = None):
         """Test function with None type"""
@@ -85,11 +86,13 @@ def test_func_metadata_none_type():
         },
     }
 
+
 def test_parse_docstring_empty_none():
     """Test with None input."""
     docstring = None
     expected = {"summary": "", "args": {}, "returns": "", "raises": {}, "tags": []}
     assert parse_docstring(docstring) == expected
+
 
 def test_parse_docstring_empty_string():
     """Test with an empty string input."""
@@ -97,11 +100,13 @@ def test_parse_docstring_empty_string():
     expected = {"summary": "", "args": {}, "returns": "", "raises": {}, "tags": []}
     assert parse_docstring(docstring) == expected
 
+
 def test_parse_docstring_whitespace_string():
     """Test with a whitespace-only string input."""
     docstring = "   \n  "
     expected = {"summary": "", "args": {}, "returns": "", "raises": {}, "tags": []}
     assert parse_docstring(docstring) == expected
+
 
 def test_parse_docstring_summary_only():
     """Test with only a summary and no sections."""
@@ -114,9 +119,10 @@ def test_parse_docstring_summary_only():
         "args": {},
         "returns": "",
         "raises": {},
-        "tags": []
+        "tags": [],
     }
     assert parse_docstring(docstring) == expected
+
 
 def test_parse_docstring_summary_and_args():
     """Test with summary and an Args section."""
@@ -132,9 +138,10 @@ def test_parse_docstring_summary_and_args():
         "args": {"a": "The first number.", "b": "The second number."},
         "returns": "",
         "raises": {},
-        "tags": []
+        "tags": [],
     }
     assert parse_docstring(docstring) == expected
+
 
 def test_parse_docstring_summary_and_returns():
     """Test with summary and a simple Returns section."""
@@ -149,9 +156,10 @@ def test_parse_docstring_summary_and_returns():
         "args": {},
         "returns": "The sum of a and b.",
         "raises": {},
-        "tags": []
+        "tags": [],
     }
     assert parse_docstring(docstring) == expected
+
 
 def test_parse_docstring_summary_and_raises():
     """Test with summary and a simple Raises section."""
@@ -166,9 +174,10 @@ def test_parse_docstring_summary_and_raises():
         "args": {},
         "returns": "",
         "raises": {"ZeroDivisionError": "If the denominator is zero."},
-        "tags": []
+        "tags": [],
     }
     assert parse_docstring(docstring) == expected
+
 
 def test_parse_docstring_summary_and_tags():
     """Test with summary and a simple Tags section."""
@@ -183,9 +192,10 @@ def test_parse_docstring_summary_and_tags():
         "args": {},
         "returns": "",
         "raises": {},
-        "tags": ["data", "processing", "important"]
+        "tags": ["data", "processing", "important"],
     }
     assert parse_docstring(docstring) == expected
+
 
 def test_parse_docstring_multiple_sections_single_line():
     """Test with summary and multiple sections with single-line content."""
@@ -206,9 +216,10 @@ def test_parse_docstring_multiple_sections_single_line():
         "args": {"input": "Input value."},
         "returns": "Output value.",
         "raises": {"Exception": "If something goes wrong."},
-        "tags": ["basic", "test"]
+        "tags": ["basic", "test"],
     }
     assert parse_docstring(docstring) == expected
+
 
 def test_parse_docstring_args_multi_line():
     """Test with Args section containing a multi-line description."""
@@ -222,12 +233,15 @@ def test_parse_docstring_args_multi_line():
     """
     expected = {
         "summary": "Processes complex input.",
-        "args": {"config": "Configuration object. It contains settings for the processing job, including connection details and parameters."},
+        "args": {
+            "config": "Configuration object. It contains settings for the processing job, including connection details and parameters."
+        },
         "returns": "",
         "raises": {},
-        "tags": []
+        "tags": [],
     }
     assert parse_docstring(docstring) == expected
+
 
 def test_parse_docstring_returns_multi_line():
     """Test with Returns section spanning multiple lines."""
@@ -243,9 +257,10 @@ def test_parse_docstring_returns_multi_line():
         "args": {},
         "returns": "A dictionary containing comprehensive details about the fetched data, including timestamps, source, and processing status. This is a detailed response.",
         "raises": {},
-        "tags": []
+        "tags": [],
     }
     assert parse_docstring(docstring) == expected
+
 
 def test_parse_docstring_raises_multi_line():
     """Test with Raises section containing a multi-line description for an exception."""
@@ -261,10 +276,13 @@ def test_parse_docstring_raises_multi_line():
         "summary": "Performs a critical action.",
         "args": {},
         "returns": "",
-        "raises": {"CriticalError": "This error indicates a major failure during the critical action execution. Further details are logged separately."},
-        "tags": []
+        "raises": {
+            "CriticalError": "This error indicates a major failure during the critical action execution. Further details are logged separately."
+        },
+        "tags": [],
     }
     assert parse_docstring(docstring) == expected
+
 
 def test_parse_docstring_no_summary():
     """Test a docstring that starts immediately with a section."""
@@ -279,6 +297,6 @@ def test_parse_docstring_no_summary():
         "args": {"data": "The data to process."},
         "returns": "Processed data.",
         "raises": {},
-        "tags": []
+        "tags": [],
     }
     assert parse_docstring(docstring) == expected

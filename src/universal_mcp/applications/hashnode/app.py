@@ -17,6 +17,7 @@ class HashnodeApp(GraphQLApplication):
         tags: list[str] = None,
         slug: str = None,
         subtitle: str = None,
+        cover_image: str = None,
     ) -> str:
         """
         Publishes a post to Hashnode using the GraphQL API.
@@ -28,7 +29,7 @@ class HashnodeApp(GraphQLApplication):
             tags: Optional list of tag names to add to the post. Example: ["blog", "release-notes", "python", "ai"]
             slug: Optional custom URL slug for the post. Example: "my-post"
             subtitle: Optional subtitle for the post. Example: "A subtitle for my post"
-
+            cover_image: Optional cover image for the post. Example: "https://example.com/cover-image.jpg"
         Returns:
             The URL of the published post
 
@@ -52,7 +53,7 @@ class HashnodeApp(GraphQLApplication):
             "input": {
                 "publicationId": publication_id,
                 "title": title,
-                "contentMarkdown": content
+                "contentMarkdown": content,
             }
         }
 
@@ -60,18 +61,21 @@ class HashnodeApp(GraphQLApplication):
             variables["input"]["tags"] = [
                 {"name": tag, "slug": tag.replace(" ", "-").lower()} for tag in tags
             ]
-        
+
         if slug:
             variables["input"]["slug"] = slug
-            
+
         if subtitle:
             variables["input"]["subtitle"] = subtitle
-            
+
+        if cover_image:
+            variables["input"]["bannerImageOptions"] = {
+                "url": cover_image,
+                "potrait": False,
+            }
 
         result = self.mutate(publish_post_mutation, variables)
         return result["publishPost"]["post"]["url"]
 
     def list_tools(self):
-        return [
-            self.publish_post
-        ]
+        return [self.publish_post]
