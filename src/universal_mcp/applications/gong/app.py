@@ -6,7 +6,7 @@ from base64 import b64encode
 class GongApp(APIApplication):
     def __init__(self, integration: Integration = None, **kwargs) -> None:
         super().__init__(name='gong', integration=integration, **kwargs)
-        self.base_url = ""
+        self.base_url = "https://api.gong.io"
 
     def _get_headers(self) -> dict[str, str]:
         credentials = self.integration.get_credentials()
