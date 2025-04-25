@@ -1,7 +1,9 @@
+from base64 import b64encode
 from typing import Any
+
 from universal_mcp.applications import APIApplication
 from universal_mcp.integrations import Integration
-from base64 import b64encode
+
 
 class GongApp(APIApplication):
     def __init__(self, integration: Integration = None, **kwargs) -> None:
