@@ -234,3 +234,43 @@ class AgentRServer(BaseServer):
         except Exception:
             logger.error("Failed to load apps", exc_info=True)
             raise
+
+class SingleMCPServer(BaseServer):
+    """
+    Minimal server implementation hosting a single BaseApplication instance.
+
+    This server type is intended for development and testing of a single
+    application's tools. It does not manage integrations or stores internally
+    beyond initializing the ToolManager and exposing the provided application's tools.
+    The application instance passed to the constructor should already be
+    configured with its appropriate integration (if required).
+
+    Args:
+        config: Server configuration (used for name, description, etc. but ignores 'apps')
+        app_instance: The single BaseApplication instance to host and expose its tools.
+                      Can be None, in which case no tools will be registered.
+        **kwargs: Additional keyword arguments passed to FastMCP parent class.
+    """
+
+    def __init__(self, app_instance: BaseApplication, config: ServerConfig | None = None, **kwargs):
+        server_config = ServerConfig(
+            type="local",
+            name = f"{app_instance.name.title()} MCP Server for Local Development" if app_instance else "Unnamed MCP Server",
+            description = f"Minimal MCP server for the local {app_instance.name} application." if app_instance else "Minimal MCP server with no application loaded."
+        )
+        if not config:
+            config = server_config
+        super().__init__(config, **kwargs)
+        
+        self.app_instance = app_instance
+        self._load_apps()
+
+    def _load_apps(self) -> None:
+        """Registers tools from the single provided application instance."""
+        if not self.app_instance:
+            logger.warning("No app_instance provided. No tools registered.")
+            return
+
+        tool_functions = self.app_instance.list_tools()
+        for tool_func in tool_functions:
+            self._tool_manager.add_tool(tool_func)
