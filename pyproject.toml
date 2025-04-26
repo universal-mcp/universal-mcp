@@ -1,6 +1,6 @@
 [project]
 name = "universal-mcp"
-version = "0.1.11-rc2"
+version = "0.1.11-rc3"
 description = "Universal MCP acts as a middle ware for your API applications. It can store your credentials, authorize, enable disable apps on the fly and much more."
 readme = "README.md"
 authors = [
