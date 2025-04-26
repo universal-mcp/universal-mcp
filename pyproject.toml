@@ -1,6 +1,6 @@
 [project]
 name = "universal-mcp"
-version = "0.1.10"
+version = "0.1.11-rc1"
 description = "Universal MCP acts as a middle ware for your API applications. It can store your credentials, authorize, enable disable apps on the fly and much more."
 readme = "README.md"
 authors = [
@@ -54,6 +54,26 @@ markitdown = [
     "markitdown[all]>=0.1.1",
 ]
 fal-ai = [
+    "fal-client>=0.5.9",
+]
+all = [
+    "fastapi[standard]>=0.115.12",
+    "langchain-mcp-adapters>=0.0.3",
+    "langgraph>=0.3.24",
+    "langgraph-checkpoint-sqlite>=2.0.6",
+    "streamlit>=1.44.1",
+    "python-dotenv>=1.0.1",
+    "langchain-openai>=0.3.12",
+    "watchdog>=6.0.0",
+    "ruff>=0.11.4",
+    "pytest>=8.3.5",
+    "pytest-asyncio>=0.26.0",
+    "pyright>=1.1.398",
+    "litellm>=1.30.7",
+    "e2b-code-interpreter>=1.2.0",
+    "firecrawl-py>=1.15.0",
+    "google-search-results>=2.4.2",
+    "markitdown[all]>=0.1.1",
     "fal-client>=0.5.9",
 ]
 [project.scripts]
