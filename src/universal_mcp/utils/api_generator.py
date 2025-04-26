@@ -97,11 +97,10 @@ async def generate_docstrings(script_path: str) -> dict[str, int]:
         return {"functions_processed": 0}
 
 
-def setup_app_directory(folder_name: str, source_file: Path) -> tuple[Path, Path]:
+def setup_app_directory(folder_name: str, output_folder_path: Path, temp_file: Path) -> tuple[Path, Path]:
     """Set up application directory structure and copy generated code."""
-    applications_dir = Path(__file__).parent.parent / "applications"
-    app_dir = applications_dir / folder_name
-    app_dir.mkdir(exist_ok=True)
+    app_dir = output_folder_path / folder_name
+    app_dir.mkdir(parents=True, exist_ok=True)
 
     init_file = app_dir / "__init__.py"
     if not init_file.exists():
@@ -109,7 +108,7 @@ def setup_app_directory(folder_name: str, source_file: Path) -> tuple[Path, Path
             f.write("")
 
     app_file = app_dir / "app.py"
-    with open(source_file) as src, open(app_file, "w") as dest:
+    with open(temp_file) as src, open(app_file, "w") as dest:
         app_content = src.read()
         dest.write(app_content)
 
@@ -197,7 +196,8 @@ def generate_readme(
 
 async def generate_api_from_schema(
     schema_path: Path,
-    output_path: Path | None = None,
+    output_folder_path: Path | None = None,
+    output_folder_name: str | None = None,
     add_docstrings: bool = True,
 ) -> dict[str, str | None]:
     """
@@ -215,16 +215,21 @@ async def generate_api_from_schema(
         schema = validate_and_load_schema(schema_path)
         code = generate_api_client(schema)
 
-        if not output_path:
+        if not output_folder_path:
             return {"code": code}
 
-        folder_name = output_path.stem
-        temp_output_path = output_path
+        output_folder_name
+        output_folder_path
+        
+        if output_folder_path.is_dir():
+            temp_file = output_folder_path / f"{output_folder_name}.py"
+        else:
+            temp_file = output_folder_path
 
-        write_and_verify_code(temp_output_path, code)
+        write_and_verify_code(temp_file, code)
 
         if add_docstrings:
-            result = await generate_docstrings(str(temp_output_path))
+            result = await generate_docstrings(str(temp_file))
             if result:
                 if "functions_processed" in result:
                     echo(f"Processed {result['functions_processed']} functions")
@@ -233,7 +238,7 @@ async def generate_api_from_schema(
         else:
             echo("Skipping docstring generation as requested")
 
-        app_dir, app_file = setup_app_directory(folder_name, temp_output_path)
+        app_dir, app_file = setup_app_directory(output_folder_name, output_folder_path, temp_file)
 
         try:
             echo("Generating README.md from function information...")
@@ -243,10 +248,10 @@ async def generate_api_from_schema(
 
             class_name, class_obj = get_class_info(module)
             if not class_name:
-                class_name = folder_name.capitalize() + "App"
+                class_name = output_folder_name.capitalize() + "App"
 
-            tools = collect_tools(class_obj, folder_name)
-            readme_file = generate_readme(app_dir, folder_name, tools)
+            tools = collect_tools(class_obj, output_folder_name)
+            readme_file = generate_readme(app_dir, output_folder_name, tools)
 
         except Exception as e:
             echo(f"Error generating documentation: {e}", err=True)
@@ -258,12 +263,12 @@ async def generate_api_from_schema(
         }
 
     finally:
-        if output_path and output_path.exists():
+        if output_folder_path and output_folder_path.exists():
             try:
-                output_path.unlink()
-                echo(f"Cleaned up temporary file: {output_path}")
+                output_folder_path.unlink()
+                echo(f"Cleaned up temporary file: {output_folder_path}")
             except Exception as e:
                 echo(
-                    f"Warning: Could not remove temporary file {output_path}: {e}",
+                    f"Warning: Could not remove temporary file {output_folder_path}: {e}",
                     err=True,
                 )
