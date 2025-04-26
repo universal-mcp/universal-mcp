@@ -263,12 +263,12 @@ async def generate_api_from_schema(
         }
 
     finally:
-        if output_folder_path and output_folder_path.exists():
+        if temp_file and temp_file.exists():
             try:
-                output_folder_path.unlink()
-                echo(f"Cleaned up temporary file: {output_folder_path}")
+                temp_file.unlink()
+                echo(f"Cleaned up temporary file: {temp_file}")
             except Exception as e:
                 echo(
-                    f"Warning: Could not remove temporary file {output_folder_path}: {e}",
+                    f"Warning: Could not remove temporary file {temp_file}: {e}",
                     err=True,
                 )
