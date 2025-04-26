@@ -7,6 +7,14 @@ class ElevenlabsApp(APIApplication):
         super().__init__(name='elevenlabs', integration=integration, **kwargs)
         self.base_url = "https://api.elevenlabs.io"
 
+    def _get_headers(self) -> dict[str, Any]:
+        api_key = self.integration.get_credentials().get("api_key")
+        return {
+            "xi-api-key": f"{api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+
     def get_generated_items_v1_history_get(self, page_size=None, start_after_history_item_id=None, voice_id=None) -> dict[str, Any]:
         """
         Retrieves a paginated history of generated items from the API, optionally filtered by page size, starting history item, or voice ID.
