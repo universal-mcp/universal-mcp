@@ -19,7 +19,7 @@ app = typer.Typer()
 @app.command()
 def generate(
     schema_path: Path = typer.Option(..., "--schema", "-s"),
-    output_folder_name: str = typer.Option(..., "--name", "-n", help="Name of the output folder"),
+    output_folder_name: str = typer.Option(..., "--name", "-n", help="Name of the output folder (should be the same as the API name, eg. twitter for Twitter API)"),
     output_folder_path: Path = typer.Option(..., "--path", "-p", help="Path where the output folder should be created"),
     add_docstrings: bool = typer.Option(
         True, "--docstrings/--no-docstrings", help="Add docstrings to generated code"
