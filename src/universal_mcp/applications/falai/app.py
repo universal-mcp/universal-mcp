@@ -30,20 +30,20 @@ class FalaiApp(APIApplication):
     def fal_client(self) -> AsyncClient:
         if self._fal_client is None:
             credentials = self.integration.get_credentials()
-            if isinstance(credentials, dict) and "api_key" in credentials:
-                fal_api_key = credentials["api_key"]
-            else:
+            logger.info(f"Credentials: {credentials}")
+            api_key = (
+            credentials.get("api_key")
+                or credentials.get("API_KEY")
+                or credentials.get("apiKey")
+            )
+            if not api_key:
                 logger.error(
                     f"Integration {type(self.integration).__name__} returned credentials in unexpected format."
                 )
-                raise ValueError(
-                    "Integration did not provide credentials in the expected 'api_key' format."
-                )
-            if not fal_api_key:
                 raise NotAuthorizedError(
                     "Integration returned empty or invalid API key."
                 )
-            self._fal_client = AsyncClient(key=fal_api_key)
+            self._fal_client = AsyncClient(key=api_key)
         return self._fal_client
 
     async def run(
