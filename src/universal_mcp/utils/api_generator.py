@@ -193,7 +193,6 @@ def generate_readme(
     echo(f"Documentation generated at: {readme_file}")
     return readme_file
 
-
 async def generate_api_from_schema(
     schema_path: Path,
     output_folder_path: Path | None = None,
@@ -205,37 +204,49 @@ async def generate_api_from_schema(
 
     Args:
         schema_path: Path to the OpenAPI schema file
-        output_path: Output file path - should match the API name (e.g., 'twitter.py' for Twitter API)
+        output_folder_path: Path to write the generated API client (.py) or directory to place it
+        output_folder_name: Name to use for the application module (defaults to file stem)
         add_docstrings: Whether to add docstrings to the generated code
 
     Returns:
         dict: A dictionary with information about the generated files
     """
+    temp_file: Path | None = None
+    # Infer application name if not provided
+    if output_folder_path and not output_folder_name:
+        output_folder_name = output_folder_path.stem
+
     try:
+        # Load and validate schema
         schema = validate_and_load_schema(schema_path)
+        # Generate client code
         code = generate_api_client(schema)
 
+        # If no output path requested, return raw code
         if not output_folder_path:
             return {"code": code}
-        
+
+        # Determine temporary file location
         if output_folder_path.is_dir():
             temp_file = output_folder_path / f"{output_folder_name}.py"
         else:
             temp_file = output_folder_path
 
+        # Write code to temp file
         write_and_verify_code(temp_file, code)
 
+        # Optionally add docstrings
         if add_docstrings:
             result = await generate_docstrings(str(temp_file))
-            if result:
-                if "functions_processed" in result:
-                    echo(f"Processed {result['functions_processed']} functions")
-            else:
+            if result and "functions_processed" in result:
+                echo(f"Processed {result['functions_processed']} functions")
+            elif not result:
                 echo("Docstring generation failed", err=True)
         else:
             echo("Skipping docstring generation as requested")
 
-        app_dir, app_file = setup_app_directory(output_folder_name, output_folder_path, temp_file)
+        base_dir = output_folder_path if output_folder_path.is_dir() else output_folder_path.parent
+        app_dir, app_file = setup_app_directory(output_folder_name, base_dir, temp_file)
 
         try:
             echo("Generating README.md from function information...")
@@ -249,7 +260,6 @@ async def generate_api_from_schema(
 
             tools = collect_tools(class_obj, output_folder_name)
             readme_file = generate_readme(app_dir, output_folder_name, tools)
-
         except Exception as e:
             echo(f"Error generating documentation: {e}", err=True)
             readme_file = None
@@ -258,8 +268,8 @@ async def generate_api_from_schema(
             "app_file": str(app_file),
             "readme_file": str(readme_file) if readme_file else None,
         }
-
     finally:
+        # Clean up temporary file if it was created
         if temp_file and temp_file.exists():
             try:
                 temp_file.unlink()

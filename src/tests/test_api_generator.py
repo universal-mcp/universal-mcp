@@ -53,7 +53,7 @@ def sample_schema(temp_dir):
 async def test_generate_api_without_output(sample_schema):
     """Test API generation without output file (return code only)."""
     result = await generate_api_from_schema(
-        schema_path=sample_schema, output_path=None, add_docstrings=False
+        schema_path=sample_schema, output_folder_path=None, add_docstrings=False
     )
 
     assert "code" in result
@@ -69,10 +69,10 @@ async def test_generate_api_without_output(sample_schema):
 @pytest.mark.asyncio
 async def test_generate_api_with_output(sample_schema, temp_dir):
     """Test API generation with output file."""
-    output_path = temp_dir / "test.py"
+    output_folder_path = temp_dir / "test.py"
 
     result = await generate_api_from_schema(
-        schema_path=sample_schema, output_path=output_path, add_docstrings=True
+        schema_path=sample_schema, output_folder_path=output_folder_path, add_docstrings=True
     )
 
     assert "app_file" in result
@@ -98,7 +98,7 @@ async def test_generate_api_with_output(sample_schema, temp_dir):
         assert "test_operation" in readme_content
 
     # Verify temporary file was cleaned up
-    assert not output_path.exists()
+    assert not output_folder_path.exists()
 
 
 @pytest.mark.asyncio
@@ -108,7 +108,7 @@ async def test_generate_api_invalid_schema(temp_dir):
     with open(invalid_schema, "w") as f:
         f.write("invalid json")
     with pytest.raises(json.JSONDecodeError):
-        await generate_api_from_schema(schema_path=invalid_schema, output_path=None)
+        await generate_api_from_schema(schema_path=invalid_schema, output_folder_path=None)
 
 
 @pytest.mark.asyncio
@@ -116,17 +116,17 @@ async def test_generate_api_nonexistent_schema():
     """Test API generation with nonexistent schema file."""
     with pytest.raises(FileNotFoundError):
         await generate_api_from_schema(
-            schema_path=Path("nonexistent.json"), output_path=None
+            schema_path=Path("nonexistent.json"), output_folder_path=None
         )
 
 
 @pytest.mark.asyncio
 async def test_generate_api_with_docstrings(sample_schema, temp_dir):
     """Test API generation with docstring generation."""
-    output_path = temp_dir / "test_with_docs.py"
+    output_folder_path = temp_dir / "test_with_docs.py"
 
     result = await generate_api_from_schema(
-        schema_path=sample_schema, output_path=output_path, add_docstrings=True
+        schema_path=sample_schema, output_folder_path=output_folder_path, add_docstrings=True
     )
 
     app_file = Path(result["app_file"])
@@ -142,16 +142,16 @@ async def test_generate_api_with_docstrings(sample_schema, temp_dir):
     assert "Tags:" in content
 
     # Verify temporary file was cleaned up
-    assert not output_path.exists()
+    assert not output_folder_path.exists()
 
 
 @pytest.mark.asyncio
 async def test_generate_api_without_docstrings(sample_schema, temp_dir):
     """Test API generation without docstring generation."""
-    output_path = temp_dir / "test_without_docs.py"
+    output_folder_path = temp_dir / "test_without_docs.py"
 
     result = await generate_api_from_schema(
-        schema_path=sample_schema, output_path=output_path, add_docstrings=False
+        schema_path=sample_schema, output_folder_path=output_folder_path, add_docstrings=False
     )
 
     app_file = Path(result["app_file"])
@@ -166,7 +166,7 @@ async def test_generate_api_without_docstrings(sample_schema, temp_dir):
     assert "def list_tools" in content
 
     # Verify temporary file was cleaned up
-    assert not output_path.exists()
+    assert not output_folder_path.exists()
 
 
 def test_applications_directory_structure():
@@ -224,9 +224,9 @@ async def test_generate_api_with_complex_schema(temp_dir):
     with open(schema_file, "w") as f:
         json.dump(schema, f)
 
-    output_path = temp_dir / "complex.py"
+    output_folder_path = temp_dir / "complex.py"
     result = await generate_api_from_schema(
-        schema_path=schema_file, output_path=output_path, add_docstrings=True
+        schema_path=schema_file, output_folder_path=output_folder_path, add_docstrings=True
     )
 
     app_file = Path(result["app_file"])
