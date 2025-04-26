@@ -12,9 +12,9 @@ IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
 # Remove any rc suffix from PATCH if it exists
 PATCH_NUM=$(echo $PATCH | sed 's/-rc[0-9]*//')
 
-if [ "$BRANCH" = "main" ]; then
+if [ "$BRANCH" = "master" ]; then
     # On main branch - bump patch version
-    NEW_VERSION="$MAJOR.$MINOR.$((PATCH_NUM + 1))"
+    NEW_VERSION="$MAJOR.$MINOR.$PATCH_NUM"
 else
     # On dev branch - bump rc version
     if [[ $PATCH == *"-rc"* ]]; then
@@ -49,3 +49,13 @@ fi
 
 # Push the changes
 git push origin $BRANCH
+
+# Ask user if they want to release
+read -p "Do you want to build and publish the package? (y/N) " RELEASE_CONFIRM
+
+if [[ $RELEASE_CONFIRM =~ ^[Yy]$ ]]; then
+    # Build and publish
+    rm -rf dist && uv build && uv publish
+else
+    echo "Skipping release. Version bump committed and pushed."
+fi
