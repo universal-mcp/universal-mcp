@@ -217,9 +217,6 @@ async def generate_api_from_schema(
 
         if not output_folder_path:
             return {"code": code}
-
-        output_folder_name
-        output_folder_path
         
         if output_folder_path.is_dir():
             temp_file = output_folder_path / f"{output_folder_name}.py"
