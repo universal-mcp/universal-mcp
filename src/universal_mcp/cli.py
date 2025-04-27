@@ -1,6 +1,7 @@
 import asyncio
 import os
 import re
+import subprocess
 from pathlib import Path
 
 import typer
@@ -171,6 +172,7 @@ def init():
         extract_class_name,
         generate_app_py_template,
         generate_main_py_template,
+        generate_push_script_template,
         generate_pyproject_template,
         generate_readme_template,
         generate_test_template,
@@ -223,7 +225,7 @@ def init():
                         schema_path=schema_path,
                         output_folder_path=src_base_dir,
                         output_folder_name=app_name,
-                        add_docstrings=True,
+                        add_docstrings=False,
                     )
                 )
                 typer.secho(f"\u2705 API client successfully generated inside {src_base_dir}!", fg=typer.colors.GREEN)
@@ -271,8 +273,25 @@ def init():
         )
 
         (src_dir / "__main__.py").write_text(main_py_content)
+        
+        push_script_content = generate_push_script_template(app_name)
+        push_script_path = base_dir / "push_on_agentr.sh"
+        push_script_path.write_text(push_script_content)
+
+        os.chmod(push_script_path, 0o755)
+        typer.secho(f"\u2705 Created executable push script {push_script_path}.", fg=typer.colors.GREEN)
     
         typer.secho(f"\u2705 Project 'universal-mcp-{app_name}' initialization completed successfully at {path_input} !", fg=typer.colors.GREEN)
+
+        should_push = typer.confirm("Do you want to push the project to AgentR GitHub now?")
+        if should_push:
+            try:
+                subprocess.run(["./push_on_agentr.sh"], cwd=base_dir, check=True)
+                typer.secho("\u2705 Project successfully pushed to AgentR GitHub!", fg=typer.colors.GREEN)
+            except subprocess.CalledProcessError as e:
+                typer.secho(f"\u274c Error while pushing project: {e}", fg=typer.colors.RED)
+        else:
+            typer.secho(f"\u2139\ufe0f You can push the project later by running: ./push_on_agentr.sh inside {base_dir}", fg=typer.colors.BLUE)
 
     except FileExistsError as e:
         typer.secho(f"\u274c Error: Directory '{base_dir}' already exists.", fg=typer.colors.RED)
