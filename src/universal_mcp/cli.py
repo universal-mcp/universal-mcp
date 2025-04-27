@@ -1,3 +1,4 @@
+import ast
 import asyncio
 import os
 import re
@@ -15,6 +16,14 @@ from universal_mcp.utils.installation import (
 
 app = typer.Typer()
 
+def extract_class_name(file_path):
+    """Extract the first class name from a Python file."""
+    with open(file_path) as f:
+        tree = ast.parse(f.read())
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef):
+            return node.name
+    raise ValueError("No class found in app.py")
 
 @app.command()
 def generate(
@@ -167,18 +176,34 @@ def install(app_name: str = typer.Argument(..., help="Name of app to install")):
 
 @app.command()
 def init():
-    """Interactively initialize a new MCP project with validation."""
-    app_name = typer.prompt("Enter the app name", default="app_name", prompt_suffix=" (e.g., reddit, youtube): ").strip()
+    """Interactively initialize a new MCP project with populated __main__.py and README."""
+    from universal_mcp.utils.templates import (
+        generate_app_py_template,
+        generate_main_py_template,
+        generate_pyproject_template,
+        generate_readme_template,
+        generate_test_template,
+    )
+
+    app_name = typer.prompt(
+        "Enter the app name",
+        default="app_name",
+        prompt_suffix=" (e.g., reddit, youtube): "
+    ).strip()
 
     if not re.match(r"^[a-zA-Z0-9_]+$", app_name):
-        typer.secho("❌ Error: App name should only contain letters, numbers, and underscores (no spaces or special characters).", fg=typer.colors.RED)
+        typer.secho("\u274c Error: App name should only contain letters, numbers, and underscores (no spaces or special characters).", fg=typer.colors.RED)
         raise typer.Exit(1)
 
-    path_input = typer.prompt("Enter the path to create the project", default=".", prompt_suffix=" (e.g., /home/user/Desktop): ").strip()
+    path_input = typer.prompt(
+        "Enter the path to create the project",
+        default=".",
+        prompt_suffix=" (e.g., /home/user/Desktop): "
+    ).strip()
     path = Path(path_input)
 
     if not path.exists() or not path.is_dir():
-        typer.secho(f"❌ Error: Provided path '{path}' does not exist or is not a directory.", fg=typer.colors.RED)
+        typer.secho(f"\u274c Error: Provided path '{path}' does not exist or is not a directory.", fg=typer.colors.RED)
         raise typer.Exit(1)
 
     base_dir = path / f"universal-mcp-{app_name}"
@@ -186,7 +211,7 @@ def init():
     tests_dir = base_dir / "src" / "tests"
 
     try:
-        typer.secho(f"✅ Project 'universal-mcp-{app_name}' initialized successfully at {base_dir}!", fg=typer.colors.GREEN)
+        typer.secho(f"\u2705 Project 'universal-mcp-{app_name}' initialized successfully at {path_input} !", fg=typer.colors.GREEN)
 
         has_openapi = typer.confirm("Do you have an openapi.json you want to use to populate the project?")
 
@@ -195,53 +220,74 @@ def init():
             schema_path = Path(schema_input)
 
             if not schema_path.exists() or not schema_path.is_file():
-                typer.secho(f"❌ Error: Provided schema path '{schema_path}' does not exist or is not a file.", fg=typer.colors.RED)
+                typer.secho(f"\u274c Error: Provided schema path '{schema_path}' does not exist or is not a file.", fg=typer.colors.RED)
                 raise typer.Exit(1)
 
             from universal_mcp.utils.api_generator import generate_api_from_schema
-            src_dir = base_dir / "src" 
-            src_dir.mkdir(parents=True, exist_ok=False)
+            src_base_dir = base_dir / "src"
+            src_base_dir.mkdir(parents=True, exist_ok=False)
             try:
                 asyncio.run(
                     generate_api_from_schema(
                         schema_path=schema_path,
-                        output_folder_path=src_dir,
+                        output_folder_path=src_base_dir,
                         output_folder_name=app_name,
                         add_docstrings=True,
                     )
                 )
-                typer.secho(f"✅ API client successfully generated inside {src_dir}!", fg=typer.colors.GREEN)
+                typer.secho(f"\u2705 API client successfully generated inside {src_base_dir}!", fg=typer.colors.GREEN)
             except Exception as e:
-                typer.secho(f"❌ Error generating API client: {e}", fg=typer.colors.RED)
+                typer.secho(f"\u274c Error generating API client: {e}", fg=typer.colors.RED)
                 raise typer.Exit(1) from e
-
-            (src_dir/app_name/ "__main__.py").write_text("from .app import main\n\nif __name__ == '__main__':\n    main()")
-
-            tests_dir.mkdir(parents=True, exist_ok=False)
-            (tests_dir / f"test_{app_name}.py").write_text("def test_dummy():\n    assert True\n")
-
-            (base_dir / "pyproject.toml").write_text(f"[project]\nname = 'universal-mcp-{app_name}'\nversion = '0.1.0'\n")
-            (base_dir / "README.md").write_text("# MCP inspector \n\nGenerated by MCP CLI.")
-
         else:
             src_dir.mkdir(parents=True, exist_ok=False)
-            tests_dir.mkdir(parents=True, exist_ok=False)
-
-            (base_dir / "pyproject.toml").write_text(f"[project]\nname = 'universal-mcp-{app_name}'\nversion = '0.1.0'\n")
-            (base_dir / "README.md").write_text("# MCP inspector \n\nGenerated by MCP CLI.")
-
             (src_dir / "__init__.py").write_text("")
-            (src_dir / "__main__.py").write_text("from .app import main\n\nif __name__ == '__main__':\n    main()")
-            (src_dir / "app.py").write_text(f"def main():\n    print('Hello from {app_name}!')\n")
-            (src_dir / "README.md").write_text(f"# Universal MCP {app_name.capitalize()}\n\nGenerated by MCP CLI.")
+            app_class_name = f"{app_name.capitalize()}App"
+            (src_dir / "app.py").write_text(generate_app_py_template(app_class_name, app_name))
 
-            (tests_dir / f"test_{app_name}.py").write_text("def test_dummy():\n    assert True\n")
+        try:
+            app_class = extract_class_name(src_dir / "app.py")
+        except Exception as e:
+            typer.secho(f"\u26a0\ufe0f Warning: Could not extract class name from app.py: {e}", fg=typer.colors.YELLOW)
+            app_class = f"{app_name.capitalize()}App"
+
+        tests_dir.mkdir(parents=True, exist_ok=False)
+        (tests_dir / f"test_{app_name}.py").write_text(generate_test_template(app_name))
+        (base_dir / "pyproject.toml").write_text(generate_pyproject_template(app_name))
+        (base_dir / "README.md").write_text(generate_readme_template(app_name))
+
+        integration_type = typer.prompt(
+            "Choose the integration type (api_key, agentr, oauth, none)",
+            default="agentr"
+        )
+
+        integration_mapping = {
+            "api_key": "ApiKeyIntegration",
+            "agentr": "AgentRIntegration",
+            "none": None,
+        }
+
+        integration_class = integration_mapping.get(integration_type)
+        if integration_class is None and integration_type != "none":
+            typer.secho(f"\u274c Error: Unsupported integration type '{integration_type}'.", fg=typer.colors.RED)
+            raise typer.Exit(1)
+
+        main_py_content = generate_main_py_template(
+            app_name=app_name,
+            app_class=app_class,
+            integration_type=integration_type,
+            integration_class=integration_class
+        )
+
+        (src_dir / "__main__.py").write_text(main_py_content)
+    
+        typer.secho(f"\u2705 Project 'universal-mcp-{app_name}' initialization completed successfully at {path_input} !", fg=typer.colors.GREEN)
 
     except FileExistsError as e:
-        typer.secho(f"❌ Error: Directory '{base_dir}' already exists.", fg=typer.colors.RED)
+        typer.secho(f"\u274c Error: Directory '{base_dir}' already exists.", fg=typer.colors.RED)
         raise typer.Exit(1) from e
     except Exception as e:
-        typer.secho(f"❌ Error initializing project: {e}", fg=typer.colors.RED)
+        typer.secho(f"\u274c Error: {e}", fg=typer.colors.RED)
         raise typer.Exit(1) from e
 
 if __name__ == "__main__":
