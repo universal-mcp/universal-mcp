@@ -1,10 +1,15 @@
+from contextlib import asynccontextmanager
 import json
 import os
 from collections.abc import AsyncGenerator, Generator
 from typing import Any
+from uuid import UUID, uuid4
 
-import httpx
+from langchain_core.messages import HumanMessage
+from langchain_core.runnables import RunnableConfig
 
+from playground.agents.react import create_agent
+from playground.memory import initialize_database
 from playground.schema import (
     ChatHistory,
     ChatHistoryInput,
@@ -12,6 +17,21 @@ from playground.schema import (
     StreamInput,
     UserInput,
 )
+from playground.utils import (
+    convert_message_content_to_string,
+    langchain_to_chat_message,
+    remove_tool_calls,
+)
+from langgraph.types import Command
+
+@asynccontextmanager
+async def create_agent_client():
+    async with create_agent() as react_agent, initialize_database() as saver:
+        await saver.setup()
+        agent = react_agent
+        agent.checkpointer = saver
+        client = AgentClient(agent=agent)
+        yield client
 
 
 class AgentClientError(Exception):
@@ -19,49 +39,29 @@ class AgentClientError(Exception):
 
 
 class AgentClient:
-    """Client for interacting with the agent service."""
+    """Client for interacting with the agent directly."""
 
     def __init__(
         self,
-        base_url: str = "http://0.0.0.0",
-        timeout: float | None = None,
+        agent
     ) -> None:
         """
         Initialize the client.
 
         Args:
-            base_url (str): The base URL of the agent service.
-            agent (str): The name of the default agent to use.
-            timeout (float, optional): The timeout for requests.
-            get_info (bool, optional): Whether to fetch agent information on init.
-                Default: True
+            agent (Agent): The agent to use.
         """
-        self.base_url = base_url
-        self.auth_secret = os.getenv("AUTH_SECRET")
-        self.timeout = timeout
-
-    @property
-    def _headers(self) -> dict[str, str]:
-        headers = {}
-        if self.auth_secret:
-            headers["Authorization"] = f"Bearer {self.auth_secret}"
-        return headers
+        self.agent = agent
 
     def retrieve_info(self) -> None:
-        try:
-            response = httpx.get(
-                f"{self.base_url}/info",
-                headers=self._headers,
-                timeout=self.timeout,
-            )
-            response.raise_for_status()
-        except httpx.HTTPError as e:
-            raise AgentClientError(f"Error getting service info: {e}") from e
+        """Get information about the agent."""
+        # This is a placeholder method that doesn't need to do anything
+        # since we're directly using the agent
+        pass
 
     async def ainvoke(
         self,
         message: str,
-        model: str | None = None,
         thread_id: str | None = None,
         agent_config: dict[str, Any] | None = None,
     ) -> ChatMessage:
@@ -70,36 +70,40 @@ class AgentClient:
 
         Args:
             message (str): The message to send to the agent
-            model (str, optional): LLM model to use for the agent
             thread_id (str, optional): Thread ID for continuing a conversation
             agent_config (dict[str, Any], optional): Additional configuration to pass through to the agent
 
         Returns:
-            AnyMessage: The response from the agent
+            ChatMessage: The response from the agent
         """
-        request = UserInput(message=message)
-        if thread_id:
-            request.thread_id = thread_id
-        if agent_config:
-            request.agent_config = agent_config
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.post(
-                    f"{self.base_url}/invoke",
-                    json=request.model_dump(),
-                    headers=self._headers,
-                    timeout=self.timeout,
-                )
-                response.raise_for_status()
-            except httpx.HTTPError as e:
-                raise AgentClientError(f"Error: {e}") from e
+        run_id = uuid4()
+        thread_id = thread_id or str(uuid4())
 
-        return ChatMessage.model_validate(response.json())
+        configurable = {"thread_id": thread_id}
+        if agent_config:
+            if overlap := configurable.keys() & agent_config.keys():
+                raise AgentClientError(f"agent_config contains reserved keys: {overlap}")
+            configurable.update(agent_config)
+
+        kwargs = {
+            "input": {"messages": [HumanMessage(content=message)]},
+            "config": RunnableConfig(
+                configurable=configurable,
+                run_id=run_id,
+            ),
+        }
+        
+        try:
+            response = await self.agent.ainvoke(**kwargs)
+            output = langchain_to_chat_message(response["messages"][-1])
+            output.run_id = str(run_id)
+            return output
+        except Exception as e:
+            raise AgentClientError(f"Error invoking agent: {e}") from e
 
     def invoke(
         self,
         message: str,
-        model: str | None = None,
         thread_id: str | None = None,
         agent_config: dict[str, Any] | None = None,
     ) -> ChatMessage:
@@ -108,34 +112,44 @@ class AgentClient:
 
         Args:
             message (str): The message to send to the agent
-            model (str, optional): LLM model to use for the agent
             thread_id (str, optional): Thread ID for continuing a conversation
             agent_config (dict[str, Any], optional): Additional configuration to pass through to the agent
 
         Returns:
             ChatMessage: The response from the agent
         """
-        request = UserInput(message=message)
-        if thread_id:
-            request.thread_id = thread_id
-        if model:
-            request.model = model
-        if agent_config:
-            request.agent_config = agent_config
-        try:
-            response = httpx.post(
-                f"{self.base_url}/invoke",
-                json=request.model_dump(),
-                headers=self._headers,
-                timeout=self.timeout,
-            )
-            response.raise_for_status()
-        except httpx.HTTPError as e:
-            raise AgentClientError(f"Error: {e}") from e
+        run_id = uuid4()
+        thread_id = thread_id or str(uuid4())
 
-        return ChatMessage.model_validate(response.json())
+        configurable = {"thread_id": thread_id}
+        if agent_config:
+            if overlap := configurable.keys() & agent_config.keys():
+                raise AgentClientError(f"agent_config contains reserved keys: {overlap}")
+            configurable.update(agent_config)
+
+        kwargs = {
+            "input": {"messages": [HumanMessage(content=message)]},
+            "config": RunnableConfig(
+                configurable=configurable,
+                run_id=run_id,
+            ),
+        }
+        
+        try:
+            response = self.agent.invoke(**kwargs)
+            output = langchain_to_chat_message(response["messages"][-1])
+            output.run_id = str(run_id)
+            return output
+        except Exception as e:
+            raise AgentClientError(f"Error invoking agent: {e}") from e
 
     def _parse_stream_line(self, line: str) -> ChatMessage | str | None:
+        """
+        Parse a line from the stream.
+        
+        This method is kept for compatibility but is no longer used
+        since we're directly streaming from the agent.
+        """
         line = line.strip()
         if line.startswith("data: "):
             data = line[6:]
@@ -144,16 +158,14 @@ class AgentClient:
             try:
                 parsed = json.loads(data)
             except Exception as e:
-                raise Exception(f"Error JSON parsing message from server: {e}") from e
+                raise Exception(f"Error JSON parsing message: {e}") from e
             match parsed["type"]:
                 case "message":
-                    # Convert the JSON formatted message to an AnyMessage
                     try:
                         return ChatMessage.model_validate(parsed["content"])
                     except Exception as e:
-                        raise Exception(f"Server returned invalid message: {e}") from e
+                        raise Exception(f"Invalid message format: {e}") from e
                 case "token":
-                    # Yield the str token directly
                     return parsed["content"]
                 case "error":
                     raise Exception(parsed["content"])
@@ -162,7 +174,6 @@ class AgentClient:
     def stream(
         self,
         message: str,
-        model: str | None = None,
         thread_id: str | None = None,
         agent_config: dict[str, Any] | None = None,
         stream_tokens: bool = True,
@@ -176,7 +187,6 @@ class AgentClient:
 
         Args:
             message (str): The message to send to the agent
-            model (str, optional): LLM model to use for the agent
             thread_id (str, optional): Thread ID for continuing a conversation
             agent_config (dict[str, Any], optional): Additional configuration to pass through to the agent
             stream_tokens (bool, optional): Stream tokens as they are generated
@@ -185,35 +195,80 @@ class AgentClient:
         Returns:
             Generator[ChatMessage | str, None, None]: The response from the agent
         """
-        request = StreamInput(message=message, stream_tokens=stream_tokens)
-        if thread_id:
-            request.thread_id = thread_id
-        if model:
-            request.model = model
+        run_id = uuid4()
+        thread_id = thread_id or str(uuid4())
+
+        configurable = {"thread_id": thread_id}
         if agent_config:
-            request.agent_config = agent_config
+            if overlap := configurable.keys() & agent_config.keys():
+                raise AgentClientError(f"agent_config contains reserved keys: {overlap}")
+            configurable.update(agent_config)
+
+        kwargs = {
+            "input": {"messages": [HumanMessage(content=message)]},
+            "config": RunnableConfig(
+                configurable=configurable,
+                run_id=run_id,
+            ),
+        }
+        
         try:
-            with httpx.stream(
-                "POST",
-                f"{self.base_url}/stream",
-                json=request.model_dump(),
-                headers=self._headers,
-                timeout=self.timeout,
-            ) as response:
-                response.raise_for_status()
-                for line in response.iter_lines():
-                    if line.strip():
-                        parsed = self._parse_stream_line(line)
-                        if parsed is None:
-                            break
-                        yield parsed
-        except httpx.HTTPError as e:
-            raise AgentClientError(f"Error: {e}") from e
+            for event in self.agent.stream_events(**kwargs, version="v2"):
+                if not event:
+                    continue
+
+                new_messages = []
+                # Yield messages written to the graph state after node execution finishes.
+                if (
+                    event["event"] == "on_chain_end"
+                    # on_chain_end gets called a bunch of times in a graph execution
+                    # This filters out everything except for "graph node finished"
+                    and any(t.startswith("graph:step:") for t in event.get("tags", []))
+                ):
+                    if isinstance(event["data"]["output"], Command):
+                        new_messages = event["data"]["output"].update.get("messages", [])
+                    elif "messages" in event["data"]["output"]:
+                        new_messages = event["data"]["output"]["messages"]
+
+                # Also yield intermediate messages from agents.utils.CustomData.adispatch().
+                if event["event"] == "on_custom_event" and "custom_data_dispatch" in event.get(
+                    "tags", []
+                ):
+                    new_messages = [event["data"]]
+
+                for message in new_messages:
+                    try:
+                        chat_message = langchain_to_chat_message(message)
+                        chat_message.run_id = str(run_id)
+                    except Exception as e:
+                        yield f"data: {json.dumps({'type': 'error', 'content': 'Unexpected error'})}\n\n"
+                        continue
+                    # LangGraph re-sends the input message, which feels weird, so drop it
+                    if (
+                        chat_message.type == "human"
+                        and chat_message.content == message
+                    ):
+                        continue
+                    yield chat_message
+
+                # Yield tokens streamed from LLMs.
+                if (
+                    event["event"] == "on_chat_model_stream"
+                    and stream_tokens
+                    and "llama_guard" not in event.get("tags", [])
+                ):
+                    content = remove_tool_calls(event["data"]["chunk"].content)
+                    if content:
+                        # Empty content in the context of OpenAI usually means
+                        # that the model is asking for a tool to be invoked.
+                        # So we only print non-empty content.
+                        yield convert_message_content_to_string(content)
+        except Exception as e:
+            raise AgentClientError(f"Error streaming from agent: {e}") from e
 
     async def astream(
         self,
         message: str,
-        model: str | None = None,
         thread_id: str | None = None,
         agent_config: dict[str, Any] | None = None,
         stream_tokens: bool = True,
@@ -221,13 +276,12 @@ class AgentClient:
         """
         Stream the agent's response asynchronously.
 
-        Each intermediate message of the agent process is yielded as an AnyMessage.
+        Each intermediate message of the agent process is yielded as a ChatMessage.
         If stream_tokens is True (the default value), the response will also yield
-        content tokens from streaming modelsas they are generated.
+        content tokens from streaming models as they are generated.
 
         Args:
             message (str): The message to send to the agent
-            model (str, optional): LLM model to use for the agent
             thread_id (str, optional): Thread ID for continuing a conversation
             agent_config (dict[str, Any], optional): Additional configuration to pass through to the agent
             stream_tokens (bool, optional): Stream tokens as they are generated
@@ -236,32 +290,76 @@ class AgentClient:
         Returns:
             AsyncGenerator[ChatMessage | str, None]: The response from the agent
         """
+        run_id = uuid4()
+        thread_id = thread_id or str(uuid4())
 
-        request = StreamInput(message=message, stream_tokens=stream_tokens)
-        if thread_id:
-            request.thread_id = thread_id
-        if model:
-            request.model = model
+        configurable = {"thread_id": thread_id}
         if agent_config:
-            request.agent_config = agent_config
-        async with httpx.AsyncClient() as client:
-            try:
-                async with client.stream(
-                    "POST",
-                    f"{self.base_url}/stream",
-                    json=request.model_dump(),
-                    headers=self._headers,
-                    timeout=self.timeout,
-                ) as response:
-                    response.raise_for_status()
-                    async for line in response.aiter_lines():
-                        if line.strip():
-                            parsed = self._parse_stream_line(line)
-                            if parsed is None:
-                                break
-                            yield parsed
-            except httpx.HTTPError as e:
-                raise AgentClientError(f"Error: {e}") from e
+            if overlap := configurable.keys() & agent_config.keys():
+                raise AgentClientError(f"agent_config contains reserved keys: {overlap}")
+            configurable.update(agent_config)
+
+        kwargs = {
+            "input": {"messages": [HumanMessage(content=message)]},
+            "config": RunnableConfig(
+                configurable=configurable,
+                run_id=run_id,
+            ),
+        }
+        
+        try:
+            async for event in self.agent.astream_events(**kwargs, version="v2"):
+                if not event:
+                    continue
+
+                new_messages = []
+                # Yield messages written to the graph state after node execution finishes.
+                if (
+                    event["event"] == "on_chain_end"
+                    # on_chain_end gets called a bunch of times in a graph execution
+                    # This filters out everything except for "graph node finished"
+                    and any(t.startswith("graph:step:") for t in event.get("tags", []))
+                ):
+                    if isinstance(event["data"]["output"], Command):
+                        new_messages = event["data"]["output"].update.get("messages", [])
+                    elif "messages" in event["data"]["output"]:
+                        new_messages = event["data"]["output"]["messages"]
+
+                # Also yield intermediate messages from agents.utils.CustomData.adispatch().
+                if event["event"] == "on_custom_event" and "custom_data_dispatch" in event.get(
+                    "tags", []
+                ):
+                    new_messages = [event["data"]]
+
+                for message in new_messages:
+                    try:
+                        chat_message = langchain_to_chat_message(message)
+                        chat_message.run_id = str(run_id)
+                    except Exception as e:
+                        yield f"data: {json.dumps({'type': 'error', 'content': 'Unexpected error'})}\n\n"
+                        continue
+                    # LangGraph re-sends the input message, which feels weird, so drop it
+                    if (
+                        chat_message.type == "human"
+                        and chat_message.content == message
+                    ):
+                        continue
+                    yield chat_message
+
+                # Yield tokens streamed from LLMs.
+                if (
+                    event["event"] == "on_chat_model_stream"
+                    and stream_tokens
+                    and "llama_guard" not in event.get("tags", [])
+                ):
+                    content = remove_tool_calls(event["data"]["chunk"].content)
+                    if content:
+                        # Empty content in the context of OpenAI usually means
+                        # that the model is asking for a tool to be invoked.
+                        # So we only print non-empty content.
+                        yield convert_message_content_to_string(content)
+        except Exception as e:
+            raise AgentClientError(f"Error streaming from agent: {e}") from e
 
     def get_history(
         self,
@@ -271,18 +369,20 @@ class AgentClient:
         Get chat history.
 
         Args:
-            thread_id (str, optional): Thread ID for identifying a conversation
+            thread_id (str): Thread ID for identifying a conversation
         """
-        request = ChatHistoryInput(thread_id=thread_id)
         try:
-            response = httpx.post(
-                f"{self.base_url}/history",
-                json=request.model_dump(),
-                headers=self._headers,
-                timeout=self.timeout,
+            state_snapshot = self.agent.get_state(
+                config=RunnableConfig(
+                    configurable={
+                        "thread_id": thread_id,
+                    }
+                )
             )
-            response.raise_for_status()
-        except httpx.HTTPError as e:
-            raise AgentClientError(f"Error: {e}") from e
-
-        return ChatHistory.model_validate(response.json())
+            messages = state_snapshot.values["messages"]
+            chat_messages = [
+                langchain_to_chat_message(m) for m in messages
+            ]
+            return ChatHistory(messages=chat_messages)
+        except Exception as e:
+            raise AgentClientError(f"Error getting history: {e}") from e

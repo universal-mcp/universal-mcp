@@ -8,19 +8,14 @@ def main():
     processes = []
 
     # Start MCP server first
-    mcp_process = subprocess.Popen(["universal_mcp", "run", "-c", "local_config.json"])
-    processes.append(mcp_process)
-    time.sleep(6)  # Give MCP server time to start
-    logger.info("MCP server started")
+    # Ask the user if they want to run the MCP server
+    run_mcp_server = input("Do you want to run the MCP server? (y/n): ")
+    if run_mcp_server == "y":
+        mcp_process = subprocess.Popen(["universal_mcp", "run", "-c", "local_config.json"])
+        processes.append(mcp_process)
+        time.sleep(6)  # Give MCP server time to start
+        logger.info("MCP server started")
 
-    # Start FastAPI app second
-    fastapi_process = subprocess.Popen(
-        ["fastapi", "run", "src/playground", "--port", "8003"]
-    )
-    processes.append(fastapi_process)
-    time.sleep(3)  # Give FastAPI time to start
-    logger.info("FastAPI app started")
-    # Start Streamlit app last
     streamlit_process = subprocess.Popen(
         ["streamlit", "run", "src/playground/streamlit.py"]
     )
