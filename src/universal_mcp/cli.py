@@ -252,7 +252,7 @@ def init():
             app_class = f"{app_name.capitalize()}App"
 
         tests_dir.mkdir(parents=True, exist_ok=False)
-        (tests_dir / f"test_{app_name}.py").write_text(generate_test_template(app_name))
+        (tests_dir / f"test_{app_name}.py").write_text(generate_test_template(app_name, app_class))
         (base_dir / "pyproject.toml").write_text(generate_pyproject_template(app_name))
         (base_dir / "README.md").write_text(generate_readme_template(app_name))
 
