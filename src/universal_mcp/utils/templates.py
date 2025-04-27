@@ -1,3 +1,15 @@
+import ast
+
+
+def extract_class_name(file_path):
+    """Extract the first class name from a Python file."""
+    with open(file_path) as f:
+        tree = ast.parse(f.read())
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef):
+            return node.name
+    raise ValueError("No class found in app.py")
+
 def generate_app_py_template(app_class_name: str, app_name:str) -> str:
     return f"""from universal_mcp.applications.application import APIApplication
     

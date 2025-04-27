@@ -1,4 +1,3 @@
-import ast
 import asyncio
 import os
 import re
@@ -15,15 +14,6 @@ from universal_mcp.utils.installation import (
 )
 
 app = typer.Typer()
-
-def extract_class_name(file_path):
-    """Extract the first class name from a Python file."""
-    with open(file_path) as f:
-        tree = ast.parse(f.read())
-    for node in tree.body:
-        if isinstance(node, ast.ClassDef):
-            return node.name
-    raise ValueError("No class found in app.py")
 
 @app.command()
 def generate(
@@ -178,6 +168,7 @@ def install(app_name: str = typer.Argument(..., help="Name of app to install")):
 def init():
     """Interactively initialize a new MCP project with populated __main__.py and README."""
     from universal_mcp.utils.templates import (
+        extract_class_name,
         generate_app_py_template,
         generate_main_py_template,
         generate_pyproject_template,
