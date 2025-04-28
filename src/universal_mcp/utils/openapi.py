@@ -208,6 +208,11 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
     # Extract path parameters from the URL path
     path_params_in_url = re.findall(r"{([^}]+)}", path)
 
+    # Map transformed path param names (underscores) back to original (hyphens)
+    path_param_map = {
+        name.replace("-", "_"): name for name in path_params_in_url
+    }
+
     # Determine function name
     if "operationId" in operation:
         raw_name = operation["operationId"]
@@ -347,15 +352,16 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
     required_args = []
     optional_args = []
 
-    # Add path parameters
-    for param_name in path_params_in_url:
-        if param_name not in required_args:
-            required_args.append(param_name)
+    # Add path parameters 
+    for transformed_name in path_param_map.keys():
+        if transformed_name not in required_args:
+            required_args.append(transformed_name)
 
-    # Add query parameters
     for param in parameters:
+        if param.get("in") == "path":
+            continue
         param_name = param["name"]
-        if param_name not in required_args:
+        if param_name not in required_args and param_name not in [p.split('=')[0] for p in optional_args]:
             if param.get("required", False):
                 required_args.append(param_name)
             else:
@@ -408,11 +414,11 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
     # Build method body
     body_lines = []
 
-    # Validate required parameters including path parameters
     for param_name in required_args:
+        original_param_name = path_param_map.get(param_name, param_name)
         body_lines.append(f"        if {param_name} is None:")
         body_lines.append(
-            f"            raise ValueError(\"Missing required parameter '{param_name}'\")"
+            f"            raise ValueError(\"Missing required parameter '{original_param_name}'\")" # Use original name in error
         )
 
     # Build request body (handle array and object types differently)
@@ -437,10 +443,12 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
             )
 
     # Format URL directly with path parameters
-    url_line = f'        url = f"{{self.base_url}}{path}"'
+    formatted_path = path
+    for transformed_name, original_name in path_param_map.items():
+        formatted_path = formatted_path.replace(f"{{{original_name}}}", f"{{{transformed_name}}}")
+    url_line = f'        url = f"{{self.base_url}}{formatted_path}"'
     body_lines.append(url_line)
 
-    # Query parameters
     query_params = [p for p in parameters if p["in"] == "query"]
     if query_params:
         query_params_items = ", ".join(
