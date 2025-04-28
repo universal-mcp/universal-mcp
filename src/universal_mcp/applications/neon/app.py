@@ -23,7 +23,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP response indicates an unsuccessful status code.
         
         Tags:
-            list, api-keys, management, important
+            list, api-keys, management
         """
         url = f"{self.base_url}/api_keys"
         query_params = {}
@@ -46,7 +46,7 @@ class NeonApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            create, api, authentication, management, important
+            create, api, authentication, management
         """
         if key_name is None:
             raise ValueError("Missing required parameter 'key_name'")
@@ -75,7 +75,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: If the API request fails with a non-success status code.
         
         Tags:
-            revoke, api-key, management, important
+            revoke, api-key, management
         """
         if key_id is None:
             raise ValueError("Missing required parameter 'key_id'")
@@ -101,7 +101,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails or returns an error status code.
         
         Tags:
-            get, operation, project-management, api, important
+            get, operation, project-management, api
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -154,7 +154,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: If the HTTP request to create the project fails with a non-success status code.
         
         Tags:
-            create, project-management, api, important
+            create, project-management, api
         """
         if project is None:
             raise ValueError("Missing required parameter 'project'")
@@ -233,7 +233,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the API request fails or returns an error status code.
         
         Tags:
-            update, project-management, api, patch, important
+            update, project-management, api, patch
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -264,7 +264,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: If the HTTP request to delete the project fails.
         
         Tags:
-            delete, project-management, important
+            delete, project-management
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -316,7 +316,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: If the HTTP request to fetch permissions fails.
         
         Tags:
-            list, permissions, project, api, important
+            list, permissions, project, api
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -342,7 +342,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request for granting permission fails with a non-success status code.
         
         Tags:
-            grant, permission, project-management, api, post-request, important
+            grant, permission, project-management, api, post-request
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -374,7 +374,7 @@ class NeonApp(APIApplication):
             HTTPError: Raised if the API request fails with an HTTP error response.
         
         Tags:
-            revoke, permission, project, api, management, important
+            revoke, permission, project, api, management
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -401,7 +401,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: If the HTTP request to fetch the JWKS fails with a non-success status code.
         
         Tags:
-            get, jwks, project, http, fetch, important
+            get, jwks, project, http, fetch
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -431,7 +431,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to add the JWKS provider fails with a non-2xx status code.
         
         Tags:
-            add, jwks, authentication, management, important
+            add, jwks, authentication, management
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -469,7 +469,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request for deletion fails with an unsuccessful status code.
         
         Tags:
-            delete, jwks, management, important
+            delete, jwks, management
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -501,7 +501,7 @@ class NeonApp(APIApplication):
             HTTPError: If the HTTP request to retrieve the connection URI fails (propagated from the requests library).
         
         Tags:
-            get, connection-uri, database, management, important
+            get, connection-uri, database, management
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -531,7 +531,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request returns an unsuccessful status code.
         
         Tags:
-            get, branch, project, management, important
+            get, branch, project, management
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -559,7 +559,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the API request fails with an unsuccessful HTTP status code.
         
         Tags:
-            delete, branch-management, api, important
+            delete, branch-management, api
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -588,7 +588,7 @@ class NeonApp(APIApplication):
             HTTPError: If the API request fails.
         
         Tags:
-            update, branch, project, management, important
+            update, branch, project, management
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -626,7 +626,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: If the server responds with an HTTP error status code.
         
         Tags:
-            restore, branch-management, project, important
+            restore, branch-management, project
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -666,7 +666,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: If the underlying HTTP request fails or returns an unsuccessful status code.
         
         Tags:
-            get, schema, project, branch, database, api, fetch, important
+            get, schema, project, branch, database, api, fetch
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -696,7 +696,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to set the default branch fails.
         
         Tags:
-            set, project-management, branch, api, important
+            set, project-management, branch, api
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -724,7 +724,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to retrieve endpoints fails.
         
         Tags:
-            list, branch, projects, endpoint, api, important
+            list, branch, projects, endpoint, api
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -752,7 +752,7 @@ class NeonApp(APIApplication):
             HTTPError: Raised if the HTTP request to retrieve the databases fails.
         
         Tags:
-            list, databases, project-management, branch-management, important
+            list, databases, project-management, branch-management
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -781,7 +781,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: If the HTTP request to create the database fails.
         
         Tags:
-            create, database, project-management, branch, api, important
+            create, database, project-management, branch, api
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -816,7 +816,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to retrieve the database details fails.
         
         Tags:
-            get, database, project-management, branch, api, important
+            get, database, project-management, branch, api
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -848,7 +848,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP PATCH request fails or returns an unsuccessful status code.
         
         Tags:
-            update, database, project, branch, api, management, important
+            update, database, project, branch, api, management
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -885,7 +885,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to delete the database fails.
         
         Tags:
-            delete, database, branch, project, management, important
+            delete, database, branch, project, management
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -915,7 +915,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to retrieve branch roles fails.
         
         Tags:
-            list, branch, roles, management, important
+            list, branch, roles, management
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -944,7 +944,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: If the HTTP request to create the branch role fails (non-2xx status code).
         
         Tags:
-            create, role-management, project, branch, important
+            create, role-management, project, branch
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -979,7 +979,7 @@ class NeonApp(APIApplication):
             HTTPError: Raised when the HTTP request fails.
         
         Tags:
-            get, retrieve, role, management, project, branch, important
+            get, retrieve, role, management, project, branch
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -1010,7 +1010,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to delete the role fails.
         
         Tags:
-            delete, role-management, project, branch, api, important
+            delete, role-management, project, branch, api
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -1041,7 +1041,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request fails with a non-success status code.
         
         Tags:
-            get, retrieve, role-management, password, api, important
+            get, retrieve, role-management, password, api
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -1072,7 +1072,7 @@ class NeonApp(APIApplication):
             HTTPError: Raised if the HTTP request to reset the password fails.
         
         Tags:
-            reset, role-management, project, branch, password, api, important
+            reset, role-management, project, branch, password, api
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -1101,7 +1101,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: If the HTTP request to retrieve VPC endpoints fails.
         
         Tags:
-            list, vpc-endpoints, project, management, important
+            list, vpc-endpoints, project, management
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -1128,7 +1128,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to assign the VPC endpoint fails (non-2xx response).
         
         Tags:
-            assign, vpc-endpoint, project, management, api, important
+            assign, vpc-endpoint, project, management, api
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -1162,7 +1162,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: If the HTTP request to delete the VPC endpoint fails.
         
         Tags:
-            delete, vpc-endpoint, management, api, important
+            delete, vpc-endpoint, management, api
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -1190,7 +1190,7 @@ class NeonApp(APIApplication):
             HTTPError: Raised if the HTTP request to create the endpoint returns an unsuccessful status code.
         
         Tags:
-            create, endpoint, api, project-management, important
+            create, endpoint, api, project-management
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -1221,7 +1221,7 @@ class NeonApp(APIApplication):
             HTTPError: If the HTTP request to fetch endpoints fails.
         
         Tags:
-            list, endpoints, project, api, important
+            list, endpoints, project, api
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -1247,7 +1247,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request fails or an HTTP error status is returned.
         
         Tags:
-            get, endpoint, project, api, important
+            get, endpoint, project, api
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -1275,7 +1275,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to delete the endpoint fails.
         
         Tags:
-            delete, endpoint-management, project-management, important
+            delete, endpoint-management, project-management
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -1304,7 +1304,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP PATCH request fails due to a client or server error.
         
         Tags:
-            update, endpoint-management, project, api, important
+            update, endpoint-management, project, api
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -1338,7 +1338,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: If the HTTP request to start the endpoint fails.
         
         Tags:
-            start, endpoint, project-management, api, important
+            start, endpoint, project-management, api
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -1366,7 +1366,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the POST request to the API fails (non-2xx status code).
         
         Tags:
-            suspend, endpoint, management, api, important
+            suspend, endpoint, management, api
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -1394,7 +1394,7 @@ class NeonApp(APIApplication):
             HTTPError: If the HTTP request to restart the endpoint fails (raised by response.raise_for_status()).
         
         Tags:
-            restart, endpoint-management, project-management, api, important
+            restart, endpoint-management, project-management, api
         """
         if project_id is None:
             raise ValueError("Missing required parameter 'project_id'")
@@ -1421,7 +1421,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to fetch the organization fails (e.g., not found, server error).
         
         Tags:
-            get, organization, api, management, important
+            get, organization, api, management
         """
         if org_id is None:
             raise ValueError("Missing required parameter 'org_id'")
@@ -1447,7 +1447,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request fails with a non-success status code.
         
         Tags:
-            revoke, api-key, management, delete, important
+            revoke, api-key, management, delete
         """
         if org_id is None:
             raise ValueError("Missing required parameter 'org_id'")
@@ -1474,7 +1474,7 @@ class NeonApp(APIApplication):
             HTTPError: If the HTTP request to the API endpoint fails.
         
         Tags:
-            get, list, organization, members, api, important
+            get, list, organization, members, api
         """
         if org_id is None:
             raise ValueError("Missing required parameter 'org_id'")
@@ -1500,7 +1500,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to retrieve the member fails.
         
         Tags:
-            get, organization, member, management, api, important
+            get, organization, member, management, api
         """
         if org_id is None:
             raise ValueError("Missing required parameter 'org_id'")
@@ -1529,7 +1529,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP PATCH request fails.
         
         Tags:
-            update, organization, member-management, role, api, important
+            update, organization, member-management, role, api
         """
         if org_id is None:
             raise ValueError("Missing required parameter 'org_id'")
@@ -1563,7 +1563,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the API response contains an HTTP error status.
         
         Tags:
-            remove, member-management, organization, important
+            remove, member-management, organization
         """
         if org_id is None:
             raise ValueError("Missing required parameter 'org_id'")
@@ -1590,7 +1590,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: If the HTTP request to the remote API fails with a non-success status code.
         
         Tags:
-            get, organization, invitations, api, important
+            get, organization, invitations, api
         """
         if org_id is None:
             raise ValueError("Missing required parameter 'org_id'")
@@ -1616,7 +1616,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails.
         
         Tags:
-            create, invitations, api, organization-management, important
+            create, invitations, api, organization-management
         """
         if org_id is None:
             raise ValueError("Missing required parameter 'org_id'")
@@ -1648,7 +1648,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to retrieve VPC endpoints results in an error status code.
         
         Tags:
-            list, vpc, networking, management, important
+            list, vpc, networking, management
         """
         if org_id is None:
             raise ValueError("Missing required parameter 'org_id'")
@@ -1677,7 +1677,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: If the HTTP request to retrieve details fails with an error status code.
         
         Tags:
-            get, vpc-endpoint, organization, networking, details, important
+            get, vpc-endpoint, organization, networking, details
         """
         if org_id is None:
             raise ValueError("Missing required parameter 'org_id'")
@@ -1709,7 +1709,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails with an error status code.
         
         Tags:
-            assign, vpc-endpoint, label, management, network, api, important
+            assign, vpc-endpoint, label, management, network, api
         """
         if org_id is None:
             raise ValueError("Missing required parameter 'org_id'")
@@ -1746,7 +1746,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to delete the VPC endpoint fails.
         
         Tags:
-            delete, vpc-endpoint, organization, management, important
+            delete, vpc-endpoint, organization, management
         """
         if org_id is None:
             raise ValueError("Missing required parameter 'org_id'")
@@ -1771,7 +1771,7 @@ class NeonApp(APIApplication):
             HTTPError: If the HTTP request fails or returns an unsuccessful status code.
         
         Tags:
-            retrieve, regions, http, get, api, geography, important
+            retrieve, regions, http, get, api, geography
         """
         url = f"{self.base_url}/regions"
         query_params = {}
@@ -1793,7 +1793,7 @@ class NeonApp(APIApplication):
             requests.exceptions.HTTPError: Raised if the HTTP request to the API fails or returns an unsuccessful status code.
         
         Tags:
-            get, user-info, api, important
+            get, user-info, api
         """
         url = f"{self.base_url}/users/me"
         query_params = {}
@@ -1815,7 +1815,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: If the HTTP request to fetch organizations fails or returns an error status code.
         
         Tags:
-            get, organizations, user, api, important
+            get, organizations, user, api
         """
         url = f"{self.base_url}/users/me/organizations"
         query_params = {}
@@ -1839,7 +1839,7 @@ class NeonApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to transfer projects fails.
         
         Tags:
-            transfer, projects, organization, management, important
+            transfer, projects, organization, management
         """
         if org_id is None:
             raise ValueError("Missing required parameter 'org_id'")
