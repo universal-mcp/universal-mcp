@@ -4,9 +4,9 @@ from universal_mcp.applications import APIApplication
 from universal_mcp.integrations import Integration
 
 
-class NeonApiApp(APIApplication):
+class NeonApp(APIApplication):
     def __init__(self, integration: Integration = None, **kwargs) -> None:
-        super().__init__(name='neonapiapp', integration=integration, **kwargs)
+        super().__init__(name='neon', integration=integration, **kwargs)
         self.base_url = "https://console.neon.tech/api/v2"
 
     def list_api_keys(self, ) -> list[Any]:
