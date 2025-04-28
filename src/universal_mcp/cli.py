@@ -106,7 +106,7 @@ def docgen(
 @app.command()
 def run(
     config_path: Path | None = typer.Option(
-        None, "--config", "-c", help="Path to the config file"
+        "local_config.json", "--config", "-c", help="Path to the config file"
     ),
 ):
     """Run the MCP server"""
