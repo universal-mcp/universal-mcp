@@ -1,7 +1,6 @@
 import asyncio
 import os
 import re
-import subprocess
 from pathlib import Path
 
 import typer
@@ -167,137 +166,64 @@ def install(app_name: str = typer.Argument(..., help="Name of app to install")):
 
 @app.command()
 def init():
-    """Interactively initialize a new MCP project with populated __main__.py and README."""
-    from universal_mcp.utils.templates import (
-        extract_class_name,
-        generate_app_py_template,
-        generate_main_py_template,
-        generate_push_script_template,
-        generate_pyproject_template,
-        generate_readme_template,
-        generate_test_template,
-    )
+    from cookiecutter.main import cookiecutter
 
-    app_name = typer.prompt(
-        "Enter the app name",
-        default="app_name",
-        prompt_suffix=" (e.g., reddit, youtube): "
-    ).strip()
-
-    if not re.match(r"^[a-zA-Z0-9_]+$", app_name):
-        typer.secho("\u274c Error: App name should only contain letters, numbers, and underscores (no spaces or special characters).", fg=typer.colors.RED)
-        raise typer.Exit(1)
-
-    path_input = typer.prompt(
-        "Enter the path to create the project",
-        default=".",
-        prompt_suffix=" (e.g., /home/user/Desktop): "
-    ).strip()
-    path = Path(path_input)
-
-    if not path.exists() or not path.is_dir():
-        typer.secho(f"\u274c Error: Provided path '{path}' does not exist or is not a directory.", fg=typer.colors.RED)
-        raise typer.Exit(1)
-
-    base_dir = path / f"universal-mcp-{app_name}"
-    src_dir = base_dir / "src" / app_name
-    tests_dir = base_dir / "src" / "tests"
-
+    """Initialize a new MCP project using the cookiecutter template."""
     try:
-        typer.secho(f"\u2705 Project 'universal-mcp-{app_name}' initialized successfully at {path_input} !", fg=typer.colors.GREEN)
+        app_name = typer.prompt(
+            "Enter the app name",
+            default="app_name",
+            prompt_suffix=" (e.g., reddit, youtube): "
+        ).strip()
 
-        has_openapi = typer.confirm("Do you have an openapi.json you want to use to populate the project?")
-
-        if has_openapi:
-            schema_input = typer.prompt("Enter the path to your openapi.json", prompt_suffix=" (e.g., /home/user/openapi.json): ").strip()
-            schema_path = Path(schema_input)
-
-            if not schema_path.exists() or not schema_path.is_file():
-                typer.secho(f"\u274c Error: Provided schema path '{schema_path}' does not exist or is not a file.", fg=typer.colors.RED)
-                raise typer.Exit(1)
-
-            from universal_mcp.utils.api_generator import generate_api_from_schema
-            src_base_dir = base_dir / "src"
-            src_base_dir.mkdir(parents=True, exist_ok=False)
-            try:
-                asyncio.run(
-                    generate_api_from_schema(
-                        schema_path=schema_path,
-                        output_folder_path=src_base_dir,
-                        output_folder_name=app_name,
-                        add_docstrings=False,
-                    )
-                )
-                typer.secho(f"\u2705 API client successfully generated inside {src_base_dir}!", fg=typer.colors.GREEN)
-            except Exception as e:
-                typer.secho(f"\u274c Error generating API client: {e}", fg=typer.colors.RED)
-                raise typer.Exit(1) from e
-        else:
-            src_dir.mkdir(parents=True, exist_ok=False)
-            (src_dir / "__init__.py").write_text("")
-            app_class_name = f"{app_name.capitalize()}App"
-            (src_dir / "app.py").write_text(generate_app_py_template(app_class_name, app_name))
-
-        try:
-            app_class = extract_class_name(src_dir / "app.py")
-        except Exception as e:
-            typer.secho(f"\u26a0\ufe0f Warning: Could not extract class name from app.py: {e}", fg=typer.colors.YELLOW)
-            app_class = f"{app_name.capitalize()}App"
-
-        tests_dir.mkdir(parents=True, exist_ok=False)
-        (tests_dir / f"test_{app_name}.py").write_text(generate_test_template(app_name, app_class))
-        (base_dir / "pyproject.toml").write_text(generate_pyproject_template(app_name))
-        (base_dir / "README.md").write_text(generate_readme_template(app_name))
-
-        integration_type = typer.prompt(
-            "Choose the integration type (api_key, agentr, oauth, none)",
-            default="agentr"
-        )
-
-        integration_mapping = {
-            "api_key": "ApiKeyIntegration",
-            "agentr": "AgentRIntegration",
-            "none": None,
-        }
-
-        integration_class = integration_mapping.get(integration_type)
-        if integration_class is None and integration_type != "none":
-            typer.secho(f"\u274c Error: Unsupported integration type '{integration_type}'.", fg=typer.colors.RED)
+        if not re.match(r"^[a-zA-Z0-9_-]+$", app_name):
+            typer.secho("\u274c Error: App name should only contain letters, numbers, hyphens, and underscores.", fg=typer.colors.RED)
             raise typer.Exit(1)
 
-        main_py_content = generate_main_py_template(
-            app_name=app_name,
-            app_class=app_class,
-            integration_type=integration_type,
-            integration_class=integration_class
+        class_name = typer.prompt(
+            "Enter the class name, Make sure to use the exact name from the app.py",
+            default="class_name",
+            prompt_suffix=" (e.g., reddit, youtube): "
+        ).strip()
+
+        if not re.match(r"^[a-zA-Z0-9_-]+$", class_name):
+            typer.secho("\u274c Error: App name should only contain letters, numbers, hyphens, and underscores.", fg=typer.colors.RED)
+            raise typer.Exit(1)
+
+        integration_type = typer.prompt(
+            "Choose the integration type (api_key, agentr, none)",
+            default="agentr"
+        )
+     
+        path_input = typer.prompt(
+            "Enter the path to create the project",
+            default="/home/draken/Desktop",
+            prompt_suffix=" (e.g., /home/user/Desktop): "
+        ).strip()
+        output_dir = Path(path_input)
+
+        if not output_dir.exists() or not output_dir.is_dir():
+            typer.secho(f"\u274c Error: Provided path '{path_input}' does not exist or is not a directory.", fg=typer.colors.RED)
+            raise typer.Exit(1)
+
+        typer.secho("🚀 Generating project using cookiecutter template...", fg=typer.colors.BLUE)
+
+        # Call cookiecutter
+        cookiecutter(
+            "https://github.com/AgentrDev/universal-mcp-app-template.git",
+            output_dir=str(output_dir),
+            no_input=True,
+            extra_context={
+                "app_name": app_name,
+                "app_class_name": class_name,
+                "integration_type":integration_type
+            }
         )
 
-        (src_dir / "__main__.py").write_text(main_py_content)
-        
-        push_script_content = generate_push_script_template(app_name)
-        push_script_path = base_dir / "push_on_agentr.sh"
-        push_script_path.write_text(push_script_content)
+        typer.secho(f"✅ Project 'universal-mcp-{app_name}' created successfully at {output_dir}!", fg=typer.colors.GREEN)
 
-        os.chmod(push_script_path, 0o755)
-        typer.secho(f"\u2705 Created executable push script {push_script_path}.", fg=typer.colors.GREEN)
-    
-        typer.secho(f"\u2705 Project 'universal-mcp-{app_name}' initialization completed successfully at {path_input} !", fg=typer.colors.GREEN)
-
-        should_push = typer.confirm("Do you want to push the project to AgentR GitHub now?")
-        if should_push:
-            try:
-                subprocess.run(["./push_on_agentr.sh"], cwd=base_dir, check=True)
-                typer.secho("\u2705 Project successfully pushed to AgentR GitHub!", fg=typer.colors.GREEN)
-            except subprocess.CalledProcessError as e:
-                typer.secho(f"\u274c Error while pushing project: {e}", fg=typer.colors.RED)
-        else:
-            typer.secho(f"\u2139\ufe0f You can push the project later by running: ./push_on_agentr.sh inside {base_dir}", fg=typer.colors.BLUE)
-
-    except FileExistsError as e:
-        typer.secho(f"\u274c Error: Directory '{base_dir}' already exists.", fg=typer.colors.RED)
-        raise typer.Exit(1) from e
     except Exception as e:
-        typer.secho(f"\u274c Error: {e}", fg=typer.colors.RED)
+        typer.secho(f"\u274c Error initializing project: {e}", fg=typer.colors.RED)
         raise typer.Exit(1) from e
 
 if __name__ == "__main__":
