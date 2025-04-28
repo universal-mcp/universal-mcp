@@ -5,6 +5,7 @@ from pathlib import Path
 import typer
 from rich import print as rprint
 from rich.panel import Panel
+import re
 
 from universal_mcp.utils.installation import (
     get_supported_apps,
@@ -167,6 +168,112 @@ def install(app_name: str = typer.Argument(..., help="Name of app to install")):
         typer.echo(f"Error installing app: {e}", err=True)
         raise typer.Exit(1) from e
 
+@app.command()
+def init(
+    output_dir: Path | None = typer.Option(
+        None,
+        "--output-dir",
+        "-o",
+        help="Output directory for the project (must exist)",
+    ),
+    app_name: str|None = typer.Option(
+        None,
+        "--app-name",
+        "-a",
+        help="App name (letters, numbers, hyphens, underscores only)",
+    ),
+    integration_type: str|None = typer.Option(
+        None,
+        "--integration-type",
+        "-i",
+        help="Integration type (api_key, oauth, agentr, none)",
+        case_sensitive=False,
+        show_choices=True,
+    ),
+):
+    """Initialize a new MCP project using the cookiecutter template."""
+    from cookiecutter.main import cookiecutter
+
+    NAME_PATTERN = r"^[a-zA-Z0-9_-]+$"
+
+    def validate_pattern(value: str, field_name: str) -> None:
+        if not re.match(NAME_PATTERN, value):
+            typer.secho(
+                f"❌ Invalid {field_name}; only letters, numbers, hyphens, and underscores allowed.",
+                fg=typer.colors.RED,
+            )
+            raise typer.Exit(code=1)
+
+    # App name
+    if not app_name:
+        app_name = typer.prompt(
+            "Enter the app name",
+            default="app_name",
+            prompt_suffix=" (e.g., reddit, youtube): "
+        ).strip()
+    validate_pattern(app_name, "app name")
+
+    if not output_dir:
+        path_str = typer.prompt(
+            "Enter the output directory for the project",
+            default=str(Path.cwd()),
+            prompt_suffix=": "
+        ).strip()
+        output_dir = Path(path_str)
+    
+    if not output_dir.exists():
+        try:
+            output_dir.mkdir(parents=True, exist_ok=True)
+            typer.secho(
+                f"✅ Created output directory at '{output_dir}'",
+                fg=typer.colors.GREEN,
+            )
+        except Exception as e:
+            typer.secho(
+                f"❌ Failed to create output directory '{output_dir}': {e}",
+                fg=typer.colors.RED,
+            )
+            raise typer.Exit(code=1)
+    elif not output_dir.is_dir():
+        typer.secho(
+            f"❌ Output path '{output_dir}' exists but is not a directory.",
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(code=1)
+
+    # Integration type
+    if not integration_type:
+        integration_type = typer.prompt(
+            "Choose the integration type",
+            default="agentr",
+            prompt_suffix=" (api_key, oauth, agentr, none): "
+        ).lower()
+    if integration_type not in ("api_key", "oauth", "agentr", "none"):
+        typer.secho(
+            "❌ Integration type must be one of: api_key, oauth, agentr, none",
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(code=1)
+    
+
+    typer.secho("🚀 Generating project using cookiecutter...", fg=typer.colors.BLUE)
+    try:
+        cookiecutter(
+            "https://github.com/AgentrDev/universal-mcp-app-template.git",
+            output_dir=str(output_dir),
+            no_input=True,
+            extra_context={
+                "app_name": app_name,
+                "app_class_name": app_name,
+                "integration_type": integration_type,
+            },
+        )
+    except Exception as exc:
+        typer.secho(f"❌ Project generation failed: {exc}", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    project_dir = output_dir / f"universal-mcp-{app_name}"
+    typer.secho(f"✅ Project created at {project_dir}", fg=typer.colors.GREEN)
 
 if __name__ == "__main__":
     app()
