@@ -1,6 +1,8 @@
 from typing import Any
+
 from universal_mcp.applications import APIApplication
 from universal_mcp.integrations import Integration
+
 
 class ShortcutApp(APIApplication):
     def __init__(self, integration: Integration = None, **kwargs) -> None:
@@ -12,7 +14,6 @@ class ShortcutApp(APIApplication):
         return {
             "Shortcut-Token": f"{api_key}",
             "Content-Type": "application/json",
-            "Accept": "application/json",
         }
 
     def list_categories(self, ) -> list[Any]:
@@ -26,7 +27,7 @@ class ShortcutApp(APIApplication):
             HTTPError: If the HTTP request returns a non-successful status code.
         
         Tags:
-            list, categories, api, get
+            list, categories, api, get, important   
         """
         url = f"{self.base_url}/api/v3/categories"
         query_params = {}
@@ -52,7 +53,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the HTTP request fails.
         
         Tags:
-            create, category, management, important
+            create, category, management, 
         """
         if name is None:
             raise ValueError("Missing required parameter 'name'")
@@ -83,7 +84,7 @@ class ShortcutApp(APIApplication):
             ValueError: Raised when the required 'category_public_id' is missing.
         
         Tags:
-            fetch, category, request, important
+            fetch, category, request, 
         """
         if category_public_id is None:
             raise ValueError("Missing required parameter 'category-public-id'")
@@ -111,7 +112,7 @@ class ShortcutApp(APIApplication):
             HTTPError: When the API request fails.
         
         Tags:
-            update, category, management, important
+            update, category, management, 
         """
         if category_public_id is None:
             raise ValueError("Missing required parameter 'category-public-id'")
@@ -142,7 +143,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request fails (e.g., server errors).
         
         Tags:
-            delete, category-management, important
+            delete, category-management, 
         """
         if category_public_id is None:
             raise ValueError("Missing required parameter 'category-public-id'")
@@ -167,7 +168,7 @@ class ShortcutApp(APIApplication):
             HTTPError: When the API request fails.
         
         Tags:
-            list, milestones, category, api, retrieve, important
+            list, milestones, category, api, retrieve, 
         """
         if category_public_id is None:
             raise ValueError("Missing required parameter 'category-public-id'")
@@ -191,7 +192,7 @@ class ShortcutApp(APIApplication):
             ValueError: Raised if the 'category_public_id' is missing.
         
         Tags:
-            list, objectives, category-management, important
+            list, objectives, category-management, 
         """
         if category_public_id is None:
             raise ValueError("Missing required parameter 'category-public-id'")
@@ -212,7 +213,7 @@ class ShortcutApp(APIApplication):
             HTTPError: If the API request fails or returns a non-success status code.
         
         Tags:
-            list, custom-fields, api, important
+            list, custom-fields, api, 
         """
         url = f"{self.base_url}/api/v3/custom-fields"
         query_params = {}
@@ -235,7 +236,7 @@ class ShortcutApp(APIApplication):
             HTTPError: When the API request fails or returns a non-success status code.
         
         Tags:
-            get, retrieve, api, custom-field, important
+            get, retrieve, api, custom-field, 
         """
         if custom_field_public_id is None:
             raise ValueError("Missing required parameter 'custom-field-public-id'")
@@ -267,7 +268,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: If the HTTP request fails, e.g., due to network issues or invalid parameters.
         
         Tags:
-            update, custom-field, management, api, important
+            update, custom-field, management, api, 
         """
         if custom_field_public_id is None:
             raise ValueError("Missing required parameter 'custom-field-public-id'")
@@ -302,7 +303,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: If the HTTP request to delete the custom field fails.
         
         Tags:
-            delete, custom-field, management, api, important
+            delete, custom-field, management, api, 
         """
         if custom_field_public_id is None:
             raise ValueError("Missing required parameter 'custom-field-public-id'")
@@ -326,7 +327,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request returns an unsuccessful status code.
         
         Tags:
-            list, entity-templates, api-call, management, important
+            list, entity-templates, api-call, management, 
         """
         url = f"{self.base_url}/api/v3/entity-templates"
         query_params = {}
@@ -351,7 +352,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            create, template, entity, api, important
+            create, template, entity, api, 
         """
         if name is None:
             raise ValueError("Missing required parameter 'name'")
@@ -383,7 +384,7 @@ class ShortcutApp(APIApplication):
             HTTPError: If the HTTP request to disable the story templates fails or returns an error status.
         
         Tags:
-            disable, story-templates, api, management, important
+            disable, story-templates, api, management, 
         """
         url = f"{self.base_url}/api/v3/entity-templates/disable"
         query_params = {}
@@ -402,7 +403,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request returns an unsuccessful status code.
         
         Tags:
-            enable, templates, management, http-put, important
+            enable, templates, management, http-put, 
         """
         url = f"{self.base_url}/api/v3/entity-templates/enable"
         query_params = {}
@@ -425,7 +426,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the HTTP request fails.
         
         Tags:
-            get, retrieve, entity, template, api, important
+            get, retrieve, entity, template, api, 
         """
         if entity_template_public_id is None:
             raise ValueError("Missing required parameter 'entity-template-public-id'")
@@ -451,7 +452,7 @@ class ShortcutApp(APIApplication):
             ValueError: Raised when the required 'entity_template_public_id' parameter is missing.
         
         Tags:
-            update, entity-template, management, important
+            update, entity-template, management, 
         """
         if entity_template_public_id is None:
             raise ValueError("Missing required parameter 'entity-template-public-id'")
@@ -480,7 +481,7 @@ class ShortcutApp(APIApplication):
             ValueError: Raised if the entity template public ID is missing.
         
         Tags:
-            delete, entity-management, important
+            delete, entity-management, 
         """
         if entity_template_public_id is None:
             raise ValueError("Missing required parameter 'entity-template-public-id'")
@@ -501,7 +502,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the API request fails, as triggered by raise_for_status().
         
         Tags:
-            get, retrieve, api, workflow, epic, configuration, important
+            get, retrieve, api, workflow, epic, configuration, 
         """
         url = f"{self.base_url}/api/v3/epic-workflow"
         query_params = {}
@@ -564,7 +565,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            create, epic, project-management, api, important
+            create, epic, project-management, api, 
         """
         if name is None:
             raise ValueError("Missing required parameter 'name'")
@@ -610,7 +611,7 @@ class ShortcutApp(APIApplication):
             ValueError: Raised if the epic_public_id is missing
         
         Tags:
-            fetch, epic, management, important
+            fetch, epic, management, 
         """
         if epic_public_id is None:
             raise ValueError("Missing required parameter 'epic-public-id'")
@@ -655,7 +656,7 @@ class ShortcutApp(APIApplication):
             requests.exceptions.HTTPError: Raised if there are issues with the HTTP request.
         
         Tags:
-            update, epic, management, important, async-job
+            update, epic, management, , async-job
         """
         if epic_public_id is None:
             raise ValueError("Missing required parameter 'epic-public-id'")
@@ -703,7 +704,7 @@ class ShortcutApp(APIApplication):
             HTTPError: When the HTTP request returns an unsuccessful status code.
         
         Tags:
-            delete, epic, api, management, important
+            delete, epic, api, management, 
         """
         if epic_public_id is None:
             raise ValueError("Missing required parameter 'epic-public-id'")
@@ -757,7 +758,7 @@ class ShortcutApp(APIApplication):
             ValueError: Raised when either epic_public_id or text is None.
         
         Tags:
-            create, comment, epic, api, important
+            create, comment, epic, api, 
         """
         if epic_public_id is None:
             raise ValueError("Missing required parameter 'epic-public-id'")
@@ -822,7 +823,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised if the HTTP request to update the comment fails (non-2xx response).
         
         Tags:
-            update, comment, epic, management, api, important
+            update, comment, epic, management, api, 
         """
         if epic_public_id is None:
             raise ValueError("Missing required parameter 'epic-public-id'")
@@ -861,7 +862,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: If the API response status indicates an HTTP error.
         
         Tags:
-            create, comment, epic, reply, api, important
+            create, comment, epic, reply, api, 
         """
         if epic_public_id is None:
             raise ValueError("Missing required parameter 'epic-public-id'")
@@ -899,7 +900,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to delete the comment fails.
         
         Tags:
-            delete, comment-management, epic, api, important
+            delete, comment-management, epic, api, 
         """
         if epic_public_id is None:
             raise ValueError("Missing required parameter 'epic-public-id'")
@@ -927,7 +928,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the HTTP request to the API endpoint fails.
         
         Tags:
-            list, retrieve, epic, stories, management, important
+            list, retrieve, epic, stories, management, 
         """
         if epic_public_id is None:
             raise ValueError("Missing required parameter 'epic-public-id'")
@@ -977,7 +978,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the HTTP request fails (via raise_for_status()).
         
         Tags:
-            retrieve, stories, external-link, api, get, query, important
+            retrieve, stories, external-link, api, get, query, 
         """
         if external_link is None:
             raise ValueError("Missing required parameter 'external_link'")
@@ -1001,7 +1002,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: If the HTTP request returns an unsuccessful status code.
         
         Tags:
-            list, files, api, important
+            list, files, api, 
         """
         url = f"{self.base_url}/api/v3/files"
         query_params = {}
@@ -1023,7 +1024,7 @@ class ShortcutApp(APIApplication):
             ValueError: Raised if the 'file_public_id' parameter is missing.
         
         Tags:
-            fetch, management, important
+            fetch, management, 
         """
         if file_public_id is None:
             raise ValueError("Missing required parameter 'file-public-id'")
@@ -1054,7 +1055,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            update, file, api, metadata, important
+            update, file, api, metadata, 
         """
         if file_public_id is None:
             raise ValueError("Missing required parameter 'file-public-id'")
@@ -1088,7 +1089,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the server returns an error status code.
         
         Tags:
-            delete, file, management, important
+            delete, file, management, 
         """
         if file_public_id is None:
             raise ValueError("Missing required parameter 'file-public-id'")
@@ -1109,7 +1110,7 @@ class ShortcutApp(APIApplication):
             HTTPError: If the HTTP request returns an unsuccessful status code.
         
         Tags:
-            list, groups, api, get, important
+            list, groups, api, get, 
         """
         url = f"{self.base_url}/api/v3/groups"
         query_params = {}
@@ -1139,7 +1140,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to create the group fails (non-2xx status code).
         
         Tags:
-            create, group, management, api, important
+            create, group, management, api, 
         """
         if name is None:
             raise ValueError("Missing required parameter 'name'")
@@ -1177,7 +1178,7 @@ class ShortcutApp(APIApplication):
             HTTPError: When the API request fails or returns an error status code.
         
         Tags:
-            get, retrieve, group, api, important
+            get, retrieve, group, api, 
         """
         if group_public_id is None:
             raise ValueError("Missing required parameter 'group-public-id'")
@@ -1211,7 +1212,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: If the HTTP request to update the group fails.
         
         Tags:
-            update, management, group, api, important
+            update, management, group, api, 
         """
         if group_public_id is None:
             raise ValueError("Missing required parameter 'group-public-id'")
@@ -1250,7 +1251,7 @@ class ShortcutApp(APIApplication):
             HTTPError: When the HTTP request fails or returns an error status code.
         
         Tags:
-            list, retrieve, stories, group, api, important
+            list, retrieve, stories, group, api, 
         """
         if group_public_id is None:
             raise ValueError("Missing required parameter 'group-public-id'")
@@ -1274,7 +1275,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the HTTP request fails due to an error status code.
         
         Tags:
-            list, iterations, api, retrieve, important
+            list, iterations, api, retrieve, 
         """
         url = f"{self.base_url}/api/v3/iterations"
         query_params = {}
@@ -1303,7 +1304,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: If the HTTP request to create the iteration fails (non-2xx response).
         
         Tags:
-            create, iteration, api, management, important
+            create, iteration, api, management, 
         """
         if name is None:
             raise ValueError("Missing required parameter 'name'")
@@ -1338,7 +1339,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the HTTP request returns an unsuccessful status code.
         
         Tags:
-            disable, iterations, api, management, important
+            disable, iterations, api, management, 
         """
         url = f"{self.base_url}/api/v3/iterations/disable"
         query_params = {}
@@ -1357,7 +1358,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the HTTP request returns an unsuccessful status code.
         
         Tags:
-            enable, iterations, api, management, important
+            enable, iterations, api, management, 
         """
         url = f"{self.base_url}/api/v3/iterations/enable"
         query_params = {}
@@ -1380,7 +1381,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the API request fails (via raise_for_status()).
         
         Tags:
-            get, retrieve, iteration, api, important
+            get, retrieve, iteration, api, 
         """
         if iteration_public_id is None:
             raise ValueError("Missing required parameter 'iteration-public-id'")
@@ -1412,7 +1413,7 @@ class ShortcutApp(APIApplication):
             HTTPError: When the API request fails.
         
         Tags:
-            update, iteration, management, important
+            update, iteration, management, 
         """
         if iteration_public_id is None:
             raise ValueError("Missing required parameter 'iteration-public-id'")
@@ -1447,7 +1448,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the API request fails or returns an error status code.
         
         Tags:
-            delete, management, api, iteration, important
+            delete, management, api, iteration, 
         """
         if iteration_public_id is None:
             raise ValueError("Missing required parameter 'iteration-public-id'")
@@ -1473,7 +1474,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised if the HTTP request returns an unsuccessful status code.
         
         Tags:
-            list, stories, iteration, api, important
+            list, stories, iteration, api, 
         """
         if iteration_public_id is None:
             raise ValueError("Missing required parameter 'iteration-public-id'")
@@ -1498,7 +1499,7 @@ class ShortcutApp(APIApplication):
             requests.exceptions.HTTPError: If the underlying HTTP request fails or returns a bad status code.
         
         Tags:
-            get, key-result, api, management, important
+            get, key-result, api, management, 
         """
         if key_result_public_id is None:
             raise ValueError("Missing required parameter 'key-result-public-id'")
@@ -1526,7 +1527,7 @@ class ShortcutApp(APIApplication):
             ValueError: Raised if the 'key_result_public_id' parameter is missing.
         
         Tags:
-            update, management, important
+            update, management, 
         """
         if key_result_public_id is None:
             raise ValueError("Missing required parameter 'key-result-public-id'")
@@ -1557,7 +1558,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the API request fails or returns an error status code.
         
         Tags:
-            list, fetch, labels, api, data-retrieval, important
+            list, fetch, labels, api, data-retrieval, 
         """
         url = f"{self.base_url}/api/v3/labels"
         query_params = {k: v for k, v in [('slim', slim)] if v is not None}
@@ -1583,7 +1584,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            create, label, management, important
+            create, label, management, 
         """
         if name is None:
             raise ValueError("Missing required parameter 'name'")
@@ -1615,7 +1616,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns an error response.
         
         Tags:
-            get, label, fetch, api, management, important
+            get, label, fetch, api, management, 
         """
         if label_public_id is None:
             raise ValueError("Missing required parameter 'label-public-id'")
@@ -1644,7 +1645,7 @@ class ShortcutApp(APIApplication):
             HTTPError: If the request to update the label fails.
         
         Tags:
-            update, label, management, important
+            update, label, management, 
         """
         if label_public_id is None:
             raise ValueError("Missing required parameter 'label-public-id'")
@@ -1676,7 +1677,7 @@ class ShortcutApp(APIApplication):
             HTTPError: If the HTTP request to delete the label fails (e.g., network issues, 4xx/5xx response from the server).
         
         Tags:
-            delete, label-management, api, important
+            delete, label-management, api, 
         """
         if label_public_id is None:
             raise ValueError("Missing required parameter 'label-public-id'")
@@ -1727,7 +1728,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the HTTP request to the API fails.
         
         Tags:
-            list, stories, labels, retrieve, api, important
+            list, stories, labels, retrieve, api, 
         """
         if label_public_id is None:
             raise ValueError("Missing required parameter 'label-public-id'")
@@ -1748,7 +1749,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the HTTP request returns an unsuccessful status code.
         
         Tags:
-            list, linked-files, api, get, important
+            list, linked-files, api, get, 
         """
         url = f"{self.base_url}/api/v3/linked-files"
         query_params = {}
@@ -1779,7 +1780,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the HTTP request fails.
         
         Tags:
-            create, file, linked, api, important
+            create, file, linked, api, 
         """
         if name is None:
             raise ValueError("Missing required parameter 'name'")
@@ -1820,7 +1821,7 @@ class ShortcutApp(APIApplication):
             HTTPError: If the HTTP request to fetch the linked file fails.
         
         Tags:
-            fetch, linked-files, api, http, important
+            fetch, linked-files, api, http, 
         """
         if linked_file_public_id is None:
             raise ValueError("Missing required parameter 'linked-file-public-id'")
@@ -1853,7 +1854,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            update, file, api, linked-file, management, important
+            update, file, api, linked-file, management, 
         """
         if linked_file_public_id is None:
             raise ValueError("Missing required parameter 'linked-file-public-id'")
@@ -1889,7 +1890,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: If the HTTP request to delete the linked file fails.
         
         Tags:
-            delete, linked-file, api, management, important
+            delete, linked-file, api, management, 
         """
         if linked_file_public_id is None:
             raise ValueError("Missing required parameter 'linked-file-public-id'")
@@ -1910,7 +1911,7 @@ class ShortcutApp(APIApplication):
             HTTPError: When the API request fails or returns a non-successful status code.
         
         Tags:
-            get, retrieve, member, information, api, important
+            get, retrieve, member, information, api, 
         """
         url = f"{self.base_url}/api/v3/member"
         query_params = {}
@@ -1932,7 +1933,7 @@ class ShortcutApp(APIApplication):
             requests.exceptions.HTTPError: Raised when the HTTP request returns a status code indicating a client or server error.
         
         Tags:
-            list, api, important
+            list, api, 
         """
         url = f"{self.base_url}/api/v3/milestones"
         query_params = {}
@@ -1960,7 +1961,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            create, milestone, management, important
+            create, milestone, management, 
         """
         if name is None:
             raise ValueError("Missing required parameter 'name'")
@@ -1994,7 +1995,7 @@ class ShortcutApp(APIApplication):
             HTTPError: If the HTTP request to the API fails or returns an unsuccessful status code.
         
         Tags:
-            get, milestone, api, fetch, important
+            get, milestone, api, fetch, 
         """
         if milestone_public_id is None:
             raise ValueError("Missing required parameter 'milestone-public-id'")
@@ -2028,7 +2029,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: If the API request fails or returns an error status.
         
         Tags:
-            update, milestone-management, api, important
+            update, milestone-management, api, 
         """
         if milestone_public_id is None:
             raise ValueError("Missing required parameter 'milestone-public-id'")
@@ -2065,7 +2066,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the API request fails (via raise_for_status()).
         
         Tags:
-            delete, milestone, api, important
+            delete, milestone, api, 
         """
         if milestone_public_id is None:
             raise ValueError("Missing required parameter 'milestone-public-id'")
@@ -2090,7 +2091,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: If the HTTP request to fetch epics fails with a client or server error.
         
         Tags:
-            list, epics, milestone, management, important
+            list, epics, milestone, management, 
         """
         if milestone_public_id is None:
             raise ValueError("Missing required parameter 'milestone-public-id'")
@@ -2114,7 +2115,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: If the HTTP request to the API fails or returns a non-success status code.
         
         Tags:
-            list, objectives, api, management, important
+            list, objectives, api, management, 
         """
         url = f"{self.base_url}/api/v3/objectives"
         query_params = {}
@@ -2142,7 +2143,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the API fails or returns a non-success status code.
         
         Tags:
-            create, objective, api, management, important
+            create, objective, api, management, 
         """
         if name is None:
             raise ValueError("Missing required parameter 'name'")
@@ -2176,7 +2177,7 @@ class ShortcutApp(APIApplication):
             HTTPError: When the API request fails or returns an error status code.
         
         Tags:
-            get, retrieve, objective, api, important
+            get, retrieve, objective, api, 
         """
         if objective_public_id is None:
             raise ValueError("Missing required parameter 'objective-public-id'")
@@ -2210,7 +2211,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: If the API responds with an error status code.
         
         Tags:
-            update, objective, api, management, important
+            update, objective, api, management, 
         """
         if objective_public_id is None:
             raise ValueError("Missing required parameter 'objective-public-id'")
@@ -2247,7 +2248,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: If the HTTP DELETE request returns an unsuccessful status code.
         
         Tags:
-            delete, objectives, api, http, important
+            delete, objectives, api, http, 
         """
         if objective_public_id is None:
             raise ValueError("Missing required parameter 'objective-public-id'")
@@ -2272,7 +2273,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the HTTP request fails or returns an error status code.
         
         Tags:
-            list, retrieve, epics, objectives, api, important
+            list, retrieve, epics, objectives, api, 
         """
         if objective_public_id is None:
             raise ValueError("Missing required parameter 'objective-public-id'")
@@ -2293,7 +2294,7 @@ class ShortcutApp(APIApplication):
             requests.exceptions.HTTPError: Raised if there is a 4xx or 5xx status response from the server.
         
         Tags:
-            list, projects, important, api-call
+            list, projects, , api-call
         """
         url = f"{self.base_url}/api/v3/projects"
         query_params = {}
@@ -2325,7 +2326,7 @@ class ShortcutApp(APIApplication):
             ValueError: Raised when the required parameters 'name' or 'team_id' are not provided.
         
         Tags:
-            create, project, management, important
+            create, project, management, 
         """
         if name is None:
             raise ValueError("Missing required parameter 'name'")
@@ -2366,7 +2367,7 @@ class ShortcutApp(APIApplication):
             HTTPError: When the HTTP request fails (via raise_for_status)
         
         Tags:
-            get, retrieve, project, api, important
+            get, retrieve, project, api, 
         """
         if project_public_id is None:
             raise ValueError("Missing required parameter 'project-public-id'")
@@ -2400,7 +2401,7 @@ class ShortcutApp(APIApplication):
             HTTPError: When the API request fails.
         
         Tags:
-            update, project, management, important
+            update, project, management, 
         """
         if project_public_id is None:
             raise ValueError("Missing required parameter 'project-public-id'")
@@ -2437,7 +2438,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the API request fails (via raise_for_status()).
         
         Tags:
-            delete, project, management, important
+            delete, project, management, 
         """
         if project_public_id is None:
             raise ValueError("Missing required parameter 'project-public-id'")
@@ -2463,7 +2464,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised if the HTTP request to the stories API endpoint fails.
         
         Tags:
-            list, stories, project, api, important
+            list, stories, project, api, 
         """
         if project_public_id is None:
             raise ValueError("Missing required parameter 'project-public-id'")
@@ -2484,7 +2485,7 @@ class ShortcutApp(APIApplication):
             HTTPError: If the HTTP request fails or returns an error status code.
         
         Tags:
-            list, repositories, api, get, important
+            list, repositories, api, get, 
         """
         url = f"{self.base_url}/api/v3/repositories"
         query_params = {}
@@ -2507,7 +2508,7 @@ class ShortcutApp(APIApplication):
             HTTPError: When the API request fails (via raise_for_status()).
         
         Tags:
-            retrieve, repository, api, get, important
+            retrieve, repository, api, get, 
         """
         if repo_public_id is None:
             raise ValueError("Missing required parameter 'repo-public-id'")
@@ -2535,7 +2536,7 @@ class ShortcutApp(APIApplication):
             ValueError: Raised if the 'query' parameter is missing.
         
         Tags:
-            search, management, important
+            search, management, 
         """
         if query is None:
             raise ValueError("Missing required parameter 'query'")
@@ -2564,7 +2565,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the HTTP request fails (via raise_for_status()).
         
         Tags:
-            search, epics, pagination, api, important
+            search, epics, pagination, api, 
         """
         if query is None:
             raise ValueError("Missing required parameter 'query'")
@@ -2593,7 +2594,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the HTTP request fails.
         
         Tags:
-            search, iterations, pagination, important
+            search, iterations, pagination, 
         """
         if query is None:
             raise ValueError("Missing required parameter 'query'")
@@ -2622,7 +2623,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: If the HTTP request to the milestones API fails.
         
         Tags:
-            search, milestones, api, async-job, management, important
+            search, milestones, api, async-job, management, 
         """
         if query is None:
             raise ValueError("Missing required parameter 'query'")
@@ -2651,7 +2652,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised if the HTTP request to the search API returns an unsuccessful status code.
         
         Tags:
-            search, objectives, api, important
+            search, objectives, api, 
         """
         if query is None:
             raise ValueError("Missing required parameter 'query'")
@@ -2680,7 +2681,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: If the HTTP request to the stories API fails with a non-success status code.
         
         Tags:
-            search, stories, api, important
+            search, stories, api, 
         """
         if query is None:
             raise ValueError("Missing required parameter 'query'")
@@ -2735,7 +2736,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: If the API request fails or returns an error response.
         
         Tags:
-            create, story, api, management, important
+            create, story, api, management, 
         """
         if name is None:
             raise ValueError("Missing required parameter 'name'")
@@ -2816,7 +2817,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: If the HTTP request to update the stories fails.
         
         Tags:
-            update, stories, bulk, management, api, important
+            update, stories, bulk, management, api, 
         """
         if story_ids is None:
             raise ValueError("Missing required parameter 'story_ids'")
@@ -2867,7 +2868,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the API request fails with a non-2xx status code.
         
         Tags:
-            create, bulk, stories, api, important
+            create, bulk, stories, api, 
         """
         if stories is None:
             raise ValueError("Missing required parameter 'stories'")
@@ -2939,7 +2940,7 @@ class ShortcutApp(APIApplication):
             ValueError: Raised when the required parameter 'story_template_id' is None.
         
         Tags:
-            create, template, story, important
+            create, template, story, 
         """
         if story_template_id is None:
             raise ValueError("Missing required parameter 'story_template_id'")
@@ -3038,7 +3039,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised if the HTTP request to the API fails.
         
         Tags:
-            search, story, management, important
+            search, story, management, 
         """
         request_body = {
             'archived': archived,
@@ -3091,7 +3092,7 @@ class ShortcutApp(APIApplication):
             ValueError: Raised when the required 'story_public_id' parameter is missing
         
         Tags:
-            fetch, story-management, important
+            fetch, story-management, 
         """
         if story_public_id is None:
             raise ValueError("Missing required parameter 'story-public-id'")
@@ -3143,7 +3144,7 @@ class ShortcutApp(APIApplication):
             HTTPError: When the API request fails or returns an error status code.
         
         Tags:
-            update, story, management, important
+            update, story, management, 
         """
         if story_public_id is None:
             raise ValueError("Missing required parameter 'story-public-id'")
@@ -3198,7 +3199,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the API request fails (via raise_for_status()).
         
         Tags:
-            delete, story, api, important
+            delete, story, api, 
         """
         if story_public_id is None:
             raise ValueError("Missing required parameter 'story-public-id'")
@@ -3253,7 +3254,7 @@ class ShortcutApp(APIApplication):
             ValueError: Raised if either 'story_public_id' or 'text' is missing.
         
         Tags:
-            create, story-comment, async-job, management, important
+            create, story-comment, async-job, management, 
         """
         if story_public_id is None:
             raise ValueError("Missing required parameter 'story-public-id'")
@@ -3318,7 +3319,7 @@ class ShortcutApp(APIApplication):
             ValueError: Raised when any of the required parameters (story_public_id, comment_public_id, or text) are missing.
         
         Tags:
-            update, management, important
+            update, management, 
         """
         if story_public_id is None:
             raise ValueError("Missing required parameter 'story-public-id'")
@@ -3352,7 +3353,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised if the HTTP request to delete the comment fails (non-success status code).
         
         Tags:
-            delete, comment-management, api, important
+            delete, comment-management, api, 
         """
         if story_public_id is None:
             raise ValueError("Missing required parameter 'story-public-id'")
@@ -3380,7 +3381,7 @@ class ShortcutApp(APIApplication):
             ValueError: If any of the required parameters (story_public_id, comment_public_id, or emoji) is None.
         
         Tags:
-            create, reaction, comment, story, emoji, important
+            create, reaction, comment, story, emoji, 
         """
         if story_public_id is None:
             raise ValueError("Missing required parameter 'story-public-id'")
@@ -3414,7 +3415,7 @@ class ShortcutApp(APIApplication):
             HTTPError: When the API request fails.
         
         Tags:
-            unlink, comment, slack, api, management, important
+            unlink, comment, slack, api, management, 
         """
         if story_public_id is None:
             raise ValueError("Missing required parameter 'story-public-id'")
@@ -3441,7 +3442,7 @@ class ShortcutApp(APIApplication):
             HTTPError: If the HTTP request to the history API fails or returns an unsuccessful status code.
         
         Tags:
-            get, history, story, important, api, management
+            get, history, story, , api, management
         """
         if story_public_id is None:
             raise ValueError("Missing required parameter 'story-public-id'")
@@ -3472,7 +3473,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the API request fails.
         
         Tags:
-            create, task, story, api, important
+            create, task, story, api, 
         """
         if story_public_id is None:
             raise ValueError("Missing required parameter 'story-public-id'")
@@ -3509,7 +3510,7 @@ class ShortcutApp(APIApplication):
             HTTPError: When the API request fails.
         
         Tags:
-            get, retrieve, task, api, important
+            get, retrieve, task, api, 
         """
         if story_public_id is None:
             raise ValueError("Missing required parameter 'story-public-id'")
@@ -3542,7 +3543,7 @@ class ShortcutApp(APIApplication):
             HTTPError: If the API response contains an HTTP error status.
         
         Tags:
-            update, task-management, api, story, important
+            update, task-management, api, story, 
         """
         if story_public_id is None:
             raise ValueError("Missing required parameter 'story-public-id'")
@@ -3577,7 +3578,7 @@ class ShortcutApp(APIApplication):
             ValueError: Raised if either 'story_public_id' or 'task_public_id' is None
         
         Tags:
-            delete, task-management, story-management, important
+            delete, task-management, story-management, 
         """
         if story_public_id is None:
             raise ValueError("Missing required parameter 'story-public-id'")
@@ -3606,7 +3607,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: If the underlying HTTP request fails or the API response contains an error status code.
         
         Tags:
-            create, story-link, api, management, important
+            create, story-link, api, management, 
         """
         if verb is None:
             raise ValueError("Missing required parameter 'verb'")
@@ -3641,7 +3642,7 @@ class ShortcutApp(APIApplication):
             HTTPError: If the API request fails.
         
         Tags:
-            retrieve, get, story-link, api, important
+            retrieve, get, story-link, api, 
         """
         if story_link_public_id is None:
             raise ValueError("Missing required parameter 'story-link-public-id'")
@@ -3669,7 +3670,7 @@ class ShortcutApp(APIApplication):
             HTTPError: When the API request fails.
         
         Tags:
-            update, story-link, api, important
+            update, story-link, api, 
         """
         if story_link_public_id is None:
             raise ValueError("Missing required parameter 'story-link-public-id'")
@@ -3700,7 +3701,7 @@ class ShortcutApp(APIApplication):
             HTTPError: Raised when the HTTP request fails or returns an error status code.
         
         Tags:
-            delete, management, story-link, important
+            delete, management, story-link, 
         """
         if story_link_public_id is None:
             raise ValueError("Missing required parameter 'story-link-public-id'")
@@ -3724,7 +3725,7 @@ class ShortcutApp(APIApplication):
             HTTPError: If the HTTP request to the workflow API endpoint fails or returns an error status.
         
         Tags:
-            list, workflows, api, management, important
+            list, workflows, api, management, 
         """
         url = f"{self.base_url}/api/v3/workflows"
         query_params = {}
@@ -3747,7 +3748,7 @@ class ShortcutApp(APIApplication):
             requests.HTTPError: If the HTTP request to the workflow API fails with an error status.
         
         Tags:
-            get, workflow, api, management, important
+            get, workflow, api, management, 
         """
         if workflow_public_id is None:
             raise ValueError("Missing required parameter 'workflow-public-id'")
