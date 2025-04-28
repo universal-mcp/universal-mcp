@@ -36,7 +36,7 @@ class CrustdataApp(APIApplication):
             requests.HTTPError: If the HTTP request to the screener API fails or returns a bad status code.
         
         Tags:
-            screen, companies, api, filter, pagination, important
+            screen, companies, api, filter, pagination
         """
         if metrics is None:
             raise ValueError("Missing required parameter 'metrics'")
@@ -80,7 +80,7 @@ class CrustdataApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the endpoint fails or returns a non-success status code.
         
         Tags:
-            get, fetch, headcount, timeseries, data, api, management, important
+            get, fetch, headcount, timeseries, data, api, management
         """
         if filters is None:
             raise ValueError("Missing required parameter 'filters'")
@@ -121,7 +121,7 @@ class CrustdataApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the data source fails (non-2xx response).
         
         Tags:
-            get, timeseries, headcount, data-retrieval, facets, management, important
+            get, timeseries, headcount, data-retrieval, facets, management
         """
         if filters is None:
             raise ValueError("Missing required parameter 'filters'")
@@ -162,7 +162,7 @@ class CrustdataApp(APIApplication):
             requests.HTTPError: If the underlying HTTP request fails or returns an error status code.
         
         Tags:
-            get, fetch, timeseries, funding, milestones, data-lab, api, important
+            get, fetch, timeseries, funding, milestones, data-lab, api
         """
         if filters is None:
             raise ValueError("Missing required parameter 'filters'")
@@ -204,7 +204,7 @@ class CrustdataApp(APIApplication):
             HTTPError: Raised when the API request fails with an error status code.
         
         Tags:
-            retrieve, search, data, decision-makers, api, filtering, important
+            retrieve, search, data, decision-makers, api, filtering
         """
         if filters is None:
             raise ValueError("Missing required parameter 'filters'")
@@ -248,7 +248,7 @@ class CrustdataApp(APIApplication):
             requests.HTTPError: If the HTTP request to the web traffic endpoint fails or returns an error status code.
         
         Tags:
-            get, web-traffic, data, fetch, api, important
+            get, web-traffic, data, fetch, api
         """
         if filters is None:
             raise ValueError("Missing required parameter 'filters'")
@@ -286,7 +286,7 @@ class CrustdataApp(APIApplication):
             HTTPError: If the HTTP request to the portfolio endpoint fails.
         
         Tags:
-            get, portfolio, investor, api, important
+            get, portfolio, investor, api
         """
         if investor_name is None:
             raise ValueError("Missing required parameter 'investor_name'")
@@ -390,7 +390,7 @@ class CrustdataApp(APIApplication):
             HTTPError: Raised when the API request fails with an error status code.
         
         Tags:
-            search, company, filtering, pagination, api, important
+            search, company, filtering, pagination, api
         """
         if filters is None:
             raise ValueError("Missing required parameter 'filters'")
@@ -424,7 +424,7 @@ class CrustdataApp(APIApplication):
             requests.HTTPError: If the API response status is not successful.
         
         Tags:
-            enrich, person, lookup, api, important
+            enrich, person, lookup, api
         """
         if linkedin_profile_url is None:
             raise ValueError("Missing required parameter 'linkedin_profile_url'")
@@ -454,7 +454,7 @@ class CrustdataApp(APIApplication):
             HTTPError: Raised if the HTTP request returned an unsuccessful status code.
         
         Tags:
-            enrich, company, ai, important
+            enrich, company, ai
         """
         if company_domain is None:
             raise ValueError("Missing required parameter 'company_domain'")
@@ -481,7 +481,7 @@ class CrustdataApp(APIApplication):
             HTTPError: Raised if the HTTP request to the LinkedIn posts service fails.
         
         Tags:
-            fetch, linkedin, posts, company, api, important
+            fetch, linkedin, posts, company, api
         """
         if company_linkedin_url is None:
             raise ValueError("Missing required parameter 'company_linkedin_url'")
@@ -509,7 +509,7 @@ class CrustdataApp(APIApplication):
             requests.HTTPError: Raised if the HTTP request to the LinkedIn search endpoint returns an unsuccessful status code.
         
         Tags:
-            search, linkedin, posts, api, important
+            search, linkedin, posts, api
         """
         if keyword is None:
             raise ValueError("Missing required parameter 'keyword'")
