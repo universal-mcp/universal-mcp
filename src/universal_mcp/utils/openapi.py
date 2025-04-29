@@ -233,6 +233,11 @@ def generate_method_code(
             return "dict[str, Any]"
         return "Any"
 
+    # Map transformed path param names (underscores) back to original (hyphens)
+    path_param_map = {
+        name.replace("-", "_"): name for name in path_params_in_url
+    }
+
     # Determine function name
     if op_id := operation.get("operationId"):
         cleaned_id = op_id.replace(".", "_").replace("-", "_")
