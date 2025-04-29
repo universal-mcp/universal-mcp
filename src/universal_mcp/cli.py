@@ -202,7 +202,7 @@ def init(
     if not output_dir:
         path_str = typer.prompt(
             "Enter the output directory for the project",
-            default=str(Path.cwd()),
+            default="str(Path.cwd())",
             prompt_suffix=": "
         ).strip()
         output_dir = Path(path_str)
