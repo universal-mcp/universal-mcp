@@ -2345,7 +2345,7 @@ wheels = [
 
 [[package]]
 name = "universal-mcp"
-version = "0.1.12"
+version = "0.1.13rc1"
 source = { editable = "." }
 dependencies = [
     { name = "cookiecutter" },
@@ -2395,6 +2395,24 @@ playground = [
     { name = "watchdog" },
 ]
 
+[package.dev-dependencies]
+applications = [
+    { name = "universal-mcp-google-calendar" },
+    { name = "universal-mcp-google-docs" },
+    { name = "universal-mcp-google-drive" },
+    { name = "universal-mcp-google-mail" },
+    { name = "universal-mcp-google-sheet" },
+    { name = "universal-mcp-heygen" },
+    { name = "universal-mcp-mailchimp" },
+    { name = "universal-mcp-neon" },
+    { name = "universal-mcp-notion" },
+    { name = "universal-mcp-perplexity" },
+    { name = "universal-mcp-reddit" },
+    { name = "universal-mcp-replicate" },
+    { name = "universal-mcp-resend" },
+    { name = "universal-mcp-retell" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "cookiecutter", specifier = ">=2.6.0" },
@@ -2436,6 +2454,276 @@ requires-dist = [
     { name = "watchdog", marker = "extra == 'playground'", specifier = ">=6.0.0" },
 ]
 provides-extras = ["playground", "dev", "all"]
+
+[package.metadata.requires-dev]
+applications = [
+    { name = "universal-mcp-google-calendar", directory = "tmp/google-calendar" },
+    { name = "universal-mcp-google-docs", directory = "tmp/google-docs" },
+    { name = "universal-mcp-google-drive", directory = "tmp/google-drive" },
+    { name = "universal-mcp-google-mail", directory = "tmp/google-mail" },
+    { name = "universal-mcp-google-sheet", directory = "tmp/google-sheet" },
+    { name = "universal-mcp-heygen", directory = "tmp/heygen" },
+    { name = "universal-mcp-mailchimp", directory = "tmp/mailchimp" },
+    { name = "universal-mcp-neon", directory = "tmp/neon" },
+    { name = "universal-mcp-notion", directory = "tmp/notion" },
+    { name = "universal-mcp-perplexity", directory = "tmp/perplexity" },
+    { name = "universal-mcp-reddit", directory = "tmp/reddit" },
+    { name = "universal-mcp-replicate", directory = "tmp/replicate" },
+    { name = "universal-mcp-resend", directory = "tmp/resend" },
+    { name = "universal-mcp-retell", directory = "tmp/retell" },
+]
+
+[[package]]
+name = "universal-mcp-google-calendar"
+version = "0.1.0"
+source = { directory = "tmp/google-calendar" }
+dependencies = [
+    { name = "universal-mcp" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pre-commit", marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0,<9.0.0" },
+    { name = "pytest-cov", marker = "extra == 'test'" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "universal-mcp", specifier = ">=0.1.11" },
+]
+provides-extras = ["test", "dev"]
+
+[[package]]
+name = "universal-mcp-google-docs"
+version = "0.1.0"
+source = { directory = "tmp/google-docs" }
+dependencies = [
+    { name = "universal-mcp" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pre-commit", marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0,<9.0.0" },
+    { name = "pytest-cov", marker = "extra == 'test'" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "universal-mcp", specifier = ">=0.1.11" },
+]
+provides-extras = ["test", "dev"]
+
+[[package]]
+name = "universal-mcp-google-drive"
+version = "0.1.0"
+source = { directory = "tmp/google-drive" }
+dependencies = [
+    { name = "universal-mcp" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pre-commit", marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0,<9.0.0" },
+    { name = "pytest-cov", marker = "extra == 'test'" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "universal-mcp", specifier = ">=0.1.11" },
+]
+provides-extras = ["test", "dev"]
+
+[[package]]
+name = "universal-mcp-google-mail"
+version = "0.1.0"
+source = { directory = "tmp/google-mail" }
+dependencies = [
+    { name = "universal-mcp" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pre-commit", marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0,<9.0.0" },
+    { name = "pytest-cov", marker = "extra == 'test'" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "universal-mcp", specifier = ">=0.1.11" },
+]
+provides-extras = ["test", "dev"]
+
+[[package]]
+name = "universal-mcp-google-sheet"
+version = "0.1.0"
+source = { directory = "tmp/google-sheet" }
+dependencies = [
+    { name = "universal-mcp" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pre-commit", marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0,<9.0.0" },
+    { name = "pytest-cov", marker = "extra == 'test'" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "universal-mcp", specifier = ">=0.1.11" },
+]
+provides-extras = ["test", "dev"]
+
+[[package]]
+name = "universal-mcp-heygen"
+version = "0.1.0"
+source = { directory = "tmp/heygen" }
+dependencies = [
+    { name = "universal-mcp" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pre-commit", marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0,<9.0.0" },
+    { name = "pytest-cov", marker = "extra == 'test'" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "universal-mcp", specifier = ">=0.1.11" },
+]
+provides-extras = ["test", "dev"]
+
+[[package]]
+name = "universal-mcp-mailchimp"
+version = "0.1.0"
+source = { directory = "tmp/mailchimp" }
+dependencies = [
+    { name = "universal-mcp" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pre-commit", marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0,<9.0.0" },
+    { name = "pytest-cov", marker = "extra == 'test'" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "universal-mcp", specifier = ">=0.1.11" },
+]
+provides-extras = ["test", "dev"]
+
+[[package]]
+name = "universal-mcp-neon"
+version = "0.1.0"
+source = { directory = "tmp/neon" }
+dependencies = [
+    { name = "universal-mcp" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pre-commit", marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0,<9.0.0" },
+    { name = "pytest-cov", marker = "extra == 'test'" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "universal-mcp", specifier = ">=0.1.11" },
+]
+provides-extras = ["test", "dev"]
+
+[[package]]
+name = "universal-mcp-notion"
+version = "0.1.0"
+source = { directory = "tmp/notion" }
+dependencies = [
+    { name = "universal-mcp" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pre-commit", marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0,<9.0.0" },
+    { name = "pytest-cov", marker = "extra == 'test'" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "universal-mcp", specifier = ">=0.1.11" },
+]
+provides-extras = ["test", "dev"]
+
+[[package]]
+name = "universal-mcp-perplexity"
+version = "0.1.0"
+source = { directory = "tmp/perplexity" }
+dependencies = [
+    { name = "universal-mcp" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pre-commit", marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0,<9.0.0" },
+    { name = "pytest-cov", marker = "extra == 'test'" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "universal-mcp", specifier = ">=0.1.11" },
+]
+provides-extras = ["test", "dev"]
+
+[[package]]
+name = "universal-mcp-reddit"
+version = "0.1.0"
+source = { directory = "tmp/reddit" }
+dependencies = [
+    { name = "universal-mcp" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pre-commit", marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0,<9.0.0" },
+    { name = "pytest-cov", marker = "extra == 'test'" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "universal-mcp", specifier = ">=0.1.11" },
+]
+provides-extras = ["test", "dev"]
+
+[[package]]
+name = "universal-mcp-replicate"
+version = "0.1.0"
+source = { directory = "tmp/replicate" }
+dependencies = [
+    { name = "universal-mcp" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pre-commit", marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0,<9.0.0" },
+    { name = "pytest-cov", marker = "extra == 'test'" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "universal-mcp", specifier = ">=0.1.11" },
+]
+provides-extras = ["test", "dev"]
+
+[[package]]
+name = "universal-mcp-resend"
+version = "0.1.0"
+source = { directory = "tmp/resend" }
+dependencies = [
+    { name = "universal-mcp" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pre-commit", marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0,<9.0.0" },
+    { name = "pytest-cov", marker = "extra == 'test'" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "universal-mcp", specifier = ">=0.1.11" },
+]
+provides-extras = ["test", "dev"]
+
+[[package]]
+name = "universal-mcp-retell"
+version = "0.1.0"
+source = { directory = "tmp/retell" }
+dependencies = [
+    { name = "universal-mcp" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pre-commit", marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0,<9.0.0" },
+    { name = "pytest-cov", marker = "extra == 'test'" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "universal-mcp", specifier = ">=0.1.11" },
+]
+provides-extras = ["test", "dev"]
 
 [[package]]
 name = "urllib3"

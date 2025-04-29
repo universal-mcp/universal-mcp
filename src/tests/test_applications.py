@@ -10,7 +10,7 @@ from universal_mcp.applications import app_from_slug
     "app_name",
     [
         "ahrefs",
-        "cal_com_v2",
+        "cal-com-v2",
         "calendly",
         "clickup",
         "coda",
@@ -52,6 +52,7 @@ from universal_mcp.applications import app_from_slug
 def test_application(app_name):
     app = app_from_slug(app_name)(integration=None)
     assert app is not None
+    assert app.name == app_name
     tools = app.list_tools()
     logger.info(f"Tools for {app_name}: {tools}")
     assert len(tools) > 0
