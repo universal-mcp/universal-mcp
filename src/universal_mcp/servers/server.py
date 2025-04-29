@@ -28,7 +28,7 @@ class BaseServer(FastMCP, ABC):
     """
 
     def __init__(self, config: ServerConfig, **kwargs):
-        super().__init__(config.name, config.description, **kwargs)
+        super().__init__(config.name, config.description, port=config.port, **kwargs)
         logger.info(
             f"Initializing server: {config.name} ({config.type}) with store: {config.store}"
         )

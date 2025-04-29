@@ -1,14 +1,11 @@
-import ast
 import inspect
 import os
-import traceback
 from pathlib import Path
 from loguru import logger
 import shutil
 import importlib.util
 from jinja2 import Environment, FileSystemLoader, TemplateError, select_autoescape
 
-from universal_mcp.utils.docgen import process_file
 from universal_mcp.utils.openapi import generate_api_client, load_schema
 
 
