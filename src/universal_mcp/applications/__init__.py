@@ -16,24 +16,26 @@ from universal_mcp.applications.application import (
 def app_from_slug(slug: str):
     name = slug.lower().strip()
     app_name = "".join(word.title() for word in name.split("-")) + "App"
-    logger.info(f"Attempting to import {app_name} from {slug} package")
-    slug_underscored = slug.replace("-", "_")
+    slug_underscored = name.replace("-", "_")
+    package_name = f"universal_mcp_{slug_underscored}"
+    logger.info(f"Attempting to import {package_name} from installed packages")
     try:
-        module = importlib.import_module(f"{slug_underscored}.app")
+        module = importlib.import_module(f"{package_name}.app")
         app_class = getattr(module, app_name)
         return app_class
     except ModuleNotFoundError:
-        logger.warning(f"Module '{slug_underscored}' not found. Attempting to install...")
-        install_command = ["uv", "pip", "install", f"git+https://github.com/AgentrDev/universal-mcp-{slug}"]
+        logger.warning(f"Module '{package_name}' not found. Attempting to install from AgentR.")
+        install_command = ["uv", "pip", "install", f"git+https://github.com/AgentrDev/{name}"]
         try:
             subprocess.check_call(install_command)
-            logger.info(f"Successfully installed 'universal-mcp-{slug}'. Attempting import again.")
-            module = importlib.import_module(f"{slug_underscored}.app")
+            logger.info(f"Successfully installed 'universal-mcp-{name}'.Attempting import again.")
+            module = importlib.import_module(f"{package_name}.app")
+            logger.info(f"Successfully imported {package_name} from installed packages")
             app_class = getattr(module, app_name)
             return app_class
         except subprocess.CalledProcessError as e:
-            logger.error(f"Error installing 'universal-mcp-{slug}': {e}")
-            raise ModuleNotFoundError(f"Could not find or install module 'universal-mcp-{slug}'") from e
+            logger.error(f"Error installing 'universal-mcp-{name}': {e}")
+            raise ModuleNotFoundError(f"Could not find or install module 'universal-mcp-{name}'") from e
         except ModuleNotFoundError:
             logger.error(f"Module '{slug_underscored}.app' not found even after installation.")
             raise
