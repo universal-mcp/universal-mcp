@@ -8,6 +8,8 @@ Universal MCP acts as a middleware layer for your API applications, enabling sea
 - **Managed Authentication**: Built-in support for API keys and OAuth-based authentication flows
 - **Extensible Architecture**: Easily build and add new app integrations with minimal boilerplate
 - **Credential Management**: Flexible storage options for API credentials with memory and environment-based implementations
+- **Tool Management**: Comprehensive tool registration, validation, and execution capabilities
+- **Multiple Server Types**: Support for local, AgentR, and single-application server configurations
 
 ## 🔧 Installation
 
@@ -105,27 +107,7 @@ python src/playground
 Refer to `src/playground/README.md` for more detailed setup and usage instructions.
 
 ## 🧩 Available Applications
-
-Universal MCP comes with several pre-built applications:
-
-| Application Slug | Description                              | Authentication Type                       |
-| :--------------- | :--------------------------------------- | :---------------------------------------- |
-| `e2b`            | Execute Python code in secure sandboxes  | API Key (via Integration)                 |
-| `firecrawl`      | Scrape/crawl web pages, search           | API Key (via Integration)                 |
-| `github`         | Interact with GitHub repos, issues, PRs  | OAuth (AgentR)                            |
-| `google-calendar`| Manage Google Calendar events            | OAuth (AgentR)                            |
-| `google-docs`    | Create and manage Google Docs documents  | OAuth (AgentR)                            |
-| `google-drive`   | Manage Google Drive files and folders    | OAuth (AgentR)                            |
-| `google-mail`    | Read and send Gmail emails               | OAuth (AgentR)                            |
-| `google-sheet`   | Manage Google Sheets spreadsheets        | OAuth (AgentR)                            |
-| `markitdown`     | Convert web pages/files to Markdown      | None                                      |
-| `notion`         | Interact with Notion pages/databases     | OAuth (AgentR)                            |
-| `perplexity`     | Interact with Perplexity AI models       | API Key (via Integration)                 |
-| `reddit`         | Interact with Reddit posts/comments      | OAuth (AgentR)                            |
-| `resend`         | Send emails via Resend API               | API Key (via Integration)                 |
-| `serpapi`        | Perform web searches via SerpApi         | API Key (via Integration)                 |
-| `tavily`         | Advanced web search & research API       | API Key (via Integration)                 |
-| `zenquotes`      | Get inspirational quotes                 | None                                      |
+Visit [https://agentr.dev](https://agentr.dev) to check all available applications
 
 *Authentication Type notes:*
 *   *OAuth (AgentR)*: Typically requires configuring the integration with `type: "agentr"` in your `ServerConfig`. Requires the `AGENTR_API_KEY`.
@@ -209,6 +191,15 @@ universal_mcp --version
     -   `keyring` (optional, for `KeyringStore`)
     -   `litellm` (optional, for `docgen` command)
     -   ... and others specific to certain applications.
+
+## 📚 Documentation
+
+For more detailed information about specific components:
+
+- [Tools Documentation](src/universal_mcp/tools/README.md) - Learn about tool management and conversion
+- [Servers Documentation](src/universal_mcp/servers/README.md) - Understand different server implementations
+- [Stores Documentation](src/universal_mcp/stores/README.md) - Explore credential storage options
+- [Integrations Documentation](src/universal_mcp/integrations/README.md) - Learn about authentication methods
 
 ## 📝 License
 

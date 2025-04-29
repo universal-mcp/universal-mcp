@@ -13,7 +13,7 @@ from universal_mcp.applications import BaseApplication, app_from_slug
 from universal_mcp.config import AppConfig, ServerConfig, StoreConfig
 from universal_mcp.integrations import AgentRIntegration, integration_from_config
 from universal_mcp.stores import BaseStore, store_from_config
-from universal_mcp.tools.tools import ToolManager
+from universal_mcp.tools import ToolManager
 from universal_mcp.utils.agentr import AgentrClient
 
 
