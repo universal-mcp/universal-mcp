@@ -21,12 +21,12 @@ def _import_class(module_path: str, class_name: str):
     try:
         module = importlib.import_module(module_path)
     except ModuleNotFoundError as e:
-        logger.debug("Import failed for module '%s': %s", module_path, e)
+        logger.debug(f"Import failed for module '{module_path}': {e}")
         raise
     try:
         return getattr(module, class_name)
     except AttributeError as e:
-        logger.error("Class '%s' not found in module '%s'", class_name, module_path)
+        logger.error(f"Class '{class_name}' not found in module '{module_path}'")
         raise ModuleNotFoundError(f"Class '{class_name}' not found in module '{module_path}'") from e
 
 def _install_package(slug_clean: str):
@@ -35,16 +35,14 @@ def _install_package(slug_clean: str):
     """
     repo_url = f"git+https://github.com/universal-mcp/{slug_clean}"
     cmd = ["uv", "pip", "install", repo_url]
-    logger.info("Installing package '%s' with command: %s", slug_clean, " ".join(cmd))
+    logger.info(f"Installing package '{slug_clean}' with command: {' '.join(cmd)}")
     try:
         subprocess.check_call(cmd)
     except subprocess.CalledProcessError as e:
-        logger.error("Installation failed for '%s': %s", slug_clean, e)
+        logger.error(f"Installation failed for '{slug_clean}': {e}")
         raise ModuleNotFoundError(f"Installation failed for package '{slug_clean}'") from e
     else:
-        logger.info("Package '%s' installed successfully", slug_clean)
-
-
+        logger.info(f"Package '{slug_clean}' installed successfully")
 
 def app_from_slug(slug: str):
     """
@@ -56,20 +54,18 @@ def app_from_slug(slug: str):
     package_prefix = f"universal_mcp_{slug_clean.replace('-', '_')}"
     module_path = f"{package_prefix}.app"
 
-    logger.info("Resolving app for slug '%s' → module '%s', class '%s'", slug, module_path, class_name)
+    logger.info(f"Resolving app for slug '{slug}' → module '{module_path}', class '{class_name}'")
     try:
         return _import_class(module_path, class_name)
     except ModuleNotFoundError as orig_err:
-        logger.warning("Module '%s' not found locally: %s. Installing...", module_path, orig_err)
+        logger.warning(f"Module '{module_path}' not found locally: {orig_err}. Installing...")
         _install_package(slug_clean)
         # Retry import after installation
         try:
             return _import_class(module_path, class_name)
         except ModuleNotFoundError as retry_err:
-            logger.error("Still cannot import '%s' after installation: %s", module_path, retry_err)
+            logger.error(f"Still cannot import '{module_path}' after installation: {retry_err}")
             raise
-
-
 
 __all__ = [
     "app_from_slug",
