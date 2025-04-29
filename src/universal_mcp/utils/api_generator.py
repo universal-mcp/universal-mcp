@@ -1,39 +1,15 @@
 import ast
-import importlib.util
 import inspect
 import os
 import traceback
 from pathlib import Path
+from loguru import logger
+import shutil
+import importlib.util
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from universal_mcp.utils.docgen import process_file
 from universal_mcp.utils.openapi import generate_api_client, load_schema
-
-README_TEMPLATE = """
-# {name} MCP Server
-
-An MCP Server for the {name} API.
-
-## Supported Integrations
-
-- AgentR
-- API Key (Coming Soon)
-- OAuth (Coming Soon)
-
-## Tools
-
-{tools}
-
-## Usage
-
-- Login to AgentR
-- Follow the quickstart guide to setup MCP Server for your client
-- Visit Apps Store and enable the {name} app
-- Restart the MCP Server
-
-### Local Development
-
-- Follow the README to test with the local MCP Server
-"""
 
 
 def echo(message: str, err: bool = False) -> None:
@@ -160,110 +136,182 @@ def collect_tools(class_obj: any, folder_name: str) -> list[tuple[str, str]]:
 
 
 def generate_readme(
-    app_dir: Path, folder_name: str, tools: list[tuple[str, str]]
+    app_dir: Path, folder_name: str, tools: list
 ) -> Path:
-    """Generate README.md with API documentation."""
+    """Generate README.md with API documentation.
+    
+    Args:
+        app_dir: Directory where the README will be generated
+        folder_name: Name of the application folder
+        tools: List of Function objects from the OpenAPI schema
+        
+    Returns:
+        Path to the generated README file
+        
+    Raises:
+        FileNotFoundError: If the template directory doesn't exist
+        TemplateError: If there's an error rendering the template
+        IOError: If there's an error writing the README file
+    """
     app = folder_name.replace("_", " ").title()
+    logger.info(f"Generating README for {app} in {app_dir}")
 
-    tools_content = f"This is automatically generated from OpenAPI schema for the {folder_name.replace('_', ' ').title()} API.\n\n"
-    tools_content += "## Supported Integrations\n\n"
-    tools_content += (
-        "This tool can be integrated with any service that supports HTTP requests.\n\n"
-    )
-    tools_content += "## Tool List\n\n"
+    # Format tools into (name, description) tuples
+    formatted_tools = []
+    for tool in tools:
+        if hasattr(tool, 'name') and hasattr(tool, 'description'):
+            # Use the first line of the description as a summary
+            description = tool.description.split('\n')[0].strip()
+            formatted_tools.append((tool.name, description))
+        else:
+            logger.warning(f"Skipping tool without name or description: {tool}")
 
-    if tools:
-        tools_content += "| Tool | Description |\n|------|-------------|\n"
-        for tool_name, tool_desc in tools:
-            tools_content += f"| {tool_name} | {tool_desc} |\n"
-        tools_content += "\n"
-    else:
-        tools_content += (
-            "No tools with documentation were found in this API client.\n\n"
+    # Set up Jinja2 environment
+    template_dir = Path(__file__).parent.parent / "templates"
+    if not template_dir.exists():
+        logger.error(f"Template directory not found: {template_dir}")
+        raise FileNotFoundError(f"Template directory not found: {template_dir}")
+
+    try:
+        env = Environment(
+            loader=FileSystemLoader(template_dir),
+            autoescape=select_autoescape()
         )
+        template = env.get_template("README.md.j2")
+    except Exception as e:
+        logger.error(f"Error loading template: {e}")
+        raise TemplateError(f"Error loading template: {e}")
 
-    readme_content = README_TEMPLATE.format(
-        name=app,
-        tools=tools_content,
-        usage="",
-    )
+    # Render the template
+    try:
+        readme_content = template.render(
+            name=app,
+            tools=formatted_tools
+        )
+    except Exception as e:
+        logger.error(f"Error rendering template: {e}")
+        raise TemplateError(f"Error rendering template: {e}")
+
+    # Write the README file
     readme_file = app_dir / "README.md"
-    with open(readme_file, "w") as f:
-        f.write(readme_content)
+    try:
+        with open(readme_file, "w") as f:
+            f.write(readme_content)
+        logger.info(f"Documentation generated at: {readme_file}")
+    except Exception as e:
+        logger.error(f"Error writing README file: {e}")
+        raise IOError(f"Error writing README file: {e}")
 
-    echo(f"Documentation generated at: {readme_file}")
     return readme_file
 
 
-async def generate_api_from_schema(
+
+
+def test_correct_output(gen_file: Path):
+    # Check file is non-empty
+    if gen_file.stat().st_size == 0:
+        msg = f"Generated file {gen_file} is empty."
+        logger.error(msg)
+        return False
+
+    # Basic import test on generated code
+    try:
+        spec = importlib.util.spec_from_file_location("temp_module", gen_file)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)  # type: ignore
+        logger.info("Intermediate code import test passed.")
+        return True
+    except Exception as e:
+        logger.error(f"Import test failed for generated code: {e}")
+        return False
+    return True
+
+
+def generate_api_from_schema(
     schema_path: Path,
     output_path: Path | None = None,
-    add_docstrings: bool = True,
 ) -> dict[str, str | None]:
     """
-    Generate API client from OpenAPI schema with optional docstring generation.
+    Generate API client from OpenAPI schema and write to app.py with a README.
 
-    Args:
-        schema_path: Path to the OpenAPI schema file
-        output_path: Output file path - should match the API name (e.g., 'twitter.py' for Twitter API)
-        add_docstrings: Whether to add docstrings to the generated code
-
-    Returns:
-        dict: A dictionary with information about the generated files
+    Steps:
+    1. Parse and validate the OpenAPI schema.
+    2. Generate client code.
+    3. Ensure output directory exists.
+    4. Write code to an intermediate app_generated.py and perform basic import checks.
+    5. Copy/overwrite intermediate file to app.py.
+    6. Collect tools and generate README.md.
     """
+    # Local imports for logging and file operations
+
+
+    logger.info("Starting API generation for schema: %s", schema_path)
+
+    # 1. Parse and validate schema
     try:
         schema = validate_and_load_schema(schema_path)
-        code = generate_api_client(schema)
+        logger.info("Schema loaded and validated successfully.")
+    except Exception as e:
+        logger.error("Failed to load or validate schema: %s", e)
+        raise
 
-        if not output_path:
-            return {"code": code}
+    # 2. Generate client code
+    try:
+        code, methods = generate_api_client(schema)
+        logger.info("API client code generated.")
+    except Exception as e:
+        logger.error("Code generation failed: %s", e)
+        raise
 
-        folder_name = output_path.stem
-        temp_output_path = output_path
+    # If no output_path provided, return raw code
+    if not output_path:
+        logger.debug("No output_path provided, returning code as string.")
+        return {"code": code}
 
-        write_and_verify_code(temp_output_path, code)
+    # 3. Ensure output directory exists
+    target_dir = output_path
+    if not target_dir.exists():
+        logger.info("Creating output directory: %s", target_dir)
+        target_dir.mkdir(parents=True, exist_ok=True)
 
-        if add_docstrings:
-            result = await generate_docstrings(str(temp_output_path))
-            if result:
-                if "functions_processed" in result:
-                    echo(f"Processed {result['functions_processed']} functions")
-            else:
-                echo("Docstring generation failed", err=True)
-        else:
-            echo("Skipping docstring generation as requested")
+    # 4. Write to intermediate file and perform basic checks
+    gen_file = target_dir / "app_generated.py"
+    logger.info("Writing generated code to intermediate file: %s", gen_file)
+    with open(gen_file, "w") as f:
+        f.write(code)
 
-        app_dir, app_file = setup_app_directory(folder_name, temp_output_path)
+    if not test_correct_output(gen_file):
+        logger.error("Generated code validation failed for '%s'. Aborting generation.", gen_file)
+        logger.info("Next steps:")
+        logger.info(" 1) Review your OpenAPI schema for potential mismatches.")
+        logger.info(" 2) Inspect '%s' for syntax or logic errors in the generated code.", gen_file)
+        logger.info(" 3) Correct the issues and re-run the command.")
+        return {"error": "Validation failed. See logs above for detailed instructions."}
 
-        try:
-            echo("Generating README.md from function information...")
-            spec = importlib.util.spec_from_file_location("temp_module", app_file)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+    # 5. Copy to final app.py (overwrite if exists)
+    app_file = target_dir / "app.py"
+    if app_file.exists():
+        logger.warning("Overwriting existing file: %s", app_file)
+    else:
+        logger.info("Creating new file: %s", app_file)
+    shutil.copy(gen_file, app_file)
+    logger.info("App file written to: %s", app_file)
 
-            class_name, class_obj = get_class_info(module)
-            if not class_name:
-                class_name = folder_name.capitalize() + "App"
+    # 6. Collect tools and generate README
 
-            tools = collect_tools(class_obj, folder_name)
-            readme_file = generate_readme(app_dir, folder_name, tools)
+    tools = methods
+    readme_file = generate_readme(target_dir, output_path.stem, tools)
+    logger.info("README generated at: %s", readme_file)
 
-        except Exception as e:
-            echo(f"Error generating documentation: {e}", err=True)
-            readme_file = None
 
-        return {
-            "app_file": str(app_file),
-            "readme_file": str(readme_file) if readme_file else None,
-        }
+    # Cleanup intermediate file
+    try:
+        os.remove(gen_file)
+        logger.debug("Cleaned up intermediate file: %s", gen_file)
+    except Exception as e:
+        logger.warning("Could not remove intermediate file %s: %s", gen_file, e)
 
-    finally:
-        if output_path and output_path.exists():
-            try:
-                output_path.unlink()
-                echo(f"Cleaned up temporary file: {output_path}")
-            except Exception as e:
-                echo(
-                    f"Warning: Could not remove temporary file {output_path}: {e}",
-                    err=True,
-                )
+    return {
+        "app_file": str(app_file),
+        # "readme_file": str(readme_file) if readme_file else None,
+    }

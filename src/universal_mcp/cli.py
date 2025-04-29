@@ -25,9 +25,6 @@ def generate(
         "-o",
         help="Output file path - should match the API name (e.g., 'twitter.py' for Twitter API)",
     ),
-    add_docstrings: bool = typer.Option(
-        True, "--docstrings/--no-docstrings", help="Add docstrings to generated code"
-    ),
 ):
     """Generate API client from OpenAPI schema with optional docstring generation.
 
@@ -43,13 +40,10 @@ def generate(
 
     try:
         # Run the async function in the event loop
-        result = asyncio.run(
-            generate_api_from_schema(
+        result = generate_api_from_schema(
                 schema_path=schema_path,
                 output_path=output_path,
-                add_docstrings=add_docstrings,
             )
-        )
 
         if not output_path:
             # Print to stdout if no output path
