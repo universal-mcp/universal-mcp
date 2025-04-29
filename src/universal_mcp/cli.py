@@ -213,7 +213,7 @@ def init(
         ).strip()
     validate_pattern(app_name, "app name")
 
-    class_name = 
+    class_name = "".join(word.title() for word in app_name.split("-")) + "App"
     
     if not output_dir:
         path_str = typer.prompt(
