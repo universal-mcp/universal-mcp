@@ -25,7 +25,7 @@ def app_from_slug(slug: str):
         return app_class
     except ModuleNotFoundError:
         logger.warning(f"Module '{package_name}' not found. Attempting to install from AgentR.")
-        install_command = ["uv", "pip", "install", f"git+https://github.com/AgentrDev/{name}"]
+        install_command = ["uv", "pip", "install", f"git+https://github.com/universal-mcp/{name}"]
         try:
             subprocess.check_call(install_command)
             logger.info(f"Successfully installed 'universal-mcp-{name}'.Attempting import again.")
