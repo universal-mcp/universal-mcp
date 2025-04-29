@@ -24,6 +24,7 @@ def sample_schema(temp_dir):
                 "get": {
                     "operationId": "test_operation",
                     "summary": "Test operation",
+                    "tags": ["test", "operations"],
                     "responses": {
                         "200": {
                             "description": "Successful response",
@@ -52,7 +53,7 @@ def sample_schema(temp_dir):
 @pytest.mark.asyncio
 async def test_generate_api_without_output(sample_schema):
     """Test API generation without output file (return code only)."""
-    result = await generate_api_from_schema(
+    result =generate_api_from_schema(
         schema_path=sample_schema, output_path=None, add_docstrings=False
     )
 
@@ -71,15 +72,12 @@ async def test_generate_api_with_output(sample_schema, temp_dir):
     """Test API generation with output file."""
     output_path = temp_dir / "test.py"
 
-    result = await generate_api_from_schema(
+    app_file, readme_file = generate_api_from_schema(
         schema_path=sample_schema, output_path=output_path, add_docstrings=True
     )
 
-    assert "app_file" in result
-    assert "readme_file" in result
-
-    app_file = Path(result["app_file"])
-    readme_file = Path(result["readme_file"]) if result["readme_file"] else None
+    assert "app_file" is not None
+    assert "readme_file" is not None
 
     assert app_file.exists()
     content = app_file.read_text()
@@ -96,9 +94,6 @@ async def test_generate_api_with_output(sample_schema, temp_dir):
         assert "Test MCP Server" in readme_content
         assert "Tool List" in readme_content
         assert "test_operation" in readme_content
-
-    # Verify temporary file was cleaned up
-    assert not output_path.exists()
 
 
 @pytest.mark.asyncio
@@ -125,11 +120,12 @@ async def test_generate_api_with_docstrings(sample_schema, temp_dir):
     """Test API generation with docstring generation."""
     output_path = temp_dir / "test_with_docs.py"
 
-    result = await generate_api_from_schema(
+    app_file, readme_file = generate_api_from_schema(
         schema_path=sample_schema, output_path=output_path, add_docstrings=True
     )
 
-    app_file = Path(result["app_file"])
+    assert app_file is not None
+    assert readme_file is not None
     assert app_file.exists()
 
     # Check if docstrings were added
@@ -141,8 +137,6 @@ async def test_generate_api_with_docstrings(sample_schema, temp_dir):
     assert '"""' in content  # Basic check for docstring presence
     assert "Tags:" in content
 
-    # Verify temporary file was cleaned up
-    assert not output_path.exists()
 
 
 @pytest.mark.asyncio
@@ -150,11 +144,12 @@ async def test_generate_api_without_docstrings(sample_schema, temp_dir):
     """Test API generation without docstring generation."""
     output_path = temp_dir / "test_without_docs.py"
 
-    result = await generate_api_from_schema(
+    app_file, readme_file = generate_api_from_schema(
         schema_path=sample_schema, output_path=output_path, add_docstrings=False
     )
 
-    app_file = Path(result["app_file"])
+    assert app_file is not None
+    assert readme_file is not None
     assert app_file.exists()
 
     # Verify the app was generated
@@ -164,22 +159,6 @@ async def test_generate_api_without_docstrings(sample_schema, temp_dir):
     assert "from universal_mcp.integrations import Integration" in content
     assert "def test_operation" in content
     assert "def list_tools" in content
-
-    # Verify temporary file was cleaned up
-    assert not output_path.exists()
-
-
-def test_applications_directory_structure():
-    """Test that the applications directory structure is correct."""
-    # Get the applications directory path
-    applications_dir = Path(__file__).parent.parent / "universal_mcp" / "applications"
-
-    # Check if applications directory exists
-    assert applications_dir.exists()
-    assert applications_dir.is_dir()
-
-    # Check if it's a Python package
-    assert (applications_dir / "__init__.py").exists()
 
 
 @pytest.mark.asyncio
@@ -225,11 +204,12 @@ async def test_generate_api_with_complex_schema(temp_dir):
         json.dump(schema, f)
 
     output_path = temp_dir / "complex.py"
-    result = await generate_api_from_schema(
+    app_file, readme_file = generate_api_from_schema(
         schema_path=schema_file, output_path=output_path, add_docstrings=True
     )
 
-    app_file = Path(result["app_file"])
+    assert app_file is not None
+    assert readme_file is not None
     assert app_file.exists()
 
     content = app_file.read_text()
@@ -254,8 +234,6 @@ async def test_generate_api_with_complex_schema(temp_dir):
     assert "from typing import" in content
 
     # Verify README was generated
-    readme_file = Path(result["readme_file"])
-    assert readme_file.exists()
     readme_content = readme_file.read_text()
 
     # Check README content

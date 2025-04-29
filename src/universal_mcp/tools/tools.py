@@ -261,7 +261,7 @@ class ToolManager:
             available_tool_functions = app.list_tools()
         except TypeError as e:
             logger.error(
-                f"Error calling list_tools for app '{app.name}'. Does its list_tools method accept arguments? It shouldn't. Error: {e}"
+                f"Error calling list_tools for app '{app.name}'. Error: {e}"
             )
             return
         except Exception as e:

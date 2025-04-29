@@ -14,6 +14,7 @@ from universal_mcp.config import AppConfig, ServerConfig, StoreConfig
 from universal_mcp.integrations import AgentRIntegration, integration_from_config
 from universal_mcp.stores import BaseStore, store_from_config
 from universal_mcp.tools.tools import ToolManager
+from universal_mcp.utils.agentr import AgentrClient
 
 
 class BaseServer(FastMCP, ABC):
@@ -169,16 +170,9 @@ class AgentRServer(BaseServer):
     """
 
     def __init__(self, config: ServerConfig, api_key: str | None = None, **kwargs):
-        self.api_key = api_key or os.getenv("AGENTR_API_KEY")
-        self.base_url = os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
-
-        if not self.api_key:
-            raise ValueError("API key required - get one at https://agentr.dev")
-        parsed = urlparse(self.base_url)
-        if not all([parsed.scheme, parsed.netloc]):
-            raise ValueError(f"Invalid base URL format: {self.base_url}")
+        self.client = AgentrClient(api_key=api_key)
         super().__init__(config, **kwargs)
-        self.integration = AgentRIntegration(name="agentr", api_key=self.api_key)
+        self.integration = AgentRIntegration(name="agentr", api_key=self.client.api_key)
         self._load_apps()
 
     def _fetch_apps(self) -> list[AppConfig]:
@@ -191,13 +185,8 @@ class AgentRServer(BaseServer):
             httpx.HTTPError: If API request fails
         """
         try:
-            response = httpx.get(
-                f"{self.base_url}/api/apps/",
-                headers={"X-API-KEY": self.api_key},
-                timeout=10,
-            )
-            response.raise_for_status()
-            return [AppConfig.model_validate(app) for app in response.json()]
+            apps = self.client.fetch_apps()
+            return [AppConfig.model_validate(app) for app in apps]
         except httpx.HTTPError as e:
             logger.error(f"Failed to fetch apps from AgentR: {e}", exc_info=True)
             raise
@@ -214,7 +203,7 @@ class AgentRServer(BaseServer):
         try:
             integration = (
                 AgentRIntegration(
-                    name=app_config.integration.name, api_key=self.api_key
+                    name=app_config.integration.name, api_key=self.client.api_key
                 )
                 if app_config.integration
                 else None
@@ -259,17 +248,16 @@ class SingleMCPServer(BaseServer):
         config: ServerConfig | None = None,
         **kwargs,
     ):
-        server_config = ServerConfig(
-            type="local",
-            name=f"{app_instance.name.title()} MCP Server for Local Development"
-            if app_instance
-            else "Unnamed MCP Server",
-            description=f"Minimal MCP server for the local {app_instance.name} application."
-            if app_instance
-            else "Minimal MCP server with no application loaded.",
-        )
         if not config:
-            config = server_config
+            config = ServerConfig(
+                type="local",
+                name=f"{app_instance.name.title()} MCP Server for Local Development"
+                if app_instance
+                else "Unnamed MCP Server",
+                description=f"Minimal MCP server for the local {app_instance.name} application."
+                if app_instance
+                else "Minimal MCP server with no application loaded.",
+            )
         super().__init__(config, **kwargs)
 
         self.app_instance = app_instance

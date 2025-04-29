@@ -122,6 +122,7 @@ def test_correct_output(gen_file: Path):
 def generate_api_from_schema(
     schema_path: Path,
     output_path: Path | None = None,
+    add_docstrings: bool = True,
 ) -> tuple[Path, Path]:
     """
     Generate API client from OpenAPI schema and write to app.py with a README.

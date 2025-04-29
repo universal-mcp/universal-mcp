@@ -63,7 +63,7 @@ def generate(
 def docgen(
     file_path: Path = typer.Argument(..., help="Path to the Python file to process"),
     model: str = typer.Option(
-        "perplexity/sonar-pro",
+        "perplexity/sonar",
         "--model",
         "-m",
         help="Model to use for generating docstrings",

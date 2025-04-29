@@ -1,9 +1,9 @@
 from universal_mcp.config import IntegrationConfig
-from universal_mcp.integrations.agentr import AgentRIntegration
 from universal_mcp.integrations.integration import (
     ApiKeyIntegration,
     Integration,
     OAuthIntegration,
+    AgentRIntegration,
 )
 from universal_mcp.stores.store import BaseStore
 
