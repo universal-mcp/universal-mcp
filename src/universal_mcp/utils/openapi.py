@@ -151,7 +151,7 @@ def generate_api_client(schema):
         methods=methods
     )
 
-    return class_code, methods
+    return class_code
 
 
 @dataclass
@@ -169,34 +169,6 @@ class Function:
         """Convert args dictionary to a string representation."""
         return ", ".join(f"{arg}: {typ}" for arg, typ in self.args.items())
 
-    def to_string(self) -> str:
-        """
-        Render this Function object as a Python function definition.
-        """
-        # Prepare the argument list
-        arg_parts = [f"{arg}: {typ}" for arg, typ in self.args.items()]
-        args_str = ", ".join(arg_parts)
-
-        # Build the signature line
-        lines = [f"def {self.name}({args_str}) -> {self.return_type}:"]
-
-        # Add a docstring if we have a description or tags
-        if self.description or self.tags:
-            lines.append('    """')
-            if self.description:
-                for line in self.description.splitlines():
-                    lines.append(f"    {line}")
-            if self.tags:
-                lines.append(f"    Tags: {', '.join(self.tags)}")
-            lines.append('    """')
-
-        # Add the implementation
-        lines.append(self.implementation)
-
-        return "\n".join(lines)
-
-    def __str__(self) -> str:
-        return self.to_string()
 
 def generate_method_code(
     path: str,
@@ -233,10 +205,6 @@ def generate_method_code(
             return "dict[str, Any]"
         return "Any"
 
-    # Map transformed path param names (underscores) back to original (hyphens)
-    path_param_map = {
-        name.replace("-", "_"): name for name in path_params_in_url
-    }
 
     # Determine function name
     if op_id := operation.get("operationId"):
@@ -341,7 +309,7 @@ def generate_method_code(
         desc_parts.append(summary)
     if operation_desc:
         desc_parts.append(operation_desc)
-    description_text = "\n".join(desc_parts)
+    description_text = ". ".join(desc_parts)
 
     tags = operation.get("tags", []) or []
 
@@ -423,8 +391,6 @@ def generate_method_code(
 
     logger.debug(f"Generated function: {function}")
     return function
-
-
 
 # Example usage
 if __name__ == "__main__":

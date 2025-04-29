@@ -63,16 +63,12 @@ def generate(
 def docgen(
     file_path: Path = typer.Argument(..., help="Path to the Python file to process"),
     model: str = typer.Option(
-        "anthropic/claude-3-5-sonnet-20241022",
+        "perplexity/sonar-pro",
         "--model",
         "-m",
         help="Model to use for generating docstrings",
     ),
-    api_key: str = typer.Option(
-        None,
-        "--api-key",
-        help="Anthropic API key (can also be set via ANTHROPIC_API_KEY environment variable)",
-    ),
+    
 ):
     """Generate docstrings for Python files using LLMs.
 
@@ -84,10 +80,6 @@ def docgen(
     if not file_path.exists():
         typer.echo(f"Error: File not found: {file_path}", err=True)
         raise typer.Exit(1)
-
-    # Set API key if provided
-    if api_key:
-        os.environ["ANTHROPIC_API_KEY"] = api_key
 
     try:
         processed = process_file(str(file_path), model)

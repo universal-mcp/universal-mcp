@@ -23,5 +23,5 @@ class {{ class_name }}(APIApplication):
         return [
             {% for method in methods %}
             self.{{ method.name }}{% if not loop.last %},{% endif %}
-            {% endfor %}
+            {%- endfor %}
         ] 

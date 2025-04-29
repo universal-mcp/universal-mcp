@@ -50,9 +50,9 @@ This is automatically generated from OpenAPI schema for the {{ name }} API.
 {% if tools %}
 | Tool | Description |
 |------|-------------|
-{% for tool_name, tool_desc in tools %}
+{%- for tool_name, tool_desc in tools %}
 | `{{ tool_name }}` | {{ tool_desc }} |
-{% endfor %}
+{%- endfor %}
 {% else %}
 No tools with documentation were found in this API client.
 {% endif %}

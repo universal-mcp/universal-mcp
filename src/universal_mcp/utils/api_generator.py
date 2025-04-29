@@ -6,7 +6,7 @@ from pathlib import Path
 from loguru import logger
 import shutil
 import importlib.util
-from jinja2 import Environment, FileSystemLoader, select_autoescape
+from jinja2 import Environment, FileSystemLoader, TemplateError, select_autoescape
 
 from universal_mcp.utils.docgen import process_file
 from universal_mcp.utils.openapi import generate_api_client, load_schema
@@ -29,111 +29,12 @@ def validate_and_load_schema(schema_path: Path) -> dict:
         echo(f"Error loading schema: {e}", err=True)
         raise
 
-
-def write_and_verify_code(output_path: Path, code: str) -> None:
-    """Write generated code to file and verify its contents."""
-    with open(output_path, "w") as f:
-        f.write(code)
-    echo(f"Generated API client at: {output_path}")
-
-    try:
-        with open(output_path) as f:
-            file_content = f.read()
-            echo(f"Successfully wrote {len(file_content)} bytes to {output_path}")
-            ast.parse(file_content)
-            echo("Python syntax check passed")
-    except SyntaxError as e:
-        echo(f"Warning: Generated file has syntax error: {e}", err=True)
-    except Exception as e:
-        echo(f"Error verifying output file: {e}", err=True)
-
-
-async def generate_docstrings(script_path: str) -> dict[str, int]:
-    """Generate docstrings for the given script file."""
-    echo(f"Adding docstrings to {script_path}...")
-
-    if not os.path.exists(script_path):
-        echo(f"Warning: File {script_path} does not exist", err=True)
-        return {"functions_processed": 0}
-
-    try:
-        with open(script_path) as f:
-            content = f.read()
-            echo(f"Successfully read {len(content)} bytes from {script_path}")
-    except Exception as e:
-        echo(f"Error reading file for docstring generation: {e}", err=True)
-        return {"functions_processed": 0}
-
-    try:
-        processed = process_file(script_path)
-        return {"functions_processed": processed}
-    except Exception as e:
-        echo(f"Error running docstring generation: {e}", err=True)
-        traceback.print_exc()
-        return {"functions_processed": 0}
-
-
-def setup_app_directory(folder_name: str, source_file: Path) -> tuple[Path, Path]:
-    """Set up application directory structure and copy generated code."""
-    applications_dir = Path(__file__).parent.parent / "applications"
-    app_dir = applications_dir / folder_name
-    app_dir.mkdir(exist_ok=True)
-
-    init_file = app_dir / "__init__.py"
-    if not init_file.exists():
-        with open(init_file, "w") as f:
-            f.write("")
-
-    app_file = app_dir / "app.py"
-    with open(source_file) as src, open(app_file, "w") as dest:
-        app_content = src.read()
-        dest.write(app_content)
-
-    echo(f"API client installed at: {app_file}")
-    return app_dir, app_file
-
-
 def get_class_info(module: any) -> tuple[str | None, any]:
     """Find the main class in the generated module."""
     for name, obj in inspect.getmembers(module):
         if inspect.isclass(obj) and obj.__module__ == "temp_module":
             return name, obj
     return None, None
-
-
-def collect_tools(class_obj: any, folder_name: str) -> list[tuple[str, str]]:
-    """Collect tool information from the class."""
-    tools = []
-
-    # Try to get tools from list_tools method
-    if class_obj and hasattr(class_obj, "list_tools"):
-        try:
-            instance = class_obj()
-            tool_list = instance.list_tools()
-
-            for tool in tool_list:
-                func_name = tool.__name__
-                if func_name.startswith("_") or func_name in ("__init__", "list_tools"):
-                    continue
-
-                doc = tool.__doc__ or f"Function for {func_name.replace('_', ' ')}"
-                summary = doc.split("\n\n")[0].strip()
-                tools.append((func_name, summary))
-        except Exception as e:
-            echo(f"Note: Couldn't instantiate class to get tool list: {e}")
-
-    # Fall back to inspecting class methods directly
-    if not tools and class_obj:
-        for name, method in inspect.getmembers(class_obj, inspect.isfunction):
-            if name.startswith("_") or name in ("__init__", "list_tools"):
-                continue
-
-            doc = method.__doc__ or f"Function for {name.replace('_', ' ')}"
-            summary = doc.split("\n\n")[0].strip()
-            tools.append((name, summary))
-
-    return tools
-
 
 def generate_readme(
     app_dir: Path, folder_name: str, tools: list
@@ -159,12 +60,9 @@ def generate_readme(
     # Format tools into (name, description) tuples
     formatted_tools = []
     for tool in tools:
-        if hasattr(tool, 'name') and hasattr(tool, 'description'):
-            # Use the first line of the description as a summary
-            description = tool.description.split('\n')[0].strip()
-            formatted_tools.append((tool.name, description))
-        else:
-            logger.warning(f"Skipping tool without name or description: {tool}")
+        name = tool.__name__
+        description = tool.__doc__.strip().split("\n")[0]
+        formatted_tools.append((name, description))
 
     # Set up Jinja2 environment
     template_dir = Path(__file__).parent.parent / "templates"
@@ -204,9 +102,6 @@ def generate_readme(
 
     return readme_file
 
-
-
-
 def test_correct_output(gen_file: Path):
     # Check file is non-empty
     if gen_file.stat().st_size == 0:
@@ -230,7 +125,7 @@ def test_correct_output(gen_file: Path):
 def generate_api_from_schema(
     schema_path: Path,
     output_path: Path | None = None,
-) -> dict[str, str | None]:
+) -> tuple[Path, Path]:
     """
     Generate API client from OpenAPI schema and write to app.py with a README.
 
@@ -257,7 +152,7 @@ def generate_api_from_schema(
 
     # 2. Generate client code
     try:
-        code, methods = generate_api_client(schema)
+        code = generate_api_client(schema)
         logger.info("API client code generated.")
     except Exception as e:
         logger.error("Code generation failed: %s", e)
@@ -298,8 +193,28 @@ def generate_api_from_schema(
     logger.info("App file written to: %s", app_file)
 
     # 6. Collect tools and generate README
+    import importlib.util
+    import sys
 
-    tools = methods
+    # Load the generated module as "temp_module"
+    spec = importlib.util.spec_from_file_location("temp_module", str(app_file))
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["temp_module"] = module
+    spec.loader.exec_module(module)
+
+    # Retrieve the generated API class
+    class_name, cls = get_class_info(module)
+
+    # Instantiate client and collect its tools
+    tools = []
+    if cls:
+        try:
+            client = cls()
+            tools = client.list_tools()
+        except Exception as e:
+            logger.warning("Failed to instantiate '%s' or list tools: %s", class_name, e)
+    else:
+        logger.warning("No generated class found in module 'temp_module'")
     readme_file = generate_readme(target_dir, output_path.stem, tools)
     logger.info("README generated at: %s", readme_file)
 
@@ -311,7 +226,4 @@ def generate_api_from_schema(
     except Exception as e:
         logger.warning("Could not remove intermediate file %s: %s", gen_file, e)
 
-    return {
-        "app_file": str(app_file),
-        # "readme_file": str(readme_file) if readme_file else None,
-    }
+    return app_file, readme_file
