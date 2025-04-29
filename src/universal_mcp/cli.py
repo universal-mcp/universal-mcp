@@ -250,7 +250,6 @@ def init(
             no_input=True,
             extra_context={
                 "app_name": app_name,
-                "app_class_name": app_name,
                 "integration_type": integration_type,
             },
         )
