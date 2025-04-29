@@ -51,19 +51,19 @@ async def main() -> None:
     # Custom CSS for chat layout and styling
     st.markdown("""
         <style>
-        /* Hide Streamlit branding */
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
+        /* Hide Streamlit default header and footer */
+        #MainMenu, header, footer {
+            visibility: hidden;
+        }
 
-        /* General body and main content styling */
+        /* Light theme base styling */
         body {
-            color: #FAFAFA;
-            background-color: #0e1117;
+            background-color: #f8f9fa;
+            color: #212529;
             font-family: 'Segoe UI', Roboto, Arial, sans-serif;
         }
 
-        /* Main content container */
+        /* Remove default container styling */
         .main .block-container {
             padding: 0;
             margin: 0 auto;
@@ -72,80 +72,90 @@ async def main() -> None:
             box-shadow: none;
         }
 
-        /* Chat app container: flex layout filling viewport */
+        /* Chat container layout */
         .chat-app {
             display: flex;
             flex-direction: column;
             height: 100vh;
-            margin: 0 auto;
             max-width: 1000px;
+            margin: 0 auto;
         }
+
         /* File uploader expander styling */
         .chat-app .streamlit-expanderHeader {
-            background-color: #262730;
-            color: #FAFAFA !important;
-            border-radius: 10px;
+            background-color: #e9ecef;
+            color: #212529 !important;
+            border: 1px solid #ced4da;
+            border-radius: 0.5rem;
             padding: 1rem;
             margin: 1rem 2rem;
-            border: 1px solid #3e404e;
         }
         .chat-app .streamlit-expanderContent {
-            background-color: #1a1c23;
-            padding: 1rem 2rem 1rem;
-            border: 1px solid #3e404e;
+            background-color: #ffffff;
+            border: 1px solid #ced4da;
             border-top: none;
+            border-radius: 0 0 0.5rem 0.5rem;
+            padding: 1rem 2rem;
             margin: 0 2rem 1rem;
         }
 
-        /* Message area: scrollable */
+        /* Message area styling */
         .chat-app .message-area {
-            flex: 1 1 auto;
+            flex: 1;
             overflow-y: auto;
+            background-color: #ffffff;
+            border: 1px solid #ced4da;
+            border-radius: 0.5rem;
             padding: 1rem 2rem;
-            background-color: #1a1c23;
+            margin: 1rem 2rem;
         }
         .chat-app .message-area::-webkit-scrollbar {
-            width: 8px;
+            width: 6px;
         }
         .chat-app .message-area::-webkit-scrollbar-thumb {
-            background-color: #4a4d56;
-            border-radius: 4px;
+            background-color: #adb5bd;
+            border-radius: 3px;
         }
 
-        /* Chat input area: sticky at bottom */
+        /* Chat input area styling */
         .chat-app .chat-input-area {
-            flex: 0 0 auto;
             position: sticky;
             bottom: 0;
-            background-color: #0e1117;
+            background-color: #ffffff;
+            border-top: 1px solid #ced4da;
             padding: 1rem 2rem;
-            border-top: 1px solid #262730;
+            margin: 0 2rem 1rem;
             z-index: 100;
         }
-        .chat-app .chat-input-area .stButton>button {
-            background-color: #4a4d56;
-            color: #fafafa;
-            border-radius: 5px;
+        .chat-app .chat-input-area .stButton > button {
+            background-color: #007bff;
+            color: #ffffff;
+            border: none;
+            border-radius: 0.25rem;
             padding: 0.5rem 1rem;
         }
 
-        /* Style chat messages */
+        /* Chat message bubbles */
         .stChatMessage {
-            background-color: #262730;
-            border-radius: 10px;
-            padding: 1rem;
+            max-width: 60%;
+            border: 1px solid #ced4da;
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
             margin: 0.5rem 0;
-            color: #FAFAFA;
-            border: 1px solid #3e404e;
+            font-size: 0.95rem;
+            color: #212529;
         }
         .stChatMessage[data-testid="stChatMessage"][aria-label="user message"] {
-            background-color: #3e404e;
+            background-color: #cce5ff;
+            border-color: #b8daff;
             margin-left: 20%;
-            border-bottom-right-radius: 2px;
+            border-bottom-right-radius: 0.25rem;
         }
         .stChatMessage[data-testid="stChatMessage"][aria-label="assistant message"] {
+            background-color: #e2e3e5;
+            border-color: #d6d8db;
             margin-right: 20%;
-            border-bottom-left-radius: 2px;
+            border-bottom-left-radius: 0.25rem;
         }
         </style>
     """, unsafe_allow_html=True)
