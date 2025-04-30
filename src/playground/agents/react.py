@@ -12,7 +12,7 @@ async def load_tools():
     async with MultiServerMCPClient(
         {
             "agentr": {
-                "url": "http://localhost:8000/sse",
+                "url": "http://localhost:8005/sse",
                 "transport": "sse",
             },
         }

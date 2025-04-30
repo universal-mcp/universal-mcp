@@ -6,7 +6,6 @@ from collections.abc import AsyncGenerator
 from pathlib import Path
 
 import streamlit as st
-from dotenv import load_dotenv
 from pydantic import ValidationError
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 

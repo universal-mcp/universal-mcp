@@ -1,6 +1,6 @@
 [project]
 name = "universal-mcp"
-version = "0.1.13-rc2"
+version = "0.1.13-rc3"
 description = "Universal MCP acts as a middle ware for your API applications. It can store your credentials, authorize, enable disable apps on the fly and much more."
 readme = "README.md"
 authors = [
@@ -56,6 +56,46 @@ all = [
     "pytest-asyncio>=0.26.0",
     "pyright>=1.1.398",
     "litellm>=1.30.7",
+]
+applications = [
+    "universal-mcp-ahrefs",
+    "universal-mcp-cal-com-v2",
+    "universal-mcp-calendly",
+    "universal-mcp-clickup",
+    "universal-mcp-coda",
+    "universal-mcp-crustdata",
+    "universal-mcp-e2b",
+    "universal-mcp-elevenlabs",
+    "universal-mcp-falai",
+    "universal-mcp-figma",
+    "universal-mcp-firecrawl",
+    "universal-mcp-github",
+    "universal-mcp-gong",
+    "universal-mcp-google-calendar",
+    "universal-mcp-google-docs",
+    "universal-mcp-google-drive",
+    "universal-mcp-google-mail",
+    "universal-mcp-google-sheet",
+    "universal-mcp-hashnode",
+    "universal-mcp-heygen",
+    "universal-mcp-mailchimp",
+    "universal-mcp-markitdown",
+    "universal-mcp-neon",
+    "universal-mcp-notion",
+    "universal-mcp-perplexity",
+    "universal-mcp-reddit",
+    "universal-mcp-replicate",
+    "universal-mcp-resend",
+    "universal-mcp-retell",
+    "universal-mcp-rocketlane",
+    "universal-mcp-serpapi",
+    "universal-mcp-shortcut",
+    "universal-mcp-spotify",
+    "universal-mcp-supabase",
+    "universal-mcp-tavily",
+    "universal-mcp-wrike",
+    "universal-mcp-youtube",
+    "universal-mcp-zenquotes",
 ]
 
 [project.scripts]
@@ -159,3 +199,43 @@ docstring-code-line-length = "dynamic"
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
+
+[tool.uv.sources]
+universal-mcp-ahrefs = { git = "https://github.com/universal-mcp/ahrefs" }
+universal-mcp-cal-com-v2 = { git = "https://github.com/universal-mcp/cal-com-v2" }
+universal-mcp-calendly = { git = "https://github.com/universal-mcp/calendly" }
+universal-mcp-clickup = { git = "https://github.com/universal-mcp/clickup" }
+universal-mcp-coda = { git = "https://github.com/universal-mcp/coda" }
+universal-mcp-crustdata = { git = "https://github.com/universal-mcp/crustdata" }
+universal-mcp-e2b = { git = "https://github.com/universal-mcp/e2b" }
+universal-mcp-elevenlabs = { git = "https://github.com/universal-mcp/elevenlabs" }
+universal-mcp-falai = { git = "https://github.com/universal-mcp/falai" }
+universal-mcp-figma = { git = "https://github.com/universal-mcp/figma" }
+universal-mcp-firecrawl = { git = "https://github.com/universal-mcp/firecrawl" }
+universal-mcp-github = { git = "https://github.com/universal-mcp/github" }
+universal-mcp-gong = { git = "https://github.com/universal-mcp/gong" }
+universal-mcp-google-calendar = { git = "https://github.com/universal-mcp/google-calendar" }
+universal-mcp-google-docs = { git = "https://github.com/universal-mcp/google-docs" }
+universal-mcp-google-drive = { git = "https://github.com/universal-mcp/google-drive" }
+universal-mcp-google-mail = { git = "https://github.com/universal-mcp/google-mail" }
+universal-mcp-google-sheet = { git = "https://github.com/universal-mcp/google-sheet" }
+universal-mcp-hashnode = { git = "https://github.com/universal-mcp/hashnode" }
+universal-mcp-heygen = { git = "https://github.com/universal-mcp/heygen" }
+universal-mcp-mailchimp = { git = "https://github.com/universal-mcp/mailchimp" }
+universal-mcp-markitdown = { git = "https://github.com/universal-mcp/markitdown" }
+universal-mcp-neon = { git = "https://github.com/universal-mcp/neon" }
+universal-mcp-notion = { git = "https://github.com/universal-mcp/notion" }
+universal-mcp-perplexity = { git = "https://github.com/universal-mcp/perplexity" }
+universal-mcp-reddit = { git = "https://github.com/universal-mcp/reddit" }
+universal-mcp-replicate = { git = "https://github.com/universal-mcp/replicate" }
+universal-mcp-resend = { git = "https://github.com/universal-mcp/resend" }
+universal-mcp-retell = { git = "https://github.com/universal-mcp/retell" }
+universal-mcp-rocketlane = { git = "https://github.com/universal-mcp/rocketlane" }
+universal-mcp-serpapi = { git = "https://github.com/universal-mcp/serpapi" }
+universal-mcp-shortcut = { git = "https://github.com/universal-mcp/shortcut" }
+universal-mcp-spotify = { git = "https://github.com/universal-mcp/spotify" }
+universal-mcp-supabase = { git = "https://github.com/universal-mcp/supabase" }
+universal-mcp-tavily = { git = "https://github.com/universal-mcp/tavily" }
+universal-mcp-wrike = { git = "https://github.com/universal-mcp/wrike" }
+universal-mcp-youtube = { git = "https://github.com/universal-mcp/youtube" }
+universal-mcp-zenquotes = { git = "https://github.com/universal-mcp/zenquotes" }
