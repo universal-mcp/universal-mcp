@@ -42,20 +42,11 @@ git add pyproject.toml
 git commit -m "bump: version $CURRENT_VERSION → $NEW_VERSION"
 
 # Create and push tag if on main
-if [ "$BRANCH" = "main" ]; then
+if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "develop" ]; then
     git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
-    git push origin "v$NEW_VERSION"
-fi
-
-# Push the changes
-git push origin $BRANCH
-
-# Ask user if they want to release
-read -p "Do you want to build and publish the package? (y/N) " RELEASE_CONFIRM
-
-if [[ $RELEASE_CONFIRM =~ ^[Yy]$ ]]; then
-    # Build and publish
-    rm -rf dist && uv build && uv publish
+    # Push both the branch and tag in one command
+    git push origin $BRANCH "v$NEW_VERSION"
 else
-    echo "Skipping release. Version bump committed and pushed."
+    # Push only the branch if not on main/develop
+    git push origin $BRANCH
 fi

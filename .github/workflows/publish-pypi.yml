@@ -1,37 +1,28 @@
 name: Publishing
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      # Publish on any tag starting with a `v`, e.g. v1.2.3
+      - v*
 
 jobs:
   checks:
     uses: ./.github/workflows/shared.yml
 
   pypi-publish:
-    name: Upload release to PyPI
+    name: Publish to PyPI
     runs-on: ubuntu-latest
     needs:
       - checks
+    environment:
+      # Create this environment in the GitHub repository under Settings -> Environments
+      name: release
     permissions:
-      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
+      id-token: write
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-        with:
-          enable-cache: true
-          cache-dependency-glob: uv.lock
-
-      - name: Set up Python
-        run: uv python install 3.12  # Or whatever version I want to use.
-
-      - name: Build
-        run: uv build
-
-      - name: Publish
-        run: uv publish
-        env:
-          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+      - uses: astral-sh/setup-uv@v3
+      - run: uv build
+      - run: uv publish --trusted-publishing always
