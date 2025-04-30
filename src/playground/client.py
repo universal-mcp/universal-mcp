@@ -9,13 +9,9 @@ from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 
 from playground.agents.react import create_agent
-from playground.memory import initialize_database
 from playground.schema import (
     ChatHistory,
-    ChatHistoryInput,
     ChatMessage,
-    StreamInput,
-    UserInput,
 )
 from playground.utils import (
     convert_message_content_to_string,
@@ -26,10 +22,8 @@ from langgraph.types import Command
 
 @asynccontextmanager
 async def create_agent_client():
-    async with create_agent() as react_agent, initialize_database() as saver:
-        await saver.setup()
+    async with create_agent() as react_agent:
         agent = react_agent
-        agent.checkpointer = saver
         client = AgentClient(agent=agent)
         yield client
 

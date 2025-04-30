@@ -2933,7 +2933,7 @@ wheels = [
 
 [[package]]
 name = "universal-mcp"
-version = "0.1.13rc2"
+version = "0.1.13rc3"
 source = { editable = "." }
 dependencies = [
     { name = "cookiecutter" },
