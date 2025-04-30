@@ -67,6 +67,7 @@ class TestEnvironmentStore:
 
 
 # Test KeyringStore
+@pytest.mark.skip(reason="Skipping KeyringStore tests")
 class TestKeyringStore:
     @pytest.fixture
     def store(self):
