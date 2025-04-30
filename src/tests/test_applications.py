@@ -57,6 +57,10 @@ def test_application(app_name):
     logger.info(f"Tools for {app_name}: {tools}")
     assert len(tools) > 0
     assert isinstance(tools[0], Callable)
+    important_tools = []
     for tool in tools:
         assert tool.__name__ is not None
         assert tool.__doc__ is not None
+        if "important" in tool.__doc__:
+            important_tools.append(tool.__name__)
+    assert len(important_tools) > 0
