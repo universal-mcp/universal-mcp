@@ -53,9 +53,7 @@ def sample_schema(temp_dir):
 @pytest.mark.asyncio
 async def test_generate_api_without_output(sample_schema):
     """Test API generation without output file (return code only)."""
-    result = generate_api_from_schema(
-        schema_path=sample_schema, output_path=None, add_docstrings=False
-    )
+    result = generate_api_from_schema(schema_path=sample_schema, output_path=None)
 
     assert "code" in result
     assert isinstance(result["code"], str)
@@ -72,8 +70,8 @@ async def test_generate_api_with_output(sample_schema, temp_dir):
     """Test API generation with output file."""
     output_path = temp_dir / "test.py"
 
-    app_file, readme_file = generate_api_from_schema(
-        schema_path=sample_schema, output_path=output_path, add_docstrings=True
+    app_file = generate_api_from_schema(
+        schema_path=sample_schema, output_path=output_path
     )
 
     assert "app_file" != None
@@ -86,14 +84,6 @@ async def test_generate_api_with_output(sample_schema, temp_dir):
     assert "from universal_mcp.integrations import Integration" in content
     assert "def test_operation" in content
     assert "def list_tools" in content
-
-    # Verify README exists and contains expected content
-    if readme_file:
-        assert readme_file.exists()
-        readme_content = readme_file.read_text()
-        assert "Test MCP Server" in readme_content
-        assert "Tool List" in readme_content
-        assert "test_operation" in readme_content
 
 
 @pytest.mark.asyncio
@@ -116,39 +106,15 @@ async def test_generate_api_nonexistent_schema():
 
 
 @pytest.mark.asyncio
-async def test_generate_api_with_docstrings(sample_schema, temp_dir):
-    """Test API generation with docstring generation."""
-    output_path = temp_dir / "test_with_docs.py"
-
-    app_file, readme_file = generate_api_from_schema(
-        schema_path=sample_schema, output_path=output_path, add_docstrings=True
-    )
-
-    assert app_file is not None
-    assert readme_file is not None
-    assert app_file.exists()
-
-    # Check if docstrings were added
-    content = app_file.read_text()
-    # Check for required imports and class structure
-    assert "from universal_mcp.applications import APIApplication" in content
-    assert "from universal_mcp.integrations import Integration" in content
-    assert "def test_operation" in content
-    assert '"""' in content  # Basic check for docstring presence
-    assert "Tags:" in content
-
-
-@pytest.mark.asyncio
 async def test_generate_api_without_docstrings(sample_schema, temp_dir):
     """Test API generation without docstring generation."""
     output_path = temp_dir / "test_without_docs.py"
 
-    app_file, readme_file = generate_api_from_schema(
-        schema_path=sample_schema, output_path=output_path, add_docstrings=False
+    app_file = generate_api_from_schema(
+        schema_path=sample_schema, output_path=output_path
     )
 
     assert app_file is not None
-    assert readme_file is not None
     assert app_file.exists()
 
     # Verify the app was generated
@@ -203,12 +169,11 @@ async def test_generate_api_with_complex_schema(temp_dir):
         json.dump(schema, f)
 
     output_path = temp_dir / "complex.py"
-    app_file, readme_file = generate_api_from_schema(
-        schema_path=schema_file, output_path=output_path, add_docstrings=True
+    app_file = generate_api_from_schema(
+        schema_path=schema_file, output_path=output_path
     )
 
     assert app_file is not None
-    assert readme_file is not None
     assert app_file.exists()
 
     content = app_file.read_text()
@@ -231,13 +196,3 @@ async def test_generate_api_with_complex_schema(temp_dir):
 
     # Check for proper typing imports
     assert "from typing import" in content
-
-    # Verify README was generated
-    readme_content = readme_file.read_text()
-
-    # Check README content
-    assert "Complex MCP Server" in readme_content
-    assert "Tool List" in readme_content
-    assert "list_users" in readme_content
-    assert "create_user" in readme_content
-    assert "get_user" in readme_content
