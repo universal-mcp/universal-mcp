@@ -1,5 +1,7 @@
 import importlib
+import os
 import subprocess
+import sys
 
 from loguru import logger
 
@@ -8,16 +10,13 @@ from universal_mcp.applications.application import (
     BaseApplication,
     GraphQLApplication,
 )
-import sys
-import os
-
 
 UNIVERSAL_MCP_HOME = os.path.join(os.path.expanduser("~"), ".universal-mcp", "packages")
 
 if not os.path.exists(UNIVERSAL_MCP_HOME):
     os.makedirs(UNIVERSAL_MCP_HOME)
 
-#set python path to include the universal-mcp home directory
+# set python path to include the universal-mcp home directory
 sys.path.append(UNIVERSAL_MCP_HOME)
 
 

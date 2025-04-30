@@ -72,6 +72,7 @@ def readme(
     readme_file = generate_readme(file_path, class_name)
     typer.echo(f"README.md file generated at: {readme_file}")
 
+
 @app.command()
 def docgen(
     file_path: Path = typer.Argument(..., help="Path to the Python file to process"),

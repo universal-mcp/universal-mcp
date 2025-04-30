@@ -25,6 +25,7 @@ def _import_class(module_path: str, class_name: str):
             f"Class '{class_name}' not found in module '{module_path}'"
         ) from e
 
+
 def generate_readme(app: Path, class_name: str) -> Path:
     """Generate README.md with API documentation.
 
@@ -53,7 +54,7 @@ def generate_readme(app: Path, class_name: str) -> Path:
         description = tool.__doc__.strip().split("\n")[0]
         formatted_tools.append((name, description))
     # Render the template
-     # Set up Jinja2 environment
+    # Set up Jinja2 environment
     template_dir = Path(__file__).parent.parent / "templates"
     if not template_dir.exists():
         logger.error(f"Template directory not found: {template_dir}")

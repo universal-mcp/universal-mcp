@@ -1,11 +1,12 @@
-from functools import lru_cache
 import json
 import re
+from functools import cache
 from pathlib import Path
 from typing import Any, Literal
+
 import yaml
 from pydantic import BaseModel
-from loguru import logger
+
 
 class Parameters(BaseModel):
     name: str
@@ -15,9 +16,10 @@ class Parameters(BaseModel):
     where: Literal["path", "query", "header", "body"]
     required: bool
     example: str | None = None
-    
+
     def __str__(self):
         return f"{self.name}: ({self.type})"
+
 
 class Method(BaseModel):
     name: str
@@ -37,7 +39,6 @@ class Method(BaseModel):
         """
         # TODO: Implement this
         pass
-
 
     def render(self, template_dir: str, template_name: str = "method.jinja2") -> str:
         """
@@ -61,9 +62,6 @@ class Method(BaseModel):
         return template.render(method=self)
 
 
-
-
-
 def convert_to_snake_case(identifier: str) -> str:
     """
     Convert a camelCase or PascalCase identifier to snake_case.
@@ -82,7 +80,7 @@ def convert_to_snake_case(identifier: str) -> str:
     return result.lower()
 
 
-@lru_cache(maxsize=None)
+@cache
 def _resolve_schema_reference(reference, schema):
     """
     Resolve a JSON schema reference to its target schema.
@@ -114,6 +112,7 @@ def _resolve_references(schema: dict[str, Any]):
     """
     Recursively walk the OpenAPI schema and inline all JSON Schema $ref references.
     """
+
     def _resolve(node):
         if isinstance(node, dict):
             # If this dict is a reference, replace it with the resolved schema
@@ -132,14 +131,12 @@ def _resolve_references(schema: dict[str, Any]):
 
     return _resolve(schema)
 
+
 def _load_and_resolve_references(path: Path):
     # Load the schema
     type = "yaml" if path.suffix == ".yaml" else "json"
     with open(path) as f:
-        if type == "yaml":
-            schema = yaml.safe_load(f)
-        else:
-            schema = json.load(f)
+        schema = yaml.safe_load(f) if type == "yaml" else json.load(f)
     # Resolve references
     return _resolve_references(schema)
 
@@ -185,7 +182,7 @@ def _determine_function_name(operation: dict[str, Any], path: str, method: str) 
     """
     Determine the function name from the operation.
     """
-# Determine function name
+    # Determine function name
     if "operationId" in operation:
         raw_name = operation["operationId"]
         cleaned_name = raw_name.replace(".", "_").replace("-", "_")
@@ -222,28 +219,48 @@ def _generate_path_params(path: str) -> list[Parameters]:
     parameters = []
     for param in path_params_in_url:
         try:
-            parameters.append(Parameters(name=param.replace("-", "_"), identifier=param, description=param, type="string", where="path", required=True))
+            parameters.append(
+                Parameters(
+                    name=param.replace("-", "_"),
+                    identifier=param,
+                    description=param,
+                    type="string",
+                    where="path",
+                    required=True,
+                )
+            )
         except Exception as e:
             print(f"Error generating path parameters {param}: {e}")
             raise e
     return parameters
 
+
 def _generate_url(path: str, path_params: list[Parameters]):
     formatted_path = path
     for param in path_params:
-        formatted_path = formatted_path.replace(f"{{{param.identifier}}}", f"{{{param.name}}}")
+        formatted_path = formatted_path.replace(
+            f"{{{param.identifier}}}", f"{{{param.name}}}"
+        )
     return formatted_path
+
 
 def _generate_query_params(operation: dict[str, Any]) -> list[Parameters]:
     query_params = []
     for param in operation.get("parameters", []):
         name = param.get("name")
-        description = param.get("description","")
+        description = param.get("description", "")
         type = param.get("type")
         where = param.get("in")
         required = param.get("required")
         if where == "query":
-            parameter = Parameters(name=name.replace("-", "_"), identifier=name, description=description, type=type, where=where, required=required)
+            parameter = Parameters(
+                name=name.replace("-", "_"),
+                identifier=name,
+                description=description,
+                type=type,
+                where=where,
+                required=required,
+            )
             query_params.append(parameter)
     return query_params
 
@@ -256,9 +273,19 @@ def _generate_body_params(operation: dict[str, Any]) -> list[Parameters]:
     json_content = content.get("application/json", {})
     schema = json_content.get("schema", {})
     properties = schema.get("properties", {})
-    for param in properties.keys():
-        body_params.append(Parameters(name=param, identifier=param, description=param, type="string", where="body", required=required))
+    for param in properties:
+        body_params.append(
+            Parameters(
+                name=param,
+                identifier=param,
+                description=param,
+                type="string",
+                where="body",
+                required=required,
+            )
+        )
     return body_params
+
 
 def _generate_method_code(path, method, operation):
     """
@@ -276,12 +303,12 @@ def _generate_method_code(path, method, operation):
     """
 
     func_name = _determine_function_name(operation, path, method)
-    summary = operation.get("summary", "")
-    tags = operation.get("tags", [])
+    operation.get("summary", "")
+    operation.get("tags", [])
     # Extract path parameters from the URL path
     path_params = _generate_path_params(path)
     query_params = _generate_query_params(operation)
-    body_params = _generate_body_params(operation)
+    _generate_body_params(operation)
     return_type = _determine_return_type(operation)
     # gen_method   = Method(name=func_name, summary=summary, tags=tags, path=path, method=method, path_params=path_params, query_params=query_params, body_params=body_params, return_type=return_type)
     # logger.info(f"Generated method: {gen_method.model_dump()}")
@@ -325,11 +352,10 @@ def _generate_method_code(path, method, operation):
             if content_type.startswith("application/json") and "schema" in content:
                 schema = content["schema"]
 
-
                 # Check if the schema is an array type
                 if schema.get("type") == "array":
                     is_array_body = True
-                    array_items_schema = schema.get("items", {})
+                    schema.get("items", {})
 
                 else:
                     # Extract required fields from schema
@@ -350,7 +376,7 @@ def _generate_method_code(path, method, operation):
     required_args = []
     optional_args = []
 
-    # Add path parameters 
+    # Add path parameters
     for param in path_params:
         if param.name not in required_args:
             required_args.append(param.name)
@@ -358,8 +384,12 @@ def _generate_method_code(path, method, operation):
     for param in query_params:
         param_name = param["name"]
         # Handle parameters with square brackets and hyphens by converting to valid Python identifiers
-        param_identifier = param_name.replace("[", "_").replace("]", "").replace("-", "_")
-        if param_identifier not in required_args and param_identifier not in [p.split('=')[0] for p in optional_args]:
+        param_identifier = (
+            param_name.replace("[", "_").replace("]", "").replace("-", "_")
+        )
+        if param_identifier not in required_args and param_identifier not in [
+            p.split("=")[0] for p in optional_args
+        ]:
             if param.get("required", False):
                 required_args.append(param_identifier)
             else:
@@ -417,7 +447,7 @@ def _generate_method_code(path, method, operation):
     for param in path_params:
         body_lines.append(f"        if {param.name} is None:")
         body_lines.append(
-            f"            raise ValueError(\"Missing required parameter '{param.identifier}'\")" # Use original name in error
+            f"            raise ValueError(\"Missing required parameter '{param.identifier}'\")"  # Use original name in error
         )
 
     # Build request body (handle array and object types differently)
@@ -451,7 +481,9 @@ def _generate_method_code(path, method, operation):
         query_params_items = []
         for param in query_params:
             param_name = param.name
-            param_identifier = param_name.replace("[", "_").replace("]", "").replace("-", "_")
+            param_identifier = (
+                param_name.replace("[", "_").replace("]", "").replace("-", "_")
+            )
             query_params_items.append(f"('{param_name}', {param_identifier})")
         body_lines.append(
             f"        query_params = {{k: v for k, v in [{', '.join(query_params_items)}] if v is not None}}"
@@ -530,7 +562,11 @@ def generate_api_client(schema, class_name: str | None = None):
     if api_title:
         # Convert API title to a clean class name
         if class_name:
-            clean_name = class_name.capitalize().strip("App")
+            clean_name = (
+                class_name.capitalize()[:-3]
+                if class_name.endswith("App")
+                else class_name.capitalize()
+            )
         else:
             base_name = "".join(word.capitalize() for word in api_title.split())
             clean_name = "".join(c for c in base_name if c.isalnum())
@@ -565,9 +601,7 @@ def generate_api_client(schema, class_name: str | None = None):
         for method in path_info:
             if method in ["get", "post", "put", "delete", "patch", "options", "head"]:
                 operation = path_info[method]
-                method_code, func_name = _generate_method_code(
-                    path, method, operation
-                )
+                method_code, func_name = _generate_method_code(path, method, operation)
                 methods.append(method_code)
                 method_names.append(func_name)
 
@@ -598,7 +632,6 @@ def generate_api_client(schema, class_name: str | None = None):
         + "\n"
     )
     return class_code
-
 
 
 # Example usage

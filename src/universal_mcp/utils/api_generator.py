@@ -4,7 +4,6 @@ import os
 import shutil
 from pathlib import Path
 
-from jinja2 import Environment, FileSystemLoader, TemplateError, select_autoescape
 from loguru import logger
 
 from universal_mcp.utils.openapi import generate_api_client, load_schema
@@ -34,8 +33,6 @@ def get_class_info(module: any) -> tuple[str | None, any]:
         if inspect.isclass(obj) and obj.__module__ == "temp_module":
             return name, obj
     return None, None
-
-
 
 
 def test_correct_output(gen_file: Path):
