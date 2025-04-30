@@ -1,10 +1,11 @@
+import importlib.util
 import inspect
 import os
-from pathlib import Path
-from loguru import logger
 import shutil
-import importlib.util
+from pathlib import Path
+
 from jinja2 import Environment, FileSystemLoader, TemplateError, select_autoescape
+from loguru import logger
 
 from universal_mcp.utils.openapi import generate_api_client, load_schema
 
@@ -26,6 +27,7 @@ def validate_and_load_schema(schema_path: Path) -> dict:
         echo(f"Error loading schema: {e}", err=True)
         raise
 
+
 def get_class_info(module: any) -> tuple[str | None, any]:
     """Find the main class in the generated module."""
     for name, obj in inspect.getmembers(module):
@@ -33,19 +35,18 @@ def get_class_info(module: any) -> tuple[str | None, any]:
             return name, obj
     return None, None
 
-def generate_readme(
-    app_dir: Path, folder_name: str, tools: list
-) -> Path:
+
+def generate_readme(app_dir: Path, folder_name: str, tools: list) -> Path:
     """Generate README.md with API documentation.
-    
+
     Args:
         app_dir: Directory where the README will be generated
         folder_name: Name of the application folder
         tools: List of Function objects from the OpenAPI schema
-        
+
     Returns:
         Path to the generated README file
-        
+
     Raises:
         FileNotFoundError: If the template directory doesn't exist
         TemplateError: If there's an error rendering the template
@@ -69,23 +70,19 @@ def generate_readme(
 
     try:
         env = Environment(
-            loader=FileSystemLoader(template_dir),
-            autoescape=select_autoescape()
+            loader=FileSystemLoader(template_dir), autoescape=select_autoescape()
         )
         template = env.get_template("README.md.j2")
     except Exception as e:
         logger.error(f"Error loading template: {e}")
-        raise TemplateError(f"Error loading template: {e}")
+        raise TemplateError(f"Error loading template: {e}") from e
 
     # Render the template
     try:
-        readme_content = template.render(
-            name=app,
-            tools=formatted_tools
-        )
+        readme_content = template.render(name=app, tools=formatted_tools)
     except Exception as e:
         logger.error(f"Error rendering template: {e}")
-        raise TemplateError(f"Error rendering template: {e}")
+        raise TemplateError(f"Error rendering template: {e}") from e
 
     # Write the README file
     readme_file = app_dir / "README.md"
@@ -95,9 +92,10 @@ def generate_readme(
         logger.info(f"Documentation generated at: {readme_file}")
     except Exception as e:
         logger.error(f"Error writing README file: {e}")
-        raise IOError(f"Error writing README file: {e}")
+        raise OSError(f"Error writing README file: {e}") from e
 
     return readme_file
+
 
 def test_correct_output(gen_file: Path):
     # Check file is non-empty
@@ -137,7 +135,6 @@ def generate_api_from_schema(
     """
     # Local imports for logging and file operations
 
-
     logger.info("Starting API generation for schema: %s", schema_path)
 
     # 1. Parse and validate schema
@@ -174,10 +171,15 @@ def generate_api_from_schema(
         f.write(code)
 
     if not test_correct_output(gen_file):
-        logger.error("Generated code validation failed for '%s'. Aborting generation.", gen_file)
+        logger.error(
+            "Generated code validation failed for '%s'. Aborting generation.", gen_file
+        )
         logger.info("Next steps:")
         logger.info(" 1) Review your OpenAPI schema for potential mismatches.")
-        logger.info(" 2) Inspect '%s' for syntax or logic errors in the generated code.", gen_file)
+        logger.info(
+            " 2) Inspect '%s' for syntax or logic errors in the generated code.",
+            gen_file,
+        )
         logger.info(" 3) Correct the issues and re-run the command.")
         return {"error": "Validation failed. See logs above for detailed instructions."}
 
@@ -210,12 +212,13 @@ def generate_api_from_schema(
             client = cls()
             tools = client.list_tools()
         except Exception as e:
-            logger.warning("Failed to instantiate '%s' or list tools: %s", class_name, e)
+            logger.warning(
+                "Failed to instantiate '%s' or list tools: %s", class_name, e
+            )
     else:
         logger.warning("No generated class found in module 'temp_module'")
     readme_file = generate_readme(target_dir, output_path.stem, tools)
     logger.info("README generated at: %s", readme_file)
-
 
     # Cleanup intermediate file
     try:

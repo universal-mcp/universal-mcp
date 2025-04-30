@@ -1,11 +1,9 @@
-import asyncio
-import os
+import re
 from pathlib import Path
 
 import typer
 from rich import print as rprint
 from rich.panel import Panel
-import re
 
 from universal_mcp.utils.installation import (
     get_supported_apps,
@@ -41,9 +39,9 @@ def generate(
     try:
         # Run the async function in the event loop
         result = generate_api_from_schema(
-                schema_path=schema_path,
-                output_path=output_path,
-            )
+            schema_path=schema_path,
+            output_path=output_path,
+        )
 
         if not output_path:
             # Print to stdout if no output path
@@ -68,7 +66,6 @@ def docgen(
         "-m",
         help="Model to use for generating docstrings",
     ),
-    
 ):
     """Generate docstrings for Python files using LLMs.
 
@@ -154,6 +151,7 @@ def install(app_name: str = typer.Argument(..., help="Name of app to install")):
         typer.echo(f"Error installing app: {e}", err=True)
         raise typer.Exit(1) from e
 
+
 @app.command()
 def init(
     output_dir: Path | None = typer.Option(
@@ -162,13 +160,13 @@ def init(
         "-o",
         help="Output directory for the project (must exist)",
     ),
-    app_name: str|None = typer.Option(
+    app_name: str | None = typer.Option(
         None,
         "--app-name",
         "-a",
         help="App name (letters, numbers, hyphens, underscores only)",
     ),
-    integration_type: str|None = typer.Option(
+    integration_type: str | None = typer.Option(
         None,
         "--integration-type",
         "-i",
@@ -195,7 +193,7 @@ def init(
         app_name = typer.prompt(
             "Enter the app name",
             default="app_name",
-            prompt_suffix=" (e.g., reddit, youtube): "
+            prompt_suffix=" (e.g., reddit, youtube): ",
         ).strip()
     validate_pattern(app_name, "app name")
 
@@ -203,10 +201,10 @@ def init(
         path_str = typer.prompt(
             "Enter the output directory for the project",
             default=str(Path.cwd()),
-            prompt_suffix=": "
+            prompt_suffix=": ",
         ).strip()
         output_dir = Path(path_str)
-    
+
     if not output_dir.exists():
         try:
             output_dir.mkdir(parents=True, exist_ok=True)
@@ -219,7 +217,7 @@ def init(
                 f"❌ Failed to create output directory '{output_dir}': {e}",
                 fg=typer.colors.RED,
             )
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1) from e
     elif not output_dir.is_dir():
         typer.secho(
             f"❌ Output path '{output_dir}' exists but is not a directory.",
@@ -232,7 +230,7 @@ def init(
         integration_type = typer.prompt(
             "Choose the integration type",
             default="agentr",
-            prompt_suffix=" (api_key, oauth, agentr, none): "
+            prompt_suffix=" (api_key, oauth, agentr, none): ",
         ).lower()
     if integration_type not in ("api_key", "oauth", "agentr", "none"):
         typer.secho(
@@ -240,7 +238,6 @@ def init(
             fg=typer.colors.RED,
         )
         raise typer.Exit(code=1)
-    
 
     typer.secho("🚀 Generating project using cookiecutter...", fg=typer.colors.BLUE)
     try:
@@ -255,10 +252,11 @@ def init(
         )
     except Exception as exc:
         typer.secho(f"❌ Project generation failed: {exc}", fg=typer.colors.RED)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from exc
 
     project_dir = output_dir / f"universal-mcp-{app_name}"
     typer.secho(f"✅ Project created at {project_dir}", fg=typer.colors.GREEN)
+
 
 if __name__ == "__main__":
     app()

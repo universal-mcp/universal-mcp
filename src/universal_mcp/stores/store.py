@@ -11,10 +11,12 @@ class StoreError(Exception):
 
     pass
 
+
 class KeyNotFoundError(StoreError):
     """Exception raised when a key is not found in the store."""
 
     pass
+
 
 class BaseStore(ABC):
     """

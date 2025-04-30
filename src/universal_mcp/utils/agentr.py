@@ -1,8 +1,12 @@
-from loguru import logger
 import os
+
 import httpx
+from loguru import logger
+
 from universal_mcp.config import AppConfig
+from universal_mcp.exceptions import NotAuthorizedError
 from universal_mcp.utils.singleton import Singleton
+
 
 class AgentrClient(metaclass=Singleton):
     """Helper class for AgentR API operations.
@@ -22,7 +26,9 @@ class AgentrClient(metaclass=Singleton):
                 "API key for AgentR is missing. Please visit https://agentr.dev to create an API key, then set it as AGENTR_API_KEY environment variable."
             )
             raise ValueError("AgentR API key required - get one at https://agentr.dev")
-        self.base_url = (base_url or os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")).rstrip("/")
+        self.base_url = (
+            base_url or os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
+        ).rstrip("/")
 
     def get_credentials(self, integration_name: str) -> dict:
         """Get credentials for an integration from the AgentR API.
@@ -87,4 +93,3 @@ class AgentrClient(metaclass=Singleton):
         response.raise_for_status()
         data = response.json()
         return [AppConfig.model_validate(app) for app in data]
-

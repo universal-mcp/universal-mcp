@@ -53,7 +53,7 @@ def sample_schema(temp_dir):
 @pytest.mark.asyncio
 async def test_generate_api_without_output(sample_schema):
     """Test API generation without output file (return code only)."""
-    result =generate_api_from_schema(
+    result = generate_api_from_schema(
         schema_path=sample_schema, output_path=None, add_docstrings=False
     )
 
@@ -76,8 +76,8 @@ async def test_generate_api_with_output(sample_schema, temp_dir):
         schema_path=sample_schema, output_path=output_path, add_docstrings=True
     )
 
-    assert "app_file" is not None
-    assert "readme_file" is not None
+    assert "app_file" != None
+    assert "readme_file" != None
 
     assert app_file.exists()
     content = app_file.read_text()
@@ -136,7 +136,6 @@ async def test_generate_api_with_docstrings(sample_schema, temp_dir):
     assert "def test_operation" in content
     assert '"""' in content  # Basic check for docstring presence
     assert "Tags:" in content
-
 
 
 @pytest.mark.asyncio

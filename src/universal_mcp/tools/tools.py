@@ -260,9 +260,7 @@ class ToolManager:
         try:
             available_tool_functions = app.list_tools()
         except TypeError as e:
-            logger.error(
-                f"Error calling list_tools for app '{app.name}'. Error: {e}"
-            )
+            logger.error(f"Error calling list_tools for app '{app.name}'. Error: {e}")
             return
         except Exception as e:
             logger.error(f"Failed to get tool list from app '{app.name}': {e}")

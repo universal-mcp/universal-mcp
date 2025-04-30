@@ -1,15 +1,16 @@
 import json
 import re
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Literal
-from loguru import logger
+from typing import Any, Literal
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from dataclasses import dataclass
+from loguru import logger
+
 
 def convert_to_snake_case(identifier: str) -> str:
-    """ 
+    """
     Convert a camelCase or PascalCase identifier to snake_case.
 
     Args:
@@ -140,15 +141,13 @@ def generate_api_client(schema):
     # Set up Jinja2 environment
     env = Environment(
         loader=FileSystemLoader(Path(__file__).parent.parent / "templates"),
-        autoescape=select_autoescape()
+        autoescape=select_autoescape(),
     )
     template = env.get_template("api_client.py.j2")
 
     # Render the template
     class_code = template.render(
-        class_name=class_name,
-        base_url=base_url,
-        methods=methods
+        class_name=class_name, base_url=base_url, methods=methods
     )
 
     return class_code
@@ -158,10 +157,10 @@ def generate_api_client(schema):
 class Function:
     name: str
     type: Literal["get", "post", "put", "delete", "patch", "options", "head"]
-    args: Dict[str, str]
+    args: dict[str, str]
     return_type: str
     description: str
-    tags: List[str]
+    tags: list[str]
     implementation: str
 
     @property
@@ -171,10 +170,7 @@ class Function:
 
 
 def generate_method_code(
-    path: str,
-    method: str,
-    operation: dict[str, Any],
-    full_schema: dict[str, Any]
+    path: str, method: str, operation: dict[str, Any], full_schema: dict[str, Any]
 ) -> Function:
     """
     Generate a Function object for a single API method.
@@ -204,7 +200,6 @@ def generate_method_code(
         if t == "object":
             return "dict[str, Any]"
         return "Any"
-
 
     # Determine function name
     if op_id := operation.get("operationId"):
@@ -240,10 +235,12 @@ def generate_method_code(
     # Analyze requestBody
     has_body = "requestBody" in operation
     body_required = bool(has_body and operation["requestBody"].get("required"))
-    content = (operation.get("requestBody", {}) or {}).get("content", {}) if has_body else {}
+    content = (
+        (operation.get("requestBody", {}) or {}).get("content", {}) if has_body else {}
+    )
     is_array_body = False
-    request_props: Dict[str, Any] = {}
-    required_fields: List[str] = []
+    request_props: dict[str, Any] = {}
+    required_fields: list[str] = []
     if has_body and content:
         for mime, info in content.items():
             if not mime.startswith("application/json") or "schema" not in info:
@@ -258,10 +255,12 @@ def generate_method_code(
                 request_props = schema.get("properties", {}) or {}
                 for name, prop_schema in list(request_props.items()):
                     if pre := prop_schema.get("$ref"):
-                        request_props[name] = resolve_schema_reference(pre, full_schema) or prop_schema
+                        request_props[name] = (
+                            resolve_schema_reference(pre, full_schema) or prop_schema
+                        )
 
     # Build function arguments with Annotated[type, description]
-    arg_defs: Dict[str, str] = {}
+    arg_defs: dict[str, str] = {}
     for p in path_params:
         name = p["name"]
         ty = map_type(p.get("schema", {}))
@@ -304,7 +303,7 @@ def generate_method_code(
     # Assemble description
     summary = operation.get("summary", "")
     operation_desc = operation.get("description", "")
-    desc_parts: List[str] = []
+    desc_parts: list[str] = []
     if summary:
         desc_parts.append(summary)
     if operation_desc:
@@ -315,25 +314,33 @@ def generate_method_code(
 
     # Generate implementation code
     implementation_lines = []
-    
+
     # Add parameter validation for required fields
     for param in path_params + query_params:
         if param.get("required"):
             name = param["name"]
             implementation_lines.append(f"if {name} is None:")
-            implementation_lines.append(f"    raise ValueError(\"Missing required parameter '{name}'\")")
-    
+            implementation_lines.append(
+                f"    raise ValueError(\"Missing required parameter '{name}'\")"
+            )
+
     if has_body and body_required:
         if is_array_body:
             implementation_lines.append("if items is None:")
-            implementation_lines.append("    raise ValueError(\"Missing required parameter 'items'\")")
+            implementation_lines.append(
+                "    raise ValueError(\"Missing required parameter 'items'\")"
+            )
         elif request_props:
             for prop in required_fields:
                 implementation_lines.append(f"if {prop} is None:")
-                implementation_lines.append(f"    raise ValueError(\"Missing required parameter '{prop}'\")")
+                implementation_lines.append(
+                    f"    raise ValueError(\"Missing required parameter '{prop}'\")"
+                )
         else:
             implementation_lines.append("if request_body is None:")
-            implementation_lines.append("    raise ValueError(\"Missing required parameter 'request_body'\")")
+            implementation_lines.append(
+                "    raise ValueError(\"Missing required parameter 'request_body'\")"
+            )
 
     # Build request body
     if has_body:
@@ -342,35 +349,43 @@ def generate_method_code(
         elif request_props:
             implementation_lines.append("request_body = {")
             for prop in request_props:
-                implementation_lines.append(f"    \"{prop}\": {prop},")
+                implementation_lines.append(f'    "{prop}": {prop},')
             implementation_lines.append("}")
-            implementation_lines.append("request_body = {k: v for k, v in request_body.items() if v is not None}")
+            implementation_lines.append(
+                "request_body = {k: v for k, v in request_body.items() if v is not None}"
+            )
         else:
             implementation_lines.append("request_body = request_body")
 
     # Build URL with path parameters
-    path = "/".join([path_params["name"] for path_params in path_params]) or '\"\"'
-    url = '\"{self.base_url}{path}\"'
-    implementation_lines.append(f'path = {path}')
-    implementation_lines.append(f'url = f{url}')
+    path = "/".join([path_params["name"] for path_params in path_params]) or '""'
+    url = '"{self.base_url}{path}"'
+    implementation_lines.append(f"path = {path}")
+    implementation_lines.append(f"url = f{url}")
 
     # Build query parameters
     if query_params:
         implementation_lines.append("query_params = {")
         for param in query_params:
             name = param["name"]
-            implementation_lines.append(f"        \"{name}\": {name},")
+            implementation_lines.append(f'        "{name}": {name},')
         implementation_lines.append("    }")
-        implementation_lines.append("query_params = {k: v for k, v in query_params.items() if v is not None}")
+        implementation_lines.append(
+            "query_params = {k: v for k, v in query_params.items() if v is not None}"
+        )
     else:
         implementation_lines.append("query_params = {}")
 
     # Make the request using the appropriate method
     http_method = method.lower()
     if has_body:
-        implementation_lines.append(f"response = self._{http_method}(url, data=request_body, params=query_params)")
+        implementation_lines.append(
+            f"response = self._{http_method}(url, data=request_body, params=query_params)"
+        )
     else:
-        implementation_lines.append(f"response = self._{http_method}(url, params=query_params)")
+        implementation_lines.append(
+            f"response = self._{http_method}(url, params=query_params)"
+        )
 
     # Handle response
     implementation_lines.append("response.raise_for_status()")
@@ -386,11 +401,12 @@ def generate_method_code(
         return_type=return_type,
         description=description_text,
         tags=tags,
-        implementation=implementation
+        implementation=implementation,
     )
 
     logger.debug(f"Generated function: {function}")
     return function
+
 
 # Example usage
 if __name__ == "__main__":

@@ -1,12 +1,12 @@
-from contextlib import asynccontextmanager
 import json
-import os
 from collections.abc import AsyncGenerator, Generator
+from contextlib import asynccontextmanager
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
+from langgraph.types import Command
 
 from playground.agents.react import create_agent
 from playground.schema import (
@@ -18,7 +18,7 @@ from playground.utils import (
     langchain_to_chat_message,
     remove_tool_calls,
 )
-from langgraph.types import Command
+
 
 @asynccontextmanager
 async def create_agent_client():
@@ -35,10 +35,7 @@ class AgentClientError(Exception):
 class AgentClient:
     """Client for interacting with the agent directly."""
 
-    def __init__(
-        self,
-        agent
-    ) -> None:
+    def __init__(self, agent) -> None:
         """
         Initialize the client.
 
@@ -76,7 +73,9 @@ class AgentClient:
         configurable = {"thread_id": thread_id}
         if agent_config:
             if overlap := configurable.keys() & agent_config.keys():
-                raise AgentClientError(f"agent_config contains reserved keys: {overlap}")
+                raise AgentClientError(
+                    f"agent_config contains reserved keys: {overlap}"
+                )
             configurable.update(agent_config)
 
         kwargs = {
@@ -86,7 +85,7 @@ class AgentClient:
                 run_id=run_id,
             ),
         }
-        
+
         try:
             response = await self.agent.ainvoke(**kwargs)
             output = langchain_to_chat_message(response["messages"][-1])
@@ -118,7 +117,9 @@ class AgentClient:
         configurable = {"thread_id": thread_id}
         if agent_config:
             if overlap := configurable.keys() & agent_config.keys():
-                raise AgentClientError(f"agent_config contains reserved keys: {overlap}")
+                raise AgentClientError(
+                    f"agent_config contains reserved keys: {overlap}"
+                )
             configurable.update(agent_config)
 
         kwargs = {
@@ -128,7 +129,7 @@ class AgentClient:
                 run_id=run_id,
             ),
         }
-        
+
         try:
             response = self.agent.invoke(**kwargs)
             output = langchain_to_chat_message(response["messages"][-1])
@@ -140,7 +141,7 @@ class AgentClient:
     def _parse_stream_line(self, line: str) -> ChatMessage | str | None:
         """
         Parse a line from the stream.
-        
+
         This method is kept for compatibility but is no longer used
         since we're directly streaming from the agent.
         """
@@ -195,7 +196,9 @@ class AgentClient:
         configurable = {"thread_id": thread_id}
         if agent_config:
             if overlap := configurable.keys() & agent_config.keys():
-                raise AgentClientError(f"agent_config contains reserved keys: {overlap}")
+                raise AgentClientError(
+                    f"agent_config contains reserved keys: {overlap}"
+                )
             configurable.update(agent_config)
 
         kwargs = {
@@ -205,7 +208,7 @@ class AgentClient:
                 run_id=run_id,
             ),
         }
-        
+
         try:
             for event in self.agent.stream_events(**kwargs, version="v2"):
                 if not event:
@@ -220,12 +223,16 @@ class AgentClient:
                     and any(t.startswith("graph:step:") for t in event.get("tags", []))
                 ):
                     if isinstance(event["data"]["output"], Command):
-                        new_messages = event["data"]["output"].update.get("messages", [])
+                        new_messages = event["data"]["output"].update.get(
+                            "messages", []
+                        )
                     elif "messages" in event["data"]["output"]:
                         new_messages = event["data"]["output"]["messages"]
 
                 # Also yield intermediate messages from agents.utils.CustomData.adispatch().
-                if event["event"] == "on_custom_event" and "custom_data_dispatch" in event.get(
+                if event[
+                    "event"
+                ] == "on_custom_event" and "custom_data_dispatch" in event.get(
                     "tags", []
                 ):
                     new_messages = [event["data"]]
@@ -234,14 +241,11 @@ class AgentClient:
                     try:
                         chat_message = langchain_to_chat_message(message)
                         chat_message.run_id = str(run_id)
-                    except Exception as e:
+                    except Exception:
                         yield f"data: {json.dumps({'type': 'error', 'content': 'Unexpected error'})}\n\n"
                         continue
                     # LangGraph re-sends the input message, which feels weird, so drop it
-                    if (
-                        chat_message.type == "human"
-                        and chat_message.content == message
-                    ):
+                    if chat_message.type == "human" and chat_message.content == message:
                         continue
                     yield chat_message
 
@@ -290,7 +294,9 @@ class AgentClient:
         configurable = {"thread_id": thread_id}
         if agent_config:
             if overlap := configurable.keys() & agent_config.keys():
-                raise AgentClientError(f"agent_config contains reserved keys: {overlap}")
+                raise AgentClientError(
+                    f"agent_config contains reserved keys: {overlap}"
+                )
             configurable.update(agent_config)
 
         kwargs = {
@@ -300,7 +306,7 @@ class AgentClient:
                 run_id=run_id,
             ),
         }
-        
+
         try:
             async for event in self.agent.astream_events(**kwargs, version="v2"):
                 if not event:
@@ -315,12 +321,16 @@ class AgentClient:
                     and any(t.startswith("graph:step:") for t in event.get("tags", []))
                 ):
                     if isinstance(event["data"]["output"], Command):
-                        new_messages = event["data"]["output"].update.get("messages", [])
+                        new_messages = event["data"]["output"].update.get(
+                            "messages", []
+                        )
                     elif "messages" in event["data"]["output"]:
                         new_messages = event["data"]["output"]["messages"]
 
                 # Also yield intermediate messages from agents.utils.CustomData.adispatch().
-                if event["event"] == "on_custom_event" and "custom_data_dispatch" in event.get(
+                if event[
+                    "event"
+                ] == "on_custom_event" and "custom_data_dispatch" in event.get(
                     "tags", []
                 ):
                     new_messages = [event["data"]]
@@ -329,14 +339,11 @@ class AgentClient:
                     try:
                         chat_message = langchain_to_chat_message(message)
                         chat_message.run_id = str(run_id)
-                    except Exception as e:
+                    except Exception:
                         yield f"data: {json.dumps({'type': 'error', 'content': 'Unexpected error'})}\n\n"
                         continue
                     # LangGraph re-sends the input message, which feels weird, so drop it
-                    if (
-                        chat_message.type == "human"
-                        and chat_message.content == message
-                    ):
+                    if chat_message.type == "human" and chat_message.content == message:
                         continue
                     yield chat_message
 
@@ -374,9 +381,7 @@ class AgentClient:
                 )
             )
             messages = state_snapshot.values["messages"]
-            chat_messages = [
-                langchain_to_chat_message(m) for m in messages
-            ]
+            chat_messages = [langchain_to_chat_message(m) for m in messages]
             return ChatHistory(messages=chat_messages)
         except Exception as e:
             raise AgentClientError(f"Error getting history: {e}") from e

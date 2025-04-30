@@ -20,6 +20,7 @@ APP_TITLE = "MCP Playground"
 APP_ICON = "🧰"
 use_streaming = True
 
+
 # --- Function to handle unique filename generation ---
 def get_unique_filepath(upload_dir: Path, filename: str) -> Path:
     """Checks if a file exists and returns a unique path if needed."""
@@ -37,6 +38,7 @@ def get_unique_filepath(upload_dir: Path, filename: str) -> Path:
             return new_filepath
         counter += 1
 
+
 async def main() -> None:
     # Configure page layout
     st.set_page_config(
@@ -48,7 +50,8 @@ async def main() -> None:
     )
 
     # Custom CSS for chat layout and styling
-    st.markdown("""
+    st.markdown(
+        """
         <style>
         /* Hide Streamlit default header and footer */
         #MainMenu, header, footer {
@@ -157,7 +160,9 @@ async def main() -> None:
             border-bottom-left-radius: 0.25rem;
         }
         </style>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     # Minimal toolbar
     if st.get_option("client.toolbarMode") != "minimal":
@@ -217,7 +222,7 @@ async def main() -> None:
                 "Upload a file to process",
                 type=None,
                 key="file_uploader",
-                help="Upload any file to process with the AI assistant"
+                help="Upload any file to process with the AI assistant",
             )
 
         # Handle file upload state
@@ -233,7 +238,8 @@ async def main() -> None:
                     icon="📄",
                 )
         elif (
-            uploaded_file is None and st.session_state.get("uploaded_file_obj") is not None
+            uploaded_file is None
+            and st.session_state.get("uploaded_file_obj") is not None
         ):
             st.session_state.uploaded_file_obj = None
             st.session_state.file_processed = False
@@ -259,19 +265,21 @@ async def main() -> None:
                     yield m
 
             await draw_messages(amessage_iter())
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
         # Chat input area
         st.markdown('<div class="chat-input-area">', unsafe_allow_html=True)
         if user_input := st.chat_input(
-            "Enter message or upload a file and describe task...",
-            key="chat_input"
+            "Enter message or upload a file and describe task...", key="chat_input"
         ):
             final_message_content = user_input
             display_content = user_input
 
             # --- Handle File Upload Integration ---
-            if st.session_state.uploaded_file_obj and not st.session_state.file_processed:
+            if (
+                st.session_state.uploaded_file_obj
+                and not st.session_state.file_processed
+            ):
                 uploaded_file_obj = st.session_state.uploaded_file_obj
                 original_filename = uploaded_file_obj.name
                 try:
@@ -321,10 +329,11 @@ async def main() -> None:
                 st.error(
                     f"An unexpected error occurred during agent communication: {e}"
                 )
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
         # End chat app wrapper
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
 
 async def draw_messages(
     messages_agen: AsyncGenerator[ChatMessage | str, None],
@@ -418,6 +427,7 @@ async def draw_messages(
                 st.write(msg)
                 st.stop()
 
+
 async def handle_feedback() -> None:
     """Draws a feedback widget and records feedback from the user."""
     if "last_feedback" not in st.session_state:
@@ -442,6 +452,7 @@ async def handle_feedback() -> None:
             st.stop()
         st.session_state.last_feedback = (latest_run_id, feedback)
         st.toast("Feedback recorded", icon="⭐")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
