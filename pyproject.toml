@@ -159,37 +159,3 @@ docstring-code-line-length = "dynamic"
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
-
-[tool.uv.sources]
-universal-mcp-google-calendar = { path = "tmp/google-calendar" }
-universal-mcp-google-docs = { path = "tmp/google-docs" }
-universal-mcp-google-drive = { path = "tmp/google-drive" }
-universal-mcp-google-mail = { path = "tmp/google-mail" }
-universal-mcp-google-sheet = { path = "tmp/google-sheet" }
-universal-mcp-heygen = { path = "tmp/heygen" }
-universal-mcp-mailchimp = { path = "tmp/mailchimp" }
-universal-mcp-neon = { path = "tmp/neon" }
-universal-mcp-notion = { path = "tmp/notion" }
-universal-mcp-perplexity = { path = "tmp/perplexity" }
-universal-mcp-reddit = { path = "tmp/reddit" }
-universal-mcp-replicate = { path = "tmp/replicate" }
-universal-mcp-resend = { path = "tmp/resend" }
-universal-mcp-retell = { path = "tmp/retell" }
-
-[dependency-groups]
-applications = [
-    "universal-mcp-google-calendar",
-    "universal-mcp-google-docs",
-    "universal-mcp-google-drive",
-    "universal-mcp-google-mail",
-    "universal-mcp-google-sheet",
-    "universal-mcp-heygen",
-    "universal-mcp-mailchimp",
-    "universal-mcp-neon",
-    "universal-mcp-notion",
-    "universal-mcp-perplexity",
-    "universal-mcp-reddit",
-    "universal-mcp-replicate",
-    "universal-mcp-resend",
-    "universal-mcp-retell",
-]
