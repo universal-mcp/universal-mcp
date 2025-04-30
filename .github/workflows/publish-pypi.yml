@@ -23,5 +23,9 @@ jobs:
       contents: read
 
     steps:
+      # - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
       - run: uv build
       - run: uv publish --trusted-publishing always

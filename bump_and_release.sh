@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -e
+
+
 # Get the current branch name
 BRANCH=$(git branch --show-current)
 
