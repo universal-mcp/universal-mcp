@@ -97,7 +97,7 @@ def resolve_schema_reference(reference, schema):
     return current
 
 
-def generate_api_client(schema):
+def generate_api_client(schema, class_name: str | None = None):
     """
     Generate a Python API client class from an OpenAPI schema.
 
@@ -123,8 +123,11 @@ def generate_api_client(schema):
     # Create a clean class name from API title
     if api_title:
         # Convert API title to a clean class name
-        base_name = "".join(word.capitalize() for word in api_title.split())
-        clean_name = "".join(c for c in base_name if c.isalnum())
+        if class_name:
+            clean_name = class_name.capitalize().strip("App")
+        else:
+            base_name = "".join(word.capitalize() for word in api_title.split())
+            clean_name = "".join(c for c in base_name if c.isalnum())
         class_name = f"{clean_name}App"
 
         # Extract tool name - remove spaces and convert to lowercase
@@ -157,7 +160,7 @@ def generate_api_client(schema):
             if method in ["get", "post", "put", "delete", "patch", "options", "head"]:
                 operation = path_info[method]
                 method_code, func_name = generate_method_code(
-                    path, method, operation, schema, tool_name
+                    path, method, operation, schema
                 )
                 methods.append(method_code)
                 method_names.append(func_name)
@@ -191,7 +194,7 @@ def generate_api_client(schema):
     return class_code
 
 
-def generate_method_code(path, method, operation, full_schema, tool_name=None):
+def generate_method_code(path, method, operation, full_schema):
     """
     Generate the code for a single API method.
 
@@ -410,8 +413,10 @@ def generate_method_code(path, method, operation, full_schema, tool_name=None):
 
     # Determine return type
     return_type = determine_return_type(operation)
-
-    signature = f"    def {func_name}(self, {', '.join(args)}) -> {return_type}:"
+    if args:
+        signature = f"    def {func_name}(self, {', '.join(args)}) -> {return_type}:"
+    else:
+        signature = f"    def {func_name}(self) -> {return_type}:"
 
     # Build method body
     body_lines = []

@@ -8,9 +8,9 @@ from universal_mcp.applications.application import (
     BaseApplication,
     GraphQLApplication,
 )
+import sys
 
 # Name are in the format of "app-name", eg, google-calendar
-# Folder name is "app_name", eg, google_calendar
 # Class name is NameApp, eg, GoogleCalendarApp
 
 
@@ -38,7 +38,7 @@ def _install_package(slug_clean: str):
     Helper to install a package via pip from the universal-mcp GitHub repository.
     """
     repo_url = f"git+https://github.com/universal-mcp/{slug_clean}"
-    cmd = ["uv", "pip", "install", repo_url]
+    cmd = [sys.executable, "-m", "pip", "install", repo_url]
     logger.info(f"Installing package '{slug_clean}' with command: {' '.join(cmd)}")
     try:
         subprocess.check_call(cmd)
@@ -64,21 +64,22 @@ def app_from_slug(slug: str):
     logger.info(
         f"Resolving app for slug '{slug}' → module '{module_path}', class '{class_name}'"
     )
-    try:
-        return _import_class(module_path, class_name)
-    except ModuleNotFoundError as orig_err:
-        logger.warning(
-            f"Module '{module_path}' not found locally: {orig_err}. Installing..."
-        )
-        _install_package(slug_clean)
-        # Retry import after installation
-        try:
-            return _import_class(module_path, class_name)
-        except ModuleNotFoundError as retry_err:
-            logger.error(
-                f"Still cannot import '{module_path}' after installation: {retry_err}"
-            )
-            raise
+    return _import_class(module_path, class_name)
+    # try:
+        
+    # except ModuleNotFoundError as orig_err:
+    #     logger.warning(
+    #         f"Module '{module_path}' not found locally: {orig_err}. Installing..."
+    #     )
+    #     _install_package(slug_clean)
+    #     # Retry import after installation
+    #     try:
+    #         return _import_class(module_path, class_name)
+    #     except ModuleNotFoundError as retry_err:
+    #         logger.error(
+    #             f"Still cannot import '{module_path}' after installation: {retry_err}"
+    #         )
+    #         raise
 
 
 __all__ = [

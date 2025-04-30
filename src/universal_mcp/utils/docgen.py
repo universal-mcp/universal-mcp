@@ -176,7 +176,7 @@ def extract_json_from_text(text):
 
 
 def generate_docstring(
-    function_code: str, model: str = "perplexity/sonar-pro"
+    function_code: str, model: str = "perplexity/sonar"
 ) -> DocstringOutput:
     """
     Generate a docstring for a Python function using litellm with structured output.
@@ -509,7 +509,7 @@ def insert_docstring_into_function(function_code: str, docstring: str) -> str:
         return function_code
 
 
-def process_file(file_path: str, model: str = "perplexity/sonar-pro") -> int:
+def process_file(file_path: str, model: str = "perplexity/sonar") -> int:
     """
     Process a Python file and add docstrings to all functions in it.
 

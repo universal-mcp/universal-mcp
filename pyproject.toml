@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "universal-mcp"
 version = "0.1.13-rc7"
@@ -9,54 +13,22 @@ authors = [
 requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [
-    "pydantic>=2.11.1",
-    "pydantic-settings>=2.8.1",
-    "loguru>=0.7.3",
-    "pyyaml>=6.0.2",
-    "typer>=0.15.2",
+    "Jinja2>=3.1.3",
+    "cookiecutter>=2.6.0",
+    "gql[all]>=3.5.2",
     "keyring>=25.6.0",
     "litellm>=1.30.7",
-    "rich>=14.0.0",
-    "posthog>=3.24.0",
+    "loguru>=0.7.3",
     "mcp>=1.6.0",
-    "gql[all]>=3.5.2",
-    "cookiecutter>=2.6.0",
-    "Jinja2>=3.1.3",
+    "posthog>=3.24.0",
+    "pydantic>=2.11.1",
+    "pydantic-settings>=2.8.1",
+    "pyyaml>=6.0.2",
+    "rich>=14.0.0",
+    "typer>=0.15.2",
 ]
 
 [project.optional-dependencies]
-playground = [
-    "langchain-mcp-adapters>=0.0.3",
-    "langgraph>=0.3.24",
-    "langgraph-checkpoint-sqlite>=2.0.6",
-    "streamlit>=1.44.1",
-    "python-dotenv>=1.0.1",
-    "langchain-openai>=0.3.12",
-    "watchdog>=6.0.0",
-]
-dev = [
-    "ruff>=0.11.4",
-    "pytest>=8.3.5",
-    "pytest-asyncio>=0.26.0",
-    "pyright>=1.1.398",
-    "litellm>=1.30.7",
-]
-all = [
-    # Playground dependencies
-    "langchain-mcp-adapters>=0.0.3",
-    "langgraph>=0.3.24",
-    "langgraph-checkpoint-sqlite>=2.0.6",
-    "streamlit>=1.44.1",
-    "python-dotenv>=1.0.1",
-    "langchain-openai>=0.3.12",
-    "watchdog>=6.0.0",
-    # Development dependencies
-    "ruff>=0.11.4",
-    "pytest>=8.3.5",
-    "pytest-asyncio>=0.26.0",
-    "pyright>=1.1.398",
-    "litellm>=1.30.7",
-]
 applications = [
     "universal-mcp-ahrefs",
     "universal-mcp-cal-com-v2",
@@ -97,27 +69,45 @@ applications = [
     "universal-mcp-youtube",
     "universal-mcp-zenquotes",
 ]
+dev = [
+    "litellm>=1.30.7",
+    "pyright>=1.1.398",
+    "pytest>=8.3.5",
+    "pytest-asyncio>=0.26.0",
+    "ruff>=0.11.4",
+]
+playground = [
+    "langchain-mcp-adapters>=0.0.3",
+    "langchain-openai>=0.3.12",
+    "langgraph>=0.3.24",
+    "langgraph-checkpoint-sqlite>=2.0.6",
+    "python-dotenv>=1.0.1",
+    "streamlit>=1.44.1",
+    "watchdog>=6.0.0",
+]
 
 [project.scripts]
 universal_mcp = "universal_mcp.cli:app"
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
+# ------------------------------
+# Hatch build configuration
+# ------------------------------
 [tool.hatch.build.targets.sdist]
 include = [
     "/src",
     "/templates", # Important: Include the templates directory!
 ]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/universal_mcp"]
-# Ensure templates are included in the wheel data
+
 [tool.hatch.build.targets.wheel.shared-data]
 "templates" = "universal_mcp/templates"
 
+# ------------------------------
+# Tool configurations
+# ------------------------------
 [tool.ruff]
-# Exclude a variety of commonly ignored directories.
 exclude = [
     ".bzr",
     ".direnv",
@@ -146,54 +136,29 @@ exclude = [
     "site-packages",
     "venv",
 ]
-
-# Same as Black.
 line-length = 88
 indent-width = 4
-
-# Assume Python 3.12
 target-version = "py312"
 
 [tool.ruff.lint]
-# Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
-# Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
-# McCabe complexity (`C901`) by default.
 select = [
-    # pycodestyle
-    "E",
-    # Pyflakes
-    "F",
-    # pyupgrade
-    "UP",
-    # flake8-bugbear
-    "B",
-    # flake8-simplify
-    "SIM",
-    # isort
-    "I",
+    "E",    # pycodestyle
+    "F",    # Pyflakes
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "I",    # isort
 ]
 ignore = ['E501', 'B008']
-
-# Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
 unfixable = []
-
-# Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.ruff.format]
-# Like Black, use double quotes for strings.
 quote-style = "double"
-
-# Like Black, indent with spaces, rather than tabs.
 indent-style = "space"
-
-# Like Black, respect magic trailing commas.
 skip-magic-trailing-comma = false
-
-# Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
-
 docstring-code-line-length = "dynamic"
 
 [tool.pytest.ini_options]

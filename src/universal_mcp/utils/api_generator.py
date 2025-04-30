@@ -36,65 +36,6 @@ def get_class_info(module: any) -> tuple[str | None, any]:
     return None, None
 
 
-def generate_readme(app_dir: Path, folder_name: str, tools: list) -> Path:
-    """Generate README.md with API documentation.
-
-    Args:
-        app_dir: Directory where the README will be generated
-        folder_name: Name of the application folder
-        tools: List of Function objects from the OpenAPI schema
-
-    Returns:
-        Path to the generated README file
-
-    Raises:
-        FileNotFoundError: If the template directory doesn't exist
-        TemplateError: If there's an error rendering the template
-        IOError: If there's an error writing the README file
-    """
-    app = folder_name.replace("_", " ").title()
-    logger.info(f"Generating README for {app} in {app_dir}")
-
-    # Format tools into (name, description) tuples
-    formatted_tools = []
-    for tool in tools:
-        name = tool.__name__
-        description = tool.__doc__.strip().split("\n")[0]
-        formatted_tools.append((name, description))
-
-    # Set up Jinja2 environment
-    template_dir = Path(__file__).parent.parent / "templates"
-    if not template_dir.exists():
-        logger.error(f"Template directory not found: {template_dir}")
-        raise FileNotFoundError(f"Template directory not found: {template_dir}")
-
-    try:
-        env = Environment(
-            loader=FileSystemLoader(template_dir), autoescape=select_autoescape()
-        )
-        template = env.get_template("README.md.j2")
-    except Exception as e:
-        logger.error(f"Error loading template: {e}")
-        raise TemplateError(f"Error loading template: {e}") from e
-
-    # Render the template
-    try:
-        readme_content = template.render(name=app, tools=formatted_tools)
-    except Exception as e:
-        logger.error(f"Error rendering template: {e}")
-        raise TemplateError(f"Error rendering template: {e}") from e
-
-    # Write the README file
-    readme_file = app_dir / "README.md"
-    try:
-        with open(readme_file, "w") as f:
-            f.write(readme_content)
-        logger.info(f"Documentation generated at: {readme_file}")
-    except Exception as e:
-        logger.error(f"Error writing README file: {e}")
-        raise OSError(f"Error writing README file: {e}") from e
-
-    return readme_file
 
 
 def test_correct_output(gen_file: Path):
@@ -120,7 +61,7 @@ def test_correct_output(gen_file: Path):
 def generate_api_from_schema(
     schema_path: Path,
     output_path: Path | None = None,
-    add_docstrings: bool = True,
+    class_name: str | None = None,
 ) -> tuple[Path, Path]:
     """
     Generate API client from OpenAPI schema and write to app.py with a README.
@@ -147,7 +88,7 @@ def generate_api_from_schema(
 
     # 2. Generate client code
     try:
-        code = generate_api_client(schema)
+        code = generate_api_client(schema, class_name)
         logger.info("API client code generated.")
     except Exception as e:
         logger.error("Code generation failed: %s", e)
@@ -192,34 +133,6 @@ def generate_api_from_schema(
     shutil.copy(gen_file, app_file)
     logger.info("App file written to: %s", app_file)
 
-    # 6. Collect tools and generate README
-    import importlib.util
-    import sys
-
-    # Load the generated module as "temp_module"
-    spec = importlib.util.spec_from_file_location("temp_module", str(app_file))
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["temp_module"] = module
-    spec.loader.exec_module(module)
-
-    # Retrieve the generated API class
-    class_name, cls = get_class_info(module)
-
-    # Instantiate client and collect its tools
-    tools = []
-    if cls:
-        try:
-            client = cls()
-            tools = client.list_tools()
-        except Exception as e:
-            logger.warning(
-                "Failed to instantiate '%s' or list tools: %s", class_name, e
-            )
-    else:
-        logger.warning("No generated class found in module 'temp_module'")
-    readme_file = generate_readme(target_dir, output_path.stem, tools)
-    logger.info("README generated at: %s", readme_file)
-
     # Cleanup intermediate file
     try:
         os.remove(gen_file)
@@ -227,4 +140,4 @@ def generate_api_from_schema(
     except Exception as e:
         logger.warning("Could not remove intermediate file %s: %s", gen_file, e)
 
-    return app_file, readme_file
+    return app_file

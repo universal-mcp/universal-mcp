@@ -23,6 +23,12 @@ def generate(
         "-o",
         help="Output file path - should match the API name (e.g., 'twitter.py' for Twitter API)",
     ),
+    class_name: str = typer.Option(
+        None,
+        "--class-name",
+        "-c",
+        help="Class name to use for the API client",
+    ),
 ):
     """Generate API client from OpenAPI schema with optional docstring generation.
 
@@ -38,24 +44,33 @@ def generate(
 
     try:
         # Run the async function in the event loop
-        result = generate_api_from_schema(
+        app_file = generate_api_from_schema(
             schema_path=schema_path,
             output_path=output_path,
+            class_name=class_name,
         )
-
-        if not output_path:
-            # Print to stdout if no output path
-            print(result["code"])
-        else:
-            typer.echo("API client successfully generated and installed.")
-            if "app_file" in result:
-                typer.echo(f"Application file: {result['app_file']}")
-            if "readme_file" in result and result["readme_file"]:
-                typer.echo(f"Documentation: {result['readme_file']}")
+        typer.echo("API client successfully generated and installed.")
+        typer.echo(f"Application file: {app_file}")
     except Exception as e:
         typer.echo(f"Error generating API client: {e}", err=True)
         raise typer.Exit(1) from e
 
+
+@app.command()
+def readme(
+    file_path: Path = typer.Argument(..., help="Path to the Python file to process"),
+    class_name: str = typer.Option(
+        None,
+        "--class-name",
+        "-c",
+        help="Class name to use for the API client",
+    ),
+):
+    """Generate a README.md file for the API client."""
+    from universal_mcp.utils.readme import generate_readme
+
+    readme_file = generate_readme(file_path, class_name)
+    typer.echo(f"README.md file generated at: {readme_file}")
 
 @app.command()
 def docgen(
