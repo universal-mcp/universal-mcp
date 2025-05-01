@@ -25,20 +25,35 @@ sys.path.append(UNIVERSAL_MCP_HOME)
 
 def _ensure_latest_package(slug_clean: str):
     """
-    Checks if the package is up-to-date by forcing a reinstall from the GitHub repo.
+    Ensures the latest version of a package is installed from the GitHub repo.
+    Reinstalls the package forcibly using pip and writes the latest commit hash.
     """
-    repo_url = f"git+https://github.com/universal-mcp/{slug_clean}"
-    cmd = ["uv", "pip", "install", "--upgrade", "--force-reinstall", repo_url, "--target", UNIVERSAL_MCP_HOME]
-    logger.info(f"Ensuring latest version of package '{slug_clean}' with command: {' '.join(cmd)}")
+    repo_url = f"https://github.com/universal-mcp/{slug_clean}.git"
+    pip_url = f"git+{repo_url}"
+    cmd = [
+        "uv", "pip", "install",
+        "--upgrade", "--force-reinstall",
+        pip_url,
+        "--target", UNIVERSAL_MCP_HOME
+    ]
+    logger.info(f"Ensuring latest version of '{slug_clean}' with: {' '.join(cmd)}")
+
     try:
         subprocess.check_call(cmd)
+        latest_commit = subprocess.check_output(
+            ["git", "ls-remote", repo_url, "HEAD"],
+            text=True
+        ).split()[0]
+        package_path = os.path.join(UNIVERSAL_MCP_HOME, f"universal_mcp_{slug_clean.replace('-', '_')}")
+        os.makedirs(package_path, exist_ok=True)
+        with open(os.path.join(package_path, "_commit.txt"), "w") as f:
+            f.write(latest_commit)
+
+        logger.info(f"Package '{slug_clean}' updated successfully to commit {latest_commit}")
+
     except subprocess.CalledProcessError as e:
-        logger.error(f"Upgrade check failed for '{slug_clean}': {e}")
-        raise ModuleNotFoundError(
-            f"Upgrade attempt failed for package '{slug_clean}'"
-        ) from e
-    else:
-        logger.info(f"Latest version of package '{slug_clean}' ensured successfully")
+        logger.error(f"Upgrade failed for '{slug_clean}': {e}")
+        raise ModuleNotFoundError(f"Upgrade failed for package '{slug_clean}'") from e
 
 def _check_for_package_update(slug_clean: str) -> bool:
     """
