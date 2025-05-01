@@ -65,8 +65,7 @@ def _check_for_package_update(slug_clean: str) -> bool:
         repo_url = f"https://github.com/universal-mcp/{slug_clean}.git"
         result = subprocess.run(
             ["git", "ls-remote", repo_url, "HEAD"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             check=True,
             text=True
         )
@@ -84,7 +83,7 @@ def _check_for_package_update(slug_clean: str) -> bool:
             logger.info(f"No version file found for '{slug_clean}'. Update needed.")
             return True
 
-        with open(version_file, "r") as f:
+        with open(version_file) as f:
             local_commit = f.read().strip()
 
         if local_commit != latest_commit:
