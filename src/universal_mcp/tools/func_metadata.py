@@ -61,7 +61,7 @@ class ArgModelBase(BaseModel):
         That is, sub-models etc are not dumped - they are kept as pydantic models.
         """
         kwargs: dict[str, Any] = {}
-        for field_name in self.model_fields:
+        for field_name in self.__class__.model_fields:
             kwargs[field_name] = getattr(self, field_name)
         return kwargs
 
