@@ -61,7 +61,7 @@ def install_claude(api_key: str) -> None:
         config["mcpServers"] = {}
     config["mcpServers"]["universal_mcp"] = {
         "command": get_uvx_path(),
-        "args": ["universal_mcp[applications]@latest", "run"],
+        "args": ["universal_mcp@latest", "run"],
         "env": {"AGENTR_API_KEY": api_key},
     }
     with open(config_path, "w") as f:
@@ -90,7 +90,7 @@ def install_cursor(api_key: str) -> None:
         config["mcpServers"] = {}
     config["mcpServers"]["universal_mcp"] = {
         "command": get_uvx_path(),
-        "args": ["universal_mcp[applications]@latest", "run"],
+        "args": ["universal_mcp@latest", "run"],
         "env": {"AGENTR_API_KEY": api_key},
     }
 
@@ -120,7 +120,7 @@ def install_cline(api_key: str) -> None:
         config["mcpServers"] = {}
     config["mcpServers"]["universal_mcp"] = {
         "command": get_uvx_path(),
-        "args": ["universal_mcp[applications]@latest", "run"],
+        "args": ["universal_mcp@latest", "run"],
         "env": {"AGENTR_API_KEY": api_key},
     }
 
@@ -156,7 +156,7 @@ def install_continue(api_key: str) -> None:
         config["mcpServers"] = {}
     config["mcpServers"]["universal_mcp"] = {
         "command": get_uvx_path(),
-        "args": ["universal_mcp[applications]@latest", "run"],
+        "args": ["universal_mcp@latest", "run"],
         "env": {"AGENTR_API_KEY": api_key},
     }
 
@@ -192,7 +192,7 @@ def install_goose(api_key: str) -> None:
         config["mcpServers"] = {}
     config["mcpServers"]["universal_mcp"] = {
         "command": get_uvx_path(),
-        "args": ["universal_mcp[applications]@latest", "run"],
+        "args": ["universal_mcp@latest", "run"],
         "env": {"AGENTR_API_KEY": api_key},
     }
 
@@ -228,7 +228,7 @@ def install_windsurf(api_key: str) -> None:
         config["mcpServers"] = {}
     config["mcpServers"]["universal_mcp"] = {
         "command": get_uvx_path(),
-        "args": ["universal_mcp[applications]@latest", "run"],
+        "args": ["universal_mcp@latest", "run"],
         "env": {"AGENTR_API_KEY": api_key},
     }
 
@@ -267,7 +267,7 @@ def install_zed(api_key: str) -> None:
             server.update(
                 {
                     "command": get_uvx_path(),
-                    "args": ["universal_mcp[applications]@latest", "run"],
+                    "args": ["universal_mcp@latest", "run"],
                     "env": {"AGENTR_API_KEY": api_key},
                 }
             )
@@ -278,7 +278,7 @@ def install_zed(api_key: str) -> None:
             {
                 "name": "universal_mcp",
                 "command": get_uvx_path(),
-                "args": ["universal_mcp[applications]@latest", "run"],
+                "args": ["universal_mcp@latest", "run"],
                 "env": {"AGENTR_API_KEY": api_key},
             }
         )
