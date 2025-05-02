@@ -3,6 +3,8 @@ import re
 from pathlib import Path
 from typing import Any, Literal
 
+from jsonref import replace_refs
+
 import yaml
 from pydantic import BaseModel
 
@@ -80,13 +82,10 @@ def convert_to_snake_case(identifier: str) -> str:
 
 
 def _load_and_resolve_references(path: Path):
-    from jsonref import replace_refs
-
     # Load the schema
     type = "yaml" if path.suffix == ".yaml" else "json"
     with open(path) as f:
         schema = yaml.safe_load(f) if type == "yaml" else json.load(f)
-    # Resolve references
     return replace_refs(schema)
 
 
@@ -197,16 +196,29 @@ def _generate_query_params(operation: dict[str, Any]) -> list[Parameters]:
     query_params = []
     for param in operation.get("parameters", []):
         name = param.get("name")
+        if name is None:
+            continue
+            
+        # Clean the parameter name for use as a Python identifier
+        clean_name = name.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "")
+        
         description = param.get("description", "")
-        type = param.get("type")
+        
+        # Extract type from schema if available
+        param_schema = param.get("schema", {})
+        type_value = param_schema.get("type") if param_schema else param.get("type")
+        # Default to string if type is not available
+        if type_value is None:
+            type_value = "string"
+            
         where = param.get("in")
-        required = param.get("required")
+        required = param.get("required", False)
         if where == "query":
             parameter = Parameters(
-                name=name.replace("-", "_"),
+                name=clean_name,
                 identifier=name,
                 description=description,
-                type=type,
+                type=type_value,
                 where=where,
                 required=required,
             )
@@ -331,7 +343,7 @@ def _generate_method_code(path, method, operation):
             required_args.append(param.name)
 
     for param in query_params:
-        param_name = param["name"]
+        param_name = param.name
         # Handle parameters with square brackets and hyphens by converting to valid Python identifiers
         param_identifier = (
             param_name.replace("[", "_").replace("]", "").replace("-", "_")
@@ -339,7 +351,7 @@ def _generate_method_code(path, method, operation):
         if param_identifier not in required_args and param_identifier not in [
             p.split("=")[0] for p in optional_args
         ]:
-            if param.get("required", False):
+            if param.required:
                 required_args.append(param_identifier)
             else:
                 optional_args.append(f"{param_identifier}=None")
@@ -429,9 +441,9 @@ def _generate_method_code(path, method, operation):
     if query_params:
         query_params_items = []
         for param in query_params:
-            param_name = param.name
+            param_name = param.identifier
             param_identifier = (
-                param_name.replace("[", "_").replace("]", "").replace("-", "_")
+                param.name.replace("[", "_").replace("]", "").replace("-", "_")
             )
             query_params_items.append(f"('{param_name}', {param_identifier})")
         body_lines.append(
