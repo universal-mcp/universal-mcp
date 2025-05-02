@@ -81,6 +81,18 @@ def convert_to_snake_case(identifier: str) -> str:
     return result.lower()
 
 
+def _sanitize_identifier(name: str | None) -> str:
+    """Cleans a string to be a valid Python identifier.
+
+    Replaces hyphens, dots, and square brackets with underscores.
+    Removes closing square brackets.
+    Returns empty string if input is None.
+    """
+    if name is None:
+        return ""
+    return name.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "")
+
+
 def _extract_properties_from_schema(schema: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     """Extracts properties and required fields from a schema, handling 'allOf'."""
     properties = {}
@@ -191,7 +203,7 @@ def _generate_path_params(path: str) -> list[Parameters]:
         try:
             parameters.append(
                 Parameters(
-                    name=param.replace("-", "_"),
+                    name=_sanitize_identifier(param),
                     identifier=param,
                     description=param,
                     type="string",
@@ -222,7 +234,7 @@ def _generate_query_params(operation: dict[str, Any]) -> list[Parameters]:
             continue
             
         # Clean the parameter name for use as a Python identifier
-        clean_name = name.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "")
+        clean_name = _sanitize_identifier(name)
         
         description = param.get("description", "")
         
@@ -270,7 +282,7 @@ def _generate_body_params(operation: dict[str, Any]) -> list[Parameters]:
         param_required = required_body and param_name in required_fields 
         body_params.append(
             Parameters(
-                name=param_name.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", ""), # Clean name for Python
+                name=_sanitize_identifier(param_name), # Clean name for Python
                 identifier=param_name, # Original name for API
                 description=param_description,
                 type=param_type,
@@ -363,18 +375,16 @@ def _generate_method_code(path, method, operation):
             required_args.append(param.name)
 
     for param in query_params:
-        param_name = param.name
-        # Handle parameters with square brackets and hyphens by converting to valid Python identifiers
-        param_identifier = (
-            param_name.replace("[", "_").replace("]", "").replace("-", "_")
-        )
-        if param_identifier not in required_args and param_identifier not in [
+        # param.name is already sanitized from _generate_query_params
+        # param.identifier is the original name
+        param_identifier_for_signature = param.name # Use the cleaned name for signature
+        if param_identifier_for_signature not in required_args and param_identifier_for_signature not in [
             p.split("=")[0] for p in optional_args
         ]:
             if param.required:
-                required_args.append(param_identifier)
+                required_args.append(param_identifier_for_signature)
             else:
-                optional_args.append(f"{param_identifier}=None")
+                optional_args.append(f"{param_identifier_for_signature}=None")
 
     # Handle array type request body differently
     request_body_params = []
@@ -400,7 +410,8 @@ def _generate_method_code(path, method, operation):
             # For object request bodies, add individual properties as parameters
             for prop_name in request_body_properties:
                 prop_schema = request_body_properties[prop_name]
-                clean_prop_name = prop_name.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "")
+                # Clean the original prop_name for Python identifier using the helper
+                clean_prop_name = _sanitize_identifier(prop_name) 
                 
                 if prop_name in required_fields:
                     request_body_params.append(clean_prop_name)
@@ -475,15 +486,12 @@ def _generate_method_code(path, method, operation):
     url_line = f'        url = f"{{self.base_url}}{url}"'
     body_lines.append(url_line)
 
-    # Build query parameters, handling square brackets in parameter names
+    # Build query parameters dictionary for the request
     if query_params:
         query_params_items = []
         for param in query_params:
-            param_name = param.identifier
-            param_identifier = (
-                param.name.replace("[", "_").replace("]", "").replace("-", "_")
-            )
-            query_params_items.append(f"('{param_name}', {param_identifier})")
+            # Use the original identifier for the key, and the cleaned name for the value variable
+            query_params_items.append(f"('{param.identifier}', {param.name})")
         body_lines.append(
             f"        query_params = {{k: v for k, v in [{', '.join(query_params_items)}] if v is not None}}"
         )
