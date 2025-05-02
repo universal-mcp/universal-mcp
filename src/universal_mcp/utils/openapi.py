@@ -1,5 +1,6 @@
 import json
 import re
+import textwrap
 from pathlib import Path
 from typing import Any, Literal
 
@@ -199,20 +200,22 @@ def _determine_function_name(operation: dict[str, Any], path: str, method: str) 
 def _generate_path_params(path: str) -> list[Parameters]:
     path_params_in_url = re.findall(r"{([^}]+)}", path)
     parameters = []
-    for param in path_params_in_url:
+    for param_name in path_params_in_url:
+
         try:
             parameters.append(
                 Parameters(
-                    name=_sanitize_identifier(param),
-                    identifier=param,
-                    description=param,
-                    type="string",
+                    name=_sanitize_identifier(param_name),
+                    identifier=param_name,
+                    description=param_name, 
+                    type="string", 
                     where="path",
-                    required=True,
+                    required=True, 
+                    example=None 
                 )
             )
         except Exception as e:
-            print(f"Error generating path parameters {param}: {e}")
+            print(f"Error generating path parameters {param_name}: {e}")
             raise e
     return parameters
 
@@ -245,6 +248,9 @@ def _generate_query_params(operation: dict[str, Any]) -> list[Parameters]:
         if type_value is None:
             type_value = "string"
             
+        # Extract example
+        example_value = param.get("example", param_schema.get("example"))
+        
         where = param.get("in")
         required = param.get("required", False)
         if where == "query":
@@ -255,6 +261,7 @@ def _generate_query_params(operation: dict[str, Any]) -> list[Parameters]:
                 type=type_value,
                 where=where,
                 required=required,
+                example=str(example_value) if example_value is not None else None 
             )
             query_params.append(parameter)
     return query_params
@@ -280,6 +287,9 @@ def _generate_body_params(operation: dict[str, Any]) -> list[Parameters]:
         param_description = param_schema.get("description", param_name)
         # Parameter is required if the body is required AND the field is in the schema's required list
         param_required = required_body and param_name in required_fields 
+        # Extract example
+        param_example = param_schema.get("example")
+        
         body_params.append(
             Parameters(
                 name=_sanitize_identifier(param_name), # Clean name for Python
@@ -288,6 +298,7 @@ def _generate_body_params(operation: dict[str, Any]) -> list[Parameters]:
                 type=param_type,
                 where="body",
                 required=param_required,
+                example=str(param_example) if param_example is not None else None 
             )
         )
     return body_params
@@ -314,42 +325,15 @@ def _generate_method_code(path, method, operation):
     # Extract path parameters from the URL path
     path_params = _generate_path_params(path)
     query_params = _generate_query_params(operation)
-    _generate_body_params(operation)
+    body_params = _generate_body_params(operation)
     return_type = _determine_return_type(operation)
-    # gen_method   = Method(name=func_name, summary=summary, tags=tags, path=path, method=method, path_params=path_params, query_params=query_params, body_params=body_params, return_type=return_type)
-    # logger.info(f"Generated method: {gen_method.model_dump()}")
-    # return method.render(template_dir="templates", template_name="method.jinja2")
-
+    
     has_body = "requestBody" in operation
     body_required = has_body and operation["requestBody"].get("required", False)
-
-    # Check if the requestBody has actual content or is empty
     has_empty_body = False
-    if has_body:
-        request_body_content = operation["requestBody"].get("content", {})
-        if not request_body_content or all(
-            not content for content_type, content in request_body_content.items()
-        ):
-            has_empty_body = True
-        else:
-            # Handle empty properties with additionalProperties:true
-            for content_type, content in request_body_content.items():
-                if content_type.startswith("application/json") and "schema" in content:
-                    schema = content["schema"]
-
-                    # Check if properties is empty and additionalProperties is true
-                    if (
-                        schema.get("type") == "object"
-                        and schema.get("additionalProperties", False) is True
-                    ):
-                        properties = schema.get("properties", {})
-                        if not properties or len(properties) == 0:
-                            has_empty_body = True
-
-    # Extract request body schema properties and required fields
-    request_body_properties = {}
-    required_fields = []
-    is_array_body = False
+    request_body_properties = {} 
+    required_fields = [] 
+    is_array_body = False 
 
     if has_body:
         request_body_content = operation.get("requestBody", {}).get("content", {})
@@ -359,24 +343,25 @@ def _generate_method_code(path, method, operation):
             if schema.get("type") == "array":
                 is_array_body = True
             else:
-                # Use the helper function to extract properties and required fields
                 request_body_properties, required_fields = _extract_properties_from_schema(schema)
-                # Handle schemas with empty properties but additionalProperties: true
                 if (not request_body_properties or len(request_body_properties) == 0) and schema.get("additionalProperties") is True:
                     has_empty_body = True
+        elif not request_body_content or all(not c for _, c in request_body_content.items()): # Check if content is truly empty
+             has_empty_body = True
 
-    # Build function arguments
+    # Build function arguments with deduplication (Priority: Path > Body > Query)
     required_args = []
     optional_args = []
+    seen_clean_names = set() # Keep track of names added to the signature - DEFINED HERE NOW
 
-    # Add path parameters
+    # 1. Process Path Parameters (Highest Priority)
     for param in path_params:
         if param.name not in required_args:
             required_args.append(param.name)
+        seen_clean_names.add(param.name)
 
     for param in query_params:
-        # param.name is already sanitized from _generate_query_params
-        # param.identifier is the original name
+        
         param_identifier_for_signature = param.name # Use the cleaned name for signature
         if param_identifier_for_signature not in required_args and param_identifier_for_signature not in [
             p.split("=")[0] for p in optional_args
@@ -385,6 +370,7 @@ def _generate_method_code(path, method, operation):
                 required_args.append(param_identifier_for_signature)
             else:
                 optional_args.append(f"{param_identifier_for_signature}=None")
+        seen_clean_names.add(param.name)
 
     # Handle array type request body differently
     request_body_params = []
@@ -444,8 +430,98 @@ def _generate_method_code(path, method, operation):
     # Combine required and optional arguments
     args = required_args + optional_args
 
-    # Determine return type
-    return_type = _determine_return_type(operation)
+    # ----- Build Docstring ----- 
+    docstring_parts = []
+    return_type = _determine_return_type(operation) 
+    
+    # Summary
+    summary = operation.get("summary", "").strip()
+    if not summary:
+        summary = operation.get("description", f"Execute {method.upper()} {path}").strip()
+        summary = summary.split('\n')[0]
+    if summary:
+        docstring_parts.append(summary)
+    
+    # Args
+    args_doc_lines = []
+    param_details = {}
+    all_params = path_params + query_params + body_params
+    signature_arg_names = {a.split('=')[0] for a in args} 
+
+    for param in all_params:
+        if param.name in signature_arg_names and param.name not in param_details:
+            param_details[param.name] = param
+            
+    if signature_arg_names:
+        args_doc_lines.append("Args:")
+        for arg_signature_str in args:
+            arg_name = arg_signature_str.split('=')[0]
+            detail = param_details.get(arg_name)
+            if detail:
+                desc = detail.description or "No description provided."
+                type_hint = detail.type if detail.type else "Any"
+                arg_line = f"    {arg_name} ({type_hint}): {desc}"
+                if detail.example:
+                    example_str = repr(detail.example) 
+                    arg_line += f" Example: {example_str}."
+                args_doc_lines.append(arg_line)
+            elif arg_name == "request_body" and has_empty_body:
+                 args_doc_lines.append(f"    {arg_name} (dict | None): Optional dictionary for arbitrary request body data.")
+
+    if args_doc_lines:
+        docstring_parts.append("\n".join(args_doc_lines))
+
+    # Returns - Use the pre-calculated return_type variable
+    success_desc = ""
+    responses = operation.get("responses", {})
+    for code, resp_info in responses.items():
+        if code.startswith("2"):
+            success_desc = resp_info.get("description", "").strip()
+            break
+    docstring_parts.append(f"Returns:\n    {return_type}: {success_desc or 'API response data.'}") # Use return_type
+    
+    # Request Body Example
+    request_body_example = None
+    if has_body:
+        try:
+            json_content = operation['requestBody']['content']['application/json']
+            if 'example' in json_content:
+                request_body_example = json_content['example']
+            elif 'examples' in json_content and json_content['examples']:
+                # Get the first example's value
+                first_example_key = list(json_content['examples'].keys())[0]
+                request_body_example = json_content['examples'][first_example_key].get('value')
+        except KeyError: # Handle cases where the structure might be missing keys
+            pass 
+            
+    if request_body_example is not None:
+        try:
+            # Format the example as pretty JSON
+            example_json_str = json.dumps(request_body_example, indent=2)
+            # Indent the JSON string to align with docstring args
+            indented_example = textwrap.indent(example_json_str, '        ') # 8 spaces
+            docstring_parts.append(f"Request Body Example:\n        ```json\n{indented_example}\n        ```")
+        except TypeError:
+            
+            docstring_parts.append(f"Request Body Example:\n        {request_body_example}")
+            
+    # Tags Section
+    operation_tags = operation.get("tags", [])
+    if operation_tags:
+        tags_string = ", ".join(operation_tags)
+        docstring_parts.append(f"Tags:\n    {tags_string}")
+            
+    # Combine and Format docstring
+    docstring_content = "\n\n".join(docstring_parts)
+    
+    def_indent = "    " 
+    doc_indent = def_indent + "    " 
+    indented_docstring_content = textwrap.indent(docstring_content, doc_indent).strip()
+    
+    # Wrap in triple quotes
+    formatted_docstring = f'\n{doc_indent}"""\n{indented_docstring_content}\n{doc_indent}"""'
+    # ----- End Build Docstring -----
+    
     if args:
         signature = f"    def {func_name}(self, {', '.join(args)}) -> {return_type}:"
     else:
@@ -534,7 +610,8 @@ def _generate_method_code(path, method, operation):
     body_lines.append("        response.raise_for_status()")
     body_lines.append("        return response.json()")
 
-    method_code = signature + "\n" + "\n".join(body_lines)
+    # Combine signature, docstring, and body
+    method_code = signature + formatted_docstring + "\n" + "\n".join(body_lines)
     return method_code, func_name
 
 
