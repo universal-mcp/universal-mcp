@@ -399,14 +399,32 @@ def _generate_method_code(path, method, operation):
         elif request_body_properties:
             # For object request bodies, add individual properties as parameters
             for prop_name in request_body_properties:
+                prop_schema = request_body_properties[prop_name]
+                clean_prop_name = prop_name.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "")
+                
                 if prop_name in required_fields:
-                    request_body_params.append(prop_name)
-                    if prop_name not in required_args:
-                        required_args.append(prop_name)
+                    request_body_params.append(clean_prop_name)
+                    if clean_prop_name not in required_args:
+                        required_args.append(clean_prop_name)
                 else:
-                    request_body_params.append(prop_name)
-                    if f"{prop_name}=None" not in optional_args:
-                        optional_args.append(f"{prop_name}=None")
+                    request_body_params.append(clean_prop_name)
+                    # Handle optional parameters with defaults
+                    default_value = prop_schema.get("default")
+                    arg_str = f"{clean_prop_name}=None"
+                    if default_value is not None:
+                        # Format default value for Python signature
+                        if isinstance(default_value, str):
+                            formatted_default = f'"{repr(default_value)[1:-1]}"' # Use repr() and slice to handle internal quotes
+                        elif isinstance(default_value, bool):
+                            formatted_default = str(default_value) # True/False becomes "True"/"False"
+                        elif isinstance(default_value, (int, float)):
+                            formatted_default = str(default_value) # Numbers as strings
+                        else:
+                            formatted_default = "None"
+                        arg_str = f"{clean_prop_name}={formatted_default}"
+                        
+                    if arg_str not in optional_args:
+                        optional_args.append(arg_str)
 
     # If request body is present but empty (content: {}), add a generic request_body parameter
     if has_empty_body and "request_body=None" not in optional_args:
