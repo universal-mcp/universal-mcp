@@ -3,7 +3,7 @@ from typing import Any, Literal
 
 from loguru import logger
 
-from universal_mcp import analytics
+from universal_mcp.analytics import analytics
 from universal_mcp.applications.application import BaseApplication
 from universal_mcp.exceptions import ToolError
 from universal_mcp.tools.adapters import (

@@ -1,3 +1,4 @@
-from .tools import Tool, ToolManager
+from .manager import ToolManager
+from .tools import Tool
 
 __all__ = ["Tool", "ToolManager"]
