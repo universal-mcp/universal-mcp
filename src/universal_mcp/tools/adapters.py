@@ -41,3 +41,17 @@ def convert_tool_to_langchain_tool(
         coroutine=call_tool,
         response_format="content",
     )
+
+
+def convert_tool_to_openai_tool(
+    tool: Tool,
+):
+    """Convert a Tool object to an OpenAI function."""
+    return {
+        "type": "function",
+        "function": {
+            "name": tool.name,
+            "description": tool.description,
+            "parameters": tool.parameters,
+        },
+    }

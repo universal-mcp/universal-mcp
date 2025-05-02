@@ -1,6 +1,5 @@
 import json
 import re
-from functools import cache
 from pathlib import Path
 from typing import Any, Literal
 
@@ -80,65 +79,15 @@ def convert_to_snake_case(identifier: str) -> str:
     return result.lower()
 
 
-@cache
-def _resolve_schema_reference(reference, schema):
-    """
-    Resolve a JSON schema reference to its target schema.
-
-    Args:
-        reference (str): The reference string (e.g., '#/components/schemas/User')
-        schema (dict): The complete OpenAPI schema that contains the reference
-
-    Returns:
-        dict: The resolved schema, or None if not found
-    """
-    if not reference.startswith("#/"):
-        return None
-
-    # Split the reference path and navigate through the schema
-    parts = reference[2:].split("/")
-    current = schema
-
-    for part in parts:
-        if part in current:
-            current = current[part]
-        else:
-            return None
-
-    return current
-
-
-def _resolve_references(schema: dict[str, Any]):
-    """
-    Recursively walk the OpenAPI schema and inline all JSON Schema $ref references.
-    """
-
-    def _resolve(node):
-        if isinstance(node, dict):
-            # If this dict is a reference, replace it with the resolved schema
-            if "$ref" in node:
-                ref = node["$ref"]
-                resolved = _resolve_schema_reference(ref, schema)
-                # If resolution fails, leave the ref dict as-is
-                return _resolve(resolved) if resolved is not None else node
-            # Otherwise, recurse into each key/value
-            return {key: _resolve(value) for key, value in node.items()}
-        elif isinstance(node, list):
-            # Recurse into list elements
-            return [_resolve(item) for item in node]
-        # Primitive value, return as-is
-        return node
-
-    return _resolve(schema)
-
-
 def _load_and_resolve_references(path: Path):
+    from jsonref import replace_refs
+
     # Load the schema
     type = "yaml" if path.suffix == ".yaml" else "json"
     with open(path) as f:
         schema = yaml.safe_load(f) if type == "yaml" else json.load(f)
     # Resolve references
-    return _resolve_references(schema)
+    return replace_refs(schema)
 
 
 def _determine_return_type(operation: dict[str, Any]) -> str:
