@@ -1,8 +1,9 @@
 import json
 import re
-from functools import cache
 from pathlib import Path
 from typing import Any, Literal
+
+from jsonref import replace_refs
 
 import yaml
 from pydantic import BaseModel
@@ -80,56 +81,37 @@ def convert_to_snake_case(identifier: str) -> str:
     return result.lower()
 
 
-@cache
-def _resolve_schema_reference(reference, schema):
+def _sanitize_identifier(name: str | None) -> str:
+    """Cleans a string to be a valid Python identifier.
+
+    Replaces hyphens, dots, and square brackets with underscores.
+    Removes closing square brackets.
+    Returns empty string if input is None.
     """
-    Resolve a JSON schema reference to its target schema.
-
-    Args:
-        reference (str): The reference string (e.g., '#/components/schemas/User')
-        schema (dict): The complete OpenAPI schema that contains the reference
-
-    Returns:
-        dict: The resolved schema, or None if not found
-    """
-    if not reference.startswith("#/"):
-        return None
-
-    # Split the reference path and navigate through the schema
-    parts = reference[2:].split("/")
-    current = schema
-
-    for part in parts:
-        if part in current:
-            current = current[part]
-        else:
-            return None
-
-    return current
+    if name is None:
+        return ""
+    return name.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "")
 
 
-def _resolve_references(schema: dict[str, Any]):
-    """
-    Recursively walk the OpenAPI schema and inline all JSON Schema $ref references.
-    """
+def _extract_properties_from_schema(schema: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """Extracts properties and required fields from a schema, handling 'allOf'."""
+    properties = {}
+    required_fields = []
 
-    def _resolve(node):
-        if isinstance(node, dict):
-            # If this dict is a reference, replace it with the resolved schema
-            if "$ref" in node:
-                ref = node["$ref"]
-                resolved = _resolve_schema_reference(ref, schema)
-                # If resolution fails, leave the ref dict as-is
-                return _resolve(resolved) if resolved is not None else node
-            # Otherwise, recurse into each key/value
-            return {key: _resolve(value) for key, value in node.items()}
-        elif isinstance(node, list):
-            # Recurse into list elements
-            return [_resolve(item) for item in node]
-        # Primitive value, return as-is
-        return node
-
-    return _resolve(schema)
+    if 'allOf' in schema:
+        for sub_schema in schema['allOf']:
+            sub_props, sub_required = _extract_properties_from_schema(sub_schema)
+            properties.update(sub_props)
+            required_fields.extend(sub_required)
+    
+    # Combine with top-level properties and required fields, if any
+    properties.update(schema.get('properties', {}))
+    required_fields.extend(schema.get('required', []))
+    
+    # Deduplicate required fields
+    required_fields = list(set(required_fields))
+    
+    return properties, required_fields
 
 
 def _load_and_resolve_references(path: Path):
@@ -138,7 +120,7 @@ def _load_and_resolve_references(path: Path):
     with open(path) as f:
         schema = yaml.safe_load(f) if type == "yaml" else json.load(f)
     # Resolve references
-    return _resolve_references(schema)
+    return replace_refs(schema)
 
 
 def _determine_return_type(operation: dict[str, Any]) -> str:
@@ -221,7 +203,7 @@ def _generate_path_params(path: str) -> list[Parameters]:
         try:
             parameters.append(
                 Parameters(
-                    name=param.replace("-", "_"),
+                    name=_sanitize_identifier(param),
                     identifier=param,
                     description=param,
                     type="string",
@@ -248,16 +230,29 @@ def _generate_query_params(operation: dict[str, Any]) -> list[Parameters]:
     query_params = []
     for param in operation.get("parameters", []):
         name = param.get("name")
+        if name is None:
+            continue
+            
+        # Clean the parameter name for use as a Python identifier
+        clean_name = _sanitize_identifier(name)
+        
         description = param.get("description", "")
-        type = param.get("type")
+        
+        # Extract type from schema if available
+        param_schema = param.get("schema", {})
+        type_value = param_schema.get("type") if param_schema else param.get("type")
+        # Default to string if type is not available
+        if type_value is None:
+            type_value = "string"
+            
         where = param.get("in")
-        required = param.get("required")
+        required = param.get("required", False)
         if where == "query":
             parameter = Parameters(
-                name=name.replace("-", "_"),
+                name=clean_name,
                 identifier=name,
                 description=description,
-                type=type,
+                type=type_value,
                 where=where,
                 required=required,
             )
@@ -268,20 +263,31 @@ def _generate_query_params(operation: dict[str, Any]) -> list[Parameters]:
 def _generate_body_params(operation: dict[str, Any]) -> list[Parameters]:
     body_params = []
     request_body = operation.get("requestBody", {})
-    required = request_body.get("required", False)
+    if not request_body:
+        return [] # No request body defined
+        
+    required_body = request_body.get("required", False)
     content = request_body.get("content", {})
     json_content = content.get("application/json", {})
+    if not json_content or "schema" not in json_content:
+        return [] # No JSON schema found
+        
     schema = json_content.get("schema", {})
-    properties = schema.get("properties", {})
-    for param in properties:
+    properties, required_fields = _extract_properties_from_schema(schema)
+
+    for param_name, param_schema in properties.items():
+        param_type = param_schema.get("type", "string")
+        param_description = param_schema.get("description", param_name)
+        # Parameter is required if the body is required AND the field is in the schema's required list
+        param_required = required_body and param_name in required_fields 
         body_params.append(
             Parameters(
-                name=param,
-                identifier=param,
-                description=param,
-                type="string",
+                name=_sanitize_identifier(param_name), # Clean name for Python
+                identifier=param_name, # Original name for API
+                description=param_description,
+                type=param_type,
                 where="body",
-                required=required,
+                required=param_required,
             )
         )
     return body_params
@@ -341,35 +347,22 @@ def _generate_method_code(path, method, operation):
                             has_empty_body = True
 
     # Extract request body schema properties and required fields
-    required_fields = []
     request_body_properties = {}
+    required_fields = []
     is_array_body = False
 
     if has_body:
-        for content_type, content in (
-            operation["requestBody"].get("content", {}).items()
-        ):
-            if content_type.startswith("application/json") and "schema" in content:
-                schema = content["schema"]
-
-                # Check if the schema is an array type
-                if schema.get("type") == "array":
-                    is_array_body = True
-                    schema.get("items", {})
-
-                else:
-                    # Extract required fields from schema
-                    if "required" in schema:
-                        required_fields = schema["required"]
-                    # Extract properties from schema
-                    if "properties" in schema:
-                        request_body_properties = schema["properties"]
-
+        request_body_content = operation.get("requestBody", {}).get("content", {})
+        json_content = request_body_content.get("application/json", {})
+        if json_content and "schema" in json_content:
+            schema = json_content["schema"]
+            if schema.get("type") == "array":
+                is_array_body = True
+            else:
+                # Use the helper function to extract properties and required fields
+                request_body_properties, required_fields = _extract_properties_from_schema(schema)
                 # Handle schemas with empty properties but additionalProperties: true
-                # by treating them similar to empty bodies
-                if (
-                    not request_body_properties or len(request_body_properties) == 0
-                ) and schema.get("additionalProperties") is True:
+                if (not request_body_properties or len(request_body_properties) == 0) and schema.get("additionalProperties") is True:
                     has_empty_body = True
 
     # Build function arguments
@@ -382,18 +375,16 @@ def _generate_method_code(path, method, operation):
             required_args.append(param.name)
 
     for param in query_params:
-        param_name = param["name"]
-        # Handle parameters with square brackets and hyphens by converting to valid Python identifiers
-        param_identifier = (
-            param_name.replace("[", "_").replace("]", "").replace("-", "_")
-        )
-        if param_identifier not in required_args and param_identifier not in [
+        # param.name is already sanitized from _generate_query_params
+        # param.identifier is the original name
+        param_identifier_for_signature = param.name # Use the cleaned name for signature
+        if param_identifier_for_signature not in required_args and param_identifier_for_signature not in [
             p.split("=")[0] for p in optional_args
         ]:
-            if param.get("required", False):
-                required_args.append(param_identifier)
+            if param.required:
+                required_args.append(param_identifier_for_signature)
             else:
-                optional_args.append(f"{param_identifier}=None")
+                optional_args.append(f"{param_identifier_for_signature}=None")
 
     # Handle array type request body differently
     request_body_params = []
@@ -418,14 +409,33 @@ def _generate_method_code(path, method, operation):
         elif request_body_properties:
             # For object request bodies, add individual properties as parameters
             for prop_name in request_body_properties:
+                prop_schema = request_body_properties[prop_name]
+                # Clean the original prop_name for Python identifier using the helper
+                clean_prop_name = _sanitize_identifier(prop_name) 
+                
                 if prop_name in required_fields:
-                    request_body_params.append(prop_name)
-                    if prop_name not in required_args:
-                        required_args.append(prop_name)
+                    request_body_params.append(clean_prop_name)
+                    if clean_prop_name not in required_args:
+                        required_args.append(clean_prop_name)
                 else:
-                    request_body_params.append(prop_name)
-                    if f"{prop_name}=None" not in optional_args:
-                        optional_args.append(f"{prop_name}=None")
+                    request_body_params.append(clean_prop_name)
+                    # Handle optional parameters with defaults
+                    default_value = prop_schema.get("default")
+                    arg_str = f"{clean_prop_name}=None"
+                    if default_value is not None:
+                        # Format default value for Python signature
+                        if isinstance(default_value, str):
+                            formatted_default = f'"{repr(default_value)[1:-1]}"' # Use repr() and slice to handle internal quotes
+                        elif isinstance(default_value, bool):
+                            formatted_default = str(default_value) # True/False becomes "True"/"False"
+                        elif isinstance(default_value, (int, float)):
+                            formatted_default = str(default_value) # Numbers as strings
+                        else:
+                            formatted_default = "None"
+                        arg_str = f"{clean_prop_name}={formatted_default}"
+                        
+                    if arg_str not in optional_args:
+                        optional_args.append(arg_str)
 
     # If request body is present but empty (content: {}), add a generic request_body parameter
     if has_empty_body and "request_body=None" not in optional_args:
@@ -476,15 +486,12 @@ def _generate_method_code(path, method, operation):
     url_line = f'        url = f"{{self.base_url}}{url}"'
     body_lines.append(url_line)
 
-    # Build query parameters, handling square brackets in parameter names
+    # Build query parameters dictionary for the request
     if query_params:
         query_params_items = []
         for param in query_params:
-            param_name = param.name
-            param_identifier = (
-                param_name.replace("[", "_").replace("]", "").replace("-", "_")
-            )
-            query_params_items.append(f"('{param_name}', {param_identifier})")
+            # Use the original identifier for the key, and the cleaned name for the value variable
+            query_params_items.append(f"('{param.identifier}', {param.name})")
         body_lines.append(
             f"        query_params = {{k: v for k, v in [{', '.join(query_params_items)}] if v is not None}}"
         )
