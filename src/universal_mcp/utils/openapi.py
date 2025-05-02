@@ -81,11 +81,33 @@ def convert_to_snake_case(identifier: str) -> str:
     return result.lower()
 
 
+def _extract_properties_from_schema(schema: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """Extracts properties and required fields from a schema, handling 'allOf'."""
+    properties = {}
+    required_fields = []
+
+    if 'allOf' in schema:
+        for sub_schema in schema['allOf']:
+            sub_props, sub_required = _extract_properties_from_schema(sub_schema)
+            properties.update(sub_props)
+            required_fields.extend(sub_required)
+    
+    # Combine with top-level properties and required fields, if any
+    properties.update(schema.get('properties', {}))
+    required_fields.extend(schema.get('required', []))
+    
+    # Deduplicate required fields
+    required_fields = list(set(required_fields))
+    
+    return properties, required_fields
+
+
 def _load_and_resolve_references(path: Path):
     # Load the schema
     type = "yaml" if path.suffix == ".yaml" else "json"
     with open(path) as f:
         schema = yaml.safe_load(f) if type == "yaml" else json.load(f)
+    # Resolve references
     return replace_refs(schema)
 
 
@@ -229,20 +251,31 @@ def _generate_query_params(operation: dict[str, Any]) -> list[Parameters]:
 def _generate_body_params(operation: dict[str, Any]) -> list[Parameters]:
     body_params = []
     request_body = operation.get("requestBody", {})
-    required = request_body.get("required", False)
+    if not request_body:
+        return [] # No request body defined
+        
+    required_body = request_body.get("required", False)
     content = request_body.get("content", {})
     json_content = content.get("application/json", {})
+    if not json_content or "schema" not in json_content:
+        return [] # No JSON schema found
+        
     schema = json_content.get("schema", {})
-    properties = schema.get("properties", {})
-    for param in properties:
+    properties, required_fields = _extract_properties_from_schema(schema)
+
+    for param_name, param_schema in properties.items():
+        param_type = param_schema.get("type", "string")
+        param_description = param_schema.get("description", param_name)
+        # Parameter is required if the body is required AND the field is in the schema's required list
+        param_required = required_body and param_name in required_fields 
         body_params.append(
             Parameters(
-                name=param,
-                identifier=param,
-                description=param,
-                type="string",
+                name=param_name.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", ""), # Clean name for Python
+                identifier=param_name, # Original name for API
+                description=param_description,
+                type=param_type,
                 where="body",
-                required=required,
+                required=param_required,
             )
         )
     return body_params
@@ -302,35 +335,22 @@ def _generate_method_code(path, method, operation):
                             has_empty_body = True
 
     # Extract request body schema properties and required fields
-    required_fields = []
     request_body_properties = {}
+    required_fields = []
     is_array_body = False
 
     if has_body:
-        for content_type, content in (
-            operation["requestBody"].get("content", {}).items()
-        ):
-            if content_type.startswith("application/json") and "schema" in content:
-                schema = content["schema"]
-
-                # Check if the schema is an array type
-                if schema.get("type") == "array":
-                    is_array_body = True
-                    schema.get("items", {})
-
-                else:
-                    # Extract required fields from schema
-                    if "required" in schema:
-                        required_fields = schema["required"]
-                    # Extract properties from schema
-                    if "properties" in schema:
-                        request_body_properties = schema["properties"]
-
+        request_body_content = operation.get("requestBody", {}).get("content", {})
+        json_content = request_body_content.get("application/json", {})
+        if json_content and "schema" in json_content:
+            schema = json_content["schema"]
+            if schema.get("type") == "array":
+                is_array_body = True
+            else:
+                # Use the helper function to extract properties and required fields
+                request_body_properties, required_fields = _extract_properties_from_schema(schema)
                 # Handle schemas with empty properties but additionalProperties: true
-                # by treating them similar to empty bodies
-                if (
-                    not request_body_properties or len(request_body_properties) == 0
-                ) and schema.get("additionalProperties") is True:
+                if (not request_body_properties or len(request_body_properties) == 0) and schema.get("additionalProperties") is True:
                     has_empty_body = True
 
     # Build function arguments
