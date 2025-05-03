@@ -20,7 +20,7 @@ dependencies = [
     "keyring>=25.6.0",
     "litellm>=1.30.7",
     "loguru>=0.7.3",
-    "mcp>=1.7.0",
+    "mcp==1.6.0",
     "posthog>=3.24.0",
     "pydantic>=2.11.1",
     "pydantic-settings>=2.8.1",
@@ -46,7 +46,7 @@ playground = [
     "streamlit>=1.44.1",
     "watchdog>=6.0.0",
     "litellm>=1.30.7",
-    "langchain-mcp-adapters>=0.0.3",
+    "langchain-mcp-adapters>=0.0.9",
 ]
 
 [project.scripts]
