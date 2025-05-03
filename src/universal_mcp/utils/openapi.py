@@ -306,6 +306,7 @@ def _generate_body_params(operation: dict[str, Any]) -> list[Parameters]:
 def _generate_method_code(path, method, operation):
     """
     Generate the code for a single API method.
+    
 
     Args:
         path (str): The API path (e.g., '/users/{user_id}').
@@ -451,10 +452,42 @@ def _generate_method_code(path, method, operation):
         if param.name in signature_arg_names and param.name not in param_details:
             param_details[param.name] = param
             
+    # Fetch request body example 
+    request_body_example_str = None
+    if has_body:
+        try:
+            json_content = operation['requestBody']['content']['application/json']
+            example_data = None
+            if 'example' in json_content:
+                example_data = json_content['example']
+            elif 'examples' in json_content and json_content['examples']:
+                first_example_key = list(json_content['examples'].keys())[0]
+                example_data = json_content['examples'][first_example_key].get('value')
+
+            if example_data is not None:
+                try:
+                    example_json = json.dumps(example_data, indent=2)
+                    indented_example = textwrap.indent(example_json, ' ' * 8) # 8 spaces
+                    request_body_example_str = f"\n        Example:\n        ```json\n{indented_example}\n        ```"
+                except TypeError:
+                    request_body_example_str = f"\n        Example: {example_data}"
+        except KeyError:
+            pass # No example found
+
+    # Identify the last argument related to the request body
+    last_body_arg_name = None
+    # request_body_params contains the names as they appear in the signature
+    if request_body_params:
+        # Find which of these appears last in the combined args list
+        body_args_in_signature = [a.split('=')[0] for a in args if a.split('=')[0] in request_body_params]
+        if body_args_in_signature:
+            last_body_arg_name = body_args_in_signature[-1]
+
     if signature_arg_names:
         args_doc_lines.append("Args:")
         for arg_signature_str in args:
             arg_name = arg_signature_str.split('=')[0]
+            example_str = None # Initialize example_str here
             detail = param_details.get(arg_name)
             if detail:
                 desc = detail.description or "No description provided."
@@ -463,9 +496,20 @@ def _generate_method_code(path, method, operation):
                 if detail.example:
                     example_str = repr(detail.example) 
                     arg_line += f" Example: {example_str}."
+               
+                # Append the full body example after the last body-related argument
+                if arg_name == last_body_arg_name and request_body_example_str:
+                    # Remove the simple Example: if it exists before adding the detailed one
+                    if example_str and (f" Example: {example_str}." in arg_line or f" Example: {example_str} ." in arg_line):
+                        arg_line = arg_line.replace(f" Example: {example_str}.", "") # Remove with or without trailing period
+                    arg_line += request_body_example_str # Append the formatted JSON example
+                    
                 args_doc_lines.append(arg_line)
             elif arg_name == "request_body" and has_empty_body:
                  args_doc_lines.append(f"    {arg_name} (dict | None): Optional dictionary for arbitrary request body data.")
+                 # Also append example here if this is the designated body arg
+                 if arg_name == last_body_arg_name and request_body_example_str: # Ensure this 'if' is indented correctly relative to 'elif'
+                     args_doc_lines[-1] += request_body_example_str # Ensure this line is indented correctly relative to the 'if'
 
     if args_doc_lines:
         docstring_parts.append("\n".join(args_doc_lines))
@@ -479,31 +523,6 @@ def _generate_method_code(path, method, operation):
             break
     docstring_parts.append(f"Returns:\n    {return_type}: {success_desc or 'API response data.'}") # Use return_type
     
-    # Request Body Example
-    request_body_example = None
-    if has_body:
-        try:
-            json_content = operation['requestBody']['content']['application/json']
-            if 'example' in json_content:
-                request_body_example = json_content['example']
-            elif 'examples' in json_content and json_content['examples']:
-                # Get the first example's value
-                first_example_key = list(json_content['examples'].keys())[0]
-                request_body_example = json_content['examples'][first_example_key].get('value')
-        except KeyError: # Handle cases where the structure might be missing keys
-            pass 
-            
-    if request_body_example is not None:
-        try:
-            # Format the example as pretty JSON
-            example_json_str = json.dumps(request_body_example, indent=2)
-            # Indent the JSON string to align with docstring args
-            indented_example = textwrap.indent(example_json_str, '        ') # 8 spaces
-            docstring_parts.append(f"Request Body Example:\n        ```json\n{indented_example}\n        ```")
-        except TypeError:
-            
-            docstring_parts.append(f"Request Body Example:\n        {request_body_example}")
-            
     # Tags Section
     operation_tags = operation.get("tags", [])
     if operation_tags:
@@ -543,15 +562,11 @@ def _generate_method_code(path, method, operation):
             body_lines.append(f"        request_body = {request_body_params[0]}")
         elif request_body_properties:
             # For object request bodies, build the request body from individual parameters
-
             body_lines.append("        request_body = {")
-
             for prop_name in request_body_params:
                 # Only include non-None values in the request body
                 body_lines.append(f"            '{prop_name}': {prop_name},")
-
             body_lines.append("        }")
-
             body_lines.append(
                 "        request_body = {k: v for k, v in request_body.items() if v is not None}"
             )
