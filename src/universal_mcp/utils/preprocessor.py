@@ -443,7 +443,7 @@ def process_schema_with_llm(schema_data: dict, llm_model: str):
     logger.info("Schema processing complete.")
 
 
-def main(schema_file_path: str, llm_model: str = "perplexity/sonar", output_file_path: str = None):
+def preprocess(schema_file_path: str, llm_model: str = "perplexity/sonar", output_file_path: str = None):
     logger.info(f"Starting script for schema: {schema_file_path}")
     logger.info(f"Using LLM model: {llm_model}")
     set_logging_level('INFO')
@@ -459,7 +459,7 @@ def main(schema_file_path: str, llm_model: str = "perplexity/sonar", output_file
 
         if output_file_path is None:
             base, ext = os.path.splitext(schema_file_path)
-            output_file_path = f"{base}.processed{ext}"
+            output_file_path = f"{base}_processed{ext}"
             logger.info(f"No output path specified. Defaulting to: {output_file_path}")
         else:
              logger.info(f"Saving processed schema to: {output_file_path}")
@@ -488,7 +488,7 @@ if __name__ == "__main__":
     logger.info("Executing script from __main__ block.")
 
     try:
-        main(schema_path_to_test, llm_model=llm_model_name, output_file_path=output_schema_path)
+        preprocess(schema_path_to_test, llm_model=llm_model_name, output_file_path=output_schema_path)
 
     except SystemExit as e:
          logger.info(f"Script finished with exit code {e.code}")
