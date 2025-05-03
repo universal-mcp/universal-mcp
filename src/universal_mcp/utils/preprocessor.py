@@ -2,19 +2,25 @@ import json
 import logging
 import os
 import sys
+import traceback
+import time
 
+import litellm
 import yaml
 
 COLORS = {
     'YELLOW': '\033[93m',
     'RED': '\033[91m',
     'ENDC': '\033[0m',
+    'BLUE': '\033[94m',
+    'GREEN': '\033[92m',
 }
 
 class ColoredFormatter(logging.Formatter):
     FORMAT = "%(levelname)s:%(message)s"
 
     LOG_LEVEL_COLORS = {
+        logging.INFO: COLORS['GREEN'],
         logging.WARNING: COLORS['YELLOW'],
         logging.ERROR: COLORS['RED'],
         logging.CRITICAL: COLORS['RED'],
@@ -32,6 +38,7 @@ class ColoredFormatter(logging.Formatter):
 
         return formatter.format(record)
 
+
 logger = logging.getLogger()
 if not logger.handlers:
     logger.setLevel(logging.INFO)
@@ -44,7 +51,20 @@ if not logger.handlers:
 
     logger.addHandler(console_handler)
 
+def set_logging_level(level: str):
+    level_map = {
+        'DEBUG': logging.DEBUG,
+        'INFO': logging.INFO,
+        'WARNING': logging.WARNING,
+        'ERROR': logging.ERROR,
+        'CRITICAL': logging.CRITICAL,
+    }
+    log_level = level_map.get(level.upper(), logging.INFO)
+    logger.setLevel(log_level)
+    logger.info(f"Logging level set to {logging.getLevelName(log_level)}")
+
 def read_schema_file(schema_path: str) -> dict:
+    logger.info(f"Attempting to read schema file: {schema_path}")
     if not os.path.exists(schema_path):
         logger.error(f"Schema file not found at: {schema_path}")
         raise FileNotFoundError(f"Schema file not found at: {schema_path}")
@@ -55,13 +75,13 @@ def read_schema_file(schema_path: str) -> dict:
             file_extension = file_extension.lower()
 
             if file_extension in ['.yaml', '.yml']:
-                print(f"Reading as YAML: {schema_path}")
+                logger.info(f"Reading as YAML: {schema_path}")
                 return yaml.safe_load(f)
             elif file_extension == '.json':
-                print(f"Reading as JSON: {schema_path}")
+                logger.info(f"Reading as JSON: {schema_path}")
                 return json.load(f)
             else:
-                print(f"Unknown extension '{file_extension}', attempting YAML load: {schema_path}")
+                logger.warning(f"Unknown file extension '{file_extension}' for {schema_path}. Attempting to read as YAML.")
                 return yaml.safe_load(f)
 
     except (yaml.YAMLError, json.JSONDecodeError) as e:
@@ -70,10 +90,334 @@ def read_schema_file(schema_path: str) -> dict:
     except OSError as e:
         logger.error(f"Error reading schema file {schema_path}: {e}")
         raise
+    except Exception as e:
+        logger.error(f"An unexpected error occurred while reading {schema_path}: {e}")
+        traceback.print_exc(file=sys.stderr)
+        raise
 
-def extract_descriptions_and_validate(schema_data: dict) -> list:
-    descriptions_found = []
 
+def write_schema_file(schema_data: dict, output_path: str):
+    logger.info(f"Attempting to write processed schema to: {output_path}")
+    try:
+        output_dir = os.path.dirname(output_path)
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+            logger.info(f"Created output directory: {output_dir}")
+
+        with open(output_path, 'w', encoding='utf-8') as f:
+            _, file_extension = os.path.splitext(output_path)
+            file_extension = file_extension.lower()
+
+            if file_extension == '.json':
+                json.dump(schema_data, f, indent=2, ensure_ascii=False)
+                logger.info(f"Successfully wrote processed schema as JSON to {output_path}")
+            elif file_extension in ['.yaml', '.yml']:
+                yaml.dump(schema_data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+                logger.info(f"Successfully wrote processed schema as YAML to {output_path}")
+            else:
+                logger.error(f"Unsupported output file extension '{file_extension}' for writing.")
+                raise ValueError(f"Unsupported output file extension '{file_extension}'. Use .json or .yaml/.yml.")
+
+    except OSError as e:
+        logger.error(f"Error writing schema file {output_path}: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"An unexpected error occurred while writing {output_path}: {e}")
+        traceback.print_exc(file=sys.stderr)
+        raise
+
+
+def generate_description_llm(
+    description_type: str,
+    model: str,
+    context: dict = None,
+    max_retries: int = 3,
+    retry_delay: int = 5
+) -> str:
+    if context is None:
+        context = {}
+
+    system_prompt = """You are a helpful AI assistant specialized in writing concise summaries for API operations and clear, brief descriptions for API parameters based on their context.
+    Respond ONLY with the generated text, without any conversational filler or formatting like bullet points unless the description itself requires it. Ensure the response is a single string suitable for a description field."""
+
+    user_prompt = ""
+    fallback_text = "[LLM could not generate description]"
+
+    if description_type == 'summary':
+        path_key = context.get('path_key', 'unknown path')
+        method = context.get('method', 'unknown method')
+        operation_context_str = json.dumps(context.get('operation_value', {}), indent=None, separators=(',', ':'), sort_keys=True)
+        if len(operation_context_str) > 1500:
+             operation_context_str = operation_context_str[:1500] + "..."
+
+        user_prompt = f"""Generate a concise one-sentence summary for the API operation defined at path "{path_key}" using the "{method.upper()}" method.
+        Context (operation details): {operation_context_str}
+        Respond ONLY with the summary text."""
+        fallback_text = f"[LLM could not generate summary for {method.upper()} {path_key}]"
+
+    elif description_type == 'parameter':
+        path_key = context.get('path_key', 'unknown path')
+        method = context.get('method', 'unknown method')
+        param_name = context.get('param_name', 'unknown parameter')
+        param_in = context.get('param_in', 'unknown location')
+        param_context_str = json.dumps(context.get('parameter_details', {}), indent=None, separators=(',', ':'), sort_keys=True)
+        if len(param_context_str) > 1000:
+             param_context_str = param_context_str[:1000] + "..."
+
+
+        user_prompt = f"""Generate a clear, brief description for the API parameter named "{param_name}" located "{param_in}" for the "{method.upper()}" operation at path "{path_key}".
+        Context (parameter details): {param_context_str}
+        Respond ONLY with the *SINGLE LINE* description text."""
+        fallback_text = f"[LLM could not generate description for parameter {param_name} in {method.upper()} {path_key}]"
+    else:
+        logger.error(f"Invalid description_type '{description_type}' passed to generate_description_llm.")
+        return "[Invalid description type specified]"
+
+    if not user_prompt:
+         logger.error("User prompt was not generated.")
+         return fallback_text
+
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
+
+    print(f"\n{COLORS['BLUE']}--- LLM Input Prompt ({description_type}) ---{COLORS['ENDC']}")
+    print(f"System: {system_prompt}")
+    print(f"User: {user_prompt}")
+    print(f"{COLORS['BLUE']}------------------------------------------{COLORS['ENDC']}\n")
+
+    for attempt in range(max_retries):
+        try:
+            response = litellm.completion(
+                model=model,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=150,
+                timeout=60
+            )
+
+            print(f"\n{COLORS['YELLOW']}--- LLM Raw Response ({description_type}, Attempt {attempt+1}) ---{COLORS['ENDC']}")
+            print(json.dumps(response.model_dump(), indent=2))
+            print(f"{COLORS['YELLOW']}--------------------------------------------{COLORS['ENDC']}\n")
+
+            if response and response.choices and response.choices[0] and response.choices[0].message:
+                 response_text = response.choices[0].message.content.strip()
+
+                 if response_text.startswith('"') and response_text.endswith('"'):
+                      response_text = response_text[1:-1]
+                 if response_text.startswith("'") and response_text.endswith("'"):
+                      response_text = response_text[1:-1]
+
+                 return f"{response_text}"
+            else:
+                 logger.warning(f"LLM response was empty or unexpected structure for type '{description_type}'. Attempt {attempt+1}/{max_retries}.")
+                 if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                 continue
+
+        except Exception as e:
+            logger.error(f"Error generating description using LLM for type '{description_type}' (Attempt {attempt+1}/{max_retries}): {e}")
+            if attempt < max_retries - 1:
+                logger.info(f"Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+            else:
+                logger.error(f"Max retries ({max_retries}) reached for type '{description_type}'.")
+                return fallback_text
+
+    return fallback_text
+
+
+def simplify_operation_context(operation_value: dict) -> dict:
+    simplified_context = {}
+
+    original_params = operation_value.get('parameters')
+    if isinstance(original_params, list):
+        simplified_params_list = []
+        for param in original_params:
+            if isinstance(param, dict):
+                if '$ref' in param:
+                     simplified_params_list.append({'$ref': param['$ref']})
+                else:
+                    simplified_param = {}
+                    if 'name' in param:
+                        simplified_param['name'] = param['name']
+                    if 'in' in param:
+                        simplified_param['in'] = param['in']
+                    if simplified_param:
+                        simplified_params_list.append(simplified_param)
+        if simplified_params_list:
+            simplified_context['parameters'] = simplified_params_list
+
+    original_responses = operation_value.get('responses')
+    if isinstance(original_responses, dict):
+         response_status_codes = list(original_responses.keys())
+         if response_status_codes:
+             simplified_responses_dict = {code: {} for code in response_status_codes}
+             simplified_context['responses'] = simplified_responses_dict
+
+    return simplified_context
+
+
+def simplify_parameter_context(parameter: dict) -> dict:
+     simplified_context = {}
+     if 'name' in parameter:
+         simplified_context['name'] = parameter['name']
+     if 'in' in parameter:
+         simplified_context['in'] = parameter['in']
+
+     return simplified_context
+
+
+def process_parameter(
+    parameter: dict,
+    operation_location_base: str,
+    path_key: str,
+    method: str,
+    llm_model: str
+):
+    if not isinstance(parameter, dict):
+        logger.error(f"Invalid parameter object found in {operation_location_base}. Expected dictionary.")
+        return
+
+    if '$ref' in parameter:
+        ref_path = parameter['$ref']
+        logger.info(f"Parameter in {operation_location_base} is a reference ('{ref_path}'). Skipping description generation.")
+        return
+
+    param_name = parameter.get('name')
+    param_in = parameter.get('in')
+
+    param_location_id = "unknown_param"
+    if isinstance(param_name, str) and param_name.strip():
+        param_location_id = param_name.strip()
+        if isinstance(param_in, str) and param_in.strip():
+            param_location_id = f"{param_in.strip()}:{param_name.strip()}"
+    elif isinstance(param_in, str) and param_in.strip():
+        param_location_id = f"{param_in.strip()}:[name missing]"
+
+
+    parameter_location_base = f'{operation_location_base}.parameters[{param_location_id}]'
+
+    is_valid_param = True
+    if not isinstance(param_name, str) or not param_name.strip():
+        logger.error(f"Missing or empty 'name' field for parameter at {parameter_location_base}. Cannot generate description without name.")
+        is_valid_param = False
+
+    if not isinstance(param_in, str) or not param_in.strip():
+        logger.error(f"Missing or empty 'in' field for parameter '{param_name}' at {parameter_location_base}. Cannot generate description without location ('in').")
+        is_valid_param = False
+
+    if not is_valid_param:
+        return
+
+    param_description = parameter.get('description')
+
+    if not isinstance(param_description, str) or not param_description.strip() or param_description.startswith('[LLM could not generate'):
+        logger.warning(f"Missing or empty 'description' for parameter '{param_name}' at {parameter_location_base}. Attempting to generate.")
+
+        simplified_context = simplify_parameter_context(parameter)
+
+        generated_description = generate_description_llm(
+            description_type='parameter',
+            model=llm_model,
+            context={
+                'path_key': path_key,
+                'method': method,
+                'param_name': param_name,
+                'param_in': param_in,
+                'parameter_details': simplified_context
+            }
+        )
+        parameter['description'] = generated_description
+        logger.info(f"Generated and inserted description for parameter '{param_name}' at {parameter_location_base}.")
+    else:
+        logger.info(f"Existing 'description' found for parameter '{param_name}' at {parameter_location_base}.")
+
+
+def process_operation(
+    operation_value: dict,
+    path_key: str,
+    method: str,
+    llm_model: str
+):
+    operation_location_base = f'paths.{path_key}.{method.lower()}'
+
+    if not isinstance(operation_value, dict):
+         logger.warning(f"Operation value for '{operation_location_base}' is not a dictionary. Skipping.")
+         return
+
+    if method.lower().startswith('x-'):
+        logger.info(f"Skipping extension operation '{operation_location_base}'.")
+        return
+
+    operation_summary = operation_value.get('summary')
+    if not isinstance(operation_summary, str) or not operation_summary.strip() or operation_summary.startswith('[LLM could not generate'):
+        logger.warning(f"Missing or empty 'summary' for operation '{operation_location_base}'. Attempting to generate.")
+
+        simplified_context = simplify_operation_context(operation_value)
+
+        generated_summary = generate_description_llm(
+            description_type='summary',
+            model=llm_model,
+            context={
+                'path_key': path_key,
+                'method': method,
+                'operation_value': simplified_context
+            }
+        )
+        operation_value['summary'] = generated_summary
+        logger.info(f"Generated and inserted summary for '{operation_location_base}'.")
+    else:
+        logger.info(f"Existing 'summary' found for operation '{operation_location_base}'.")
+
+    parameters = operation_value.get('parameters')
+    if isinstance(parameters, list):
+        for i, parameter in enumerate(parameters):
+            process_parameter(
+                parameter,
+                operation_location_base,
+                path_key,
+                method,
+                llm_model
+            )
+    elif parameters is not None:
+        logger.warning(f"'parameters' field for operation '{operation_location_base}' is not a list. Skipping parameter processing.")
+
+
+def process_paths(paths: dict, llm_model: str):
+    if not isinstance(paths, dict):
+        logger.warning("'paths' field is not a dictionary. Skipping path processing.")
+        return
+
+    for path_key, path_value in paths.items():
+        if path_key.lower().startswith('x-'):
+             logger.info(f"Skipping path extension '{path_key}'.")
+             continue
+
+        if isinstance(path_value, dict):
+            for method, operation_value in path_value.items():
+                if method.lower() in ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']:
+                    process_operation(
+                        operation_value,
+                        path_key,
+                        method,
+                        llm_model
+                    )
+                elif method.lower().startswith('x-'):
+                     logger.info(f"Skipping method extension '{method.lower()}' in path '{path_key}'.")
+                     continue
+                elif operation_value is not None:
+                     logger.warning(f"Unknown method '{method}' found in path '{path_key}'. Skipping.")
+            if not path_value:
+                 logger.warning(f"Path value for '{path_key}' is null or empty. Skipping.")
+
+        elif path_value is not None:
+             logger.warning(f"Path value for '{path_key}' is not a dictionary. Skipping.")
+
+
+def validate_info_section(schema_data: dict):
     info = schema_data.get('info')
     info_location = 'info'
     if not isinstance(info, dict):
@@ -85,103 +429,70 @@ def extract_descriptions_and_validate(schema_data: dict) -> list:
         logger.critical(f"Required field '{info_location}.description' is missing or empty.")
         raise ValueError(f"Required field '{info_location}.description' is missing or empty.")
 
-    descriptions_found.append({
-        'location': info_location,
-        'description': info_description.strip()
-    })
+    logger.info("'info' and 'info.description' found and valid.")
+
+
+def process_schema_with_llm(schema_data: dict, llm_model: str):
+    logger.info("Starting schema processing and validation with LLM generation.")
+
+    validate_info_section(schema_data)
 
     paths = schema_data.get('paths')
-    if isinstance(paths, dict):
-        for path_key, path_value in paths.items():
-            if isinstance(path_value, dict):
-                for method, operation_value in path_value.items():
-                    if method.lower() in ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']:
-                         operation_location_base = f'paths.{path_key}.{method.lower()}'
-                         if isinstance(operation_value, dict):
-                            operation_summary = operation_value.get('summary')
-                            if not isinstance(operation_summary, str) or not operation_summary.strip():
-                                logger.warning(f"Missing or empty 'summary' for operation '{operation_location_base}'")
-                            else:
-                                descriptions_found.append({
-                                    'location': operation_location_base + '.summary',
-                                    'description': operation_summary.strip()
-                                })
+    process_paths(paths, llm_model)
 
-                            operation_description = operation_value.get('description')
-                            if isinstance(operation_description, str) and operation_description.strip():
-                                descriptions_found.append({
-                                    'location': operation_location_base + '.description',
-                                    'description': operation_description.strip()
-                                })
+    logger.info("Schema processing complete.")
 
-                            parameters = operation_value.get('parameters')
-                            if isinstance(parameters, list):
-                                for i, parameter in enumerate(parameters):
-                                    parameter_location_base = f'{operation_location_base}.parameters[index_{i}]'
-                                    if isinstance(parameter, dict):
-                                        param_name = parameter.get('name')
-                                        param_in = parameter.get('in')
 
-                                        if not isinstance(param_name, str) or not param_name.strip():
-                                            logger.error(f"Missing or empty 'name' field for parameter at {parameter_location_base}\nPlease add the 'name' before proceeding" )
+def main(schema_file_path: str, llm_model: str = "perplexity/sonar", output_file_path: str = None):
+    logger.info(f"Starting script for schema: {schema_file_path}")
+    logger.info(f"Using LLM model: {llm_model}")
+    set_logging_level('INFO')
 
-                                        if not isinstance(param_in, str) or not param_in.strip():
-                                            param_identifier = param_name if isinstance(param_name, str) and param_name.strip() else f"index_{i}"
-                                            logger.error(f"Missing or empty 'in' field for parameter '{param_identifier}' at {operation_location_base}")
-                                            if isinstance(param_name, str) and param_name.strip():
-                                                parameter_location_base = f'{operation_location_base}.parameters[{param_name}]'
-
-                                        if isinstance(param_name, str) and param_name.strip() and isinstance(param_in, str) and param_in.strip():
-                                            parameter_location_base = f'{operation_location_base}.parameters[{param_in}:{param_name}]'
-                                        elif isinstance(param_name, str) and param_name.strip():
-                                            parameter_location_base = f'{operation_location_base}.parameters[unknown_in:{param_name}]'
-                                        elif isinstance(param_in, str) and param_in.strip():
-                                             parameter_location_base = f'{operation_location_base}.parameters[{param_in}:index_{i}]'
-
-                                        param_description = parameter.get('description')
-                                        if not isinstance(param_description, str) or not param_description.strip():
-                                            logger.warning(f"Missing or empty 'description' for parameter '{param_name or f'index_{i}'}' at {parameter_location_base}")
-                                        else:
-                                            descriptions_found.append({
-                                                'location': parameter_location_base,
-                                                'description': param_description.strip()
-                                            })
-                                    else:
-                                        logger.error(f"Parameter at index {i} in {operation_location_base} is not a dictionary.")
-
-    return descriptions_found
-
-def main(schema_file_path: str):
-    print(f"Processing schema file: {schema_file_path}")
+    if not os.path.exists(schema_file_path):
+         logger.critical(f"FATAL ERROR: Schema file not found at: {schema_file_path}")
+         sys.exit(1)
 
     try:
         schema_data = read_schema_file(schema_file_path)
 
-        descriptions = extract_descriptions_and_validate(schema_data)
+        process_schema_with_llm(schema_data, llm_model)
 
-        if descriptions:
-            print("\n--- Descriptions Found ---")
-            descriptions.sort(key=lambda x: x['location'])
-            for item in descriptions:
-                print(f"Location: {item['location']}")
-                print(f"Text: {item['description']}")
-                print("-" * 20)
+        if output_file_path is None:
+            base, ext = os.path.splitext(schema_file_path)
+            output_file_path = f"{base}.processed{ext}"
+            logger.info(f"No output path specified. Defaulting to: {output_file_path}")
         else:
-            print("\nNo descriptions found at specified locations (info, operation summary/description, parameter description).")
+             logger.info(f"Saving processed schema to: {output_file_path}")
 
-    except (OSError, FileNotFoundError, yaml.YAMLError, json.JSONDecodeError):
-        logger.critical("FATAL ERROR: Failed to read or parse schema.")
+        write_schema_file(schema_data, output_file_path)
+
+        logger.info("\n--- Schema Processing and Saving Complete ---")
+        logger.info(f"Modified schema saved to: {output_file_path}")
+
+    except (OSError, FileNotFoundError, yaml.YAMLError, json.JSONDecodeError) as e:
+        logger.critical(f"FATAL ERROR: File operation or parsing failed: {e}")
         sys.exit(1)
-    except ValueError:
-        logger.critical("FATAL ERROR: Schema Validation Failed.")
+    except ValueError as e:
+        logger.critical(f"FATAL ERROR: Schema Validation Failed: {e}")
         sys.exit(1)
     except Exception as e:
-        logger.critical(f"An unexpected error occurred: {e}")
+        logger.critical(f"An unexpected error occurred during processing: {e}")
+        traceback.print_exc(file=sys.stderr)
         sys.exit(1)
 
 if __name__ == "__main__":
     schema_path_to_test = "/home/draken/Desktop/Trello.json"
+    llm_model_name = "perplexity/sonar"
+    output_schema_path = None
+
+    logger.info("Executing script from __main__ block.")
+
     try:
-        main(schema_path_to_test)
+        main(schema_path_to_test, llm_model=llm_model_name, output_file_path=output_schema_path)
+
     except SystemExit as e:
-         logger.info(f"Script exited with code {e.code}")
+         logger.info(f"Script finished with exit code {e.code}")
+    except Exception as e:
+         logger.critical(f"Script terminated due to an unhandled error outside main: {e}")
+         traceback.print_exc(file=sys.stderr)
+         sys.exit(1)
