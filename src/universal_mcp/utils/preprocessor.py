@@ -1,6 +1,7 @@
 import yaml
 import json
 import os
+import sys # Import sys to exit on error
 
 def read_schema_file(schema_path: str) -> dict:
     """
@@ -45,14 +46,17 @@ def read_schema_file(schema_path: str) -> dict:
         print(f"Error reading schema file {schema_path}: {e}")
         raise
 
-def extract_descriptions(schema_data: dict) -> list:
+def extract_descriptions_and_validate(schema_data: dict) -> list:
     """
-    Extracts all 'description' fields from specific parts of an OpenAPI schema.
+    Extracts all 'description' (and 'summary' for operations) fields
+    from specific parts of an OpenAPI schema and performs validation checks.
 
-    Focuses on:
-    1. info.description
-    2. paths.*.*.description (Operation description)
-    3. paths.*.*.parameters[].description (Parameter description)
+    Validation Checks:
+    - info.description: Required (raises ValueError if missing/empty).
+    - paths.*.*.summary: Recommended (logs Warning if missing/empty).
+    - paths.*.*.parameters[].description: Recommended (logs Warning if missing/empty).
+    - paths.*.*.parameters[].name: Required for parameter object (logs Serious Warning if missing/empty).
+    - paths.*.*.parameters[].in: Required for parameter object (logs Serious Warning if missing/empty).
 
     Args:
         schema_data: The parsed OpenAPI schema as a dictionary.
@@ -60,21 +64,31 @@ def extract_descriptions(schema_data: dict) -> list:
     Returns:
         A list of dictionaries, where each dictionary contains:
         - 'location': A string indicating where the description was found.
-        - 'description': The text of the description.
+        - 'description': The text of the description (or summary).
+
+    Raises:
+        ValueError: If info.description is missing or empty.
     """
     descriptions_found = []
+    validation_issues = False # Flag to indicate if any warnings occurred
 
-    # 1. Extract info.description
+    # 1. Validate and Extract info.description
     info = schema_data.get('info')
-    if isinstance(info, dict):
-        description = info.get('description')
-        if description is not None and isinstance(description, str):
-            descriptions_found.append({
-                'location': 'info',
-                'description': description.strip()
-            })
+    info_location = 'info'
+    if not isinstance(info, dict):
+        raise ValueError(f"ERROR: Required '{info_location}' object is missing or not a dictionary.")
 
-    # 2. & 3. Extract descriptions from paths (operations and parameters)
+    info_description = info.get('description')
+    if not isinstance(info_description, str) or not info_description.strip():
+        raise ValueError(f"ERROR: Required field '{info_location}.description' is missing or empty.")
+
+    # If found and valid, add to descriptions
+    descriptions_found.append({
+        'location': info_location,
+        'description': info_description.strip()
+    })
+
+    # 2. & 3. Validate and Extract from paths (operations and parameters)
     paths = schema_data.get('paths')
     if isinstance(paths, dict):
         for path_key, path_value in paths.items():
@@ -83,41 +97,98 @@ def extract_descriptions(schema_data: dict) -> list:
                 for method, operation_value in path_value.items():
                     # Common HTTP methods (lowercase)
                     if method.lower() in ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']:
+                         operation_location_base = f'paths.{path_key}.{method.lower()}'
                          if isinstance(operation_value, dict):
-                            # 2. Extract operation description
-                            operation_description = operation_value.get('description')
-                            if operation_description is not None and isinstance(operation_description, str):
+                            # 2a. Validate Operation Summary
+                            operation_summary = operation_value.get('summary')
+                            if not isinstance(operation_summary, str) or not operation_summary.strip():
+                                validation_issues = True
+                                print(f"WARNING: Missing or empty 'summary' for operation '{operation_location_base}'")
+                            else:
+                                # Add summary to descriptions found
                                 descriptions_found.append({
-                                    'location': f'paths.{path_key}.{method.lower()}',
-                                    'description': operation_description.strip()
+                                    'location': operation_location_base + '.summary',
+                                    'description': operation_summary.strip()
                                 })
 
-                            # 3. Extract parameter descriptions
+                            # 2b. (Optional) Validate Operation Description - User asked for 'description at method level'
+                            # Let's validate the 'description' field as well, as it's common and important.
+                            # The original code didn't extract this specifically, so we'll just validate it here.
+                            operation_description = operation_value.get('description')
+                            if isinstance(operation_description, str) and operation_description.strip():
+                                # If description exists, add it too. Summaries are brief, descriptions are detailed.
+                                descriptions_found.append({
+                                    'location': operation_location_base + '.description',
+                                    'description': operation_description.strip()
+                                })
+                            # else: # We could add a warning for missing description here too, but summary is usually the primary check
+
+                            # 3. Validate and Extract parameter details
                             parameters = operation_value.get('parameters')
                             if isinstance(parameters, list):
                                 for i, parameter in enumerate(parameters):
+                                    parameter_location_base = f'{operation_location_base}.parameters[index_{i}]' # Use index initially
                                     if isinstance(parameter, dict):
+                                        param_name = parameter.get('name')
+                                        param_in = parameter.get('in')
+
+                                        # Validate parameter 'name'
+                                        if not isinstance(param_name, str) or not param_name.strip():
+                                            validation_issues = True
+                                            print(f"SERIOUS WARNING: Missing or empty 'name' field for parameter at {parameter_location_base}")
+                                            # Keep index_i in location if name is missing
+
+                                        # Validate parameter 'in'
+                                        if not isinstance(param_in, str) or not param_in.strip():
+                                            validation_issues = True
+                                            # Use name in message if available, otherwise index
+                                            param_identifier = param_name if isinstance(param_name, str) and param_name.strip() else f"index_{i}"
+                                            print(f"SERIOUS WARNING: Missing or empty 'in' field for parameter '{param_identifier}' at {operation_location_base}")
+                                            # Keep index_i in location if 'in' is missing, use name if available
+                                            if isinstance(param_name, str) and param_name.strip():
+                                                parameter_location_base = f'{operation_location_base}.parameters[{param_name}]'
+
+
+                                        # If both name and in are present, update the location base for clarity
+                                        if isinstance(param_name, str) and param_name.strip() and isinstance(param_in, str) and param_in.strip():
+                                            parameter_location_base = f'{operation_location_base}.parameters[{param_in}:{param_name}]'
+                                        elif isinstance(param_name, str) and param_name.strip(): # Only name available
+                                            parameter_location_base = f'{operation_location_base}.parameters[unknown_in:{param_name}]'
+                                        elif isinstance(param_in, str) and param_in.strip(): # Only in available
+                                             parameter_location_base = f'{operation_location_base}.parameters[{param_in}:index_{i}]'
+                                        # else: keep index_i base location
+
+                                        # Validate parameter 'description'
                                         param_description = parameter.get('description')
-                                        if param_description is not None and isinstance(param_description, str):
-                                             # Use parameter name in location if available, otherwise index
-                                            param_name = parameter.get('name', f'index_{i}')
-                                            param_in = parameter.get('in', 'unknown') # Add 'in' for clarity
+                                        if not isinstance(param_description, str) or not param_description.strip():
+                                            validation_issues = True
+                                            print(f"WARNING: Missing or empty 'description' for parameter '{param_name or f'index_{i}'}' at {operation_location_base}")
+                                        else:
+                                             # Add parameter description to descriptions found
                                             descriptions_found.append({
-                                                'location': f'paths.{path_key}.{method.lower()}.parameters[{param_in}:{param_name}]',
+                                                'location': parameter_location_base,
                                                 'description': param_description.strip()
                                             })
+                                    else:
+                                        validation_issues = True
+                                        print(f"SERIOUS WARNING: Parameter at index {i} in {operation_location_base} is not a dictionary.")
 
-    # Note: This code *doesn't* currently traverse $ref references or look in 'components' section.
-    # For a more complete solution covering all possible description locations
-    # (e.g., schemas, responses, requestBodies in components),
-    # a recursive approach with $ref resolution would be needed, which is more complex.
-    # This focuses on the specific locations you requested.
+
+    # Note: This code does not traverse $ref references or look deeply in 'components'.
+    # For a more complete solution covering all possible description locations,
+    # a recursive approach with $ref resolution would be needed.
+
+    if validation_issues:
+        print("\n--- Schema Validation Summary ---")
+        print("Warnings and Serious Warnings were logged above.")
+        print("---------------------------------\n")
 
     return descriptions_found
 
 def main(schema_file_path: str):
     """
     Main function to read the schema, extract descriptions, and print them.
+    Includes validation checks.
 
     Args:
         schema_file_path: The path to the OpenAPI schema file.
@@ -125,92 +196,36 @@ def main(schema_file_path: str):
     print(f"Processing schema file: {schema_file_path}")
     try:
         schema_data = read_schema_file(schema_file_path)
-        descriptions = extract_descriptions(schema_data)
+
+        # Use the new validation function
+        descriptions = extract_descriptions_and_validate(schema_data)
 
         if descriptions:
             print("\n--- Descriptions Found ---")
+            # Sort descriptions by location for better readability (optional)
+            descriptions.sort(key=lambda x: x['location'])
             for item in descriptions:
                 print(f"Location: {item['location']}")
-                print(f"Description: {item['description']}")
+                print(f"Text: {item['description']}") # Changed key name to 'Text' for clarity
                 print("-" * 20) # Separator for clarity
         else:
-            print("\nNo descriptions found at specified locations.")
+            print("\nNo descriptions found at specified locations (info, operation summary/description, parameter description).")
 
     except (FileNotFoundError, IOError, yaml.YAMLError, json.JSONDecodeError) as e:
-        print(f"\nFailed to process schema: {e}")
+        print(f"\nFATAL ERROR: Failed to read or parse schema: {e}")
+        sys.exit(1) # Exit script on fatal read/parse error
+    except ValueError as e:
+        print(f"\nFATAL ERROR: Schema Validation Failed - {e}")
+        sys.exit(1) # Exit script on validation error (missing info.description)
+    except Exception as e:
+        print(f"\nAn unexpected error occurred: {e}")
+        sys.exit(1) # Exit on any other unexpected error
 
 # Example Usage:
 if __name__ == "__main__":
-    # Create a dummy file with the sample schema for testing
-    sample_schema_content = """
-{
-  "openapi": "3.0.3",
-  "info": {
-    "title": "Asana",
-    "description": "This is the interface for interacting with the [Asana Platform](https://developers.asana.com). Our API reference is generated from our [OpenAPI spec] (https://raw.githubusercontent.com/Asana/openapi/master/defs/asana_oas.yaml).\\n\\nContact Support:\\n Name: Asana Support",
-    "version": "1.0.0",
-    "contact": {}
-  },
-  "servers": [
-    {
-      "url": "https://app.asana.com/api/1.0"
-    }
-  ],
-  "paths": {
-    "/allocations/{allocation_gid}": {
-      "get": {
-        "tags": [
-          "Allocations"
-        ],
-        "summary": "Get an allocation",
-        "description": "Returns the complete allocation record for a single allocation.",
-        "operationId": "getAnAllocation",
-        "parameters": [
-          {
-            "name": "opt_fields",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "example": "assignee,assignee.name,created_by,created_by.name,effort,effort.type,effort.value,end_date,parent,parent.name,resource_subtype,start_date"
-            },
-            "description": "This endpoint returns a compact resource, which excludes some properties by default. To include those optional properties, set this query parameter to a comma-separated list of the properties you wish to include."
-          },
-          {
-            "name": "another_param",
-            "in": "header",
-            "description": "Description for another header parameter."
-          }
-        ]
-      },
-      "post": {
-          "summary": "Create an allocation",
-          "description": "Creates a new allocation record.",
-          "operationId": "createAllocation",
-          "parameters": []
-      }
-    },
-    "/users": {
-        "get": {
-            "summary": "List users",
-            "description": "Retrieves a list of users in the system.",
-            "operationId": "listUsers"
-        }
-    }
-  }
-}
-"""
-    # Define a temporary file name
-    temp_schema_file = "/home/draken/OpenAPI/Asana.json"
 
-    # Write the sample content to the temporary file
+    empty_info_desc_file = "/home/draken/Desktop/Trello.json"
     try:
-        # Call the main function with the path to the temporary file
-        main(temp_schema_file)
-        
-    except Exception as e:
-        print(f"An error occurred: {e}")
-
-    # You can replace the above section with a direct call to main
-    # with the actual path to your schema file:
-    # actual_schema_path = "/path/to/your/schema.yaml" # Or .json
-    # main(actual_schema_path)
+        main(empty_info_desc_file)
+    except SystemExit:
+        print("Caught SystemExit as expected.")
