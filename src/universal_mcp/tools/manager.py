@@ -1,4 +1,3 @@
-import json
 from collections.abc import Callable
 from typing import Any
 
@@ -75,24 +74,16 @@ class ToolManager:
             ValueError: If an invalid format is provided.
         """
 
-        tools = []
+        tools = list(self._tools.values())
         if tags:
-            tools = [
-                tool
-                for tool in self._tools.values()
-                if any(tag in tool.tags for tag in tags)
-            ]
-        else:
-            tools = list(self._tools.values())
+            tools = _filter_by_tags(tools, tags)
 
         if format == ToolFormat.MCP:
             tools = [convert_tool_to_mcp_tool(tool) for tool in tools]
         elif format == ToolFormat.LANGCHAIN:
-            tools = [
-                convert_tool_to_langchain_tool(tool) for tool in self._tools.values()
-            ]
+            tools = [convert_tool_to_langchain_tool(tool) for tool in tools]
         elif format == ToolFormat.OPENAI:
-            tools = [convert_tool_to_openai_tool(tool) for tool in self._tools.values()]
+            tools = [convert_tool_to_openai_tool(tool) for tool in tools]
         else:
             raise ValueError(f"Invalid format: {format}")
 
@@ -243,75 +234,3 @@ class ToolManager:
             app_name = tool.name.split(TOOL_NAME_SEPARATOR)[0]
             analytics.track_tool_called(name, app_name, "error", str(e))
             raise ToolError(f"Tool execution failed: {str(e)}") from e
-
-    async def handle_tool_calls(
-        self, response: Any, format: ToolFormat = ToolFormat.OPENAI
-    ) -> Any:
-        """Handle tool calls from a openai response.
-
-        Args:
-            response: The response containing tool calls to handle.
-            format: The format of the response (default: OPENAI)
-
-        Returns:
-            Tuple containing:
-            - List of tool execution results
-            - List of tool call messages for conversation history
-
-        Raises:
-            ToolError: If tool execution fails.
-            ValueError: If the response format is invalid.
-        """
-        if format == ToolFormat.OPENAI:
-            results = []
-            tool_messages = []
-
-            if not hasattr(response, "choices") or not response.choices:
-                raise ValueError("Invalid response format: missing choices")
-            print(response.choices[0].message)
-            response_message = response.choices[0].message
-            tool_calls = getattr(response_message, "tool_calls", [])
-            if not tool_calls:
-                return
-
-            for tool_call in response_message.tool_calls:
-                try:
-                    name = tool_call.function.name
-                    arguments = json.loads(tool_call.function.arguments)
-                    result = await self.call_tool(name, arguments)
-
-                    # Add successful tool call message
-                    tool_messages.append(
-                        {
-                            "tool_call_id": tool_call.id,
-                            "role": "tool",
-                            "name": name,
-                            "content": str(result),
-                        }
-                    )
-                    results.append(result)
-
-                except json.JSONDecodeError as e:
-                    error_msg = f"Invalid tool arguments JSON: {e}"
-                    tool_messages.append(
-                        {
-                            "tool_call_id": tool_call.id,
-                            "role": "tool",
-                            "name": name,
-                            "content": error_msg,
-                        }
-                    )
-                    raise ToolError(error_msg) from e
-                except Exception as e:
-                    error_msg = f"Tool call failed: {e}"
-                    tool_messages.append(
-                        {
-                            "tool_call_id": tool_call.id,
-                            "role": "tool",
-                            "name": name,
-                            "content": error_msg,
-                        }
-                    )
-                    raise ToolError(error_msg) from e
-
-            return results, tool_messages

@@ -15,7 +15,7 @@ from universal_mcp.applications import BaseApplication
 from universal_mcp.servers import SingleMCPServer
 
 
-class Calculator(BaseApplication):
+class CalculatorApp(BaseApplication):
     """A simple calculator application that demonstrates how to create custom tools.
 
     This class shows the basic structure needed to create your own tools:
@@ -40,11 +40,6 @@ class Calculator(BaseApplication):
 
     def evaluate(self, expression: str) -> int:
         """Evaluate a mathematical expression and return the result as an integer.
-
-        This method demonstrates how to create a tool that:
-        1. Takes specific input parameters
-        2. Performs a well-defined operation
-        3. Returns a specific type of result
 
         Args:
             expression (str): A string containing a valid mathematical expression.
@@ -71,7 +66,7 @@ class Calculator(BaseApplication):
 
 
 # Create an instance of the calculator application
-app = Calculator()
+app = CalculatorApp()
 
 # Create an MCP server with our calculator application
 mcp = SingleMCPServer(app)

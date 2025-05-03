@@ -23,130 +23,32 @@ sys.path.append(UNIVERSAL_MCP_HOME)
 # Name are in the format of "app-name", eg, google-calendar
 # Class name is NameApp, eg, GoogleCalendarApp
 
-def _ensure_latest_package(slug_clean: str):
-    """
-    Ensures the latest version of a package is installed from the GitHub repo.
-    Reinstalls the package forcibly using pip and writes the latest commit hash.
-    """
-    repo_url = f"https://github.com/universal-mcp/{slug_clean}.git"
-    pip_url = f"git+{repo_url}"
-    cmd = [
-        "uv", "pip", "install",
-        "--upgrade", "--force-reinstall",
-        pip_url,
-        "--target", UNIVERSAL_MCP_HOME
-    ]
-    logger.info(f"Ensuring latest version of '{slug_clean}' with: {' '.join(cmd)}")
 
-    try:
-        subprocess.check_call(cmd)
-        latest_commit = subprocess.check_output(
-            ["git", "ls-remote", repo_url, "HEAD"],
-            text=True
-        ).split()[0]
-        package_path = os.path.join(UNIVERSAL_MCP_HOME, f"universal_mcp_{slug_clean.replace('-', '_')}")
-        os.makedirs(package_path, exist_ok=True)
-        with open(os.path.join(package_path, "_commit.txt"), "w") as f:
-            f.write(latest_commit)
-
-        logger.info(f"Package '{slug_clean}' updated successfully to commit {latest_commit}")
-
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Upgrade failed for '{slug_clean}': {e}")
-        raise ModuleNotFoundError(f"Upgrade failed for package '{slug_clean}'") from e
-
-def _check_for_package_update(slug_clean: str) -> bool:
-    """
-    Checks whether a package from the GitHub repo has a new commit.
-    Returns True if update is needed, False otherwise.
-    """
-    try:
-        # Get latest commit hash from GitHub
-        repo_url = f"https://github.com/universal-mcp/{slug_clean}.git"
-        result = subprocess.run(
-            ["git", "ls-remote", repo_url, "HEAD"],
-            capture_output=True,
-            check=True,
-            text=True
-        )
-        latest_commit = result.stdout.split()[0]
-
-        # Get local installed package path
-        package_path = os.path.join(UNIVERSAL_MCP_HOME, f"universal_mcp_{slug_clean.replace('-', '_')}")
-        if not os.path.exists(package_path):
-            logger.info(f"No local installation found for '{slug_clean}'. Update needed.")
-            return True
-
-        # Look for commit hash in package metadata (assuming stored in _version.py or similar)
-        version_file = os.path.join(package_path, "_commit.txt")
-        if not os.path.exists(version_file):
-            logger.info(f"No version file found for '{slug_clean}'. Update needed.")
-            return True
-
-        with open(version_file) as f:
-            local_commit = f.read().strip()
-
-        if local_commit != latest_commit:
-            logger.info(f"Local commit {local_commit} != remote {latest_commit}. Update needed.")
-            return True
-
-        logger.info(f"'{slug_clean}' is up to date.")
-        return False
-    except Exception as e:
-        logger.warning(f"Failed to check latest commit for '{slug_clean}': {e}")
-        return True  # Assume update needed on error
-
-def _import_class(module_path: str, class_name: str):
-    """
-    Helper to import a class by name from a module.
-    Verifies whether the package is up-to-date based on GitHub HEAD commit.
-    """
-    slug_clean = module_path.split('.')[0].replace("universal_mcp_", "").replace("_", "-")
-
-    try:
-        module = importlib.import_module(module_path)
-
-        # Only ensure latest if remote commit has changed
-        if _check_for_package_update(slug_clean):
-            _ensure_latest_package(slug_clean)
-            module = importlib.reload(module)
-
-    except ModuleNotFoundError as e:
-        logger.debug(f"Import failed for module '{module_path}': {e}")
-        _install_package(slug_clean)
-        module = importlib.import_module(module_path)
-
-    try:
-        return getattr(module, class_name)
-    except AttributeError as e:
-        logger.error(f"Class '{class_name}' not found in module '{module_path}'")
-        raise ModuleNotFoundError(
-            f"Class '{class_name}' not found in module '{module_path}'"
-        ) from e
-
-
-def _install_package(slug_clean: str):
+def _install_or_upgrade_package(package_prefix: str, slug_clean: str):
     """
     Helper to install a package via pip from the universal-mcp GitHub repository.
     """
+    # Check current version with uv pip show
     repo_url = f"git+https://github.com/universal-mcp/{slug_clean}"
-    cmd = ["uv", "pip", "install", repo_url, "--target", UNIVERSAL_MCP_HOME]
-    logger.info(f"Installing package '{slug_clean}' with command: {' '.join(cmd)}")
+    cmd = [
+        "uv",
+        "pip",
+        "install",
+        "--upgrade",
+        repo_url,
+        "--target",
+        UNIVERSAL_MCP_HOME,
+    ]
+    logger.debug(f"Installing package '{slug_clean}' with command: {' '.join(cmd)}")
     try:
         subprocess.check_call(cmd)
-        latest_commit = subprocess.check_output(
-        ["git", "ls-remote", f"https://github.com/universal-mcp/{slug_clean}.git", "HEAD"]).decode().split()[0]
-        package_path = os.path.join(UNIVERSAL_MCP_HOME, f"universal_mcp_{slug_clean.replace('-', '_')}")
-        os.makedirs(package_path, exist_ok=True)
-        with open(os.path.join(package_path, "_commit.txt"), "w") as f:
-            f.write(latest_commit)
     except subprocess.CalledProcessError as e:
         logger.error(f"Installation failed for '{slug_clean}': {e}")
         raise ModuleNotFoundError(
             f"Installation failed for package '{slug_clean}'"
         ) from e
     else:
-        logger.info(f"Package '{slug_clean}' installed successfully")
+        logger.debug(f"Package '{slug_clean}' installed successfully")
 
 
 def app_from_slug(slug: str):
@@ -159,24 +61,25 @@ def app_from_slug(slug: str):
     package_prefix = f"universal_mcp_{slug_clean.replace('-', '_')}"
     module_path = f"{package_prefix}.app"
 
-    logger.info(
+    logger.debug(
         f"Resolving app for slug '{slug}' → module '{module_path}', class '{class_name}'"
     )
     try:
-        return _import_class(module_path, class_name)
-    except ModuleNotFoundError as orig_err:
-        logger.warning(
-            f"Module '{module_path}' not found locally: {orig_err}. Installing..."
-        )
-        _install_package(slug_clean)
-        # Retry import after installation
-        try:
-            return _import_class(module_path, class_name)
-        except ModuleNotFoundError as retry_err:
-            logger.error(
-                f"Still cannot import '{module_path}' after installation: {retry_err}"
-            )
-            raise
+        _install_or_upgrade_package(package_prefix, slug_clean)
+        module = importlib.import_module(module_path)
+        class_ = getattr(module, class_name)
+        logger.debug(f"Loaded class '{class_}' from module '{module_path}'")
+        return class_
+    except ModuleNotFoundError as e:
+        raise ModuleNotFoundError(
+            f"Package '{module_path}' not found locally. Please install it first."
+        ) from e
+    except AttributeError as e:
+        raise AttributeError(
+            f"Class '{class_name}' not found in module '{module_path}'"
+        ) from e
+    except Exception as e:
+        raise Exception(f"Error importing module '{module_path}': {e}") from e
 
 
 __all__ = [

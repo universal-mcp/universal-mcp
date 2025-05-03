@@ -50,6 +50,7 @@ def convert_tool_to_langchain_tool(
         description=tool.description or "",
         coroutine=call_tool,
         response_format="content",
+        args_schema=tool.parameters,
     )
 
 

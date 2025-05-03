@@ -264,11 +264,11 @@ def init(
             },
         )
     except Exception as exc:
-        console.print(f"❌ Project generation failed: {exc}", fg=typer.colors.RED)
+        console.print(f"❌ Project generation failed: {exc}")
         raise typer.Exit(code=1) from exc
 
     project_dir = output_dir / f"universal-mcp-{app_name}"
-    console.print(f"✅ Project created at {project_dir}", fg=typer.colors.GREEN)
+    console.print(f"✅ Project created at {project_dir}")
 
 
 if __name__ == "__main__":

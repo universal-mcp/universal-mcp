@@ -12,6 +12,7 @@ The example specifically shows how to star a GitHub repository.
 """
 
 import asyncio
+import json
 import os
 
 from openai import OpenAI
@@ -94,9 +95,13 @@ async def main():
         tools=tools,
         tool_choice="auto",  # Let the AI decide which tools to use
     )
-
-    # Step 4: Handle tool execution
-    await tool_manager.handle_tool_calls(response, format="openai")
+    response_message = response.choices[0].message
+    for tool_call in response_message.tool_calls:
+        # Step 4: Handle tool execution
+        function_name = tool_call.function.name
+        function_arguments = json.loads(tool_call.function.arguments)
+        result = await tool_manager.call_tool(function_name, function_arguments)
+        print(result)
 
 
 if __name__ == "__main__":
