@@ -268,10 +268,11 @@ class ToolManager:
 
             if not hasattr(response, "choices") or not response.choices:
                 raise ValueError("Invalid response format: missing choices")
-
+            print(response.choices[0].message)
             response_message = response.choices[0].message
-            if not hasattr(response_message, "tool_calls"):
-                raise ValueError("Invalid response format: missing tool_calls")
+            tool_calls = getattr(response_message, "tool_calls", [])
+            if not tool_calls:
+                return
 
             for tool_call in response_message.tool_calls:
                 try:
