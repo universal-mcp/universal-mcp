@@ -499,11 +499,9 @@ def _generate_method_code(path, method, operation):
                
                 # Append the full body example after the last body-related argument
                 if arg_name == last_body_arg_name and request_body_example_str:
-                    # Remove the simple Example: only if example_str was defined
-                    if example_str and f" Example: {example_str}." in arg_line:
-                        arg_line = arg_line.replace(f" Example: {example_str}.", "")
-                    elif example_str and f" Example: {example_str}." in arg_line: # Check trailing period just in case
-                         arg_line = arg_line.replace(f" Example: {example_str}.","")
+                    # Remove the simple Example: if it exists before adding the detailed one
+                    if example_str and (f" Example: {example_str}." in arg_line or f" Example: {example_str} ." in arg_line):
+                        arg_line = arg_line.replace(f" Example: {example_str}.", "") # Remove with or without trailing period
                     arg_line += request_body_example_str # Append the formatted JSON example
                     
                 args_doc_lines.append(arg_line)
