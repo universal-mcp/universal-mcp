@@ -19,7 +19,7 @@ def main():
         logger.info("MCP server started")
 
     streamlit_process = subprocess.Popen(
-        ["streamlit", "run", "playground/streamlit.py"]
+        ["python", "-m", "streamlit", "run", "playground/streamlit.py"]
     )
     processes.append(streamlit_process)
     logger.info("Streamlit app started")
