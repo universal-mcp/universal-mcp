@@ -1,5 +1,6 @@
+import json
 from collections.abc import Callable
-from typing import Any, Literal
+from typing import Any
 
 from loguru import logger
 
@@ -7,50 +8,117 @@ from universal_mcp.analytics import analytics
 from universal_mcp.applications.application import BaseApplication
 from universal_mcp.exceptions import ToolError
 from universal_mcp.tools.adapters import (
+    ToolFormat,
     convert_tool_to_langchain_tool,
     convert_tool_to_mcp_tool,
     convert_tool_to_openai_tool,
 )
 from universal_mcp.tools.tools import Tool
 
+# Constants
+DEFAULT_IMPORTANT_TAG = "important"
+TOOL_NAME_SEPARATOR = "_"
+
+
+def _filter_by_name(tools: list[Tool], tool_names: list[str]) -> list[Tool]:
+    if not tool_names:
+        return tools
+    return [tool for tool in tools if tool.name in tool_names]
+
+
+def _filter_by_tags(tools: list[Tool], tags: list[str] | None) -> list[Tool]:
+    tags = tags or [DEFAULT_IMPORTANT_TAG]
+    return [tool for tool in tools if any(tag in tool.tags for tag in tags)]
+
 
 class ToolManager:
-    """Manages FastMCP tools."""
+    """Manages FastMCP tools.
+
+    This class provides functionality for registering, managing, and executing tools.
+    It supports multiple tool formats and provides filtering capabilities based on names and tags.
+    """
 
     def __init__(self, warn_on_duplicate_tools: bool = True):
+        """Initialize the ToolManager.
+
+        Args:
+            warn_on_duplicate_tools: Whether to warn when duplicate tool names are detected.
+        """
         self._tools: dict[str, Tool] = {}
         self.warn_on_duplicate_tools = warn_on_duplicate_tools
 
     def get_tool(self, name: str) -> Tool | None:
-        """Get tool by name."""
+        """Get tool by name.
+
+        Args:
+            name: The name of the tool to retrieve.
+
+        Returns:
+            The Tool instance if found, None otherwise.
+        """
         return self._tools.get(name)
 
     def list_tools(
-        self, format: Literal["mcp", "langchain", "openai"] = "mcp"
+        self,
+        format: ToolFormat = ToolFormat.MCP,
+        tags: list[str] | None = None,
     ) -> list[Tool]:
-        """List all registered tools."""
-        if format == "mcp":
-            return [convert_tool_to_mcp_tool(tool) for tool in self._tools.values()]
-        elif format == "langchain":
-            return [
+        """List all registered tools in the specified format.
+
+        Args:
+            format: The format to convert tools to.
+
+        Returns:
+            List of tools in the specified format.
+
+        Raises:
+            ValueError: If an invalid format is provided.
+        """
+
+        tools = []
+        if tags:
+            tools = [
+                tool
+                for tool in self._tools.values()
+                if any(tag in tool.tags for tag in tags)
+            ]
+        else:
+            tools = list(self._tools.values())
+
+        if format == ToolFormat.MCP:
+            tools = [convert_tool_to_mcp_tool(tool) for tool in tools]
+        elif format == ToolFormat.LANGCHAIN:
+            tools = [
                 convert_tool_to_langchain_tool(tool) for tool in self._tools.values()
             ]
-        elif format == "openai":
-            return [convert_tool_to_openai_tool(tool) for tool in self._tools.values()]
+        elif format == ToolFormat.OPENAI:
+            tools = [convert_tool_to_openai_tool(tool) for tool in self._tools.values()]
         else:
             raise ValueError(f"Invalid format: {format}")
 
-    # Modified add_tool to accept name override explicitly
-    def add_tool(
-        self, fn: Callable[..., Any] | Tool, name: str | None = None
-    ) -> Tool:  # Changed any to Any
-        """Add a tool to the server, allowing name override."""
-        # Create the Tool object using the provided name if available
+        return tools
+
+    def add_tool(self, fn: Callable[..., Any] | Tool, name: str | None = None) -> Tool:
+        """Add a tool to the manager.
+
+        Args:
+            fn: The tool function or Tool instance to add.
+            name: Optional name override for the tool.
+
+        Returns:
+            The registered Tool instance.
+
+        Raises:
+            ValueError: If the tool name is invalid.
+        """
         tool = fn if isinstance(fn, Tool) else Tool.from_function(fn, name=name)
+
+        if not tool.name or not isinstance(tool.name, str):
+            raise ValueError("Tool name must be a non-empty string")
+
         existing = self._tools.get(tool.name)
         if existing:
             if self.warn_on_duplicate_tools:
-                # Check if it's the *exact* same function object being added again
                 if existing.fn is not tool.fn:
                     logger.warning(
                         f"Tool name '{tool.name}' conflicts with an existing tool. Skipping addition of new function."
@@ -59,46 +127,50 @@ class ToolManager:
                     logger.debug(
                         f"Tool '{tool.name}' with the same function already exists."
                     )
-            return existing  # Return the existing tool if name conflicts
+            return existing
 
         logger.debug(f"Adding tool: {tool.name}")
         self._tools[tool.name] = tool
         return tool
 
-    async def call_tool(
-        self,
-        name: str,
-        arguments: dict[str, Any],
-        context=None,
-    ) -> Any:
-        """Call a tool by name with arguments."""
-        tool = self.get_tool(name)
-        if not tool:
-            raise ToolError(f"Unknown tool: {name}")
-        try:
-            result = await tool.run(arguments)
-            analytics.track_tool_called(name, "success")
-            return result
-        except Exception as e:
-            analytics.track_tool_called(name, "error", str(e))
-            raise
+    def register_tools(self, tools: list[Tool]) -> None:
+        """Register a list of tools."""
+        for tool in tools:
+            self.add_tool(tool)
 
-    def get_tools_by_tags(self, tags: list[str]) -> list[Tool]:
-        """Get tools by tags."""
-        return [
-            tool
-            for tool in self._tools.values()
-            if any(tag in tool.tags for tag in tags)
-        ]
+    def remove_tool(self, name: str) -> bool:
+        """Remove a tool by name.
+
+        Args:
+            name: The name of the tool to remove.
+
+        Returns:
+            True if the tool was removed, False if it didn't exist.
+        """
+        if name in self._tools:
+            del self._tools[name]
+            return True
+        return False
+
+    def clear_tools(self) -> None:
+        """Remove all registered tools."""
+        self._tools.clear()
 
     def register_tools_from_app(
         self,
         app: BaseApplication,
-        tools: list[str] | None = None,
-        tags: list[str] | None = None,
+        tool_names: list[str] = None,
+        tags: list[str] = None,
     ) -> None:
+        """Register tools from an application.
+
+        Args:
+            app: The application to register tools from.
+            tools: Optional list of specific tool names to register.
+            tags: Optional list of tags to filter tools by.
+        """
         try:
-            available_tool_functions = app.list_tools()
+            functions = app.list_tools()
         except TypeError as e:
             logger.error(f"Error calling list_tools for app '{app.name}'. Error: {e}")
             return
@@ -106,75 +178,139 @@ class ToolManager:
             logger.error(f"Failed to get tool list from app '{app.name}': {e}")
             return
 
-        if not isinstance(available_tool_functions, list):
+        if not isinstance(functions, list):
             logger.error(
                 f"App '{app.name}' list_tools() did not return a list. Skipping registration."
             )
             return
 
-        # Determine the effective filter lists *before* the loop for efficiency
-        # Use an empty list if None is passed, simplifies checks later
-        tools_name_filter = tools or []
-
-        # For tags, determine the filter list based on priority: passed 'tags' or default 'important'
-        # This list is only used if tools_name_filter is empty.
-        active_tags_filter = tags if tags else ["important"]  # Default filter
-
-        logger.debug(
-            f"Registering tools for '{app.name}'. Name filter: {tools_name_filter or 'None'}. Tag filter (if name filter empty): {active_tags_filter}"
-        )
-
-        for tool_func in available_tool_functions:
-            if not callable(tool_func):
-                logger.warning(
-                    f"Item returned by {app.name}.list_tools() is not callable: {tool_func}. Skipping."
-                )
+        tools = []
+        for function in functions:
+            if not callable(function):
+                logger.warning(f"Non-callable tool from {app.name}: {function}")
                 continue
 
             try:
-                # Create the Tool metadata object from the function.
-                # This parses docstring (including tags), gets signature etc.
-                tool_instance = Tool.from_function(tool_func)
-            except Exception as e:
-                logger.error(
-                    f"Failed to create Tool object from function '{getattr(tool_func, '__name__', 'unknown')}' in app '{app.name}': {e}"
+                tool_instance = Tool.from_function(function)
+                tool_instance.name = (
+                    f"{app.name}{TOOL_NAME_SEPARATOR}{tool_instance.name}"
                 )
-                continue  # Skip this tool if metadata creation fails
+                tool_instance.tags.append(
+                    app.name
+                ) if app.name not in tool_instance.tags else None
+                tools.append(tool_instance)
+            except Exception as e:
+                tool_name = getattr(function, "__name__", "unknown")
+                logger.error(
+                    f"Failed to create Tool from '{tool_name}' in {app.name}: {e}"
+                )
 
-            # --- Modify the Tool instance before filtering/registration ---
-            original_name = tool_instance.name
-            prefixed_name = f"{app.name}_{original_name}"
-            tool_instance.name = prefixed_name  # Update the name
+        tools = _filter_by_name(tools, tool_names)
+        tools = _filter_by_tags(tools, tags)
+        self.register_tools(tools)
+        return
 
-            # Add the app name itself as a tag for categorization
-            if app.name not in tool_instance.tags:
-                tool_instance.tags.append(app.name)
+    async def call_tool(
+        self,
+        name: str,
+        arguments: dict[str, Any],
+        context: dict[str, Any] | None = None,
+    ) -> Any:
+        """Call a tool by name with arguments.
 
-            # --- Filtering Logic ---
-            should_register = False  # Default to not registering
+        Args:
+            name: The name of the tool to call.
+            arguments: The arguments to pass to the tool.
+            context: Optional context information for the tool execution.
 
-            if tools_name_filter:
-                # --- Primary Filter: Check against specific tool names ---
-                if tool_instance.name in tools_name_filter:
-                    should_register = True
-                    logger.debug(f"Tool '{tool_instance.name}' matched name filter.")
-                # If not in the name filter, it's skipped (should_register remains False)
+        Returns:
+            The result of the tool execution.
 
-            else:
-                # --- Secondary Filter: Check against tags (since tools_name_filter is empty) ---
-                # Check if *any* tag in active_tags_filter exists in the tool's tags
-                # tool_instance.tags includes tags parsed from the docstring + app.name
-                if any(tag in tool_instance.tags for tag in active_tags_filter):
-                    should_register = True
-                    logger.debug(
-                        f"Tool '{tool_instance.name}' matched tag filter {active_tags_filter}."
+        Raises:
+            ToolError: If the tool is not found or execution fails.
+        """
+        logger.debug(f"Calling tool: {name} with arguments: {arguments}")
+        tool = self.get_tool(name)
+        if not tool:
+            raise ToolError(f"Unknown tool: {name}")
+
+        try:
+            result = await tool.run(arguments, context)
+            app_name = tool.name.split(TOOL_NAME_SEPARATOR)[0]
+            analytics.track_tool_called(name, app_name, "success")
+            return result
+        except Exception as e:
+            app_name = tool.name.split(TOOL_NAME_SEPARATOR)[0]
+            analytics.track_tool_called(name, app_name, "error", str(e))
+            raise ToolError(f"Tool execution failed: {str(e)}") from e
+
+    async def handle_tool_calls(
+        self, response: Any, format: ToolFormat = ToolFormat.OPENAI
+    ) -> Any:
+        """Handle tool calls from a openai response.
+
+        Args:
+            response: The response containing tool calls to handle.
+            format: The format of the response (default: OPENAI)
+
+        Returns:
+            Tuple containing:
+            - List of tool execution results
+            - List of tool call messages for conversation history
+
+        Raises:
+            ToolError: If tool execution fails.
+            ValueError: If the response format is invalid.
+        """
+        if format == ToolFormat.OPENAI:
+            results = []
+            tool_messages = []
+
+            if not hasattr(response, "choices") or not response.choices:
+                raise ValueError("Invalid response format: missing choices")
+
+            response_message = response.choices[0].message
+            if not hasattr(response_message, "tool_calls"):
+                raise ValueError("Invalid response format: missing tool_calls")
+
+            for tool_call in response_message.tool_calls:
+                try:
+                    name = tool_call.function.name
+                    arguments = json.loads(tool_call.function.arguments)
+                    result = await self.call_tool(name, arguments)
+
+                    # Add successful tool call message
+                    tool_messages.append(
+                        {
+                            "tool_call_id": tool_call.id,
+                            "role": "tool",
+                            "name": name,
+                            "content": str(result),
+                        }
                     )
-                # else:
-                #     logger.debug(f"Tool '{tool_instance.name}' did NOT match tag filter {active_tags_filter}. Tool tags: {tool_instance.tags}")
+                    results.append(result)
 
-            # --- Add the tool if it passed the filters ---
-            if should_register:
-                # Pass the fully configured Tool *instance* to add_tool
-                self.add_tool(tool_instance)
-            # else: If not registered, optionally log it for debugging:
-            #    logger.trace(f"Tool '{tool_instance.name}' skipped due to filters.") # Use trace level
+                except json.JSONDecodeError as e:
+                    error_msg = f"Invalid tool arguments JSON: {e}"
+                    tool_messages.append(
+                        {
+                            "tool_call_id": tool_call.id,
+                            "role": "tool",
+                            "name": name,
+                            "content": error_msg,
+                        }
+                    )
+                    raise ToolError(error_msg) from e
+                except Exception as e:
+                    error_msg = f"Tool call failed: {e}"
+                    tool_messages.append(
+                        {
+                            "tool_call_id": tool_call.id,
+                            "role": "tool",
+                            "name": name,
+                            "content": error_msg,
+                        }
+                    )
+                    raise ToolError(error_msg) from e
+
+            return results, tool_messages

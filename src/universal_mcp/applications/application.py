@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+from collections.abc import Callable
+from typing import Any
 
 import httpx
 from gql import Client, gql
@@ -12,41 +14,116 @@ from universal_mcp.integrations import Integration
 
 class BaseApplication(ABC):
     """
-    BaseApplication is the base class for all applications.
+    Base class for all applications in the Universal MCP system.
+
+    This abstract base class defines the common interface and functionality
+    that all applications must implement. It provides basic initialization
+    and credential management capabilities.
+
+    Attributes:
+        name (str): The name of the application
+        _credentials (Optional[Dict[str, Any]]): Cached credentials for the application
     """
 
-    def __init__(self, name: str, **kwargs):
+    def __init__(self, name: str, **kwargs: Any) -> None:
+        """
+        Initialize the base application.
+
+        Args:
+            name: The name of the application
+            **kwargs: Additional keyword arguments passed to the application
+        """
         self.name = name
+        self._credentials: dict[str, Any] | None = None
         logger.debug(f"Initializing Application '{name}' with kwargs: {kwargs}")
         analytics.track_app_loaded(name)  # Track app loading
 
+    @property
+    def credentials(self) -> dict[str, Any]:
+        """
+        Get the credentials for the application.
+
+        Returns:
+            Dict[str, Any]: The application credentials. If no integration is configured,
+                           returns an empty dictionary.
+        """
+        if self._credentials:
+            return self._credentials
+        if not self.integration:
+            logger.debug("No integration configured, returning empty credentials")
+            return {}
+        self._credentials = self.integration.get_credentials()
+        return self._credentials
+
+    @credentials.setter
+    def credentials(self, value: dict[str, Any]) -> None:
+        """
+        Set the credentials for the application.
+
+        Args:
+            value: The new credentials to set
+        """
+        self._credentials = value
+
     @abstractmethod
-    def list_tools(self):
+    def list_tools(self) -> list[Callable]:
+        """
+        List all available tools for the application.
+
+        Returns:
+            List[Any]: A list of tools available in the application
+        """
         pass
 
 
 class APIApplication(BaseApplication):
     """
-    APIApplication is an application that uses an API to interact with the world.
+    Application that uses HTTP APIs to interact with external services.
+
+    This class provides a base implementation for applications that communicate
+    with external services via HTTP APIs. It handles authentication, request
+    management, and response processing.
+
+    Attributes:
+        name (str): The name of the application
+        integration (Optional[Integration]): The integration configuration
+        default_timeout (int): Default timeout for HTTP requests in seconds
+        base_url (str): Base URL for API requests
     """
 
-    def __init__(self, name: str, integration: Integration = None, **kwargs):
+    def __init__(
+        self, name: str, integration: Integration | None = None, **kwargs: Any
+    ) -> None:
+        """
+        Initialize the API application.
+
+        Args:
+            name: The name of the application
+            integration: Optional integration configuration
+            **kwargs: Additional keyword arguments
+        """
         super().__init__(name, **kwargs)
-        self.default_timeout = 180
-        self.integration = integration
+        self.default_timeout: int = 180
+        self.integration: Integration | None = integration
         logger.debug(
             f"Initializing APIApplication '{name}' with integration: {integration}"
         )
-        self._client = None
-        # base_url should be set by subclasses, e.g., self.base_url = "https://api.example.com"
+        self._client: httpx.Client | None = None
         self.base_url: str = ""  # Initialize, but subclasses should set this
 
-    def _get_headers(self):
-        if not self.integration:
-            logger.debug("No integration configured, returning empty headers")
-            return {}
-        credentials = self.integration.get_credentials()
-        logger.debug(f"Got credentials for integration: {credentials.keys()}")
+    def _get_headers(self) -> dict[str, str]:
+        """
+        Get the headers for API requests.
+
+        This method constructs the appropriate headers based on the available
+        credentials. It supports various authentication methods including
+        direct headers, API keys, and access tokens.
+
+        Returns:
+            Dict[str, str]: Headers to be used in API requests
+        """
+        credentials = self.credentials
+        logger.debug("Got credentials for integration")
 
         # Check if direct headers are provided
         headers = credentials.get("headers")
@@ -79,36 +156,74 @@ class APIApplication(BaseApplication):
         return {}
 
     @property
-    def client(self):
+    def client(self) -> httpx.Client:
+        """
+        Get the HTTP client instance.
+
+        This property ensures that the HTTP client is properly initialized
+        with the correct base URL and headers.
+
+        Returns:
+            httpx.Client: The initialized HTTP client
+        """
         if not self._client:
             headers = self._get_headers()
             if not self.base_url:
                 logger.warning(f"APIApplication '{self.name}' base_url is not set.")
-                # Fallback: Initialize client without base_url, requiring full URLs in methods
                 self._client = httpx.Client(
                     headers=headers, timeout=self.default_timeout
                 )
             else:
                 self._client = httpx.Client(
-                    base_url=self.base_url,  # Pass the base_url here
+                    base_url=self.base_url,
                     headers=headers,
                     timeout=self.default_timeout,
                 )
         return self._client
 
-    def _get(self, url, params=None):
+    def _get(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
+        """
+        Make a GET request to the specified URL.
+
+        Args:
+            url: The URL to send the request to
+            params: Optional query parameters
+
+        Returns:
+            httpx.Response: The response from the server
+
+        Raises:
+            httpx.HTTPError: If the request fails
+        """
         logger.debug(f"Making GET request to {url} with params: {params}")
         response = self.client.get(url, params=params)
         response.raise_for_status()
         logger.debug(f"GET request successful with status code: {response.status_code}")
         return response
 
-    def _post(self, url, data, params=None):
+    def _post(
+        self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None
+    ) -> httpx.Response:
+        """
+        Make a POST request to the specified URL.
+
+        Args:
+            url: The URL to send the request to
+            data: The data to send in the request body
+            params: Optional query parameters
+
+        Returns:
+            httpx.Response: The response from the server
+
+        Raises:
+            httpx.HTTPError: If the request fails
+        """
         logger.debug(
             f"Making POST request to {url} with params: {params} and data: {data}"
         )
-        response = self.client.post(
+        response = httpx.post(
             url,
+            headers=self._get_headers(),
             json=data,
             params=params,
         )
@@ -118,7 +233,23 @@ class APIApplication(BaseApplication):
         )
         return response
 
-    def _put(self, url, data, params=None):
+    def _put(
+        self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None
+    ) -> httpx.Response:
+        """
+        Make a PUT request to the specified URL.
+
+        Args:
+            url: The URL to send the request to
+            data: The data to send in the request body
+            params: Optional query parameters
+
+        Returns:
+            httpx.Response: The response from the server
+
+        Raises:
+            httpx.HTTPError: If the request fails
+        """
         logger.debug(
             f"Making PUT request to {url} with params: {params} and data: {data}"
         )
@@ -131,8 +262,20 @@ class APIApplication(BaseApplication):
         logger.debug(f"PUT request successful with status code: {response.status_code}")
         return response
 
-    def _delete(self, url, params=None):
-        # Now `url` can be a relative path if base_url is set in the client
+    def _delete(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
+        """
+        Make a DELETE request to the specified URL.
+
+        Args:
+            url: The URL to send the request to
+            params: Optional query parameters
+
+        Returns:
+            httpx.Response: The response from the server
+
+        Raises:
+            httpx.HTTPError: If the request fails
+        """
         logger.debug(f"Making DELETE request to {url} with params: {params}")
         response = self.client.delete(url, params=params, timeout=self.default_timeout)
         response.raise_for_status()
@@ -141,8 +284,23 @@ class APIApplication(BaseApplication):
         )
         return response
 
-    def _patch(self, url, data, params=None):
-        # Now `url` can be a relative path if base_url is set in the client
+    def _patch(
+        self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None
+    ) -> httpx.Response:
+        """
+        Make a PATCH request to the specified URL.
+
+        Args:
+            url: The URL to send the request to
+            data: The data to send in the request body
+            params: Optional query parameters
+
+        Returns:
+            httpx.Response: The response from the server
+
+        Raises:
+            httpx.HTTPError: If the request fails
+        """
         logger.debug(
             f"Making PATCH request to {url} with params: {params} and data: {data}"
         )
@@ -157,25 +315,55 @@ class APIApplication(BaseApplication):
         )
         return response
 
-    def validate(self):
-        pass
-
 
 class GraphQLApplication(BaseApplication):
     """
-    GraphQLApplication is a collection of tools that can be used by an agent.
+    Application that uses GraphQL to interact with external services.
+
+    This class provides a base implementation for applications that communicate
+    with external services via GraphQL. It handles authentication, query execution,
+    and response processing.
+
+    Attributes:
+        name (str): The name of the application
+        base_url (str): Base URL for GraphQL endpoint
+        integration (Optional[Integration]): The integration configuration
     """
 
     def __init__(
-        self, name: str, base_url: str, integration: Integration = None, **kwargs
-    ):
+        self,
+        name: str,
+        base_url: str,
+        integration: Integration | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Initialize the GraphQL application.
+
+        Args:
+            name: The name of the application
+            base_url: The base URL for the GraphQL endpoint
+            integration: Optional integration configuration
+            **kwargs: Additional keyword arguments
+        """
         super().__init__(name, **kwargs)
         self.base_url = base_url
+        self.integration = integration
         logger.debug(f"Initializing Application '{name}' with kwargs: {kwargs}")
         analytics.track_app_loaded(name)  # Track app loading
-        self._client = None
+        self._client: Client | None = None
 
-    def _get_headers(self):
+    def _get_headers(self) -> dict[str, str]:
+        """
+        Get the headers for GraphQL requests.
+
+        This method constructs the appropriate headers based on the available
+        credentials. It supports various authentication methods including
+        direct headers, API keys, and access tokens.
+
+        Returns:
+            Dict[str, str]: Headers to be used in GraphQL requests
+        """
         if not self.integration:
             logger.debug("No integration configured, returning empty headers")
             return {}
@@ -211,23 +399,62 @@ class GraphQLApplication(BaseApplication):
         return {}
 
     @property
-    def client(self):
+    def client(self) -> Client:
+        """
+        Get the GraphQL client instance.
+
+        This property ensures that the GraphQL client is properly initialized
+        with the correct transport and headers.
+
+        Returns:
+            Client: The initialized GraphQL client
+        """
         if not self._client:
             headers = self._get_headers()
             transport = RequestsHTTPTransport(url=self.base_url, headers=headers)
             self._client = Client(transport=transport, fetch_schema_from_transport=True)
         return self._client
 
-    def mutate(self, mutation: str | DocumentNode, variables: dict = None):
+    def mutate(
+        self,
+        mutation: str | DocumentNode,
+        variables: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Execute a GraphQL mutation.
+
+        Args:
+            mutation: The GraphQL mutation string or DocumentNode
+            variables: Optional variables for the mutation
+
+        Returns:
+            Dict[str, Any]: The result of the mutation
+
+        Raises:
+            Exception: If the mutation execution fails
+        """
         if isinstance(mutation, str):
             mutation = gql(mutation)
         return self.client.execute(mutation, variable_values=variables)
 
-    def query(self, query: str | DocumentNode, variables: dict = None):
+    def query(
+        self,
+        query: str | DocumentNode,
+        variables: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Execute a GraphQL query.
+
+        Args:
+            query: The GraphQL query string or DocumentNode
+            variables: Optional variables for the query
+
+        Returns:
+            Dict[str, Any]: The result of the query
+
+        Raises:
+            Exception: If the query execution fails
+        """
         if isinstance(query, str):
             query = gql(query)
         return self.client.execute(query, variable_values=variables)
-
-    @abstractmethod
-    def list_tools(self):
-        pass

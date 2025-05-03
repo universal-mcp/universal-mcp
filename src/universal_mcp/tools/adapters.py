@@ -1,4 +1,14 @@
+from enum import Enum
+
 from universal_mcp.tools.tools import Tool
+
+
+class ToolFormat(str, Enum):
+    """Supported tool formats."""
+
+    MCP = "mcp"
+    LANGCHAIN = "langchain"
+    OPENAI = "openai"
 
 
 def convert_tool_to_mcp_tool(

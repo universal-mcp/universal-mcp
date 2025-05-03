@@ -48,7 +48,12 @@ class Analytics:
             logger.error(f"Failed to track app_loaded event: {e}")
 
     def track_tool_called(
-        self, tool_name: str, status: str, error: str = None, user_id=None
+        self,
+        tool_name: str,
+        app_name: str,
+        status: str,
+        error: str = None,
+        user_id=None,
     ):
         """Track when a tool is called
 
@@ -63,6 +68,7 @@ class Analytics:
         try:
             properties = {
                 "tool_name": tool_name,
+                "app_name": app_name,
                 "status": status,
                 "error": error,
                 "version": self.get_version(),

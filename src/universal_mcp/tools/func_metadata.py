@@ -82,6 +82,7 @@ class FuncMetadata(BaseModel):
         fn_is_async: bool,
         arguments_to_validate: dict[str, Any],
         arguments_to_pass_directly: dict[str, Any] | None,
+        context: dict[str, Any] | None = None,
     ) -> Any:
         """Call the given function with arguments validated and injected.
 

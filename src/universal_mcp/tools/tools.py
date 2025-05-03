@@ -76,12 +76,12 @@ class Tool(BaseModel):
     async def run(
         self,
         arguments: dict[str, Any],
-        context=None,
+        context: dict[str, Any] | None = None,
     ) -> Any:
         """Run the tool with arguments."""
         try:
             return await self.fn_metadata.call_fn_with_arg_validation(
-                self.fn, self.is_async, arguments, None
+                self.fn, self.is_async, arguments, None, context=context
             )
         except NotAuthorizedError as e:
             message = f"Not authorized to call tool {self.name}: {e.message}"
