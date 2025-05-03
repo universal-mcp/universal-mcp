@@ -2,8 +2,8 @@ import json
 import logging
 import os
 import sys
-import traceback
 import time
+import traceback
 
 import litellm
 import yaml
@@ -374,7 +374,7 @@ def process_operation(
 
     parameters = operation_value.get('parameters')
     if isinstance(parameters, list):
-        for i, parameter in enumerate(parameters):
+        for _i, parameter in enumerate(parameters):
             process_parameter(
                 parameter,
                 operation_location_base,
