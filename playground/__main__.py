@@ -1,4 +1,6 @@
+import os
 import subprocess
+import sys
 import time
 
 from loguru import logger
@@ -18,10 +20,13 @@ def main():
         time.sleep(6)  # Give MCP server time to start
         logger.info("MCP server started")
 
-    streamlit_process = subprocess.Popen(
-        ["python", "-m", "streamlit", "run", "playground/streamlit.py"]
+    streamlit_cmd = [
+        sys.executable, "-m", "streamlit", "run",
+        os.path.join("playground", "streamlit.py")
+    ]
+    processes.append(
+        subprocess.Popen(streamlit_cmd, env=os.environ)
     )
-    processes.append(streamlit_process)
     logger.info("Streamlit app started")
     try:
         for p in processes:
