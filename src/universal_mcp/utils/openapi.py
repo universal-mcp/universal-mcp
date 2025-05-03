@@ -4,9 +4,8 @@ import textwrap
 from pathlib import Path
 from typing import Any, Literal
 
-from jsonref import replace_refs
-
 import yaml
+from jsonref import replace_refs
 from pydantic import BaseModel
 
 
@@ -414,7 +413,7 @@ def _generate_method_code(path, method, operation):
                             formatted_default = f'"{repr(default_value)[1:-1]}"' # Use repr() and slice to handle internal quotes
                         elif isinstance(default_value, bool):
                             formatted_default = str(default_value) # True/False becomes "True"/"False"
-                        elif isinstance(default_value, (int, float)):
+                        elif isinstance(default_value, int | float):
                             formatted_default = str(default_value) # Numbers as strings
                         else:
                             formatted_default = "None"
