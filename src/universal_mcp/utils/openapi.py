@@ -534,7 +534,7 @@ def _generate_method_code(path, method, operation):
     
     def_indent = "    " 
     doc_indent = def_indent + "    " 
-    indented_docstring_content = textwrap.indent(docstring_content, doc_indent).strip()
+    indented_docstring_content = textwrap.indent(docstring_content, doc_indent)
     
     # Wrap in triple quotes
     formatted_docstring = f'\n{doc_indent}"""\n{indented_docstring_content}\n{doc_indent}"""'
