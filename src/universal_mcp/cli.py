@@ -213,7 +213,7 @@ def init(
             prompt_suffix=" (e.g., reddit, youtube): ",
         ).strip()
     validate_pattern(app_name, "app name")
-
+    app_name = app_name.lower()
     if not output_dir:
         path_str = typer.prompt(
             "Enter the output directory for the project",
@@ -267,7 +267,7 @@ def init(
         console.print(f"❌ Project generation failed: {exc}")
         raise typer.Exit(code=1) from exc
 
-    project_dir = output_dir / f"universal-mcp-{app_name}"
+    project_dir = output_dir / f"{app_name}"
     console.print(f"✅ Project created at {project_dir}")
 
 
