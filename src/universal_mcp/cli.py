@@ -61,18 +61,12 @@ def generate(
 
 @app.command()
 def readme(
-    file_path: Path = typer.Argument(..., help="Path to the Python file to process"),
-    class_name: str = typer.Option(
-        None,
-        "--class-name",
-        "-c",
-        help="Class name to use for the API client",
-    ),
+    file_path: Path = typer.Argument(..., help="Path to the Python file to process")
 ):
     """Generate a README.md file for the API client."""
     from universal_mcp.utils.readme import generate_readme
 
-    readme_file = generate_readme(file_path, class_name)
+    readme_file = generate_readme(file_path)
     console.print(f"[green]README.md file generated at: {readme_file}[/green]")
 
 
