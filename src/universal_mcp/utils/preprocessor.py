@@ -153,7 +153,11 @@ def generate_description_llm(
         if len(operation_context_str) > 1500:
              operation_context_str = operation_context_str[:1500] + "..."
 
-        user_prompt = f"""Generate a concise one-sentence summary for the API operation defined at path "{path_key}" using the "{method.upper()}" method.
+        user_prompt = f"""Generate a concise one-sentence summary for the API, decsribing what the API does. defined at path "{path_key}" using the "{method.upper()}" method. 
+        Example:
+         - Stars a GitHub repository using the GitHub API and returns a status message.
+         - Retrieves and formats a list of recent commits from a GitHub repository
+
         Context (operation details): {operation_context_str}
         Respond ONLY with the summary text."""
         fallback_text = f"[LLM could not generate summary for {method.upper()} {path_key}]" # Specific fallback
