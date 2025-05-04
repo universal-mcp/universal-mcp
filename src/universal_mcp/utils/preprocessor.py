@@ -16,6 +16,8 @@ COLORS = {
     'GREEN': '\033[92m',
 }
 
+MAX_DESCRIPTION_LENGTH = 200
+
 class ColoredFormatter(logging.Formatter):
     FORMAT = "%(levelname)s:%(message)s"
 
@@ -353,6 +355,12 @@ def process_parameter(
         logger.info(f"Generated and inserted description for parameter '{param_name}' at {parameter_location_base}.")
     else:
         logger.info(f"Existing 'description' found for parameter '{param_name}' at {parameter_location_base}.")
+  
+    final_param_description = parameter.get('description', '')
+    if isinstance(final_param_description, str):
+        desc_length = len(final_param_description)
+        if desc_length > MAX_DESCRIPTION_LENGTH:
+            logger.warning(f"Parameter description at '{parameter_location_base}.description' exceeds max length. Actual length: {desc_length}, Max allowed: {MAX_DESCRIPTION_LENGTH}.")
 
 
 def process_operation(
@@ -404,6 +412,11 @@ def process_operation(
     elif parameters is not None:
         logger.warning(f"'parameters' field for operation '{operation_location_base}' is not a list. Skipping parameter processing.")
 
+    final_summary = operation_value.get('summary', '')
+    if isinstance(final_summary, str):
+        summary_length = len(final_summary)
+        if summary_length > MAX_DESCRIPTION_LENGTH:
+            logger.warning(f"Operation summary at '{operation_location_base}.summary' exceeds max length. Actual length: {summary_length}, Max allowed: {MAX_DESCRIPTION_LENGTH}.")
 
 def process_paths(paths: dict, llm_model: str):
     if not isinstance(paths, dict):
@@ -471,6 +484,12 @@ def validate_info_section(schema_data: dict, llm_model: str):
         logger.info(f"Generated and inserted description for '{info_location}.description'.")
     else:
         logger.info(f"Existing '{info_location}.description' found and valid.")
+
+    final_description = schema_data[info_location].get('description', '')
+    if isinstance(final_description, str):
+        desc_length = len(final_description)
+        if desc_length > MAX_DESCRIPTION_LENGTH:
+            logger.warning(f"API description at '{info_location}.description' exceeds max length. Actual length: {desc_length}, Max allowed: {MAX_DESCRIPTION_LENGTH}.")
         
         
 def process_schema_with_llm(schema_data: dict, llm_model: str):
@@ -522,7 +541,7 @@ def preprocess(schema_file_path: str, llm_model: str = "perplexity/sonar", outpu
         sys.exit(1)
 
 if __name__ == "__main__":
-    schema_path_to_test = "/home/draken/Desktop/Trello.json"
+    schema_path_to_test = "/home/draken/Desktop/Trello_processed.json"
     llm_model_name = "perplexity/sonar"
     output_schema_path = None
 
