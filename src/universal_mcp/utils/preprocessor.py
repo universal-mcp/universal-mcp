@@ -137,11 +137,11 @@ def generate_description_llm(
     if context is None:
         context = {}
 
-    system_prompt = """You are a helpful AI assistant specialized in writing concise summaries for API operations and clear, brief descriptions for API parameters based on their context.
+    system_prompt = """You are a helpful AI assistant specialized in writing concise summaries for API operations, clear, brief descriptions for API parameters, and overview descriptions for the entire API.
     Respond ONLY with the generated text, without any conversational filler or formatting like bullet points unless the description itself requires it. Ensure the response is a single string suitable for a description field."""
 
     user_prompt = ""
-    fallback_text = "[LLM could not generate description]"
+    fallback_text = "[LLM could not generate description]" # Generic fallback
 
     if description_type == 'summary':
         path_key = context.get('path_key', 'unknown path')
@@ -153,7 +153,7 @@ def generate_description_llm(
         user_prompt = f"""Generate a concise one-sentence summary for the API operation defined at path "{path_key}" using the "{method.upper()}" method.
         Context (operation details): {operation_context_str}
         Respond ONLY with the summary text."""
-        fallback_text = f"[LLM could not generate summary for {method.upper()} {path_key}]"
+        fallback_text = f"[LLM could not generate summary for {method.upper()} {path_key}]" # Specific fallback
 
     elif description_type == 'parameter':
         path_key = context.get('path_key', 'unknown path')
@@ -168,13 +168,20 @@ def generate_description_llm(
         user_prompt = f"""Generate a clear, brief description for the API parameter named "{param_name}" located "{param_in}" for the "{method.upper()}" operation at path "{path_key}".
         Context (parameter details): {param_context_str}
         Respond ONLY with the *SINGLE LINE* description text."""
-        fallback_text = f"[LLM could not generate description for parameter {param_name} in {method.upper()} {path_key}]"
+        fallback_text = f"[LLM could not generate description for parameter {param_name} in {method.upper()} {path_key}]" # Specific fallback
+
+    elif description_type == 'api_description':
+        api_title = context.get('title', 'Untitled API')
+        user_prompt = f"""Generate a brief overview description for an API titled "{api_title}" based on an OpenAPI schema.
+        Respond ONLY with the description text."""
+        fallback_text = f"[LLM could not generate description for API '{api_title}']" # Specific fallback
+
     else:
         logger.error(f"Invalid description_type '{description_type}' passed to generate_description_llm.")
         return "[Invalid description type specified]"
 
     if not user_prompt:
-         logger.error("User prompt was not generated.")
+         logger.error(f"User prompt was not generated for description_type '{description_type}'.")
          return fallback_text
 
 
@@ -199,16 +206,28 @@ def generate_description_llm(
             )
 
             print(f"\n{COLORS['YELLOW']}--- LLM Raw Response ({description_type}, Attempt {attempt+1}) ---{COLORS['ENDC']}")
-            print(json.dumps(response.model_dump(), indent=2))
+            try:
+                response_dict = response.model_dump()
+            except AttributeError:
+                response_dict = response.dict()
+            print(json.dumps(response_dict, indent=2))
             print(f"{COLORS['YELLOW']}--------------------------------------------{COLORS['ENDC']}\n")
 
             if response and response.choices and response.choices[0] and response.choices[0].message:
                  response_text = response.choices[0].message.content.strip()
 
                  if response_text.startswith('"') and response_text.endswith('"'):
-                      response_text = response_text[1:-1]
+                      response_text = response_text[1:-1].strip()
                  if response_text.startswith("'") and response_text.endswith("'"):
-                      response_text = response_text[1:-1]
+                      response_text = response_text[1:-1].strip()
+
+                 response_text = response_text.strip()
+
+                 if response_text == fallback_text:
+                     logger.warning(f"LLM returned the fallback text literally for type '{description_type}'. Treating as failure.")
+                     if attempt < max_retries - 1:
+                        time.sleep(retry_delay)
+                     continue
 
                  return f"{response_text}"
             else:
@@ -416,26 +435,48 @@ def process_paths(paths: dict, llm_model: str):
         elif path_value is not None:
              logger.warning(f"Path value for '{path_key}' is not a dictionary. Skipping.")
 
+def generate_api_description(info_title: str, llm_model: str) -> str:
+    """Generates an API description using the LLM based on the API title."""
+    logger.info(f"Attempting to generate description for API titled: '{info_title}'")
+    generated_description = generate_description_llm(
+        description_type='api_description',
+        model=llm_model,
+        context={'title': info_title}
+    )
+    return generated_description
 
-def validate_info_section(schema_data: dict):
+def validate_info_section(schema_data: dict, llm_model: str):
     info = schema_data.get('info')
     info_location = 'info'
+
     if not isinstance(info, dict):
         logger.critical(f"Required '{info_location}' object is missing or not a dictionary.")
         raise ValueError(f"Required '{info_location}' object is missing or not a dictionary.")
 
+    info_title = info.get('title')
+    if not isinstance(info_title, str) or not info_title.strip():
+        logger.critical(f"Required field '{info_location}.title' is missing or empty.")
+        raise ValueError(f"Required field '{info_location}.title' is missing or empty.")
+    logger.info(f"'{info_location}.title' found and valid: '{info_title}'")
+
     info_description = info.get('description')
-    if not isinstance(info_description, str) or not info_description.strip():
-        logger.critical(f"Required field '{info_location}.description' is missing or empty.")
-        raise ValueError(f"Required field '{info_location}.description' is missing or empty.")
 
-    logger.info("'info' and 'info.description' found and valid.")
+    fallback_prefix_for_api = f"[LLM could not generate description for API '{info_title}']"
+    if not isinstance(info_description, str) or not info_description.strip() or info_description.startswith('[LLM could not generate') or info_description.startswith(fallback_prefix_for_api):
+        logger.warning(f"Missing or empty 'description' for '{info_location}'. Attempting to generate using LLM.")
 
+        generated_description = generate_api_description(info_title, llm_model)
 
+        schema_data[info_location]['description'] = generated_description
+        logger.info(f"Generated and inserted description for '{info_location}.description'.")
+    else:
+        logger.info(f"Existing '{info_location}.description' found and valid.")
+        
+        
 def process_schema_with_llm(schema_data: dict, llm_model: str):
     logger.info("Starting schema processing and validation with LLM generation.")
 
-    validate_info_section(schema_data)
+    validate_info_section(schema_data, llm_model)
 
     paths = schema_data.get('paths')
     process_paths(paths, llm_model)
