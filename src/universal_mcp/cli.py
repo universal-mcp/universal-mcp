@@ -271,5 +271,55 @@ def init(
     console.print(f"✅ Project created at {project_dir}")
 
 
+@app.command()
+def preprocess(
+    schema_path: Path | None = typer.Option(
+        None,
+        "--schema",
+        "-s",
+        help="Path to the OpenAPI schema file (JSON or YAML). Prompts if not provided.",
+    ),
+    output_path: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path for the processed schema. Defaults to input file with _processed extension.",
+    )
+):
+    from universal_mcp.utils.preprocessor import preprocess
+
+    """Preprocess an OpenAPI schema file to add missing summaries and descriptions using an LLM."""
+
+    if schema_path is None:
+        path_str = typer.prompt(
+            "Please enter the path to the OpenAPI schema file (JSON or YAML)",
+            prompt_suffix=": ",
+        ).strip()
+        if not path_str:
+             console.print("[red]Error: Schema path is required.[/red]")
+             raise typer.Exit(1)
+        schema_path = Path(path_str)
+
+    # Validate the provided schema_path
+    if not schema_path.exists():
+        console.print(f"[red]Error: Schema file not found at '{schema_path}'[/red]")
+        raise typer.Exit(1)
+    if not schema_path.is_file():
+         console.print(f"[red]Error: Path '{schema_path}' is not a file[/red]")
+         raise typer.Exit(1)
+
+    try:
+        preprocess(
+            schema_file_path=str(schema_path),
+            output_file_path=str(output_path) if output_path else None # Pass as str or None
+        )
+    except SystemExit as e:
+         if e.code != 0:
+              console.print(f"[red]Schema preprocessing failed with exit code {e.code}. See logs above for details.[/red]")
+         raise
+    except Exception as e:
+        console.print(f"[red]An unexpected error occurred during schema preprocessing: {e}[/red]")
+        raise typer.Exit(1) from e
+
 if __name__ == "__main__":
     app()
