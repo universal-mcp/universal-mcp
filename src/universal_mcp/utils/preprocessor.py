@@ -4,6 +4,7 @@ import os
 import sys
 import time
 import traceback
+import re
 
 import litellm
 import yaml
@@ -356,6 +357,19 @@ def process_parameter(
     else:
         logger.info(f"Existing 'description' found for parameter '{param_name}' at {parameter_location_base}.")
   
+    # --- Remove URLs from the parameter description --- 
+    current_description = parameter.get('description', '')
+    if isinstance(current_description, str) and current_description:
+        url_pattern = r'https?://[\S]+' 
+        modified_description = re.sub(url_pattern, '', current_description).strip()
+        modified_description = re.sub(r'\s{2,}', ' ', modified_description).strip()
+
+        if modified_description != current_description:
+            parameter['description'] = modified_description
+            logger.info(f"Removed links from description for parameter '{param_name}' at {parameter_location_base}. New description: '{modified_description[:50]}...'")
+    # --- End URL removal --- 
+
+    # Validate final description length
     final_param_description = parameter.get('description', '')
     if isinstance(final_param_description, str):
         desc_length = len(final_param_description)
@@ -380,24 +394,24 @@ def process_operation(
         return
 
     operation_summary = operation_value.get('summary')
-    if not isinstance(operation_summary, str) or not operation_summary.strip() or operation_summary.startswith('[LLM could not generate'):
-        logger.warning(f"Missing or empty 'summary' for operation '{operation_location_base}'. Attempting to generate.")
-
-        simplified_context = simplify_operation_context(operation_value)
-
-        generated_summary = generate_description_llm(
-            description_type='summary',
-            model=llm_model,
-            context={
-                'path_key': path_key,
-                'method': method,
-                'operation_value': simplified_context
-            }
-        )
-        operation_value['summary'] = generated_summary
-        logger.info(f"Generated and inserted summary for '{operation_location_base}'.")
+    if isinstance(operation_summary, str) and operation_summary.strip() and not operation_summary.startswith('[LLM could not generate'):
+        logger.info(f"Existing summary found for '{operation_location_base}'. Attempting to enhance.")
     else:
-        logger.info(f"Existing 'summary' found for operation '{operation_location_base}'.")
+        logger.warning(f"Missing, empty, or fallback summary for operation '{operation_location_base}'. Attempting to generate.")
+
+    simplified_context = simplify_operation_context(operation_value)
+
+    generated_summary = generate_description_llm(
+        description_type='summary',
+        model=llm_model,
+        context={
+            'path_key': path_key,
+            'method': method,
+            'operation_value': simplified_context
+        }
+    )
+    operation_value['summary'] = generated_summary
+    logger.info(f"Generated/Enhanced and inserted summary for '{operation_location_base}'.")
 
     parameters = operation_value.get('parameters')
     if isinstance(parameters, list):
@@ -440,6 +454,8 @@ def process_paths(paths: dict, llm_model: str):
                 elif method.lower().startswith('x-'):
                      logger.info(f"Skipping method extension '{method.lower()}' in path '{path_key}'.")
                      continue
+                elif method.lower() == 'parameters':
+                    continue
                 elif operation_value is not None:
                      logger.warning(f"Unknown method '{method}' found in path '{path_key}'. Skipping.")
             if not path_value:
