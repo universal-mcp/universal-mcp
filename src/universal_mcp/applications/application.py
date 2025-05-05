@@ -3,7 +3,8 @@ from collections.abc import Callable
 from typing import Any
 
 import httpx
-from gql import Client, gql
+from gql import Client as GraphQLClient
+from gql import gql
 from gql.transport.requests import RequestsHTTPTransport
 from graphql import DocumentNode
 from loguru import logger
@@ -34,36 +35,8 @@ class BaseApplication(ABC):
             **kwargs: Additional keyword arguments passed to the application
         """
         self.name = name
-        self._credentials: dict[str, Any] | None = None
         logger.debug(f"Initializing Application '{name}' with kwargs: {kwargs}")
         analytics.track_app_loaded(name)  # Track app loading
-
-    @property
-    def credentials(self) -> dict[str, Any]:
-        """
-        Get the credentials for the application.
-
-        Returns:
-            Dict[str, Any]: The application credentials. If no integration is configured,
-                           returns an empty dictionary.
-        """
-        if self._credentials:
-            return self._credentials
-        if not self.integration:
-            logger.debug("No integration configured, returning empty credentials")
-            return {}
-        self._credentials = self.integration.get_credentials()
-        return self._credentials
-
-    @credentials.setter
-    def credentials(self, value: dict[str, Any]) -> None:
-        """
-        Set the credentials for the application.
-
-        Args:
-            value: The new credentials to set
-        """
-        self._credentials = value
 
     @abstractmethod
     def list_tools(self) -> list[Callable]:
@@ -92,7 +65,11 @@ class APIApplication(BaseApplication):
     """
 
     def __init__(
-        self, name: str, integration: Integration | None = None, **kwargs: Any
+        self,
+        name: str,
+        integration: Integration | None = None,
+        client: httpx.Client | None = None,
+        **kwargs: Any,
     ) -> None:
         """
         Initialize the API application.
@@ -108,7 +85,7 @@ class APIApplication(BaseApplication):
         logger.debug(
             f"Initializing APIApplication '{name}' with integration: {integration}"
         )
-        self._client: httpx.Client | None = None
+        self._client: httpx.Client | None = client
         self.base_url: str = ""  # Initialize, but subclasses should set this
 
     def _get_headers(self) -> dict[str, str]:
@@ -122,7 +99,10 @@ class APIApplication(BaseApplication):
         Returns:
             Dict[str, str]: Headers to be used in API requests
         """
-        credentials = self.credentials
+        if not self.integration:
+            logger.debug("No integration configured, returning empty headers")
+            return {}
+        credentials = self.integration.get_credentials()
         logger.debug("Got credentials for integration")
 
         # Check if direct headers are provided
@@ -335,6 +315,7 @@ class GraphQLApplication(BaseApplication):
         name: str,
         base_url: str,
         integration: Integration | None = None,
+        client: GraphQLClient | None = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -350,8 +331,7 @@ class GraphQLApplication(BaseApplication):
         self.base_url = base_url
         self.integration = integration
         logger.debug(f"Initializing Application '{name}' with kwargs: {kwargs}")
-        analytics.track_app_loaded(name)  # Track app loading
-        self._client: Client | None = None
+        self._client: GraphQLClient | None = client
 
     def _get_headers(self) -> dict[str, str]:
         """
@@ -399,7 +379,7 @@ class GraphQLApplication(BaseApplication):
         return {}
 
     @property
-    def client(self) -> Client:
+    def client(self) -> GraphQLClient:
         """
         Get the GraphQL client instance.
 
@@ -412,7 +392,9 @@ class GraphQLApplication(BaseApplication):
         if not self._client:
             headers = self._get_headers()
             transport = RequestsHTTPTransport(url=self.base_url, headers=headers)
-            self._client = Client(transport=transport, fetch_schema_from_transport=True)
+            self._client = GraphQLClient(
+                transport=transport, fetch_schema_from_transport=True
+            )
         return self._client
 
     def mutate(

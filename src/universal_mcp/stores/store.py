@@ -5,17 +5,7 @@ from typing import Any
 import keyring
 from loguru import logger
 
-
-class StoreError(Exception):
-    """Base exception class for store-related errors."""
-
-    pass
-
-
-class KeyNotFoundError(StoreError):
-    """Exception raised when a key is not found in the store."""
-
-    pass
+from universal_mcp.exceptions import KeyNotFoundError, StoreError
 
 
 class BaseStore(ABC):

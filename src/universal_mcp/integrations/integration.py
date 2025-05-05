@@ -6,7 +6,7 @@ from loguru import logger
 
 from universal_mcp.exceptions import NotAuthorizedError
 from universal_mcp.stores import BaseStore
-from universal_mcp.stores.store import KeyNotFoundError
+from universal_mcp.stores.store import KeyNotFoundError, MemoryStore
 from universal_mcp.utils.agentr import AgentrClient
 
 
@@ -91,7 +91,7 @@ class ApiKeyIntegration(Integration):
         store: Store instance for persisting credentials and other data
     """
 
-    def __init__(self, name: str, store: BaseStore | None = None, **kwargs):
+    def __init__(self, name: str, store: BaseStore = MemoryStore(), **kwargs):
         self.type = "api_key"
         sanitized_name = sanitize_api_key_name(name)
         super().__init__(sanitized_name, store, **kwargs)

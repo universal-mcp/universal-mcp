@@ -11,3 +11,11 @@ class ToolError(Exception):
 
 class InvalidSignature(Exception):
     """Raised when a signature is invalid."""
+
+
+class StoreError(Exception):
+    """Base exception class for store-related errors."""
+
+
+class KeyNotFoundError(StoreError):
+    """Exception raised when a key is not found in the store."""
