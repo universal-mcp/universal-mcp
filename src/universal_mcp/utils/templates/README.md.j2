@@ -1,0 +1,17 @@
+# {{ name }} MCP Server
+
+An MCP Server for the {{ name }} API.
+
+## 🛠️ Tool List
+
+This is automatically generated from OpenAPI schema for the {{ name }} API.
+
+{% if tools %}
+| Tool | Description |
+|------|-------------|
+{%- for tool_name, tool_desc in tools %}
+| `{{ tool_name }}` | {{ tool_desc }} |
+{%- endfor %}
+{% else %}
+No tools with documentation were found in this API client.
+{% endif %}

@@ -1,0 +1,27 @@
+from typing import Any, Annotated
+from universal_mcp.applications import APIApplication
+from universal_mcp.integrations import Integration
+
+class {{ class_name }}(APIApplication):
+    def __init__(self, integration: Integration = None, **kwargs) -> None:
+        super().__init__(name='{{ class_name.lower() }}', integration=integration, **kwargs)
+        self.base_url = "{{ base_url }}"
+
+{% for method in methods %}
+    def {{ method.name }}(self, {{ method.args_str }}) -> {{ method.return_type }}:
+        """
+        {{ method.description }}
+        {% if method.tags %}
+        Tags: {{ method.tags|join(', ') }}
+        {% endif %}
+        """
+        
+        {{ method.implementation|indent(8) }}
+{% endfor %}
+
+    def list_tools(self):
+        return [
+            {% for method in methods %}
+            self.{{ method.name }}{% if not loop.last %},{% endif %}
+            {%- endfor %}
+        ] 
