@@ -3,6 +3,7 @@ import re
 import textwrap
 from pathlib import Path
 from typing import Any, Literal
+from keyword import iskeyword
 
 import yaml
 from jsonref import replace_refs
@@ -90,7 +91,10 @@ def _sanitize_identifier(name: str | None) -> str:
     """
     if name is None:
         return ""
-    return name.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "")
+    sanitized = name.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "").replace("$", "_")
+    if iskeyword(sanitized):
+        sanitized += "_"
+    return sanitized
 
 
 def _extract_properties_from_schema(

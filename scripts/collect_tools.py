@@ -50,6 +50,7 @@ apps = [
     "notion",
     "perplexity",
     "pipedrive",
+    "posthog",
     "reddit",
     "replicate",
     "resend",
