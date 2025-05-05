@@ -2,6 +2,7 @@ import importlib
 import os
 import subprocess
 import sys
+from importlib.metadata import version
 
 from loguru import logger
 
@@ -28,7 +29,13 @@ def _install_or_upgrade_package(package_prefix: str, slug_clean: str):
     """
     Helper to install a package via pip from the universal-mcp GitHub repository.
     """
-    # Check current version with uv pip show
+    try:
+        current_version = version(package_prefix)
+        logger.info(f"Current version of {package_prefix} is {current_version}")
+    except ImportError:
+        current_version = None
+    if current_version is not None:
+        return
     repo_url = f"git+https://github.com/universal-mcp/{slug_clean}"
     cmd = [
         "uv",

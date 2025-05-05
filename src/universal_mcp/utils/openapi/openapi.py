@@ -93,24 +93,26 @@ def _sanitize_identifier(name: str | None) -> str:
     return name.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "")
 
 
-def _extract_properties_from_schema(schema: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+def _extract_properties_from_schema(
+    schema: dict[str, Any],
+) -> tuple[dict[str, Any], list[str]]:
     """Extracts properties and required fields from a schema, handling 'allOf'."""
     properties = {}
     required_fields = []
 
-    if 'allOf' in schema:
-        for sub_schema in schema['allOf']:
+    if "allOf" in schema:
+        for sub_schema in schema["allOf"]:
             sub_props, sub_required = _extract_properties_from_schema(sub_schema)
             properties.update(sub_props)
             required_fields.extend(sub_required)
-    
+
     # Combine with top-level properties and required fields, if any
-    properties.update(schema.get('properties', {}))
-    required_fields.extend(schema.get('required', []))
-    
+    properties.update(schema.get("properties", {}))
+    required_fields.extend(schema.get("required", []))
+
     # Deduplicate required fields
     required_fields = list(set(required_fields))
-    
+
     return properties, required_fields
 
 
@@ -200,17 +202,16 @@ def _generate_path_params(path: str) -> list[Parameters]:
     path_params_in_url = re.findall(r"{([^}]+)}", path)
     parameters = []
     for param_name in path_params_in_url:
-
         try:
             parameters.append(
                 Parameters(
                     name=_sanitize_identifier(param_name),
                     identifier=param_name,
-                    description=param_name, 
-                    type="string", 
+                    description=param_name,
+                    type="string",
                     where="path",
-                    required=True, 
-                    example=None 
+                    required=True,
+                    example=None,
                 )
             )
         except Exception as e:
@@ -234,22 +235,22 @@ def _generate_query_params(operation: dict[str, Any]) -> list[Parameters]:
         name = param.get("name")
         if name is None:
             continue
-            
+
         # Clean the parameter name for use as a Python identifier
         clean_name = _sanitize_identifier(name)
-        
+
         description = param.get("description", "")
-        
+
         # Extract type from schema if available
         param_schema = param.get("schema", {})
         type_value = param_schema.get("type") if param_schema else param.get("type")
         # Default to string if type is not available
         if type_value is None:
             type_value = "string"
-            
+
         # Extract example
         example_value = param.get("example", param_schema.get("example"))
-        
+
         where = param.get("in")
         required = param.get("required", False)
         if where == "query":
@@ -260,7 +261,7 @@ def _generate_query_params(operation: dict[str, Any]) -> list[Parameters]:
                 type=type_value,
                 where=where,
                 required=required,
-                example=str(example_value) if example_value is not None else None 
+                example=str(example_value) if example_value is not None else None,
             )
             query_params.append(parameter)
     return query_params
@@ -270,14 +271,14 @@ def _generate_body_params(operation: dict[str, Any]) -> list[Parameters]:
     body_params = []
     request_body = operation.get("requestBody", {})
     if not request_body:
-        return [] # No request body defined
-        
+        return []  # No request body defined
+
     required_body = request_body.get("required", False)
     content = request_body.get("content", {})
     json_content = content.get("application/json", {})
     if not json_content or "schema" not in json_content:
-        return [] # No JSON schema found
-        
+        return []  # No JSON schema found
+
     schema = json_content.get("schema", {})
     properties, required_fields = _extract_properties_from_schema(schema)
 
@@ -285,19 +286,19 @@ def _generate_body_params(operation: dict[str, Any]) -> list[Parameters]:
         param_type = param_schema.get("type", "string")
         param_description = param_schema.get("description", param_name)
         # Parameter is required if the body is required AND the field is in the schema's required list
-        param_required = required_body and param_name in required_fields 
+        param_required = required_body and param_name in required_fields
         # Extract example
         param_example = param_schema.get("example")
-        
+
         body_params.append(
             Parameters(
-                name=_sanitize_identifier(param_name), # Clean name for Python
-                identifier=param_name, # Original name for API
+                name=_sanitize_identifier(param_name),  # Clean name for Python
+                identifier=param_name,  # Original name for API
                 description=param_description,
                 type=param_type,
                 where="body",
                 required=param_required,
-                example=str(param_example) if param_example is not None else None 
+                example=str(param_example) if param_example is not None else None,
             )
         )
     return body_params
@@ -306,7 +307,7 @@ def _generate_body_params(operation: dict[str, Any]) -> list[Parameters]:
 def _generate_method_code(path, method, operation):
     """
     Generate the code for a single API method.
-    
+
 
     Args:
         path (str): The API path (e.g., '/users/{user_id}').
@@ -327,13 +328,13 @@ def _generate_method_code(path, method, operation):
     query_params = _generate_query_params(operation)
     body_params = _generate_body_params(operation)
     return_type = _determine_return_type(operation)
-    
+
     has_body = "requestBody" in operation
     body_required = has_body and operation["requestBody"].get("required", False)
     has_empty_body = False
-    request_body_properties = {} 
-    required_fields = [] 
-    is_array_body = False 
+    request_body_properties = {}
+    required_fields = []
+    is_array_body = False
 
     if has_body:
         request_body_content = operation.get("requestBody", {}).get("content", {})
@@ -343,16 +344,24 @@ def _generate_method_code(path, method, operation):
             if schema.get("type") == "array":
                 is_array_body = True
             else:
-                request_body_properties, required_fields = _extract_properties_from_schema(schema)
-                if (not request_body_properties or len(request_body_properties) == 0) and schema.get("additionalProperties") is True:
+                request_body_properties, required_fields = (
+                    _extract_properties_from_schema(schema)
+                )
+                if (
+                    not request_body_properties or len(request_body_properties) == 0
+                ) and schema.get("additionalProperties") is True:
                     has_empty_body = True
-        elif not request_body_content or all(not c for _, c in request_body_content.items()): # Check if content is truly empty
-             has_empty_body = True
+        elif not request_body_content or all(
+            not c for _, c in request_body_content.items()
+        ):  # Check if content is truly empty
+            has_empty_body = True
 
     # Build function arguments with deduplication (Priority: Path > Body > Query)
     required_args = []
     optional_args = []
-    seen_clean_names = set() # Keep track of names added to the signature - DEFINED HERE NOW
+    seen_clean_names = (
+        set()
+    )  # Keep track of names added to the signature - DEFINED HERE NOW
 
     # 1. Process Path Parameters (Highest Priority)
     for param in path_params:
@@ -361,11 +370,14 @@ def _generate_method_code(path, method, operation):
         seen_clean_names.add(param.name)
 
     for param in query_params:
-        
-        param_identifier_for_signature = param.name # Use the cleaned name for signature
-        if param_identifier_for_signature not in required_args and param_identifier_for_signature not in [
-            p.split("=")[0] for p in optional_args
-        ]:
+        param_identifier_for_signature = (
+            param.name
+        )  # Use the cleaned name for signature
+        if (
+            param_identifier_for_signature not in required_args
+            and param_identifier_for_signature
+            not in [p.split("=")[0] for p in optional_args]
+        ):
             if param.required:
                 required_args.append(param_identifier_for_signature)
             else:
@@ -397,8 +409,8 @@ def _generate_method_code(path, method, operation):
             for prop_name in request_body_properties:
                 prop_schema = request_body_properties[prop_name]
                 # Clean the original prop_name for Python identifier using the helper
-                clean_prop_name = _sanitize_identifier(prop_name) 
-                
+                clean_prop_name = _sanitize_identifier(prop_name)
+
                 if prop_name in required_fields:
                     request_body_params.append(clean_prop_name)
                     if clean_prop_name not in required_args:
@@ -411,15 +423,17 @@ def _generate_method_code(path, method, operation):
                     if default_value is not None:
                         # Format default value for Python signature
                         if isinstance(default_value, str):
-                            formatted_default = f'"{repr(default_value)[1:-1]}"' # Use repr() and slice to handle internal quotes
+                            formatted_default = f'"{repr(default_value)[1:-1]}"'  # Use repr() and slice to handle internal quotes
                         elif isinstance(default_value, bool):
-                            formatted_default = str(default_value) # True/False becomes "True"/"False"
+                            formatted_default = str(
+                                default_value
+                            )  # True/False becomes "True"/"False"
                         elif isinstance(default_value, int | float):
-                            formatted_default = str(default_value) # Numbers as strings
+                            formatted_default = str(default_value)  # Numbers as strings
                         else:
                             formatted_default = "None"
                         arg_str = f"{clean_prop_name}={formatted_default}"
-                        
+
                     if arg_str not in optional_args:
                         optional_args.append(arg_str)
 
@@ -430,86 +444,105 @@ def _generate_method_code(path, method, operation):
     # Combine required and optional arguments
     args = required_args + optional_args
 
-    # ----- Build Docstring ----- 
+    # ----- Build Docstring -----
     docstring_parts = []
-    return_type = _determine_return_type(operation) 
-    
+    return_type = _determine_return_type(operation)
+
     # Summary
     summary = operation.get("summary", "").strip()
     if not summary:
-        summary = operation.get("description", f"Execute {method.upper()} {path}").strip()
-        summary = summary.split('\n')[0]
+        summary = operation.get(
+            "description", f"Execute {method.upper()} {path}"
+        ).strip()
+        summary = summary.split("\n")[0]
     if summary:
         docstring_parts.append(summary)
-    
+
     # Args
     args_doc_lines = []
     param_details = {}
     all_params = path_params + query_params + body_params
-    signature_arg_names = {a.split('=')[0] for a in args} 
+    signature_arg_names = {a.split("=")[0] for a in args}
 
     for param in all_params:
         if param.name in signature_arg_names and param.name not in param_details:
             param_details[param.name] = param
-            
-    # Fetch request body example 
+
+    # Fetch request body example
     request_body_example_str = None
     if has_body:
         try:
-            json_content = operation['requestBody']['content']['application/json']
+            json_content = operation["requestBody"]["content"]["application/json"]
             example_data = None
-            if 'example' in json_content:
-                example_data = json_content['example']
-            elif 'examples' in json_content and json_content['examples']:
-                first_example_key = list(json_content['examples'].keys())[0]
-                example_data = json_content['examples'][first_example_key].get('value')
+            if "example" in json_content:
+                example_data = json_content["example"]
+            elif "examples" in json_content and json_content["examples"]:
+                first_example_key = list(json_content["examples"].keys())[0]
+                example_data = json_content["examples"][first_example_key].get("value")
 
             if example_data is not None:
                 try:
                     example_json = json.dumps(example_data, indent=2)
-                    indented_example = textwrap.indent(example_json, ' ' * 8) # 8 spaces
+                    indented_example = textwrap.indent(
+                        example_json, " " * 8
+                    )  # 8 spaces
                     request_body_example_str = f"\n        Example:\n        ```json\n{indented_example}\n        ```"
                 except TypeError:
                     request_body_example_str = f"\n        Example: {example_data}"
         except KeyError:
-            pass # No example found
+            pass  # No example found
 
     # Identify the last argument related to the request body
     last_body_arg_name = None
     # request_body_params contains the names as they appear in the signature
     if request_body_params:
         # Find which of these appears last in the combined args list
-        body_args_in_signature = [a.split('=')[0] for a in args if a.split('=')[0] in request_body_params]
+        body_args_in_signature = [
+            a.split("=")[0] for a in args if a.split("=")[0] in request_body_params
+        ]
         if body_args_in_signature:
             last_body_arg_name = body_args_in_signature[-1]
 
     if signature_arg_names:
         args_doc_lines.append("Args:")
         for arg_signature_str in args:
-            arg_name = arg_signature_str.split('=')[0]
-            example_str = None # Initialize example_str here
+            arg_name = arg_signature_str.split("=")[0]
+            example_str = None  # Initialize example_str here
             detail = param_details.get(arg_name)
             if detail:
                 desc = detail.description or "No description provided."
                 type_hint = detail.type if detail.type else "Any"
                 arg_line = f"    {arg_name} ({type_hint}): {desc}"
                 if detail.example:
-                    example_str = repr(detail.example) 
+                    example_str = repr(detail.example)
                     arg_line += f" Example: {example_str}."
-               
+
                 # Append the full body example after the last body-related argument
                 if arg_name == last_body_arg_name and request_body_example_str:
                     # Remove the simple Example: if it exists before adding the detailed one
-                    if example_str and (f" Example: {example_str}." in arg_line or f" Example: {example_str} ." in arg_line):
-                        arg_line = arg_line.replace(f" Example: {example_str}.", "") # Remove with or without trailing period
-                    arg_line += request_body_example_str # Append the formatted JSON example
-                    
+                    if example_str and (
+                        f" Example: {example_str}." in arg_line
+                        or f" Example: {example_str} ." in arg_line
+                    ):
+                        arg_line = arg_line.replace(
+                            f" Example: {example_str}.", ""
+                        )  # Remove with or without trailing period
+                    arg_line += (
+                        request_body_example_str  # Append the formatted JSON example
+                    )
+
                 args_doc_lines.append(arg_line)
             elif arg_name == "request_body" and has_empty_body:
-                 args_doc_lines.append(f"    {arg_name} (dict | None): Optional dictionary for arbitrary request body data.")
-                 # Also append example here if this is the designated body arg
-                 if arg_name == last_body_arg_name and request_body_example_str: # Ensure this 'if' is indented correctly relative to 'elif'
-                     args_doc_lines[-1] += request_body_example_str # Ensure this line is indented correctly relative to the 'if'
+                args_doc_lines.append(
+                    f"    {arg_name} (dict | None): Optional dictionary for arbitrary request body data."
+                )
+                # Also append example here if this is the designated body arg
+                if (
+                    arg_name == last_body_arg_name and request_body_example_str
+                ):  # Ensure this 'if' is indented correctly relative to 'elif'
+                    args_doc_lines[-1] += (
+                        request_body_example_str  # Ensure this line is indented correctly relative to the 'if'
+                    )
 
     if args_doc_lines:
         docstring_parts.append("\n".join(args_doc_lines))
@@ -521,25 +554,29 @@ def _generate_method_code(path, method, operation):
         if code.startswith("2"):
             success_desc = resp_info.get("description", "").strip()
             break
-    docstring_parts.append(f"Returns:\n    {return_type}: {success_desc or 'API response data.'}") # Use return_type
-    
+    docstring_parts.append(
+        f"Returns:\n    {return_type}: {success_desc or 'API response data.'}"
+    )  # Use return_type
+
     # Tags Section
     operation_tags = operation.get("tags", [])
     if operation_tags:
         tags_string = ", ".join(operation_tags)
         docstring_parts.append(f"Tags:\n    {tags_string}")
-            
+
     # Combine and Format docstring
     docstring_content = "\n\n".join(docstring_parts)
-    
-    def_indent = "    " 
-    doc_indent = def_indent + "    " 
+
+    def_indent = "    "
+    doc_indent = def_indent + "    "
     indented_docstring_content = textwrap.indent(docstring_content, doc_indent)
-    
+
     # Wrap in triple quotes
-    formatted_docstring = f'\n{doc_indent}"""\n{indented_docstring_content}\n{doc_indent}"""'
+    formatted_docstring = (
+        f'\n{doc_indent}"""\n{indented_docstring_content}\n{doc_indent}"""'
+    )
     # ----- End Build Docstring -----
-    
+
     if args:
         signature = f"    def {func_name}(self, {', '.join(args)}) -> {return_type}:"
     else:

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from universal_mcp.utils.openapi import generate_api_client, load_schema
+from universal_mcp.utils.openapi.openapi import generate_api_client, load_schema
 
 
 def echo(message: str, err: bool = False) -> None:

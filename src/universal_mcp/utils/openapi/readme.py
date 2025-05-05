@@ -22,10 +22,13 @@ def _import_class(module_path: str, class_name: str):
             f"Class '{class_name}' not found in module '{module_path}'"
         ) from e
 
+
 def _get_single_class_name(file_path: Path) -> str:
-    with open(file_path, "r") as file:
+    with open(file_path) as file:
         tree = ast.parse(file.read(), filename=str(file_path))
-    class_defs = [node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
+    class_defs = [
+        node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)
+    ]
     if len(class_defs) == 1:
         logger.info(f"Auto-detected class: {class_defs[0]}")
         return class_defs[0]
@@ -33,6 +36,7 @@ def _get_single_class_name(file_path: Path) -> str:
         raise ValueError(f"No class found in {file_path}")
     else:
         raise ValueError(f"Multiple classes found in {file_path}; please specify one.")
+
 
 def generate_readme(app: Path) -> Path:
     """Generate README.md with API documentation from a file containing one class."""

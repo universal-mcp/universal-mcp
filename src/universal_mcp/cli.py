@@ -39,7 +39,7 @@ def generate(
     This name will be used for the folder in applications/.
     """
     # Import here to avoid circular imports
-    from universal_mcp.utils.api_generator import generate_api_from_schema
+    from universal_mcp.utils.openapi.api_generator import generate_api_from_schema
 
     if not schema_path.exists():
         console.print(f"[red]Error: Schema file {schema_path} does not exist[/red]")
@@ -61,10 +61,10 @@ def generate(
 
 @app.command()
 def readme(
-    file_path: Path = typer.Argument(..., help="Path to the Python file to process")
+    file_path: Path = typer.Argument(..., help="Path to the Python file to process"),
 ):
     """Generate a README.md file for the API client."""
-    from universal_mcp.utils.readme import generate_readme
+    from universal_mcp.utils.openapi.readme import generate_readme
 
     readme_file = generate_readme(file_path)
     console.print(f"[green]README.md file generated at: {readme_file}[/green]")
@@ -85,7 +85,7 @@ def docgen(
     This command uses litellm with structured output to generate high-quality
     Google-style docstrings for all functions in the specified Python file.
     """
-    from universal_mcp.utils.docgen import process_file
+    from universal_mcp.utils.openapi.docgen import process_file
 
     if not file_path.exists():
         console.print(f"[red]Error: File not found: {file_path}[/red]")
@@ -278,9 +278,9 @@ def preprocess(
         "--output",
         "-o",
         help="Output file path for the processed schema. Defaults to input file with _processed extension.",
-    )
+    ),
 ):
-    from universal_mcp.utils.preprocessor import preprocess
+    from universal_mcp.utils.openapi.preprocessor import preprocess
 
     """Preprocess an OpenAPI schema file to add missing summaries and descriptions using an LLM."""
 
@@ -290,8 +290,8 @@ def preprocess(
             prompt_suffix=": ",
         ).strip()
         if not path_str:
-             console.print("[red]Error: Schema path is required.[/red]")
-             raise typer.Exit(1)
+            console.print("[red]Error: Schema path is required.[/red]")
+            raise typer.Exit(1)
         schema_path = Path(path_str)
 
     # Validate the provided schema_path
@@ -299,21 +299,28 @@ def preprocess(
         console.print(f"[red]Error: Schema file not found at '{schema_path}'[/red]")
         raise typer.Exit(1)
     if not schema_path.is_file():
-         console.print(f"[red]Error: Path '{schema_path}' is not a file[/red]")
-         raise typer.Exit(1)
+        console.print(f"[red]Error: Path '{schema_path}' is not a file[/red]")
+        raise typer.Exit(1)
 
     try:
         preprocess(
             schema_file_path=str(schema_path),
-            output_file_path=str(output_path) if output_path else None # Pass as str or None
+            output_file_path=str(output_path)
+            if output_path
+            else None,  # Pass as str or None
         )
     except SystemExit as e:
-         if e.code != 0:
-              console.print(f"[red]Schema preprocessing failed with exit code {e.code}. See logs above for details.[/red]")
-         raise
+        if e.code != 0:
+            console.print(
+                f"[red]Schema preprocessing failed with exit code {e.code}. See logs above for details.[/red]"
+            )
+        raise
     except Exception as e:
-        console.print(f"[red]An unexpected error occurred during schema preprocessing: {e}[/red]")
+        console.print(
+            f"[red]An unexpected error occurred during schema preprocessing: {e}[/red]"
+        )
         raise typer.Exit(1) from e
+
 
 if __name__ == "__main__":
     app()
