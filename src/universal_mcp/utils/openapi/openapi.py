@@ -83,15 +83,35 @@ def _sanitize_identifier(name: str | None) -> str:
 
     Replaces hyphens, dots, and square brackets with underscores.
     Removes closing square brackets.
+    Removes leading underscores (e.g., `_param` becomes `param`),
+    unless the name consists only of underscores (e.g., `_` or `__` become `_`).
+    Appends an underscore if the name is a Python keyword (e.g., `for` becomes `for_`).
+    Converts `self` to `self_arg`.
     Returns empty string if input is None.
     """
     if name is None:
         return ""
+    
+    # Initial replacements for common non-alphanumeric characters
     sanitized = name.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "").replace("$", "_")
+
+    # Remove leading underscores, but preserve a single underscore if the name (after initial replace)
+    # consisted only of underscores.
+    if sanitized.startswith('_'):
+        stripped_name = sanitized.lstrip('_')
+        if not stripped_name:  # Original (after initial replace) was all underscores (e.g., "_", "___")
+            sanitized = "_"
+        else:
+            sanitized = stripped_name
+            
+    # Append underscore if the sanitized name is a Python keyword
     if iskeyword(sanitized):
         sanitized += "_"
-    if sanitized == "self": # Ensure "self" becomes "self_arg" to avoid conflict with instance method's self
+        
+    # Special handling for "self" to avoid conflict with instance method's self argument
+    if sanitized == "self":
         sanitized = "self_arg"
+        
     return sanitized
 
 
@@ -321,6 +341,7 @@ def _generate_method_code(path, method, operation):
     Returns:
         tuple: (method_code, func_name) - The Python code for the method and its name.
     """
+    print(f"--- Generating code for: {method.upper()} {path} ---") # Log endpoint being processed
 
     func_name = _determine_function_name(operation, path, method)
     operation.get("summary", "")
