@@ -327,6 +327,67 @@ def _generate_method_code(path, method, operation):
     path_params = _generate_path_params(path)
     query_params = _generate_query_params(operation)
     body_params = _generate_body_params(operation)
+
+    # --- Alias duplicate parameter names ---
+    # Path parameters have the highest priority and their names are not changed.
+    path_param_names = {p.name for p in path_params}
+
+    # Alias query parameters
+    current_query_param_names = set()
+    for q_param in query_params:
+        original_q_name = q_param.name
+        temp_q_name = original_q_name
+        # Check against path params
+        if temp_q_name in path_param_names:
+            temp_q_name = f"{original_q_name}_query"
+        # Ensure uniqueness among query params themselves after potential aliasing
+        # (though less common, if _sanitize_identifier produced same base for different originals)
+        # This step is more about ensuring the final suffixed name is unique if multiple query params mapped to same path param name
+        counter = 1
+        final_q_name = temp_q_name
+        while final_q_name in path_param_names or final_q_name in current_query_param_names : # Check against path and already processed query params
+            final_q_name = f"{original_q_name}_query{counter if counter > 1 else ''}"
+            if temp_q_name == original_q_name : # first conflict was with path
+                 final_q_name = f"{original_q_name}_query" # try simple suffix first
+                 if final_q_name in path_param_names or final_q_name in current_query_param_names:
+                     final_q_name = f"{original_q_name}_query_{counter}" # then add counter
+            else: # conflict was with another query param after initial suffixing
+                 final_q_name = f"{temp_q_name}_{counter}"
+            counter += 1
+        q_param.name = final_q_name
+        current_query_param_names.add(q_param.name)
+
+
+    # Alias body parameters
+    # Names to check against: path param names and (now aliased) query param names
+    existing_param_names_for_body = path_param_names.union(current_query_param_names)
+    current_body_param_names = set()
+
+    for b_param in body_params:
+        original_b_name = b_param.name
+        temp_b_name = original_b_name
+        # Check against path and query params
+        if temp_b_name in existing_param_names_for_body:
+            temp_b_name = f"{original_b_name}_body"
+
+        # Ensure uniqueness among body params themselves or further conflicts
+        counter = 1
+        final_b_name = temp_b_name
+        while final_b_name in existing_param_names_for_body or final_b_name in current_body_param_names:
+            final_b_name = f"{original_b_name}_body{counter if counter > 1 else ''}"
+            if temp_b_name == original_b_name: # first conflict was with path/query
+                final_b_name = f"{original_b_name}_body"
+                if final_b_name in existing_param_names_for_body or final_b_name in current_body_param_names:
+                    final_b_name = f"{original_b_name}_body_{counter}"
+            else: # conflict was with another body param after initial suffixing
+                final_b_name = f"{temp_b_name}_{counter}"
+
+            counter += 1
+        b_param.name = final_b_name
+        current_body_param_names.add(b_param.name)
+    # --- End Alias duplicate parameter names ---
+
+
     return_type = _determine_return_type(operation)
 
     has_body = "requestBody" in operation
@@ -359,87 +420,95 @@ def _generate_method_code(path, method, operation):
     # Build function arguments with deduplication (Priority: Path > Body > Query)
     required_args = []
     optional_args = []
-    seen_clean_names = (
-        set()
-    )  # Keep track of names added to the signature - DEFINED HERE NOW
+    # seen_clean_names = set() # No longer needed if logic below is correct
 
     # 1. Process Path Parameters (Highest Priority)
     for param in path_params:
-        if param.name not in required_args:
+        # Path param names are sanitized but not suffixed by aliasing.
+        # They are the baseline.
+        if param.name not in required_args: # param.name is the sanitized name
             required_args.append(param.name)
-        seen_clean_names.add(param.name)
 
-    for param in query_params:
-        param_identifier_for_signature = (
-            param.name
-        )  # Use the cleaned name for signature
-        if (
-            param_identifier_for_signature not in required_args
-            and param_identifier_for_signature
-            not in [p.split("=")[0] for p in optional_args]
-        ):
+    # 2. Process Query Parameters
+    for param in query_params: # param.name is the potentially aliased name (e.g., id_query)
+        arg_name_for_sig = param.name
+        current_arg_names_set = set(required_args) | {arg.split('=')[0] for arg in optional_args}
+        if arg_name_for_sig not in current_arg_names_set:
             if param.required:
-                required_args.append(param_identifier_for_signature)
+                required_args.append(arg_name_for_sig)
             else:
-                optional_args.append(f"{param_identifier_for_signature}=None")
-        seen_clean_names.add(param.name)
+                optional_args.append(f"{arg_name_for_sig}=None")
 
-    # Handle array type request body differently
-    request_body_params = []
+    # 3. Process Body Parameters / Request Body
+    # This list tracks the *final* names of parameters in the signature that come from the request body,
+    # used later for docstring example placement.
+    final_request_body_arg_names_for_signature = []
+    final_empty_body_param_name = None # For the specific case of has_empty_body
+
     if has_body:
+        current_arg_names_set = set(required_args) | {arg.split('=')[0] for arg in optional_args}
         if is_array_body:
-            # For array request bodies, add a single parameter for the entire array
-            array_param_name = "items"
-            # Try to get a better name from the operation or path
+            array_param_name_base = "items"  # Default base name
             if func_name.endswith("_list_input"):
-                array_param_name = func_name.replace("_list_input", "")
+                array_param_name_base = func_name.replace("_list_input", "")
             elif "List" in func_name:
-                array_param_name = func_name.split("List")[0].lower() + "_list"
+                array_param_name_base = func_name.split("List")[0].lower() + "_list"
 
-            # Make the array parameter required if the request body is required
-            if body_required:
-                required_args.append(array_param_name)
-            else:
-                optional_args.append(f"{array_param_name}=None")
-
-            # Remember this is an array param
-            request_body_params = [array_param_name]
-        elif request_body_properties:
-            # For object request bodies, add individual properties as parameters
-            for prop_name in request_body_properties:
-                prop_schema = request_body_properties[prop_name]
-                # Clean the original prop_name for Python identifier using the helper
-                clean_prop_name = _sanitize_identifier(prop_name)
-
-                if prop_name in required_fields:
-                    request_body_params.append(clean_prop_name)
-                    if clean_prop_name not in required_args:
-                        required_args.append(clean_prop_name)
+            final_array_param_name = array_param_name_base
+            counter = 1
+            is_first_suffix_attempt = True
+            while final_array_param_name in current_arg_names_set:
+                if is_first_suffix_attempt:
+                    final_array_param_name = f"{array_param_name_base}_body"
+                    is_first_suffix_attempt = False
                 else:
-                    request_body_params.append(clean_prop_name)
-                    # Handle optional parameters with defaults
-                    default_value = prop_schema.get("default")
-                    arg_str = f"{clean_prop_name}=None"
-                    if default_value is not None:
-                        # Format default value for Python signature
-                        if isinstance(default_value, str):
-                            formatted_default = f'"{repr(default_value)[1:-1]}"'  # Use repr() and slice to handle internal quotes
-                        elif isinstance(default_value, bool):
-                            formatted_default = str(
-                                default_value
-                            )  # True/False becomes "True"/"False"
-                        elif isinstance(default_value, int | float):
-                            formatted_default = str(default_value)  # Numbers as strings
-                        else:
-                            formatted_default = "None"
-                        arg_str = f"{clean_prop_name}={formatted_default}"
+                    final_array_param_name = f"{array_param_name_base}_body_{counter}"
+                counter += 1
+            
+            if body_required:
+                required_args.append(final_array_param_name)
+            else:
+                optional_args.append(f"{final_array_param_name}=None")
+            final_request_body_arg_names_for_signature.append(final_array_param_name)
 
-                    if arg_str not in optional_args:
-                        optional_args.append(arg_str)
+        elif request_body_properties:  # Object body
+            for param in body_params:  # Iterate ALIASED body_params
+                arg_name_for_sig = param.name # This is the final, aliased name (e.g., "id_body")
+                
+                # Defensive check against already added args (should be covered by aliasing logic)
+                current_arg_names_set_loop = set(required_args) | {arg.split('=')[0] for arg in optional_args}
+                if arg_name_for_sig not in current_arg_names_set_loop:
+                    if param.required:
+                        required_args.append(arg_name_for_sig)
+                    else:
+                        # Parameters model does not store schema 'default'. Optional params default to None.
+                        optional_args.append(f"{arg_name_for_sig}=None")
+                final_request_body_arg_names_for_signature.append(arg_name_for_sig)
 
-    # If request body is present but empty (content: {}), add a generic request_body parameter
-    if has_empty_body and "request_body=None" not in optional_args:
-        optional_args.append("request_body=None")
+    # If request body is present but empty (e.g. content: {}), add a generic request_body parameter
+    # This is handled *after* specific body params, as it's a fallback.
+    if has_empty_body:
+        empty_body_param_name_base = "request_body"
+        current_arg_names_set = set(required_args) | {arg.split('=')[0] for arg in optional_args}
+        
+        final_empty_body_param_name = empty_body_param_name_base
+        counter = 1
+        is_first_suffix_attempt = True
+        while final_empty_body_param_name in current_arg_names_set:
+            if is_first_suffix_attempt:
+                final_empty_body_param_name = f"{empty_body_param_name_base}_body"
+                is_first_suffix_attempt = False
+            else:
+                final_empty_body_param_name = f"{empty_body_param_name_base}_body_{counter}"
+            counter += 1
+
+        # Check if it was somehow added by other logic (e.g. if 'request_body' was an explicit param name)
+        # This check is mostly defensive.
+        if final_empty_body_param_name not in (set(required_args) | {arg.split('=')[0] for arg in optional_args}):
+            optional_args.append(f"{final_empty_body_param_name}=None")
+        # Track for docstring, even if it's just 'request_body' or 'request_body_body'
+        if final_empty_body_param_name not in final_request_body_arg_names_for_signature:
+             final_request_body_arg_names_for_signature.append(final_empty_body_param_name)
 
     # Combine required and optional arguments
     args = required_args + optional_args
@@ -495,10 +564,10 @@ def _generate_method_code(path, method, operation):
     # Identify the last argument related to the request body
     last_body_arg_name = None
     # request_body_params contains the names as they appear in the signature
-    if request_body_params:
+    if final_request_body_arg_names_for_signature: # Use the new list with final aliased names
         # Find which of these appears last in the combined args list
         body_args_in_signature = [
-            a.split("=")[0] for a in args if a.split("=")[0] in request_body_params
+            a.split("=")[0] for a in args if a.split("=")[0] in final_request_body_arg_names_for_signature
         ]
         if body_args_in_signature:
             last_body_arg_name = body_args_in_signature[-1]
@@ -532,16 +601,16 @@ def _generate_method_code(path, method, operation):
                     )
 
                 args_doc_lines.append(arg_line)
-            elif arg_name == "request_body" and has_empty_body:
+            elif arg_name == final_empty_body_param_name and has_empty_body: # Use potentially suffixed name
                 args_doc_lines.append(
                     f"    {arg_name} (dict | None): Optional dictionary for arbitrary request body data."
                 )
                 # Also append example here if this is the designated body arg
                 if (
                     arg_name == last_body_arg_name and request_body_example_str
-                ):  # Ensure this 'if' is indented correctly relative to 'elif'
+                ): 
                     args_doc_lines[-1] += (
-                        request_body_example_str  # Ensure this line is indented correctly relative to the 'if'
+                        request_body_example_str 
                     )
 
     if args_doc_lines:
@@ -585,10 +654,11 @@ def _generate_method_code(path, method, operation):
     # Build method body
     body_lines = []
 
+    # Path parameter validation (uses aliased name for signature, original identifier for error)
     for param in path_params:
         body_lines.append(f"        if {param.name} is None:")
         body_lines.append(
-            f"            raise ValueError(\"Missing required parameter '{param.identifier}'\")"  # Use original name in error
+            f'            raise ValueError("Missing required parameter \'{param.identifier}\'")' # Use original name in error
         )
 
     # Build request body (handle array and object types differently)
@@ -596,13 +666,14 @@ def _generate_method_code(path, method, operation):
         if is_array_body:
             # For array request bodies, use the array parameter directly
             body_lines.append("        # Use items array directly as request body")
-            body_lines.append(f"        request_body = {request_body_params[0]}")
+            body_lines.append(f"        request_body = {final_request_body_arg_names_for_signature[0]}")
         elif request_body_properties:
             # For object request bodies, build the request body from individual parameters
             body_lines.append("        request_body = {")
-            for prop_name in request_body_params:
-                # Only include non-None values in the request body
-                body_lines.append(f"            '{prop_name}': {prop_name},")
+            for b_param in body_params: # Iterate through original body_params list
+                # Use b_param.identifier for the key in the request_body dictionary
+                # and b_param.name for the variable name from the function signature
+                body_lines.append(f"            '{b_param.identifier}': {b_param.name},")
             body_lines.append("        }")
             body_lines.append(
                 "        request_body = {k: v for k, v in request_body.items() if v is not None}"
@@ -616,8 +687,8 @@ def _generate_method_code(path, method, operation):
     # Build query parameters dictionary for the request
     if query_params:
         query_params_items = []
-        for param in query_params:
-            # Use the original identifier for the key, and the cleaned name for the value variable
+        for param in query_params: # Iterate through original query_params list
+            # Use the original param.identifier for the key, and the (potentially aliased) param.name for the value variable
             query_params_items.append(f"('{param.identifier}', {param.name})")
         body_lines.append(
             f"        query_params = {{k: v for k, v in [{', '.join(query_params_items)}] if v is not None}}"
