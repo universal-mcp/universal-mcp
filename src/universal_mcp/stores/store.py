@@ -74,7 +74,7 @@ class MemoryStore(BaseStore):
 
     def __init__(self):
         """Initialize an empty dictionary to store the data."""
-        self.data: dict[str, str] = {}
+        self.data: dict[str, Any] = {}
 
     def get(self, key: str) -> Any:
         """

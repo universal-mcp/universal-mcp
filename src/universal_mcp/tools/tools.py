@@ -56,7 +56,7 @@ class Tool(BaseModel):
         is_async = inspect.iscoroutinefunction(fn)
 
         func_arg_metadata = FuncMetadata.func_metadata(
-            fn,
+            fn, arg_description=parsed_doc["args"]
         )
         parameters = func_arg_metadata.arg_model.model_json_schema()
 
