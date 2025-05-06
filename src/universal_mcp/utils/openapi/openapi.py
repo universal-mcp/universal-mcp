@@ -66,20 +66,16 @@ class Method(BaseModel):
 
 def convert_to_snake_case(identifier: str) -> str:
     """
-    Convert a camelCase or PascalCase identifier to snake_case.
-
-    Args:
-        identifier (str): The string to convert
-
-    Returns:
-        str: The converted snake_case string
+    Convert a string identifier to snake_case,
+    replacing non-alphanumeric, non-underscore characters (including ., -, spaces, [], etc.) with underscores.
+    Handles camelCase/PascalCase transitions.
     """
     if not identifier:
         return identifier
-    # Add underscore between lowercase and uppercase letters
-    result = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", identifier)
-    # Convert to lowercase
-    return result.lower()
+    result = re.sub(r"[^a-zA-Z0-9_]+", "_", identifier)
+    result = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", result)
+    result = re.sub(r"__+", "_", result)
+    return result.strip("_").lower()
 
 
 def _sanitize_identifier(name: str | None) -> str:
