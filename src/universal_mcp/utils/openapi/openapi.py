@@ -90,6 +90,8 @@ def _sanitize_identifier(name: str | None) -> str:
     sanitized = name.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "").replace("$", "_")
     if iskeyword(sanitized):
         sanitized += "_"
+    if sanitized == "self": # Ensure "self" becomes "self_arg" to avoid conflict with instance method's self
+        sanitized = "self_arg"
     return sanitized
 
 
@@ -332,24 +334,32 @@ def _generate_method_code(path, method, operation):
     # Path parameters have the highest priority and their names are not changed.
     path_param_names = {p.name for p in path_params}
 
+    # Define the string that "self" sanitizes to. This name will be treated as reserved
+    # for query/body params to force suffixing.
+    self_sanitized_marker = _sanitize_identifier("self") # This will be "self_arg"
+
+    # Base names that will force query/body parameters to be suffixed.
+    # This includes actual path parameter names and the sanitized form of "self".
+    path_param_base_conflict_names = path_param_names | {self_sanitized_marker}
+
+
     # Alias query parameters
     current_query_param_names = set()
     for q_param in query_params:
         original_q_name = q_param.name
         temp_q_name = original_q_name
-        # Check against path params
-        if temp_q_name in path_param_names:
+        # Check against path params AND the sanitized "self" marker
+        if temp_q_name in path_param_base_conflict_names:
             temp_q_name = f"{original_q_name}_query"
         # Ensure uniqueness among query params themselves after potential aliasing
         # (though less common, if _sanitize_identifier produced same base for different originals)
         # This step is more about ensuring the final suffixed name is unique if multiple query params mapped to same path param name
         counter = 1
         final_q_name = temp_q_name
-        while final_q_name in path_param_names or final_q_name in current_query_param_names : # Check against path and already processed query params
-            final_q_name = f"{original_q_name}_query{counter if counter > 1 else ''}"
-            if temp_q_name == original_q_name : # first conflict was with path
+        while final_q_name in path_param_base_conflict_names or final_q_name in current_query_param_names : # Check against path/\"self_arg\" and already processed query params
+            if temp_q_name == original_q_name : # first conflict was with path_param_base_conflict_names
                  final_q_name = f"{original_q_name}_query" # try simple suffix first
-                 if final_q_name in path_param_names or final_q_name in current_query_param_names:
+                 if final_q_name in path_param_base_conflict_names or final_q_name in current_query_param_names:
                      final_q_name = f"{original_q_name}_query_{counter}" # then add counter
             else: # conflict was with another query param after initial suffixing
                  final_q_name = f"{temp_q_name}_{counter}"
@@ -359,14 +369,14 @@ def _generate_method_code(path, method, operation):
 
 
     # Alias body parameters
-    # Names to check against: path param names and (now aliased) query param names
-    existing_param_names_for_body = path_param_names.union(current_query_param_names)
+    # Names to check against: path param names (including "self_arg" marker) and (now aliased) query param names
+    existing_param_names_for_body = path_param_base_conflict_names.union(current_query_param_names)
     current_body_param_names = set()
 
     for b_param in body_params:
         original_b_name = b_param.name
         temp_b_name = original_b_name
-        # Check against path and query params
+        # Check against path, "self_arg" marker, and query params
         if temp_b_name in existing_param_names_for_body:
             temp_b_name = f"{original_b_name}_body"
 
@@ -374,8 +384,7 @@ def _generate_method_code(path, method, operation):
         counter = 1
         final_b_name = temp_b_name
         while final_b_name in existing_param_names_for_body or final_b_name in current_body_param_names:
-            final_b_name = f"{original_b_name}_body{counter if counter > 1 else ''}"
-            if temp_b_name == original_b_name: # first conflict was with path/query
+            if temp_b_name == original_b_name: # first conflict was with existing_param_names_for_body
                 final_b_name = f"{original_b_name}_body"
                 if final_b_name in existing_param_names_for_body or final_b_name in current_body_param_names:
                     final_b_name = f"{original_b_name}_body_{counter}"
