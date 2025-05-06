@@ -138,7 +138,10 @@ class FuncMetadata(BaseModel):
 
     @classmethod
     def func_metadata(
-        cls, func: Callable[..., Any], skip_names: Sequence[str] = ()
+        cls,
+        func: Callable[..., Any],
+        skip_names: Sequence[str] = (),
+        arg_description: dict[str, str] | None = None,
     ) -> "FuncMetadata":
         """Given a function, return metadata including a pydantic model representing its
         signature.
@@ -199,6 +202,12 @@ class FuncMetadata(BaseModel):
                 if param.default is not inspect.Parameter.empty
                 else PydanticUndefined,
             )
+            if (
+                not field_info.title
+                and arg_description
+                and arg_description.get(param.name)
+            ):
+                field_info.title = arg_description.get(param.name)
             dynamic_pydantic_model_params[param.name] = (
                 field_info.annotation,
                 field_info,
