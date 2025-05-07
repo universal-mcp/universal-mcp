@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+import yaml,json,sys,os
 
 import typer
 from rich.console import Console
@@ -265,57 +266,151 @@ def init(
     console.print(f"✅ Project created at {project_dir}")
 
 
-from rich.prompt import Prompt
-from universal_mcp.utils.openapi.preprocessor import read_schema_file, validate_schema, preprocess as _preprocess
-
 @app.command()
 def preprocess(
-    schema_path: Path = typer.Option(None, "--schema", "-s", help="…"),
-    output_path: Path = typer.Option(None, "--output", "-o", help="…"),
+    schema_path: Path | None = typer.Option(
+        None,
+        "--schema",
+        "-s",
+        help="Path to the OpenAPI schema file (JSON or YAML). Prompts if not provided.",
+    ),
+    output_path: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path for the processed schema. Defaults to input file with _processed extension.",
+    ),
+    model: str = typer.Option(
+        "perplexity/sonar",
+        "--model",
+        "-m",
+        help="Model to use for generating descriptions/summaries.",
+    ),
 ):
-    # 1) Prompt for schema if missing, then validate path…
+    """
+    Preprocess an OpenAPI schema file to add missing summaries and descriptions using an LLM.
+    First scans the schema and reports status, then prompts for action.
+    """
+    from universal_mcp.utils.openapi.preprocessor import (
+        read_schema_file,
+        write_schema_file,
+        scan_schema_for_status,
+        report_scan_results,
+        preprocess_schema_with_llm,
+        set_logging_level # Import the logging level setter if not already used
+    )
+
+    # Ensure logging level is set for this command's output
+    # (You might have a global logger setup in cli.py, adjust if needed)
+    set_logging_level("INFO")
+    console.print("[bold blue]--- Starting OpenAPI Schema Preprocessor ---[/bold blue]")
+
     if schema_path is None:
-        schema_path = Path( Prompt.ask("Please enter the path to the OpenAPI schema file") )
-    if not schema_path.exists():
-        console.print(f"[red]Error: Schema file not found at '{schema_path}'[/red]")
-        raise typer.Exit(1)
+        path_str = typer.prompt(
+            "Please enter the path to the OpenAPI schema file (JSON or YAML)",
+            prompt_suffix=": ",
+        ).strip()
+        if not path_str:
+            console.print("[red]Error: Schema path is required.[/red]")
+            raise typer.Exit(1)
+        schema_path = Path(path_str)
 
-    schema_data = read_schema_file(str(schema_path))
-    stats = validate_schema(schema_data)
+    # --- Step 1: Read Schema ---
+    try:
+        schema_data = read_schema_file(str(schema_path))
+    except (FileNotFoundError, yaml.YAMLError, json.JSONDecodeError, OSError) as e:
+         # read_schema_file logs critical errors, just exit here
+         raise typer.Exit(1) from e
+    except Exception as e:
+        console.print(f"[red]An unexpected error occurred while reading schema: {e}[/red]")
+        raise typer.Exit(1) from e
 
-    # 2) Show summary panel
-    summary = (
-        f"[bold]Info:[/bold] description "
-        f"{'present' if stats['info_description'] else 'missing'}\n"
-        f"[bold]Operations:[/bold] {stats['operations_with_summary']}/"
-        f"{stats['operations_total']} have summaries\n"
-        f"[bold]Parameters:[/bold] {stats['parameters_with_description']}/"
-        f"{stats['parameters_total']} have descriptions\n"
-        f"[bold]Malformed params:[/bold] {stats['parameters_missing_name_or_in']}"
+
+    # --- Step 2: Scan and Report Status ---
+    try:
+        scan_report = scan_schema_for_status(schema_data)
+        report_scan_results(scan_report)
+    except Exception as e:
+        console.print(f"[red]An unexpected error occurred during schema scanning: {e}[/red]")
+        raise typer.Exit(1) from e
+
+    # --- Step 3: Check for Critical Errors and Prompt User ---
+    if scan_report.get("critical_errors"):
+         console.print("[bold red]Cannot proceed with generation due to critical errors. Please fix the schema file manually.[/bold red]")
+         raise typer.Exit(1)
+
+    # Check if there's anything missing or fallback to justify prompting for generation
+    total_missing_or_fallback = (
+        scan_report["info_description"]["missing"] + scan_report["info_description"]["fallback"] +
+        scan_report["operation_summary"]["missing"] + scan_report["operation_summary"]["fallback"] +
+        scan_report["parameter_description"]["missing"] + scan_report["parameter_description"]["fallback"]
     )
-    console.print(Panel(summary, title="Schema Validation Summary", border_style="yellow"))
 
-    # 3) Prompt for choice
-    choice = Prompt.ask(
-        "Choose:\n  [1] Only fill missing (default)\n  [2] Enhance all\n  [3] Quit",
-        choices=["1","2","3"],
-        default="1",
-    )
-    if choice == "3":
-        console.print("[green]Exiting without changes.[/green]")
-        raise typer.Exit(0)
+    # Also consider parameters with missing name/in, as we can't generate for them
+    # Even if other things are missing, report these separately as ungeneratable
+    ungeneratable_params = len(scan_report.get("parameters_missing_name", [])) + len(scan_report.get("parameters_missing_in", []))
 
-    mode = "missing" if choice == "1" else "enhance"
-
-    # 4) Finally call your refactored preprocess()
-    _preprocess(
-        schema_file_path=str(schema_path),
-        output_file_path=str(output_path) if output_path else None,
-        llm_model="perplexity/sonar",
-        mode=mode,
-    )
+    if total_missing_or_fallback == 0:
+        console.print("[bold green]No missing or fallback descriptions/summaries found that can be automatically generated.[/bold green]")
+        if ungeneratable_params > 0:
+             console.print(f"[yellow]Note: There are {ungeneratable_params} parameters with missing 'name' or 'in' fields that require manual fixing.[/yellow]")
+        console.print("[bold blue]Preprocessor finished.[/bold blue]")
+        raise typer.Exit(0) # Exit successfully if nothing needs generation
 
 
+    # Prompt for action
+    while True:
+        console.print("\n[bold blue]Choose an action:[/bold blue]")
+        console.print("  [1] Generate [bold]only missing[/bold] descriptions/summaries [green](default)[/green]")
+        console.print("  [2] Generate/Enhance [bold]all[/bold] descriptions/summaries")
+        console.print("  [3] [bold red]Quit[/bold red] (exit without changes)")
+
+        choice = typer.prompt("Enter choice", default="1", show_default=False, type=str).strip()
+
+        if choice == "3":
+            console.print("[yellow]Exiting without making changes.[/yellow]")
+            raise typer.Exit(0)
+        elif choice == "1":
+            enhance_all = False
+            break
+        elif choice == "2":
+            enhance_all = True
+            break
+        else:
+            console.print("[red]Invalid choice. Please enter 1, 2, or 3.[/red]")
+
+    # --- Step 4: Perform LLM Generation based on Choice ---
+    try:
+        preprocess_schema_with_llm(schema_data, model, enhance_all)
+        console.print("[green]LLM generation complete.[/green]")
+    except Exception as e:
+        console.print(f"[red]Error during LLM generation: {e}[/red]")
+        # Log traceback for debugging
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        raise typer.Exit(1) from e
+
+    # --- Step 5: Determine Output Path and Write ---
+    if output_path is None:
+        base, ext = os.path.splitext(schema_path)
+        output_path = Path(f"{base}_processed{ext}")
+        console.print(f"[blue]No output path specified. Defaulting to: {output_path}[/blue]")
+    else:
+         console.print(f"[blue]Saving processed schema to: {output_path}[/blue]")
+
+    try:
+        write_schema_file(schema_data, str(output_path))
+    except (OSError, ValueError) as e:
+         # write_schema_file logs critical errors, just exit here
+         raise typer.Exit(1) from e
+    except Exception as e:
+        console.print(f"[red]An unexpected error occurred while writing the schema: {e}[/red]")
+        raise typer.Exit(1) from e
+
+
+    console.print("\n[bold green]--- Schema Processing and Saving Complete ---[/bold green]")
+    console.print(f"Processed schema saved to: [blue]{output_path}[/blue]")
+    console.print("[bold blue]Preprocessor finished successfully.[/bold blue]")
 
 if __name__ == "__main__":
     app()
