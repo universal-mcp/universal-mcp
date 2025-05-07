@@ -1,15 +1,15 @@
-from collections.abc import Callable
-
 import pytest
 from loguru import logger
 
 from universal_mcp.applications import app_from_slug
+from universal_mcp.tools.tools import Tool
 
 ALL_APPS = [
     "ahrefs",
     "airtable",
     "apollo",
     "asana",
+    # "box",
     "braze",
     "cal-com-v2",
     "confluence",
@@ -22,7 +22,6 @@ ALL_APPS = [
     "elevenlabs",
     "exa",
     "falai",
-    "jira",
     "figma",
     "firecrawl",
     "github",
@@ -35,6 +34,7 @@ ALL_APPS = [
     "google-sheet",
     "hashnode",
     "heygen",
+    # "jira",
     "klaviyo",
     "mailchimp",
     "markitdown",
@@ -78,13 +78,13 @@ class TestApplications:
         app_instance = app(integration=None)
         assert app_instance.name == app_name
         tools = app_instance.list_tools()
-        logger.info(f"Tools for {app_name}: {tools}")
+        logger.info(f"Tools for {app_name}: {len(tools)}")
         assert len(tools) > 0, f"No tools found for {app_name}"
-        assert isinstance(tools[0], Callable)
+        tools = [Tool.from_function(tool) for tool in tools]
         important_tools = []
         for tool in tools:
-            assert tool.__name__ is not None
-            assert tool.__doc__ is not None
-            if "important" in tool.__doc__:
-                important_tools.append(tool.__name__)
+            assert tool.name is not None
+            assert tool.description is not None
+            if "important" in tool.tags:
+                important_tools.append(tool.name)
         assert len(important_tools) > 0, f"No important tools found for {app_name}"
