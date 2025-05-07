@@ -3,6 +3,7 @@ from typing import Annotated
 from pydantic import Field
 
 from universal_mcp.tools.func_metadata import FuncMetadata
+from universal_mcp.tools.tools import Tool
 from universal_mcp.utils.docstring_parser import parse_docstring
 
 
@@ -18,6 +19,29 @@ def test_func_metadata_annotated():
         "properties": {
             "a": {"type": "integer", "title": "First integer"},
             "b": {"type": "integer", "title": "B"},
+        },
+        "required": ["a", "b"],
+    }
+
+
+def test_func_metadata_no_annotated():
+    def func(a: int, b: int):
+        """Test function with no annotated args
+
+        Args:
+            a: The first integer
+            b: The second integer
+        """
+        return a + b
+
+    tool = Tool.from_function(func)
+    meta = tool.fn_metadata
+    assert meta.arg_model.model_json_schema() == {
+        "type": "object",
+        "title": "funcArguments",
+        "properties": {
+            "a": {"type": "integer", "title": "The first integer"},
+            "b": {"type": "integer", "title": "The second integer"},
         },
         "required": ["a", "b"],
     }

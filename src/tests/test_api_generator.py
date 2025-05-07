@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from universal_mcp.utils.api_generator import generate_api_from_schema
+from universal_mcp.utils.openapi.api_generator import generate_api_from_schema
 
 
 @pytest.fixture

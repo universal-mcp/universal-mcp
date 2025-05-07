@@ -17,7 +17,13 @@ PATCH_NUM=$(echo $PATCH | sed 's/-rc[0-9]*//')
 
 if [ "$BRANCH" = "master" ]; then
     # On main branch - bump patch version
-    NEW_VERSION="$MAJOR.$MINOR.$PATCH_NUM"
+    if [[ $PATCH == *"-rc"* ]]; then
+        NEW_VERSION="$MAJOR.$MINOR.$PATCH_NUM"
+    else
+        # Increase patch number by 1
+        PATCH_NUM=$((PATCH_NUM + 1))
+        NEW_VERSION="$MAJOR.$MINOR.$PATCH_NUM"
+    fi
 else
     # On dev branch - bump rc version
     if [[ $PATCH == *"-rc"* ]]; then

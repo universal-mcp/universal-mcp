@@ -6,7 +6,7 @@ from loguru import logger
 
 from universal_mcp.exceptions import NotAuthorizedError
 from universal_mcp.stores import BaseStore
-from universal_mcp.stores.store import KeyNotFoundError
+from universal_mcp.stores.store import KeyNotFoundError, MemoryStore
 from universal_mcp.utils.agentr import AgentrClient
 
 
@@ -91,7 +91,7 @@ class ApiKeyIntegration(Integration):
         store: Store instance for persisting credentials and other data
     """
 
-    def __init__(self, name: str, store: BaseStore | None = None, **kwargs):
+    def __init__(self, name: str, store: BaseStore = MemoryStore(), **kwargs):
         self.type = "api_key"
         sanitized_name = sanitize_api_key_name(name)
         super().__init__(sanitized_name, store, **kwargs)
@@ -108,6 +108,22 @@ class ApiKeyIntegration(Integration):
                 action = self.authorize()
                 raise NotAuthorizedError(action) from e
         return self._api_key
+
+    @api_key.setter
+    def api_key(self, value: str | None) -> None:
+        """Set the API key.
+
+        Args:
+            value: The API key value to set.
+
+        Raises:
+            ValueError: If the API key is invalid.
+        """
+        if value is not None and not isinstance(value, str):
+            raise ValueError("API key must be a string")
+        self._api_key = value
+        if value is not None:
+            self.store.set(self.name, value)
 
     def get_credentials(self) -> dict[str, str]:
         """Get API key credentials.

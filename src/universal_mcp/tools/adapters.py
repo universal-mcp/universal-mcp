@@ -1,4 +1,14 @@
+from enum import Enum
+
 from universal_mcp.tools.tools import Tool
+
+
+class ToolFormat(str, Enum):
+    """Supported tool formats."""
+
+    MCP = "mcp"
+    LANGCHAIN = "langchain"
+    OPENAI = "openai"
 
 
 def convert_tool_to_mcp_tool(
@@ -40,4 +50,19 @@ def convert_tool_to_langchain_tool(
         description=tool.description or "",
         coroutine=call_tool,
         response_format="content",
+        args_schema=tool.parameters,
     )
+
+
+def convert_tool_to_openai_tool(
+    tool: Tool,
+):
+    """Convert a Tool object to an OpenAI function."""
+    return {
+        "type": "function",
+        "function": {
+            "name": tool.name,
+            "description": tool.description,
+            "parameters": tool.parameters,
+        },
+    }

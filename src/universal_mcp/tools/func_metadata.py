@@ -61,7 +61,7 @@ class ArgModelBase(BaseModel):
         That is, sub-models etc are not dumped - they are kept as pydantic models.
         """
         kwargs: dict[str, Any] = {}
-        for field_name in self.model_fields:
+        for field_name in self.__class__.model_fields:
             kwargs[field_name] = getattr(self, field_name)
         return kwargs
 
@@ -82,6 +82,7 @@ class FuncMetadata(BaseModel):
         fn_is_async: bool,
         arguments_to_validate: dict[str, Any],
         arguments_to_pass_directly: dict[str, Any] | None,
+        context: dict[str, Any] | None = None,
     ) -> Any:
         """Call the given function with arguments validated and injected.
 
@@ -137,7 +138,10 @@ class FuncMetadata(BaseModel):
 
     @classmethod
     def func_metadata(
-        cls, func: Callable[..., Any], skip_names: Sequence[str] = ()
+        cls,
+        func: Callable[..., Any],
+        skip_names: Sequence[str] = (),
+        arg_description: dict[str, str] | None = None,
     ) -> "FuncMetadata":
         """Given a function, return metadata including a pydantic model representing its
         signature.
@@ -198,6 +202,12 @@ class FuncMetadata(BaseModel):
                 if param.default is not inspect.Parameter.empty
                 else PydanticUndefined,
             )
+            if (
+                not field_info.title
+                and arg_description
+                and arg_description.get(param.name)
+            ):
+                field_info.title = arg_description.get(param.name)
             dynamic_pydantic_model_params[param.name] = (
                 field_info.annotation,
                 field_info,
