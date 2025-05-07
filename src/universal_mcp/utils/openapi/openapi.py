@@ -1,9 +1,9 @@
 import json
 import re
 import textwrap
+from keyword import iskeyword
 from pathlib import Path
 from typing import Any, Literal
-from keyword import iskeyword
 
 import yaml
 from jsonref import replace_refs
@@ -99,10 +99,7 @@ def _sanitize_identifier(name: str | None) -> str:
     # consisted only of underscores.
     if sanitized.startswith('_'):
         stripped_name = sanitized.lstrip('_')
-        if not stripped_name:  # Original (after initial replace) was all underscores (e.g., "_", "___")
-            sanitized = "_"
-        else:
-            sanitized = stripped_name
+        sanitized = stripped_name if stripped_name else "_"
             
     # Append underscore if the sanitized name is a Python keyword
     if iskeyword(sanitized):
