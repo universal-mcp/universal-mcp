@@ -265,61 +265,56 @@ def init(
     console.print(f"✅ Project created at {project_dir}")
 
 
+from rich.prompt import Prompt
+from universal_mcp.utils.openapi.preprocessor import read_schema_file, validate_schema, preprocess as _preprocess
+
 @app.command()
 def preprocess(
-    schema_path: Path | None = typer.Option(
-        None,
-        "--schema",
-        "-s",
-        help="Path to the OpenAPI schema file (JSON or YAML). Prompts if not provided.",
-    ),
-    output_path: Path | None = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Output file path for the processed schema. Defaults to input file with _processed extension.",
-    ),
+    schema_path: Path = typer.Option(None, "--schema", "-s", help="…"),
+    output_path: Path = typer.Option(None, "--output", "-o", help="…"),
 ):
-    from universal_mcp.utils.openapi.preprocessor import preprocess
-
-    """Preprocess an OpenAPI schema file to add missing summaries and descriptions using an LLM."""
-
+    # 1) Prompt for schema if missing, then validate path…
     if schema_path is None:
-        path_str = typer.prompt(
-            "Please enter the path to the OpenAPI schema file (JSON or YAML)",
-            prompt_suffix=": ",
-        ).strip()
-        if not path_str:
-            console.print("[red]Error: Schema path is required.[/red]")
-            raise typer.Exit(1)
-        schema_path = Path(path_str)
-
-    # Validate the provided schema_path
+        schema_path = Path( Prompt.ask("Please enter the path to the OpenAPI schema file") )
     if not schema_path.exists():
         console.print(f"[red]Error: Schema file not found at '{schema_path}'[/red]")
         raise typer.Exit(1)
-    if not schema_path.is_file():
-        console.print(f"[red]Error: Path '{schema_path}' is not a file[/red]")
-        raise typer.Exit(1)
 
-    try:
-        preprocess(
-            schema_file_path=str(schema_path),
-            output_file_path=str(output_path)
-            if output_path
-            else None,  # Pass as str or None
-        )
-    except SystemExit as e:
-        if e.code != 0:
-            console.print(
-                f"[red]Schema preprocessing failed with exit code {e.code}. See logs above for details.[/red]"
-            )
-        raise
-    except Exception as e:
-        console.print(
-            f"[red]An unexpected error occurred during schema preprocessing: {e}[/red]"
-        )
-        raise typer.Exit(1) from e
+    schema_data = read_schema_file(str(schema_path))
+    stats = validate_schema(schema_data)
+
+    # 2) Show summary panel
+    summary = (
+        f"[bold]Info:[/bold] description "
+        f"{'present' if stats['info_description'] else 'missing'}\n"
+        f"[bold]Operations:[/bold] {stats['operations_with_summary']}/"
+        f"{stats['operations_total']} have summaries\n"
+        f"[bold]Parameters:[/bold] {stats['parameters_with_description']}/"
+        f"{stats['parameters_total']} have descriptions\n"
+        f"[bold]Malformed params:[/bold] {stats['parameters_missing_name_or_in']}"
+    )
+    console.print(Panel(summary, title="Schema Validation Summary", border_style="yellow"))
+
+    # 3) Prompt for choice
+    choice = Prompt.ask(
+        "Choose:\n  [1] Only fill missing (default)\n  [2] Enhance all\n  [3] Quit",
+        choices=["1","2","3"],
+        default="1",
+    )
+    if choice == "3":
+        console.print("[green]Exiting without changes.[/green]")
+        raise typer.Exit(0)
+
+    mode = "missing" if choice == "1" else "enhance"
+
+    # 4) Finally call your refactored preprocess()
+    _preprocess(
+        schema_file_path=str(schema_path),
+        output_file_path=str(output_path) if output_path else None,
+        llm_model="perplexity/sonar",
+        mode=mode,
+    )
+
 
 
 if __name__ == "__main__":

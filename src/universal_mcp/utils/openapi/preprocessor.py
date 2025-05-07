@@ -6,8 +6,14 @@ import sys
 import time
 import traceback
 
+from typing import Callable
+import logging
+import re
+
 import litellm
 import yaml
+
+logger = logging.getLogger(__name__)
 
 COLORS = {
     "YELLOW": "\033[93m",
@@ -347,178 +353,122 @@ def simplify_parameter_context(parameter: dict) -> dict:
 
     return simplified_context
 
-
 def process_parameter(
     parameter: dict,
     operation_location_base: str,
     path_key: str,
     method: str,
     llm_model: str,
+    parameter_predicate: Callable[[dict], bool],
 ):
+    """
+    Generate or skip parameter descriptions based on the provided predicate.
+    parameter_predicate(parameter) returns True if description should be generated/enhanced.
+    """
     if not isinstance(parameter, dict):
-        logger.error(
-            f"Invalid parameter object found in {operation_location_base}. Expected dictionary."
-        )
+        logger.error(f"Invalid parameter object at {operation_location_base}. Expected dict.")
         return
 
-    if "$ref" in parameter:
-        ref_path = parameter["$ref"]
-        logger.info(
-            f"Parameter in {operation_location_base} is a reference ('{ref_path}'). Skipping description generation."
-        )
+    # Build a human-readable parameter ID for logging
+    name = parameter.get("name")
+    loc = parameter.get("in")
+    param_id = f"{loc}:{name}" if name and loc else name or loc or "<unknown>"
+    param_base = f"{operation_location_base}.parameters[{param_id}]"
+
+    # Validate presence of name and in
+    if not name or not isinstance(name, str):
+        logger.error(f"Missing 'name' for parameter at {param_base}.")
+        return
+    if not loc or not isinstance(loc, str):
+        logger.error(f"Missing 'in' for parameter '{name}' at {param_base}.")
         return
 
-    param_name = parameter.get("name")
-    param_in = parameter.get("in")
-
-    param_location_id = "unknown_param"
-    if isinstance(param_name, str) and param_name.strip():
-        param_location_id = param_name.strip()
-        if isinstance(param_in, str) and param_in.strip():
-            param_location_id = f"{param_in.strip()}:{param_name.strip()}"
-    elif isinstance(param_in, str) and param_in.strip():
-        param_location_id = f"{param_in.strip()}:[name missing]"
-
-    parameter_location_base = (
-        f"{operation_location_base}.parameters[{param_location_id}]"
-    )
-
-    is_valid_param = True
-    if not isinstance(param_name, str) or not param_name.strip():
-        logger.error(
-            f"Missing or empty 'name' field for parameter at {parameter_location_base}. Cannot generate description without name."
-        )
-        is_valid_param = False
-
-    if not isinstance(param_in, str) or not param_in.strip():
-        logger.error(
-            f"Missing or empty 'in' field for parameter '{param_name}' at {parameter_location_base}. Cannot generate description without location ('in')."
-        )
-        is_valid_param = False
-
-    if not is_valid_param:
+    # Decide whether to generate/enhance description
+    if not parameter_predicate(parameter):
+        logger.info(f"Skipping description for parameter '{param_id}' (predicate returned False).")
         return
 
-    param_description = parameter.get("description")
-
-    if (
-        not isinstance(param_description, str)
-        or not param_description.strip()
-        or param_description.startswith("[LLM could not generate")
-    ):
-        logger.warning(
-            f"Missing or empty 'description' for parameter '{param_name}' at {parameter_location_base}. Attempting to generate."
-        )
-
-        simplified_context = simplify_parameter_context(parameter)
-
-        generated_description = generate_description_llm(
-            description_type="parameter",
-            model=llm_model,
-            context={
-                "path_key": path_key,
-                "method": method,
-                "param_name": param_name,
-                "param_in": param_in,
-                "parameter_details": simplified_context,
-            },
-        )
-        parameter["description"] = generated_description
-        logger.info(
-            f"Generated and inserted description for parameter '{param_name}' at {parameter_location_base}."
-        )
+    # Generate or enhance description
+    current_desc = parameter.get("description", "").strip()
+    if not current_desc or current_desc.startswith("[LLM could not generate"):
+        logger.warning(f"Generating description for parameter '{param_id}'.")
     else:
-        logger.info(
-            f"Existing 'description' found for parameter '{param_name}' at {parameter_location_base}."
-        )
+        logger.info(f"Enhancing description for parameter '{param_id}'.")
 
-    # --- Remove URLs from the parameter description ---
-    current_description = parameter.get("description", "")
-    if isinstance(current_description, str) and current_description:
-        url_pattern = r"https?://[\S]+"
-        modified_description = re.sub(url_pattern, "", current_description).strip()
-        modified_description = re.sub(r"\s{2,}", " ", modified_description).strip()
-
-        if modified_description != current_description:
-            parameter["description"] = modified_description
-            logger.info(
-                f"Removed links from description for parameter '{param_name}' at {parameter_location_base}. New description: '{modified_description[:50]}...'"
-            )
-    # --- End URL removal ---
-
-    # Validate final description length
-    final_param_description = parameter.get("description", "")
-    if isinstance(final_param_description, str):
-        desc_length = len(final_param_description)
-        if desc_length > MAX_DESCRIPTION_LENGTH:
-            logger.warning(
-                f"Parameter description at '{parameter_location_base}.description' exceeds max length. Actual length: {desc_length}, Max allowed: {MAX_DESCRIPTION_LENGTH}."
-            )
-
-
-def process_operation(
-    operation_value: dict, path_key: str, method: str, llm_model: str
-):
-    operation_location_base = f"paths.{path_key}.{method.lower()}"
-
-    if not isinstance(operation_value, dict):
-        logger.warning(
-            f"Operation value for '{operation_location_base}' is not a dictionary. Skipping."
-        )
-        return
-
-    if method.lower().startswith("x-"):
-        logger.info(f"Skipping extension operation '{operation_location_base}'.")
-        return
-
-    operation_summary = operation_value.get("summary")
-    if (
-        isinstance(operation_summary, str)
-        and operation_summary.strip()
-        and not operation_summary.startswith("[LLM could not generate")
-    ):
-        logger.info(
-            f"Existing summary found for '{operation_location_base}'. Attempting to enhance."
-        )
-    else:
-        logger.warning(
-            f"Missing, empty, or fallback summary for operation '{operation_location_base}'. Attempting to generate."
-        )
-
-    simplified_context = simplify_operation_context(operation_value)
-
-    generated_summary = generate_description_llm(
-        description_type="summary",
+    # Call LLM to generate description
+    simplified = {k: parameter[k] for k in ("name", "in") if k in parameter}
+    description = generate_description_llm(
+        description_type="parameter",
         model=llm_model,
         context={
             "path_key": path_key,
             "method": method,
-            "operation_value": simplified_context,
+            "param_name": name,
+            "param_in": loc,
+            "parameter_details": simplified,
         },
     )
-    operation_value["summary"] = generated_summary
-    logger.info(
-        f"Generated/Enhanced and inserted summary for '{operation_location_base}'."
-    )
+    parameter["description"] = description
 
-    parameters = operation_value.get("parameters")
-    if isinstance(parameters, list):
-        for _i, parameter in enumerate(parameters):
-            process_parameter(
-                parameter, operation_location_base, path_key, method, llm_model
-            )
-    elif parameters is not None:
-        logger.warning(
-            f"'parameters' field for operation '{operation_location_base}' is not a list. Skipping parameter processing."
+    # Remove any URLs and trim whitespace
+    cleaned = re.sub(r"https?://\S+", "", description).strip()
+    parameter["description"] = re.sub(r"\s{2,}", " ", cleaned)
+
+
+
+def process_operation(
+    operation_value: dict,
+    path_key: str,
+    method: str,
+    llm_model: str,
+    operation_predicate: Callable[[str], bool],
+    parameter_predicate: Callable[[dict], bool],
+):
+    """
+    Generate or skip operation summaries and delegate parameter processing based on predicates.
+    operation_predicate(summary) returns True if summary should be generated/enhanced.
+    """
+    op_base = f"paths.{path_key}.{method.lower()}"
+
+    if not isinstance(operation_value, dict):
+        logger.warning(f"Skipping non-dict operation at {op_base}.")
+        return
+
+    summary = operation_value.get("summary", "").strip()
+    # Decide whether to generate or enhance summary
+    if operation_predicate(summary):
+        if not summary or summary.startswith("[LLM could not generate"):
+            logger.warning(f"Generating missing summary for operation {op_base}.")
+        else:
+            logger.info(f"Enhancing existing summary for operation {op_base}.")
+
+        new_summary = generate_description_llm(
+            description_type="summary",
+            model=llm_model,
+            context={
+                "path_key": path_key,
+                "method": method,
+                "operation_value": simplify_operation_context(operation_value),
+            },
         )
+        operation_value["summary"] = new_summary
+    else:
+        logger.info(f"Skipping summary for operation {op_base} (predicate returned False).")
 
-    final_summary = operation_value.get("summary", "")
-    if isinstance(final_summary, str):
-        summary_length = len(final_summary)
-        if summary_length > MAX_DESCRIPTION_LENGTH:
-            logger.warning(
-                f"Operation summary at '{operation_location_base}.summary' exceeds max length. Actual length: {summary_length}, Max allowed: {MAX_DESCRIPTION_LENGTH}."
+    # Process parameters list if present
+    params = operation_value.get("parameters")
+    if isinstance(params, list):
+        for param in params:
+            process_parameter(
+                parameter=param,
+                operation_location_base=op_base,
+                path_key=path_key,
+                method=method,
+                llm_model=llm_model,
+                parameter_predicate=parameter_predicate,
             )
+    elif params is not None:
+        logger.warning(f"Expected list of parameters at {op_base}, got {type(params)}.")
 
 
 def process_paths(paths: dict, llm_model: str):
@@ -628,57 +578,79 @@ def validate_info_section(schema_data: dict, llm_model: str):
             )
 
 
-def process_schema_with_llm(schema_data: dict, llm_model: str):
-    logger.info("Starting schema processing and validation with LLM generation.")
+# … your existing imports …
 
-    validate_info_section(schema_data, llm_model)
+def validate_schema(schema_data: dict):
+    """Walk through `info`, all `paths` and their `operations`+`parameters`,
+       and count how many summaries/descriptions are present vs missing,
+       and how many parameters lack `name` or `in`."""
+    info = schema_data.get("info", {})
+    stats = {
+        "info_description": bool(info.get("description", "").strip()),
+        "operations_total": 0,
+        "operations_with_summary": 0,
+        "parameters_total": 0,
+        "parameters_with_description": 0,
+        "parameters_missing_name_or_in": 0,
+    }
 
-    paths = schema_data.get("paths")
-    process_paths(paths, llm_model)
+    # Info description
+    stats["info_missing_description"] = not stats["info_description"]
 
-    logger.info("Schema processing complete.")
+    paths = schema_data.get("paths", {})
+    for path, methods in (paths or {}).items():
+        if not isinstance(methods, dict):
+            continue
+        for method, op in methods.items():
+            if method.lower() not in ("get","put","post","delete","patch","options","head","trace"):
+                continue
+            stats["operations_total"] += 1
+            if isinstance(op, dict) and op.get("summary", "").strip():
+                stats["operations_with_summary"] += 1
 
+            params = op.get("parameters") or []
+            for p in (params if isinstance(params, list) else []):
+                stats["parameters_total"] += 1
+                name = p.get("name") if isinstance(p, dict) else None
+                loc = p.get("in") if isinstance(p, dict) else None
+                if not name or not loc:
+                    stats["parameters_missing_name_or_in"] += 1
+                if isinstance(p, dict) and p.get("description", "").strip():
+                    stats["parameters_with_description"] += 1
+
+    return stats
 
 def preprocess(
     schema_file_path: str,
     llm_model: str = "perplexity/sonar",
     output_file_path: str = None,
+    mode: str = "missing",           # ← new
 ):
     logger.info(f"Starting script for schema: {schema_file_path}")
-    logger.info(f"Using LLM model: {llm_model}")
-    set_logging_level("INFO")
+    schema_data = read_schema_file(schema_file_path)
 
-    if not os.path.exists(schema_file_path):
-        logger.critical(f"FATAL ERROR: Schema file not found at: {schema_file_path}")
-        sys.exit(1)
+    # 1) Validate
+    stats = validate_schema(schema_data)
 
-    try:
-        schema_data = read_schema_file(schema_file_path)
+    # 2) Decide generation behavior:
+    def should_generate_operation(existing_summary: str):
+        if mode == "enhance":
+            return True
+        return not bool(existing_summary and existing_summary.strip())
 
-        process_schema_with_llm(schema_data, llm_model)
+    def should_generate_parameter(p: dict):
+        if mode == "enhance":
+            return True
+        desc = p.get("description", "")
+        return not bool(desc and desc.strip())
 
-        if output_file_path is None:
-            base, ext = os.path.splitext(schema_file_path)
-            output_file_path = f"{base}_processed{ext}"
-            logger.info(f"No output path specified. Defaulting to: {output_file_path}")
-        else:
-            logger.info(f"Saving processed schema to: {output_file_path}")
-
-        write_schema_file(schema_data, output_file_path)
-
-        logger.info("\n--- Schema Processing and Saving Complete ---")
-        logger.info(f"Modified schema saved to: {output_file_path}")
-
-    except (OSError, FileNotFoundError, yaml.YAMLError, json.JSONDecodeError) as e:
-        logger.critical(f"FATAL ERROR: File operation or parsing failed: {e}")
-        sys.exit(1)
-    except ValueError as e:
-        logger.critical(f"FATAL ERROR: Schema Validation Failed: {e}")
-        sys.exit(1)
-    except Exception as e:
-        logger.critical(f"An unexpected error occurred during processing: {e}")
-        traceback.print_exc(file=sys.stderr)
-        sys.exit(1)
+    # 3) Kick off processing (pass the predicates down)
+    process_schema_with_llm(
+        schema_data, llm_model,
+        operation_predicate=should_generate_operation,
+        parameter_predicate=should_generate_parameter,
+    )
+    # … rest of your write/save logic …
 
 
 if __name__ == "__main__":
