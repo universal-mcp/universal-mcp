@@ -10,7 +10,6 @@ from collections import defaultdict
 import litellm
 import yaml
 
-# Assume COLORS and logger setup are already present as in your original file
 COLORS = {
     "YELLOW": "\033[93m",
     "RED": "\033[91m",
@@ -48,11 +47,7 @@ class ColoredFormatter(logging.Formatter):
 
         return formatter.format(record)
 
-# Re-setup logger to ensure formatter is applied correctly if not already done
-# This block might be slightly redundant if your cli.py setup already configures it,
-# but it ensures standalone execution or import works with colored logs.
 logger = logging.getLogger()
-# Remove existing handlers to avoid duplicate output
 if logger.handlers:
     for handler in logger.handlers:
         logger.removeHandler(handler)
@@ -116,7 +111,6 @@ def read_schema_file(schema_path: str) -> dict:
                      f.seek(0) # Reset file pointer
                      logger.warning("YAML load failed, attempting JSON.")
                      return json.load(f)
-
 
     except (yaml.YAMLError, json.JSONDecodeError) as e:
         logger.critical(f"Error parsing schema file {schema_path}: {e}")
@@ -182,9 +176,6 @@ def generate_description_llm(
     max_retries: int = 3,
     retry_delay: int = 5,
 ) -> str:
-    # Keep this function as is, it handles the LLM call logic.
-    # The decision *whether* to call this function will be made by the callers
-    # based on the mode ('missing' or 'all') and the existing text.
     if context is None:
         context = {}
 
@@ -264,14 +255,14 @@ def generate_description_llm(
     original_level = logger.level
     logger.setLevel(logging.DEBUG)
 
-    logger.debug(
-        f"\n{COLORS['BLUE']}--- LLM Input Prompt ({description_type}) ---{COLORS['ENDC']}"
-    )
-    logger.debug(f"System: {system_prompt}")
-    logger.debug(f"User: {user_prompt}")
-    logger.debug(
-        f"{COLORS['BLUE']}------------------------------------------{COLORS['ENDC']}\n"
-    )
+    # logger.debug(
+    #     f"\n{COLORS['BLUE']}--- LLM Input Prompt ({description_type}) ---{COLORS['ENDC']}"
+    # )
+    # logger.debug(f"System: {system_prompt}")
+    # logger.debug(f"User: {user_prompt}")
+    # logger.debug(
+    #     f"{COLORS['BLUE']}------------------------------------------{COLORS['ENDC']}\n"
+    # )
 
     response_text = fallback_text # Default in case all retries fail
 
@@ -285,18 +276,18 @@ def generate_description_llm(
                 timeout=60,
             )
 
-            logger.debug(
-                f"\n{COLORS['YELLOW']}--- LLM Raw Response ({description_type}, Attempt {attempt+1}) ---{COLORS['ENDC']}"
-            )
+            # logger.debug(
+            #     f"\n{COLORS['YELLOW']}--- LLM Raw Response ({description_type}, Attempt {attempt+1}) ---{COLORS['ENDC']}"
+            # )
             try:
                 # Use model_dump() for Pydantic v2, dict() for v1
                 response_dict = response.model_dump()
             except AttributeError:
                 response_dict = response.dict()
-            logger.debug(json.dumps(response_dict, indent=2))
-            logger.debug(
-                f"{COLORS['YELLOW']}--------------------------------------------{COLORS['ENDC']}\n"
-            )
+            # logger.debug(json.dumps(response_dict, indent=2))
+            # logger.debug(
+            #     f"{COLORS['YELLOW']}--------------------------------------------{COLORS['ENDC']}\n"
+            # )
 
             if (
                 response
@@ -334,7 +325,7 @@ def generate_description_llm(
 
 
                 # Successful generation
-                logger.debug(f"Generated response: {response_text}")
+                # logger.debug(f"Generated response: {response_text}")
                 return response_text
 
             else:

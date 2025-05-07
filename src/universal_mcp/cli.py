@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-import yaml,json,sys,os
+import yaml, json, sys, os
 
 import typer
 from rich.console import Console
@@ -284,7 +284,13 @@ def preprocess(
         "perplexity/sonar",
         "--model",
         "-m",
-        help="Model to use for generating descriptions/summaries.",
+        help="Model to use for generating descriptions/summaries. Use LiteLLM model aliases (e.g., 'gpt-4', 'claude-3-sonnet', 'perplexity/sonar).",
+    ),
+    debug: bool = typer.Option(
+        False,
+        "--debug",
+        "-d",
+        help="Enable debug logging for verbose output, including LLM prompts/responses.",
     ),
 ):
     """
@@ -297,12 +303,10 @@ def preprocess(
         scan_schema_for_status,
         report_scan_results,
         preprocess_schema_with_llm,
-        set_logging_level # Import the logging level setter if not already used
+        set_logging_level,
     )
 
-    # Ensure logging level is set for this command's output
-    # (You might have a global logger setup in cli.py, adjust if needed)
-    set_logging_level("INFO")
+    set_logging_level("DEBUG" if debug else "INFO")
     console.print("[bold blue]--- Starting OpenAPI Schema Preprocessor ---[/bold blue]")
 
     if schema_path is None:
@@ -315,100 +319,168 @@ def preprocess(
             raise typer.Exit(1)
         schema_path = Path(path_str)
 
-    # --- Step 1: Read Schema ---
     try:
         schema_data = read_schema_file(str(schema_path))
     except (FileNotFoundError, yaml.YAMLError, json.JSONDecodeError, OSError) as e:
-         # read_schema_file logs critical errors, just exit here
-         raise typer.Exit(1) from e
-    except Exception as e:
-        console.print(f"[red]An unexpected error occurred while reading schema: {e}[/red]")
         raise typer.Exit(1) from e
-
+    except Exception as e:
+        console.print(
+            f"[red]An unexpected error occurred while reading schema: {e}[/red]"
+        )
+        raise typer.Exit(1) from e
 
     # --- Step 2: Scan and Report Status ---
     try:
         scan_report = scan_schema_for_status(schema_data)
         report_scan_results(scan_report)
     except Exception as e:
-        console.print(f"[red]An unexpected error occurred during schema scanning: {e}[/red]")
+        console.print(
+            f"[red]An unexpected error occurred during schema scanning: {e}[/red]"
+        )
         raise typer.Exit(1) from e
 
-    # --- Step 3: Check for Critical Errors and Prompt User ---
+    # --- Step 3: Check for Critical Errors ---
     if scan_report.get("critical_errors"):
-         console.print("[bold red]Cannot proceed with generation due to critical errors. Please fix the schema file manually.[/bold red]")
-         raise typer.Exit(1)
+        console.print(
+            "[bold red]Cannot proceed with generation due to critical errors. Please fix the schema file manually.[/bold red]"
+        )
+        raise typer.Exit(1)
 
-    # Check if there's anything missing or fallback to justify prompting for generation
+    # --- Step 4: Determine Prompt Options based on Scan Results ---
     total_missing_or_fallback = (
-        scan_report["info_description"]["missing"] + scan_report["info_description"]["fallback"] +
-        scan_report["operation_summary"]["missing"] + scan_report["operation_summary"]["fallback"] +
-        scan_report["parameter_description"]["missing"] + scan_report["parameter_description"]["fallback"]
+        scan_report["info_description"]["missing"]
+        + scan_report["info_description"]["fallback"]
+        + scan_report["operation_summary"]["missing"]
+        + scan_report["operation_summary"]["fallback"]
+        + scan_report["parameter_description"]["missing"]
+        + scan_report["parameter_description"]["fallback"]
     )
 
-    # Also consider parameters with missing name/in, as we can't generate for them
-    # Even if other things are missing, report these separately as ungeneratable
-    ungeneratable_params = len(scan_report.get("parameters_missing_name", [])) + len(scan_report.get("parameters_missing_in", []))
+    ungeneratable_params = len(scan_report.get("parameters_missing_name", [])) + len(
+        scan_report.get("parameters_missing_in", [])
+    )
 
-    if total_missing_or_fallback == 0:
-        console.print("[bold green]No missing or fallback descriptions/summaries found that can be automatically generated.[/bold green]")
+    prompt_options = []
+    valid_choices = []
+    default_choice = "3"  # Default is always Quit unless there's something missing
+
+    console.print("\n[bold blue]Choose an action:[/bold blue]")
+
+    if total_missing_or_fallback > 0:
+        console.print(
+            f"[bold]Scan found {total_missing_or_fallback} items that are missing or using fallback text and can be generated/enhanced.[/bold]"
+        )
         if ungeneratable_params > 0:
-             console.print(f"[yellow]Note: There are {ungeneratable_params} parameters with missing 'name' or 'in' fields that require manual fixing.[/yellow]")
-        console.print("[bold blue]Preprocessor finished.[/bold blue]")
-        raise typer.Exit(0) # Exit successfully if nothing needs generation
+            console.print(
+                f"[yellow]Note: {ungeneratable_params} parameters require manual fixing and cannot be generated by the LLM due to missing name/in.[/yellow]"
+            )
 
+        prompt_options = [
+            "  [1] Generate [bold]only missing[/bold] descriptions/summaries [green](default)[/green]",
+            "  [2] Generate/Enhance [bold]all[/bold] descriptions/summaries",
+            "  [3] [bold red]Quit[/bold red] (exit without changes)",
+        ]
+        valid_choices = ["1", "2", "3"]
+        default_choice = "1"  # Default to filling missing
 
-    # Prompt for action
+    else:  # total_missing_or_fallback == 0
+        if ungeneratable_params > 0:
+            console.print(
+                f"[bold yellow]Scan found no missing/fallback items suitable for generation, but {ungeneratable_params} parameters have missing 'name' or 'in'.[/bold yellow]"
+            )
+            console.print(
+                "[bold yellow]These parameters require manual fixing and cannot be generated by the LLM.[/bold yellow]"
+            )
+        else:
+            console.print(
+                "[bold green]Scan found no missing or fallback descriptions/summaries.[/bold green]"
+            )
+
+        console.print(
+            "[bold blue]You can choose to enhance all existing descriptions or exit.[/bold blue]"
+        )
+
+        prompt_options = [
+            "  [2] Generate/Enhance [bold]all[/bold] descriptions/summaries",
+            "  [3] [bold red]Quit[/bold red] [green](default)[/green]",
+        ]
+        valid_choices = ["2", "3"]
+        default_choice = "3"  # Default to quitting if nothing missing
+
+    for option_text in prompt_options:
+        console.print(option_text)
+
     while True:
-        console.print("\n[bold blue]Choose an action:[/bold blue]")
-        console.print("  [1] Generate [bold]only missing[/bold] descriptions/summaries [green](default)[/green]")
-        console.print("  [2] Generate/Enhance [bold]all[/bold] descriptions/summaries")
-        console.print("  [3] [bold red]Quit[/bold red] (exit without changes)")
+        choice = typer.prompt(
+            "Enter choice", default=default_choice, show_default=False, type=str
+        ).strip()
 
-        choice = typer.prompt("Enter choice", default="1", show_default=False, type=str).strip()
+        if choice not in valid_choices:
+            console.print(
+                "[red]Invalid choice. Please select from the options above.[/red]"
+            )
+            continue  # Ask again
 
         if choice == "3":
             console.print("[yellow]Exiting without making changes.[/yellow]")
             raise typer.Exit(0)
         elif choice == "1":
             enhance_all = False
-            break
+            break  # Exit prompt loop
         elif choice == "2":
             enhance_all = True
-            break
-        else:
-            console.print("[red]Invalid choice. Please enter 1, 2, or 3.[/red]")
+            break  # Exit prompt loop
 
-    # --- Step 4: Perform LLM Generation based on Choice ---
-    try:
-        preprocess_schema_with_llm(schema_data, model, enhance_all)
-        console.print("[green]LLM generation complete.[/green]")
-    except Exception as e:
-        console.print(f"[red]Error during LLM generation: {e}[/red]")
-        # Log traceback for debugging
-        import traceback
-        traceback.print_exc(file=sys.stderr)
-        raise typer.Exit(1) from e
+    perform_generation = False
+    if enhance_all:
+        perform_generation = True
+    elif (
+        choice == "1" and total_missing_or_fallback > 0
+    ):  # Chosen option 1 AND there was something missing
+        perform_generation = True
 
-    # --- Step 5: Determine Output Path and Write ---
+    if perform_generation:
+        console.print(
+            f"[blue]Starting LLM generation with Enhance All: {enhance_all}[/blue]"
+        )
+        try:
+            preprocess_schema_with_llm(schema_data, model, enhance_all)
+            console.print("[green]LLM generation complete.[/green]")
+        except Exception as e:
+            console.print(f"[red]Error during LLM generation: {e}[/red]")
+            # Log traceback for debugging
+            import traceback
+
+            traceback.print_exc(file=sys.stderr)
+            raise typer.Exit(1) from e
+    else:
+        console.print(
+            "[yellow]No missing or fallback items found, and 'Enhance All' was not selected. Skipping LLM generation step.[/yellow]"
+        )
+
     if output_path is None:
         base, ext = os.path.splitext(schema_path)
         output_path = Path(f"{base}_processed{ext}")
-        console.print(f"[blue]No output path specified. Defaulting to: {output_path}[/blue]")
+        console.print(
+            f"[blue]No output path specified. Defaulting to: {output_path}[/blue]"
+        )
     else:
-         console.print(f"[blue]Saving processed schema to: {output_path}[/blue]")
+        console.print(f"[blue]Saving processed schema to: {output_path}[/blue]")
 
     try:
         write_schema_file(schema_data, str(output_path))
     except (OSError, ValueError) as e:
-         # write_schema_file logs critical errors, just exit here
-         raise typer.Exit(1) from e
+        # write_schema_file logs critical errors, just exit here
+        raise typer.Exit(1) from e
     except Exception as e:
-        console.print(f"[red]An unexpected error occurred while writing the schema: {e}[/red]")
+        console.print(
+            f"[red]An unexpected error occurred while writing the schema: {e}[/red]"
+        )
         raise typer.Exit(1) from e
 
-
-    console.print("\n[bold green]--- Schema Processing and Saving Complete ---[/bold green]")
+    console.print(
+        "\n[bold green]--- Schema Processing and Saving Complete ---[/bold green]"
+    )
     console.print(f"Processed schema saved to: [blue]{output_path}[/blue]")
     console.print("[bold blue]Preprocessor finished successfully.[/bold blue]")
 
