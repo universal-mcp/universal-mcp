@@ -182,7 +182,7 @@ class APIApplication(BaseApplication):
         return response
 
     def _post(
-        self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None
+        self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None, content_type: str = "application/json"
     ) -> httpx.Response:
         """
         Make a POST request to the specified URL.
@@ -191,6 +191,7 @@ class APIApplication(BaseApplication):
             url: The URL to send the request to
             data: The data to send in the request body
             params: Optional query parameters
+            content_type: The Content-Type of the request body (e.g., 'application/json', 'application/x-www-form-urlencoded')
 
         Returns:
             httpx.Response: The response from the server
@@ -199,14 +200,24 @@ class APIApplication(BaseApplication):
             httpx.HTTPError: If the request fails
         """
         logger.debug(
-            f"Making POST request to {url} with params: {params} and data: {data}"
+            f"Making POST request to {url} with params: {params} and data: {data} (content_type={content_type})"
         )
-        response = httpx.post(
-            url,
-            headers=self._get_headers(),
-            json=data,
-            params=params,
-        )
+        headers = self._get_headers().copy()
+        headers["Content-Type"] = content_type
+        if content_type == "application/x-www-form-urlencoded":
+            response = httpx.post(
+                url,
+                headers=headers,
+                data=data,
+                params=params,
+            )
+        else:  # Default to JSON
+            response = httpx.post(
+                url,
+                headers=headers,
+                json=data,
+                params=params,
+            )
         response.raise_for_status()
         logger.debug(
             f"POST request successful with status code: {response.status_code}"
@@ -214,7 +225,7 @@ class APIApplication(BaseApplication):
         return response
 
     def _put(
-        self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None
+        self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None, content_type: str = "application/json"
     ) -> httpx.Response:
         """
         Make a PUT request to the specified URL.
@@ -223,6 +234,7 @@ class APIApplication(BaseApplication):
             url: The URL to send the request to
             data: The data to send in the request body
             params: Optional query parameters
+            content_type: The Content-Type of the request body (e.g., 'application/json', 'application/x-www-form-urlencoded')
 
         Returns:
             httpx.Response: The response from the server
@@ -231,13 +243,24 @@ class APIApplication(BaseApplication):
             httpx.HTTPError: If the request fails
         """
         logger.debug(
-            f"Making PUT request to {url} with params: {params} and data: {data}"
+            f"Making PUT request to {url} with params: {params} and data: {data} (content_type={content_type})"
         )
-        response = self.client.put(
-            url,
-            json=data,
-            params=params,
-        )
+        headers = self._get_headers().copy()
+        headers["Content-Type"] = content_type
+        if content_type == "application/x-www-form-urlencoded":
+            response = self.client.put(
+                url,
+                headers=headers,
+                data=data,
+                params=params,
+            )
+        else:  # Default to JSON
+            response = self.client.put(
+                url,
+                headers=headers,
+                json=data,
+                params=params,
+            )
         response.raise_for_status()
         logger.debug(f"PUT request successful with status code: {response.status_code}")
         return response

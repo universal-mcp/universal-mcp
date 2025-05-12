@@ -294,12 +294,21 @@ def _generate_body_params(operation: dict[str, Any]) -> list[Parameters]:
 
     required_body = request_body.get("required", False)
     content = request_body.get("content", {})
-    json_content = content.get("application/json", {})
-    if not json_content or "schema" not in json_content:
-        return []  # No JSON schema found
+    # Prefer application/json, but fall back to application/x-www-form-urlencoded
+    if "application/json" in content:
+        body_content = content["application/json"]
+    elif "application/x-www-form-urlencoded" in content:
+        body_content = content["application/x-www-form-urlencoded"]
+    else:
+        return []  # No supported schema found
 
-    schema = json_content.get("schema", {})
+    if "schema" not in body_content:
+        return []  # No schema found
+
+    schema = body_content.get("schema", {})
+    print(f"[DEBUG] Schema object received in _generate_body_params: {type(schema)} {schema}") # DEBUG
     properties, required_fields = _extract_properties_from_schema(schema)
+    print(f"[DEBUG] Properties extracted by _extract_properties_from_schema: {properties}") # DEBUG
 
     for param_name, param_schema in properties.items():
         param_type = param_schema.get("type", "string")
@@ -320,6 +329,7 @@ def _generate_body_params(operation: dict[str, Any]) -> list[Parameters]:
                 example=str(param_example) if param_example is not None else None,
             )
         )
+    # print(f"[DEBUG] Final body_params list generated: {body_params}") # DEBUG
     return body_params
 
 
@@ -347,6 +357,7 @@ def _generate_method_code(path, method, operation):
     path_params = _generate_path_params(path)
     query_params = _generate_query_params(operation)
     body_params = _generate_body_params(operation)
+    # print(f"[DEBUG] Body params received in _generate_method_code: {body_params}") # DEBUG
 
     # --- Alias duplicate parameter names ---
     # Path parameters have the highest priority and their names are not changed.
@@ -425,13 +436,21 @@ def _generate_method_code(path, method, operation):
     is_array_body = False
 
     if has_body:
-        request_body_content = operation.get("requestBody", {}).get("content", {})
-        json_content = request_body_content.get("application/json", {})
-        if json_content and "schema" in json_content:
-            schema = json_content["schema"]
+        request_body_content_map = operation.get("requestBody", {}).get("content", {})
+        
+        # Determine the actual schema to use based on supported content types
+        actual_body_content_dict = None
+        if "application/json" in request_body_content_map:
+            actual_body_content_dict = request_body_content_map["application/json"]
+        elif "application/x-www-form-urlencoded" in request_body_content_map:
+            actual_body_content_dict = request_body_content_map["application/x-www-form-urlencoded"]
+
+        if actual_body_content_dict and "schema" in actual_body_content_dict:
+            schema = actual_body_content_dict["schema"]
             if schema.get("type") == "array":
                 is_array_body = True
             else:
+                # Populate request_body_properties from the *actual* schema
                 request_body_properties, required_fields = (
                     _extract_properties_from_schema(schema)
                 )
@@ -439,8 +458,8 @@ def _generate_method_code(path, method, operation):
                     not request_body_properties or len(request_body_properties) == 0
                 ) and schema.get("additionalProperties") is True:
                     has_empty_body = True
-        elif not request_body_content or all(
-            not c for _, c in request_body_content.items()
+        elif not request_body_content_map or all(
+            not c for _, c in request_body_content_map.items()
         ):  # Check if content is truly empty
             has_empty_body = True
 
@@ -539,6 +558,7 @@ def _generate_method_code(path, method, operation):
 
     # Combine required and optional arguments
     args = required_args + optional_args
+    print(f"[DEBUG] Final combined args for signature: {args}") # DEBUG
 
     # ----- Build Docstring -----
     docstring_parts = []
@@ -723,6 +743,13 @@ def _generate_method_code(path, method, operation):
     else:
         body_lines.append("        query_params = {}")
 
+    # --- Detect request body content type for POST/PUT ---
+    request_body_content_type = "application/json"
+    if has_body:
+        request_body_content = operation.get("requestBody", {}).get("content", {})
+        if "application/x-www-form-urlencoded" in request_body_content:
+            request_body_content_type = "application/x-www-form-urlencoded"
+
     # Make HTTP request using the proper method
     method_lower = method.lower()
 
@@ -738,11 +765,11 @@ def _generate_method_code(path, method, operation):
         body_lines.append("        response = self._get(url, params=query_params)")
     elif method_lower == "post":
         body_lines.append(
-            f"        response = self._post(url, data={request_body_arg}, params=query_params)"
+            f"        response = self._post(url, data={request_body_arg}, params=query_params, content_type='{request_body_content_type}')"
         )
     elif method_lower == "put":
         body_lines.append(
-            f"        response = self._put(url, data={request_body_arg}, params=query_params)"
+            f"        response = self._put(url, data={request_body_arg}, params=query_params, content_type='{request_body_content_type}')"
         )
     elif method_lower == "patch":
         body_lines.append(
