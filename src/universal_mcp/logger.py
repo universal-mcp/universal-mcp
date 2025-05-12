@@ -1,9 +1,10 @@
-import sys
+import sys,os
 from datetime import datetime
 from pathlib import Path
 
 from loguru import logger
 
+UNIVERSAL_MCP_HOME = os.path.join(os.path.expanduser("~"), ".universal-mcp", "logs")
 
 def setup_logger(
     log_file: Path | None = None,
@@ -23,6 +24,9 @@ def setup_logger(
         level: Minimum logging level.
         format: Log message format string.
     """
+    
+    if log_file is None:
+        log_file = get_log_file_path()
     # Remove default handler
     logger.remove()
 
@@ -54,7 +58,7 @@ def setup_logger(
         )
 
 
-def get_log_file_path(app_name: str) -> Path:
+def get_log_file_path(app_name: str="universal_mcp") -> Path:
     """Get a standardized log file path for an application.
 
     Args:
@@ -64,5 +68,6 @@ def get_log_file_path(app_name: str) -> Path:
         Path to the log file in the format: logs/{app_name}/{app_name}_{date}.log
     """
     date_str = datetime.now().strftime("%Y%m%d")
-    log_dir = Path("logs") / app_name
+    log_dir = Path(UNIVERSAL_MCP_HOME)
     return log_dir / f"{app_name}_{date_str}.log"
+    
