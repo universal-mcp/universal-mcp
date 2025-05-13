@@ -3,7 +3,7 @@ def get_default_repository_path(slug: str) -> str:
     Convert a repository slug to a repository URL.
     """
     slug = slug.strip().lower()
-    return f"git+https://github.com/universal-mcp/{slug}"
+    return f"universal-mcp-{slug}"
 
 
 def get_default_package_name(slug: str) -> str:

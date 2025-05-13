@@ -115,9 +115,7 @@ class ToolManager:
                         f"Tool name '{tool.name}' conflicts with an existing tool. Skipping addition of new function."
                     )
                 else:
-                    logger.debug(
-                        f"Tool '{tool.name}' with the same function already exists."
-                    )
+                    logger.debug(f"Tool '{tool.name}' with the same function already exists.")
             return existing
 
         logger.debug(f"Adding tool: {tool.name}")
@@ -170,9 +168,7 @@ class ToolManager:
             return
 
         if not isinstance(functions, list):
-            logger.error(
-                f"App '{app.name}' list_tools() did not return a list. Skipping registration."
-            )
+            logger.error(f"App '{app.name}' list_tools() did not return a list. Skipping registration.")
             return
 
         tools = []
@@ -183,18 +179,12 @@ class ToolManager:
 
             try:
                 tool_instance = Tool.from_function(function)
-                tool_instance.name = (
-                    f"{app.name}{TOOL_NAME_SEPARATOR}{tool_instance.name}"
-                )
-                tool_instance.tags.append(
-                    app.name
-                ) if app.name not in tool_instance.tags else None
+                tool_instance.name = f"{app.name}{TOOL_NAME_SEPARATOR}{tool_instance.name}"
+                tool_instance.tags.append(app.name) if app.name not in tool_instance.tags else None
                 tools.append(tool_instance)
             except Exception as e:
                 tool_name = getattr(function, "__name__", "unknown")
-                logger.error(
-                    f"Failed to create Tool from '{tool_name}' in {app.name}: {e}"
-                )
+                logger.error(f"Failed to create Tool from '{tool_name}' in {app.name}: {e}")
 
         tools = _filter_by_name(tools, tool_names)
         tools = _filter_by_tags(tools, tags)

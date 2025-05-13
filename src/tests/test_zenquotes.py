@@ -13,9 +13,7 @@ async def test_zenquotes():
         )
     ]
 
-    server_config = ServerConfig(
-        name="Test Server", description="Test Server", apps=apps_list
-    )
+    server_config = ServerConfig(name="Test Server", description="Test Server", apps=apps_list)
     server = LocalServer(server_config)
 
     # List available tools

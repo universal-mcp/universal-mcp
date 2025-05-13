@@ -5,6 +5,21 @@ from pathlib import Path
 from loguru import logger
 
 
+def get_log_file_path(app_name: str = "universal-mcp") -> Path:
+    """Get a standardized log file path for an application.
+
+    Args:
+        app_name: Name of the application.
+
+    Returns:
+        Path to the log file in the format: logs/{app_name}/{app_name}_{date}.log
+    """
+    date_str = datetime.now().strftime("%Y%m%d")
+    home = Path.home()
+    log_dir = home / ".universal-mcp" / "logs"
+    return log_dir / f"{app_name}_{date_str}.log"
+
+
 def setup_logger(
     log_file: Path | None = None,
     rotation: str = "10 MB",
@@ -35,34 +50,21 @@ def setup_logger(
         backtrace=True,
         diagnose=True,
     )
+    if not log_file:
+        log_file = get_log_file_path()
 
-    # Add file handler if log_file is specified
-    if log_file:
-        # Ensure log directory exists
-        log_file.parent.mkdir(parents=True, exist_ok=True)
+    # Ensure log directory exists
+    log_file.parent.mkdir(parents=True, exist_ok=True)
 
-        logger.add(
-            sink=str(log_file),
-            rotation=rotation,
-            retention=retention,
-            compression=compression,
-            level=level,
-            format=format,
-            enqueue=True,
-            backtrace=True,
-            diagnose=True,
-        )
-
-
-def get_log_file_path(app_name: str) -> Path:
-    """Get a standardized log file path for an application.
-
-    Args:
-        app_name: Name of the application.
-
-    Returns:
-        Path to the log file in the format: logs/{app_name}/{app_name}_{date}.log
-    """
-    date_str = datetime.now().strftime("%Y%m%d")
-    log_dir = Path("logs") / app_name
-    return log_dir / f"{app_name}_{date_str}.log"
+    logger.add(
+        sink=str(log_file),
+        rotation=rotation,
+        retention=retention,
+        compression=compression,
+        level=level,
+        format=format,
+        enqueue=True,
+        backtrace=True,
+        diagnose=True,
+    )
+    logger.info(f"Logging to {log_file}")

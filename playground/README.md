@@ -1,65 +1,101 @@
-## Running the Playground
+# Universal MCP Playground
+
+The Playground provides an interactive environment to test and demonstrate the capabilities of agents built with LangGraph that utilize tools exposed via the Universal MCP (Model Control Protocol). It features a Streamlit-based chat interface allowing users to interact with an AI agent that can leverage tools from a connected MCP server.
+
+## 📋 Prerequisites
+
+Before running the playground, ensure you have the following:
+
+1.  **Python Environment**: Python 3.11+ is recommended.
+2.  **Dependencies**: Install the necessary dependencies. If you have the project cloned, you can often install them using:
+
+    ```bash
+    pip install -e .[playground]
+    ```
+
+    Alternatively, manually install `streamlit`, `langchain-openai`, `langgraph`, `langchain-mcp-adapters`, `loguru`, `pydantic`, etc.
+
+3.  **LLM API Access (Azure OpenAI by default)**:
+    The default agent in `playground/agents/react.py` uses `AzureChatOpenAI`. You'll need to set the following environment variables:
+
+    - `AZURE_OPENAI_API_KEY`: Your Azure OpenAI API key.
+    - `AZURE_OPENAI_ENDPOINT`: Your Azure OpenAI endpoint URL.
+      _If you wish to use a different LLM, you'll need to modify `playground/agents/react.py`._
+
+4.  **`local_config.json` in Project Root**:
+    This file is crucial. It configures the **local Universal MCP server** that the playground's agent will connect to for tools. This file must be placed in the **root directory of the `universal-mcp` project** (i.e., one level above the `src` directory).
+
+    The agent in `playground/agents/react.py` expects to connect to an MCP server at `http://localhost:8005` using Server-Sent Events (SSE). Therefore, your `local_config.json` should reflect this:
+
+    **Example `local_config.json` (place in project root):**
+
+    ```json
+    {
+      "name": "Playground Local MCP Server",
+      "description": "MCP server for playground agent tools",
+      "type": "local",
+      "transport": "sse", // Must be "sse" for the playground agent
+      "port": 8005, // Must be 8005 for the playground agent
+      "apps": [
+        {
+          "name": "zenquotes" // Example: Exposes the zenquotes app and its tools
+        },
+        {
+          "name": "tavily", // Example: Exposes Tavily search
+          "integration": {
+            "name": "TAVILY_API_KEY", // Credential name
+            "type": "api_key",
+            "store": {
+              "type": "environment" // Expects TAVILY_API_KEY env var
+            }
+          }
+        }
+        // Add other apps you want the agent to access
+      ]
+    }
+    ```
+
+    - Ensure the `transport` is `"sse"` and `port` is `8005`.
+    - Add any applications (tools) you want the agent to be able to use in the `apps` array. Ensure any necessary API keys for these tools are set as environment variables if their integration is configured to use `type: "environment"`.
+
+## ▶️ Running the Playground
 
 ### Automated Startup (Recommended)
 
-To easily start all necessary services (MCP Server, FastAPI Backend, Streamlit Frontend), you can use the provided Python startup script. This script will attempt to open each service in sequence and ensures they are terminated gracefully upon interruption.
+The easiest way to start all necessary services is using the provided Python startup script. Execute this command from the **root directory** of the `universal-mcp` project:
 
-**Prerequisites:**
+```bash
+python playground
+```
 
-*   Python 3 installed and available in your PATH.
-*   All project dependencies installed (ensure you've run `pip install ...` for all requirements).
-*   **`local_config.json` file:** This configuration file for the MCP server must exist in the **project root directory**. It should contain a JSON array defining the MCP tools to load. For example:
-    ```json
-    {
-        "name": "Local Server",
-        "description": "Local server for testing",
-        "type": "local",
-        "transport": "sse",
-        "apps": [
-            {
-                "name": "zenquotes"
-            }
-        ]
-    }
-    ```
-    *(Adapt the content based on the actual MCP tools you intend to use.)*
-*   A compatible terminal environment for the script:
-    *   On **macOS**, requires the standard `Terminal.app`.
-    *   On **Linux**, assumes `gnome-terminal` is available (common on Ubuntu/Fedora). You may need to modify `src/playground/__main__.py` if you use a different terminal like `konsole` or `xfce4-terminal`.
-    *   On **Windows**, requires the standard `cmd.exe`.
+This script will:
 
-**Instructions:**
+1.  Prompt you if you want to run a local MCP server (using `local_config.json`). If you say yes, it starts the MCP server.
+2.  Launch the Streamlit application.
 
-1.  Open your terminal application.
-2.  Navigate (`cd`) to the **root directory** of this project (the directory containing the `src/` folder and `local_config.json`).
-3.  Execute the startup script using Python:
-
-    ```bash
-    python src/playground
-    ```
-
-    *(Note: If your system uses `python3` to invoke Python 3, use that command instead: `python3 src/playground`)*
-
-After running the command, you should see messages indicating that the components are being launched.
+Your default web browser should open to the Streamlit app.
 
 ### Manual Startup (Alternative)
 
-If you prefer, or if the automated script does not work on your specific system configuration, you can still start each component manually. Make sure you run each command from the **project root directory** in a separate terminal window:
+If you prefer, or if the automated script doesn't suit your needs, you can start the components manually. Run each command from the **project root directory** in a separate terminal window:
 
-1.  **Terminal 1 (MCP Server):**
-    *(Ensure `local_config.json` exists in the project root as described above)*
+1.  **Terminal 1: Start the Universal MCP Server**
+    _(Ensures the agent has tools to connect to. Uses `local_config.json` from the project root.)_
+
     ```bash
     universal_mcp run -c local_config.json
     ```
-2.  **Terminal 2 (FastAPI App):**
-    ```bash
-    fastapi run src/playground
-    ```
-3.  **Terminal 3 (Streamlit App):**
-    ```bash
-    streamlit run src/playground/streamlit.py
-    ```
 
-### Stopping the Services
+    _Wait for the server to indicate it's running (e.g., "MCP SSE Server running on http://localhost:8005")._
 
-To stop the running services, go to each of the terminal windows that were opened (either by the script or manually) and press `Ctrl + C`.
+2.  **Terminal 2: Start the Streamlit Application**
+    ```bash
+    python -m streamlit run playground/streamlit.py
+    ```
+    _This will typically open the Streamlit app in your default web browser._
+
+## <span style="color:red;">X</span> Stopping the Services
+
+- **Automated Startup**: Press `Ctrl + C` in the terminal where you ran `python playground`. This should terminate both the Streamlit app and the MCP server (if started by the script).
+
+- **Manual Startup**: Go to each terminal window where you started a service (MCP server, Streamlit app) and press `Ctrl + C`.

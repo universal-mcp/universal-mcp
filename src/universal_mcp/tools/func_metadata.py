@@ -15,9 +15,7 @@ from pydantic_core import PydanticUndefined
 
 
 def _get_typed_annotation(annotation: Any, globalns: dict[str, Any]) -> Any:
-    def try_eval_type(
-        value: Any, globalns: dict[str, Any], localns: dict[str, Any]
-    ) -> tuple[Any, bool]:
+    def try_eval_type(value: Any, globalns: dict[str, Any], localns: dict[str, Any]) -> tuple[Any, bool]:
         try:
             return eval_type_backport(value, globalns, localns), True
         except NameError:
@@ -169,9 +167,7 @@ class FuncMetadata(BaseModel):
         globalns = getattr(func, "__globals__", {})
         for param in params.values():
             if param.name.startswith("_"):
-                raise InvalidSignature(
-                    f"Parameter {param.name} of {func.__name__} cannot start with '_'"
-                )
+                raise InvalidSignature(f"Parameter {param.name} of {func.__name__} cannot start with '_'")
             if param.name in skip_names:
                 continue
             annotation = param.annotation
@@ -180,11 +176,7 @@ class FuncMetadata(BaseModel):
             if annotation is None:
                 annotation = Annotated[
                     None,
-                    Field(
-                        default=param.default
-                        if param.default is not inspect.Parameter.empty
-                        else PydanticUndefined
-                    ),
+                    Field(default=param.default if param.default is not inspect.Parameter.empty else PydanticUndefined),
                 ]
 
             # Untyped field
@@ -198,15 +190,9 @@ class FuncMetadata(BaseModel):
 
             field_info = FieldInfo.from_annotated_attribute(
                 _get_typed_annotation(annotation, globalns),
-                param.default
-                if param.default is not inspect.Parameter.empty
-                else PydanticUndefined,
+                param.default if param.default is not inspect.Parameter.empty else PydanticUndefined,
             )
-            if (
-                not field_info.title
-                and arg_description
-                and arg_description.get(param.name)
-            ):
+            if not field_info.title and arg_description and arg_description.get(param.name):
                 field_info.title = arg_description.get(param.name)
             dynamic_pydantic_model_params[param.name] = (
                 field_info.annotation,
