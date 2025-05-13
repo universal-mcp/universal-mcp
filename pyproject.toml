@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "universal-mcp"
-version = "0.1.15-rc8"
+version = "0.1.15-rc9"
 description = "Universal MCP acts as a middle ware for your API applications. It can store your credentials, authorize, enable disable apps on the fly and much more."
 readme = "README.md"
 authors = [
