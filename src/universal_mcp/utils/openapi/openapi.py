@@ -91,24 +91,24 @@ def _sanitize_identifier(name: str | None) -> str:
     """
     if name is None:
         return ""
-    
+
     # Initial replacements for common non-alphanumeric characters
     sanitized = name.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "").replace("$", "_")
 
     # Remove leading underscores, but preserve a single underscore if the name (after initial replace)
     # consisted only of underscores.
-    if sanitized.startswith('_'):
-        stripped_name = sanitized.lstrip('_')
+    if sanitized.startswith("_"):
+        stripped_name = sanitized.lstrip("_")
         sanitized = stripped_name if stripped_name else "_"
-            
+
     # Append underscore if the sanitized name is a Python keyword
     if iskeyword(sanitized):
         sanitized += "_"
-        
+
     # Special handling for "self" to avoid conflict with instance method's self argument
     if sanitized == "self":
         sanitized = "self_arg"
-        
+
     return sanitized
 
 
@@ -202,18 +202,10 @@ def _determine_function_name(operation: dict[str, Any], path: str, method: str) 
         func_name = "_".join(name_parts).replace("-", "_").lower()
 
     # Only fix isolated 'a' and 'an' as articles, not when they're part of words
-    func_name = re.sub(
-        r"_a([^_a-z])", r"_a_\1", func_name
-    )  # Fix for patterns like retrieve_ablock -> retrieve_a_block
-    func_name = re.sub(
-        r"_a$", r"_a", func_name
-    )  # Don't change if 'a' is at the end of the name
-    func_name = re.sub(
-        r"_an([^_a-z])", r"_an_\1", func_name
-    )  # Fix for patterns like create_anitem -> create_an_item
-    func_name = re.sub(
-        r"_an$", r"_an", func_name
-    )  # Don't change if 'an' is at the end of the name
+    func_name = re.sub(r"_a([^_a-z])", r"_a_\1", func_name)  # Fix for patterns like retrieve_ablock -> retrieve_a_block
+    func_name = re.sub(r"_a$", r"_a", func_name)  # Don't change if 'a' is at the end of the name
+    func_name = re.sub(r"_an([^_a-z])", r"_an_\1", func_name)  # Fix for patterns like create_anitem -> create_an_item
+    func_name = re.sub(r"_an$", r"_an", func_name)  # Don't change if 'an' is at the end of the name
     return func_name
 
 
@@ -242,9 +234,7 @@ def _generate_path_params(path: str) -> list[Parameters]:
 def _generate_url(path: str, path_params: list[Parameters]):
     formatted_path = path
     for param in path_params:
-        formatted_path = formatted_path.replace(
-            f"{{{param.identifier}}}", f"{{{param.name}}}"
-        )
+        formatted_path = formatted_path.replace(f"{{{param.identifier}}}", f"{{{param.name}}}")
     return formatted_path
 
 
@@ -338,7 +328,7 @@ def _generate_method_code(path, method, operation):
     Returns:
         tuple: (method_code, func_name) - The Python code for the method and its name.
     """
-    print(f"--- Generating code for: {method.upper()} {path} ---") # Log endpoint being processed
+    print(f"--- Generating code for: {method.upper()} {path} ---")  # Log endpoint being processed
 
     func_name = _determine_function_name(operation, path, method)
     operation.get("summary", "")
@@ -354,12 +344,11 @@ def _generate_method_code(path, method, operation):
 
     # Define the string that "self" sanitizes to. This name will be treated as reserved
     # for query/body params to force suffixing.
-    self_sanitized_marker = _sanitize_identifier("self") # This will be "self_arg"
+    self_sanitized_marker = _sanitize_identifier("self")  # This will be "self_arg"
 
     # Base names that will force query/body parameters to be suffixed.
     # This includes actual path parameter names and the sanitized form of "self".
     path_param_base_conflict_names = path_param_names | {self_sanitized_marker}
-
 
     # Alias query parameters
     current_query_param_names = set()
@@ -374,17 +363,18 @@ def _generate_method_code(path, method, operation):
         # This step is more about ensuring the final suffixed name is unique if multiple query params mapped to same path param name
         counter = 1
         final_q_name = temp_q_name
-        while final_q_name in path_param_base_conflict_names or final_q_name in current_query_param_names : # Check against path/\"self_arg\" and already processed query params
-            if temp_q_name == original_q_name : # first conflict was with path_param_base_conflict_names
-                 final_q_name = f"{original_q_name}_query" # try simple suffix first
-                 if final_q_name in path_param_base_conflict_names or final_q_name in current_query_param_names:
-                     final_q_name = f"{original_q_name}_query_{counter}" # then add counter
-            else: # conflict was with another query param after initial suffixing
-                 final_q_name = f"{temp_q_name}_{counter}"
+        while (
+            final_q_name in path_param_base_conflict_names or final_q_name in current_query_param_names
+        ):  # Check against path/\"self_arg\" and already processed query params
+            if temp_q_name == original_q_name:  # first conflict was with path_param_base_conflict_names
+                final_q_name = f"{original_q_name}_query"  # try simple suffix first
+                if final_q_name in path_param_base_conflict_names or final_q_name in current_query_param_names:
+                    final_q_name = f"{original_q_name}_query_{counter}"  # then add counter
+            else:  # conflict was with another query param after initial suffixing
+                final_q_name = f"{temp_q_name}_{counter}"
             counter += 1
         q_param.name = final_q_name
         current_query_param_names.add(q_param.name)
-
 
     # Alias body parameters
     # Names to check against: path param names (including "self_arg" marker) and (now aliased) query param names
@@ -402,18 +392,17 @@ def _generate_method_code(path, method, operation):
         counter = 1
         final_b_name = temp_b_name
         while final_b_name in existing_param_names_for_body or final_b_name in current_body_param_names:
-            if temp_b_name == original_b_name: # first conflict was with existing_param_names_for_body
+            if temp_b_name == original_b_name:  # first conflict was with existing_param_names_for_body
                 final_b_name = f"{original_b_name}_body"
                 if final_b_name in existing_param_names_for_body or final_b_name in current_body_param_names:
                     final_b_name = f"{original_b_name}_body_{counter}"
-            else: # conflict was with another body param after initial suffixing
+            else:  # conflict was with another body param after initial suffixing
                 final_b_name = f"{temp_b_name}_{counter}"
 
             counter += 1
         b_param.name = final_b_name
         current_body_param_names.add(b_param.name)
     # --- End Alias duplicate parameter names ---
-
 
     return_type = _determine_return_type(operation)
 
@@ -432,12 +421,10 @@ def _generate_method_code(path, method, operation):
             if schema.get("type") == "array":
                 is_array_body = True
             else:
-                request_body_properties, required_fields = (
-                    _extract_properties_from_schema(schema)
-                )
-                if (
-                    not request_body_properties or len(request_body_properties) == 0
-                ) and schema.get("additionalProperties") is True:
+                request_body_properties, required_fields = _extract_properties_from_schema(schema)
+                if (not request_body_properties or len(request_body_properties) == 0) and schema.get(
+                    "additionalProperties"
+                ) is True:
                     has_empty_body = True
         elif not request_body_content or all(
             not c for _, c in request_body_content.items()
@@ -453,13 +440,13 @@ def _generate_method_code(path, method, operation):
     for param in path_params:
         # Path param names are sanitized but not suffixed by aliasing.
         # They are the baseline.
-        if param.name not in required_args: # param.name is the sanitized name
+        if param.name not in required_args:  # param.name is the sanitized name
             required_args.append(param.name)
 
     # 2. Process Query Parameters
-    for param in query_params: # param.name is the potentially aliased name (e.g., id_query)
+    for param in query_params:  # param.name is the potentially aliased name (e.g., id_query)
         arg_name_for_sig = param.name
-        current_arg_names_set = set(required_args) | {arg.split('=')[0] for arg in optional_args}
+        current_arg_names_set = set(required_args) | {arg.split("=")[0] for arg in optional_args}
         if arg_name_for_sig not in current_arg_names_set:
             if param.required:
                 required_args.append(arg_name_for_sig)
@@ -470,10 +457,10 @@ def _generate_method_code(path, method, operation):
     # This list tracks the *final* names of parameters in the signature that come from the request body,
     # used later for docstring example placement.
     final_request_body_arg_names_for_signature = []
-    final_empty_body_param_name = None # For the specific case of has_empty_body
+    final_empty_body_param_name = None  # For the specific case of has_empty_body
 
     if has_body:
-        current_arg_names_set = set(required_args) | {arg.split('=')[0] for arg in optional_args}
+        current_arg_names_set = set(required_args) | {arg.split("=")[0] for arg in optional_args}
         if is_array_body:
             array_param_name_base = "items"  # Default base name
             if func_name.endswith("_list_input"):
@@ -491,7 +478,7 @@ def _generate_method_code(path, method, operation):
                 else:
                     final_array_param_name = f"{array_param_name_base}_body_{counter}"
                 counter += 1
-            
+
             if body_required:
                 required_args.append(final_array_param_name)
             else:
@@ -500,10 +487,10 @@ def _generate_method_code(path, method, operation):
 
         elif request_body_properties:  # Object body
             for param in body_params:  # Iterate ALIASED body_params
-                arg_name_for_sig = param.name # This is the final, aliased name (e.g., "id_body")
-                
+                arg_name_for_sig = param.name  # This is the final, aliased name (e.g., "id_body")
+
                 # Defensive check against already added args (should be covered by aliasing logic)
-                current_arg_names_set_loop = set(required_args) | {arg.split('=')[0] for arg in optional_args}
+                current_arg_names_set_loop = set(required_args) | {arg.split("=")[0] for arg in optional_args}
                 if arg_name_for_sig not in current_arg_names_set_loop:
                     if param.required:
                         required_args.append(arg_name_for_sig)
@@ -516,8 +503,8 @@ def _generate_method_code(path, method, operation):
     # This is handled *after* specific body params, as it's a fallback.
     if has_empty_body:
         empty_body_param_name_base = "request_body"
-        current_arg_names_set = set(required_args) | {arg.split('=')[0] for arg in optional_args}
-        
+        current_arg_names_set = set(required_args) | {arg.split("=")[0] for arg in optional_args}
+
         final_empty_body_param_name = empty_body_param_name_base
         counter = 1
         is_first_suffix_attempt = True
@@ -531,11 +518,11 @@ def _generate_method_code(path, method, operation):
 
         # Check if it was somehow added by other logic (e.g. if 'request_body' was an explicit param name)
         # This check is mostly defensive.
-        if final_empty_body_param_name not in (set(required_args) | {arg.split('=')[0] for arg in optional_args}):
+        if final_empty_body_param_name not in (set(required_args) | {arg.split("=")[0] for arg in optional_args}):
             optional_args.append(f"{final_empty_body_param_name}=None")
         # Track for docstring, even if it's just 'request_body' or 'request_body_body'
         if final_empty_body_param_name not in final_request_body_arg_names_for_signature:
-             final_request_body_arg_names_for_signature.append(final_empty_body_param_name)
+            final_request_body_arg_names_for_signature.append(final_empty_body_param_name)
 
     # Combine required and optional arguments
     args = required_args + optional_args
@@ -547,9 +534,7 @@ def _generate_method_code(path, method, operation):
     # Summary
     summary = operation.get("summary", "").strip()
     if not summary:
-        summary = operation.get(
-            "description", f"Execute {method.upper()} {path}"
-        ).strip()
+        summary = operation.get("description", f"Execute {method.upper()} {path}").strip()
         summary = summary.split("\n")[0]
     if summary:
         docstring_parts.append(summary)
@@ -579,9 +564,7 @@ def _generate_method_code(path, method, operation):
             if example_data is not None:
                 try:
                     example_json = json.dumps(example_data, indent=2)
-                    indented_example = textwrap.indent(
-                        example_json, " " * 8
-                    )  # 8 spaces
+                    indented_example = textwrap.indent(example_json, " " * 8)  # 8 spaces
                     request_body_example_str = f"\n        Example:\n        ```json\n{indented_example}\n        ```"
                 except TypeError:
                     request_body_example_str = f"\n        Example: {example_data}"
@@ -591,7 +574,7 @@ def _generate_method_code(path, method, operation):
     # Identify the last argument related to the request body
     last_body_arg_name = None
     # request_body_params contains the names as they appear in the signature
-    if final_request_body_arg_names_for_signature: # Use the new list with final aliased names
+    if final_request_body_arg_names_for_signature:  # Use the new list with final aliased names
         # Find which of these appears last in the combined args list
         body_args_in_signature = [
             a.split("=")[0] for a in args if a.split("=")[0] in final_request_body_arg_names_for_signature
@@ -617,28 +600,21 @@ def _generate_method_code(path, method, operation):
                 if arg_name == last_body_arg_name and request_body_example_str:
                     # Remove the simple Example: if it exists before adding the detailed one
                     if example_str and (
-                        f" Example: {example_str}." in arg_line
-                        or f" Example: {example_str} ." in arg_line
+                        f" Example: {example_str}." in arg_line or f" Example: {example_str} ." in arg_line
                     ):
                         arg_line = arg_line.replace(
                             f" Example: {example_str}.", ""
                         )  # Remove with or without trailing period
-                    arg_line += (
-                        request_body_example_str  # Append the formatted JSON example
-                    )
+                    arg_line += request_body_example_str  # Append the formatted JSON example
 
                 args_doc_lines.append(arg_line)
-            elif arg_name == final_empty_body_param_name and has_empty_body: # Use potentially suffixed name
+            elif arg_name == final_empty_body_param_name and has_empty_body:  # Use potentially suffixed name
                 args_doc_lines.append(
                     f"    {arg_name} (dict | None): Optional dictionary for arbitrary request body data."
                 )
                 # Also append example here if this is the designated body arg
-                if (
-                    arg_name == last_body_arg_name and request_body_example_str
-                ): 
-                    args_doc_lines[-1] += (
-                        request_body_example_str 
-                    )
+                if arg_name == last_body_arg_name and request_body_example_str:
+                    args_doc_lines[-1] += request_body_example_str
 
     if args_doc_lines:
         docstring_parts.append("\n".join(args_doc_lines))
@@ -650,9 +626,7 @@ def _generate_method_code(path, method, operation):
         if code.startswith("2"):
             success_desc = resp_info.get("description", "").strip()
             break
-    docstring_parts.append(
-        f"Returns:\n    {return_type}: {success_desc or 'API response data.'}"
-    )  # Use return_type
+    docstring_parts.append(f"Returns:\n    {return_type}: {success_desc or 'API response data.'}")  # Use return_type
 
     # Tags Section
     operation_tags = operation.get("tags", [])
@@ -668,9 +642,7 @@ def _generate_method_code(path, method, operation):
     indented_docstring_content = textwrap.indent(docstring_content, doc_indent)
 
     # Wrap in triple quotes
-    formatted_docstring = (
-        f'\n{doc_indent}"""\n{indented_docstring_content}\n{doc_indent}"""'
-    )
+    formatted_docstring = f'\n{doc_indent}"""\n{indented_docstring_content}\n{doc_indent}"""'
     # ----- End Build Docstring -----
 
     if args:
@@ -685,7 +657,7 @@ def _generate_method_code(path, method, operation):
     for param in path_params:
         body_lines.append(f"        if {param.name} is None:")
         body_lines.append(
-            f'            raise ValueError("Missing required parameter \'{param.identifier}\'")' # Use original name in error
+            f"            raise ValueError(\"Missing required parameter '{param.identifier}'\")"  # Use original name in error
         )
 
     # Build request body (handle array and object types differently)
@@ -697,14 +669,12 @@ def _generate_method_code(path, method, operation):
         elif request_body_properties:
             # For object request bodies, build the request body from individual parameters
             body_lines.append("        request_body = {")
-            for b_param in body_params: # Iterate through original body_params list
+            for b_param in body_params:  # Iterate through original body_params list
                 # Use b_param.identifier for the key in the request_body dictionary
                 # and b_param.name for the variable name from the function signature
                 body_lines.append(f"            '{b_param.identifier}': {b_param.name},")
             body_lines.append("        }")
-            body_lines.append(
-                "        request_body = {k: v for k, v in request_body.items() if v is not None}"
-            )
+            body_lines.append("        request_body = {k: v for k, v in request_body.items() if v is not None}")
 
     # Format URL directly with path parameters
     url = _generate_url(path, path_params)
@@ -714,7 +684,7 @@ def _generate_method_code(path, method, operation):
     # Build query parameters dictionary for the request
     if query_params:
         query_params_items = []
-        for param in query_params: # Iterate through original query_params list
+        for param in query_params:  # Iterate through original query_params list
             # Use the original param.identifier for the key, and the (potentially aliased) param.name for the value variable
             query_params_items.append(f"('{param.identifier}', {param.name})")
         body_lines.append(
@@ -737,23 +707,15 @@ def _generate_method_code(path, method, operation):
     if method_lower == "get":
         body_lines.append("        response = self._get(url, params=query_params)")
     elif method_lower == "post":
-        body_lines.append(
-            f"        response = self._post(url, data={request_body_arg}, params=query_params)"
-        )
+        body_lines.append(f"        response = self._post(url, data={request_body_arg}, params=query_params)")
     elif method_lower == "put":
-        body_lines.append(
-            f"        response = self._put(url, data={request_body_arg}, params=query_params)"
-        )
+        body_lines.append(f"        response = self._put(url, data={request_body_arg}, params=query_params)")
     elif method_lower == "patch":
-        body_lines.append(
-            f"        response = self._patch(url, data={request_body_arg}, params=query_params)"
-        )
+        body_lines.append(f"        response = self._patch(url, data={request_body_arg}, params=query_params)")
     elif method_lower == "delete":
         body_lines.append("        response = self._delete(url, params=query_params)")
     else:
-        body_lines.append(
-            f"        response = self._{method_lower}(url, data={request_body_arg}, params=query_params)"
-        )
+        body_lines.append(f"        response = self._{method_lower}(url, data={request_body_arg}, params=query_params)")
 
     # Handle response
     body_lines.append("        response.raise_for_status()")
@@ -795,11 +757,7 @@ def generate_api_client(schema, class_name: str | None = None):
     if api_title:
         # Convert API title to a clean class name
         if class_name:
-            clean_name = (
-                class_name.capitalize()[:-3]
-                if class_name.endswith("App")
-                else class_name.capitalize()
-            )
+            clean_name = class_name.capitalize()[:-3] if class_name.endswith("App") else class_name.capitalize()
         else:
             base_name = "".join(word.capitalize() for word in api_title.split())
             clean_name = "".join(c for c in base_name if c.isalnum())
@@ -858,11 +816,7 @@ def generate_api_client(schema, class_name: str | None = None):
         f"class {class_name}(APIApplication):\n"
         f"    def __init__(self, integration: Integration = None, **kwargs) -> None:\n"
         f"        super().__init__(name='{class_name.lower()}', integration=integration, **kwargs)\n"
-        f'        self.base_url = "{base_url}"\n\n'
-        + "\n\n".join(methods)
-        + "\n\n"
-        + list_tools_method
-        + "\n"
+        f'        self.base_url = "{base_url}"\n\n' + "\n\n".join(methods) + "\n\n" + list_tools_method + "\n"
     )
     return class_code
 
@@ -886,9 +840,7 @@ if __name__ == "__main__":
                     "responses": {
                         "200": {
                             "description": "A list of users",
-                            "content": {
-                                "application/json": {"schema": {"type": "array"}}
-                            },
+                            "content": {"application/json": {"schema": {"type": "array"}}},
                         }
                     },
                 },

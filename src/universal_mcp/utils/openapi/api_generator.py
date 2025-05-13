@@ -109,9 +109,7 @@ def generate_api_from_schema(
         f.write(code)
 
     if not test_correct_output(gen_file):
-        logger.error(
-            "Generated code validation failed for '%s'. Aborting generation.", gen_file
-        )
+        logger.error("Generated code validation failed for '%s'. Aborting generation.", gen_file)
         logger.info("Next steps:")
         logger.info(" 1) Review your OpenAPI schema for potential mismatches.")
         logger.info(

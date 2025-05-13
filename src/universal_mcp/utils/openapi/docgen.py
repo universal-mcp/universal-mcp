@@ -19,12 +19,8 @@ from pydantic import BaseModel, Field
 class DocstringOutput(BaseModel):
     """Structure for the generated docstring output."""
 
-    summary: str = Field(
-        description="A clear, concise summary of what the function does"
-    )
-    args: dict[str, str] = Field(
-        description="Dictionary mapping parameter names to their descriptions"
-    )
+    summary: str = Field(description="A clear, concise summary of what the function does")
+    args: dict[str, str] = Field(description="Dictionary mapping parameter names to their descriptions")
     returns: str = Field(description="Description of what the function returns")
     raises: dict[str, str] = Field(
         default_factory=dict,
@@ -44,9 +40,7 @@ class FunctionExtractor(ast.NodeVisitor):
 
     def __init__(self, source_code: str):
         self.source_lines = source_code.splitlines(keepends=True)
-        self.functions: list[
-            tuple[str, str]
-        ] = []  # Store tuples of (function_name, function_source)
+        self.functions: list[tuple[str, str]] = []  # Store tuples of (function_name, function_source)
 
     def _get_source_segment(self, node: ast.AST) -> str | None:
         """Safely extracts the source segment for a node using ast.get_source_segment."""
@@ -110,9 +104,7 @@ def extract_functions_from_script(file_path: str) -> list[tuple[str, str]]:
     try:
         tree = ast.parse(source_code, filename=file_path)
     except SyntaxError as e:
-        print(
-            f"Error: Invalid Python syntax in {file_path} at line {e.lineno}, offset {e.offset}: {e.msg}"
-        )
+        print(f"Error: Invalid Python syntax in {file_path} at line {e.lineno}, offset {e.offset}: {e.msg}")
         raise
     except Exception as e:
         print(f"Error parsing {file_path} into AST: {e}")
@@ -175,9 +167,7 @@ def extract_json_from_text(text):
         raise ValueError("Could not extract valid JSON from the response") from e
 
 
-def generate_docstring(
-    function_code: str, model: str = "perplexity/sonar"
-) -> DocstringOutput:
+def generate_docstring(function_code: str, model: str = "perplexity/sonar") -> DocstringOutput:
     """
     Generate a docstring for a Python function using litellm with structured output.
 
@@ -239,9 +229,7 @@ def generate_docstring(
             parsed_data = extract_json_from_text(response_text)
         except ValueError as e:
             print(f"JSON extraction failed: {e}")
-            print(
-                f"Raw response: {response_text[:100]}..."
-            )  # Log first 100 chars for debugging
+            print(f"Raw response: {response_text[:100]}...")  # Log first 100 chars for debugging
             # Return a default structure if extraction fails
             return DocstringOutput(
                 summary="Failed to extract docstring information",
@@ -291,20 +279,14 @@ def format_docstring(docstring: DocstringOutput) -> str:
     if summary:
         parts.append(summary)
 
-    filtered_args = {
-        name: desc
-        for name, desc in docstring.args.items()
-        if name not in ("self", "cls")
-    }
+    filtered_args = {name: desc for name, desc in docstring.args.items() if name not in ("self", "cls")}
     args_lines = []
     if filtered_args:
         args_lines.append("Args:")
         for arg_name, arg_desc in filtered_args.items():
             arg_desc_cleaned = arg_desc.strip()
             args_lines.append(f"    {arg_name}: {arg_desc_cleaned}")
-    elif docstring.args.get(
-        "None"
-    ):  # Include the 'None' placeholder if it was generated
+    elif docstring.args.get("None"):  # Include the 'None' placeholder if it was generated
         args_lines.append("Args:")
         none_desc_cleaned = docstring.args["None"].strip()
         args_lines.append(f"    None: {none_desc_cleaned}")
@@ -321,12 +303,8 @@ def format_docstring(docstring: DocstringOutput) -> str:
         raises_lines.append("Raises:")
         for exception_type, exception_desc in docstring.raises.items():
             exception_desc_cleaned = exception_desc.strip()
-            if (
-                exception_type.strip() and exception_desc_cleaned
-            ):  # Ensure type and desc are not empty
-                raises_lines.append(
-                    f"    {exception_type.strip()}: {exception_desc_cleaned}"
-                )
+            if exception_type.strip() and exception_desc_cleaned:  # Ensure type and desc are not empty
+                raises_lines.append(f"    {exception_type.strip()}: {exception_desc_cleaned}")
     if raises_lines:
         parts.append("\n".join(raises_lines))
 
@@ -363,9 +341,7 @@ def insert_docstring_into_function(function_code: str, docstring: str) -> str:
         lines = function_code.splitlines(keepends=True)
 
         tree = ast.parse(function_code)
-        if not tree.body or not isinstance(
-            tree.body[0], ast.FunctionDef | ast.AsyncFunctionDef
-        ):
+        if not tree.body or not isinstance(tree.body[0], ast.FunctionDef | ast.AsyncFunctionDef):
             print(
                 "Warning: Could not parse function definition from code snippet. Returning original code.",
                 file=sys.stderr,
@@ -399,15 +375,11 @@ def insert_docstring_into_function(function_code: str, docstring: str) -> str:
             if func_node.lineno - 1 < len(lines):  # Ensure def line exists
                 def_line = lines[func_node.lineno - 1]
                 def_line_indent = def_line[: len(def_line) - len(def_line.lstrip())]
-                body_indent = (
-                    def_line_indent + "    "
-                )  # Standard 4 spaces relative indent
+                body_indent = def_line_indent + "    "  # Standard 4 spaces relative indent
 
         # Format the new docstring lines with the calculated indentation
         new_docstring_lines_formatted = [f'{body_indent}"""\n']
-        new_docstring_lines_formatted.extend(
-            [f"{body_indent}{line}\n" for line in docstring.splitlines()]
-        )
+        new_docstring_lines_formatted.extend([f"{body_indent}{line}\n" for line in docstring.splitlines()])
         new_docstring_lines_formatted.append(f'{body_indent}"""\n')
 
         output_lines = []
@@ -425,10 +397,7 @@ def insert_docstring_into_function(function_code: str, docstring: str) -> str:
                 dummy_tree = ast.parse(dummy_code)
                 dummy_body_statements = (
                     dummy_tree.body[0].body
-                    if dummy_tree.body
-                    and isinstance(
-                        dummy_tree.body[0], ast.FunctionDef | ast.AsyncFunctionDef
-                    )
+                    if dummy_tree.body and isinstance(dummy_tree.body[0], ast.FunctionDef | ast.AsyncFunctionDef)
                     else []
                 )
                 cleaned_body_parts = []
@@ -455,13 +424,9 @@ def insert_docstring_into_function(function_code: str, docstring: str) -> str:
 
                     if not is_just_string_stmt:
                         stmt_start_idx = stmt_node.lineno - 1
-                        stmt_end_idx = (
-                            stmt_node.end_lineno - 1
-                        )  # Inclusive end line index
+                        stmt_end_idx = stmt_node.end_lineno - 1  # Inclusive end line index
 
-                        cleaned_body_parts.extend(
-                            lines[stmt_start_idx : stmt_end_idx + 1]
-                        )
+                        cleaned_body_parts.extend(lines[stmt_start_idx : stmt_end_idx + 1])
 
                 if func_node.body:
                     last_stmt_end_idx = func_node.body[-1].end_lineno - 1
@@ -545,9 +510,7 @@ def process_file(file_path: str, model: str = "perplexity/sonar") -> int:
         formatted_docstring = format_docstring(docstring_output)
 
         # Insert docstring into function
-        updated_function = insert_docstring_into_function(
-            function_code, formatted_docstring
-        )
+        updated_function = insert_docstring_into_function(function_code, formatted_docstring)
 
         # Replace the function in the file content
         if updated_function != function_code:

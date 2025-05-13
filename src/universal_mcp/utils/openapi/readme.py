@@ -18,17 +18,13 @@ def _import_class(module_path: str, class_name: str):
         return getattr(module, class_name)
     except AttributeError as e:
         logger.error(f"Class '{class_name}' not found in module '{module_path}'")
-        raise ModuleNotFoundError(
-            f"Class '{class_name}' not found in module '{module_path}'"
-        ) from e
+        raise ModuleNotFoundError(f"Class '{class_name}' not found in module '{module_path}'") from e
 
 
 def _get_single_class_name(file_path: Path) -> str:
     with open(file_path) as file:
         tree = ast.parse(file.read(), filename=str(file_path))
-    class_defs = [
-        node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)
-    ]
+    class_defs = [node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
     if len(class_defs) == 1:
         logger.info(f"Auto-detected class: {class_defs[0]}")
         return class_defs[0]
@@ -56,9 +52,7 @@ def generate_readme(app: Path) -> Path:
         raise FileNotFoundError(f"Template directory not found: {template_dir}")
 
     try:
-        env = Environment(
-            loader=FileSystemLoader(template_dir), autoescape=select_autoescape()
-        )
+        env = Environment(loader=FileSystemLoader(template_dir), autoescape=select_autoescape())
         template = env.get_template("README.md.j2")
     except Exception as e:
         logger.error(f"Error loading template: {e}")

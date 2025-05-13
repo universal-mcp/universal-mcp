@@ -28,9 +28,7 @@ class BaseServer(FastMCP, ABC):
 
     def __init__(self, config: ServerConfig, **kwargs):
         super().__init__(config.name, config.description, port=config.port, **kwargs)
-        logger.info(
-            f"Initializing server: {config.name} ({config.type}) with store: {config.store}"
-        )
+        logger.info(f"Initializing server: {config.name} ({config.type}) with store: {config.store}")
 
         self.config = config  # Store config at base level for consistency
         self._tool_manager = ToolManager(warn_on_duplicate_tools=True)
@@ -67,19 +65,13 @@ class BaseServer(FastMCP, ABC):
         """
         if isinstance(result, str):
             return [TextContent(type="text", text=result)]
-        elif isinstance(result, list) and all(
-            isinstance(item, TextContent) for item in result
-        ):
+        elif isinstance(result, list) and all(isinstance(item, TextContent) for item in result):
             return result
         else:
-            logger.warning(
-                f"Tool returned unexpected type: {type(result)}. Wrapping in TextContent."
-            )
+            logger.warning(f"Tool returned unexpected type: {type(result)}. Wrapping in TextContent.")
             return [TextContent(type="text", text=str(result))]
 
-    async def call_tool(
-        self, name: str, arguments: dict[str, Any]
-    ) -> list[TextContent]:
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
         """Call a tool with comprehensive error handling.
 
         Args:
@@ -139,9 +131,7 @@ class LocalServer(BaseServer):
         """
         try:
             integration = (
-                integration_from_config(app_config.integration, store=self.store)
-                if app_config.integration
-                else None
+                integration_from_config(app_config.integration, store=self.store) if app_config.integration else None
             )
             return app_from_slug(app_config.name)(integration=integration)
         except Exception as e:
@@ -200,9 +190,7 @@ class AgentRServer(BaseServer):
         """
         try:
             integration = (
-                AgentRIntegration(
-                    name=app_config.integration.name, api_key=self.client.api_key
-                )
+                AgentRIntegration(name=app_config.integration.name, api_key=self.client.api_key)
                 if app_config.integration
                 else None
             )
