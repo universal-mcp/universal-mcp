@@ -1,4 +1,5 @@
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -18,6 +19,19 @@ def get_uvx_path() -> str:
         return "uvx"  # Fall back to just "uvx" if not found
     return uvx_path
 
+def get_current_script_environment_path() -> str:
+    """
+    Gets the PATH environment variable from the current Python script's environment.
+    This is the PATH that the script itself is running with.
+    """
+    current_path = os.environ.get("PATH")
+    if not current_path:
+        logger.warning(
+            "Could not retrieve PATH from the current script's environment. "
+            "The Claude-launched process might not find necessary executables if this is used."
+        )
+        return ""  # Return empty or a very minimal default if absolutely necessary
+    return current_path
 
 def create_file_if_not_exists(path: Path) -> None:
     """Create a file if it doesn't exist"""
@@ -62,8 +76,9 @@ def install_claude(api_key: str) -> None:
     config["mcpServers"]["universal_mcp"] = {
         "command": get_uvx_path(),
         "args": ["universal_mcp@latest", "run"],
-        "env": {"AGENTR_API_KEY": api_key},
-    }
+        "env": {"AGENTR_API_KEY": api_key,
+                "PATH": get_current_script_environment_path()},
+        }
     with open(config_path, "w") as f:
         json.dump(config, f, indent=4)
     print("[green]✓[/green] Claude configuration installed successfully")
