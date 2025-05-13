@@ -35,13 +35,6 @@ def _install_or_upgrade_package(package_name: str, repository_path: str):
     """
     Helper to install a package via pip from the universal-mcp GitHub repository.
     """
-    try:
-        current_version = version(package_name)
-        logger.info(f"Current version of {package_name} is {current_version}")
-    except ImportError:
-        current_version = None
-    if current_version is not None:
-        return
     cmd = [
         "uv",
         "pip",
