@@ -209,17 +209,15 @@ class APIApplication(BaseApplication):
             f"Making POST request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
         )
         headers = self._get_headers().copy()
-        # For multipart/form-data, httpx handles the Content-Type header (with boundary)
-        # if files are provided. Setting it here might be overridden or could be an error
-        # if the boundary is not included. It's generally safer to let httpx set it.
-        # However, if user explicitly passes it, we can include it, httpx might ignore/override.
-        if content_type != 'multipart/form-data' or not files:
+        # if files are provided or if data is to be multipart encoded.
+        # For other content types, we set it explicitly.
+        if content_type != 'multipart/form-data':
             headers["Content-Type"] = content_type
 
         if content_type == "multipart/form-data":
             response = self.client.post(
                 url,
-                headers=headers, # httpx will likely override Content-Type if `files` is used
+                headers=headers,
                 data=data,    # For regular form fields
                 files=files,  # For file parts
                 params=params,
@@ -279,7 +277,11 @@ class APIApplication(BaseApplication):
             f"Making PUT request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
         )
         headers = self._get_headers().copy()
-        if content_type != 'multipart/form-data' or not files:
+        # For multipart/form-data, httpx handles the Content-Type header (with boundary)
+        # if files are provided or if data is to be multipart encoded.
+        # It's generally safer to let httpx set it for this content type.
+        # For other content types, we set it explicitly.
+        if content_type != 'multipart/form-data':
             headers["Content-Type"] = content_type
             
         if content_type == "multipart/form-data":
