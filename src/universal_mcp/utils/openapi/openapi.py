@@ -774,20 +774,24 @@ def _generate_method_code(path, method, operation):
     for param in path_params:
         body_lines.append(f"        if {param.name} is None:")
         body_lines.append(
-            f"            raise ValueError(\"Missing required parameter '{param.identifier}'\")"  # Use original name in error
+            f'            raise ValueError("Missing required parameter \'{param.identifier}\'")'  # Use original name in error
         )
+
+    body_lines.append("        request_body_data = None")
+    body_lines.append("        files_data = None")
 
     # --- Build Request Payload (request_body_data and files_data) ---
     # This section prepares the data to be sent in the request body,
     # differentiating between files and other data for multipart forms,
     # and handling various body types (array, object, raw, empty).
     if has_body:
+        # This block will now overwrite the initial None values if a body is present.
         if is_array_body:
             # For array request bodies, use the array parameter directly
             array_arg_name = final_request_body_arg_names_for_signature[0] if final_request_body_arg_names_for_signature else "items_body" # Fallback
             body_lines.append(f"        # Using array parameter '{array_arg_name}' directly as request body")
             body_lines.append(f"        request_body_data = {array_arg_name}") # Use a neutral temp name
-            body_lines.append(f"        files_data = None")
+            # files_data remains None
 
         elif selected_content_type == "multipart/form-data":
             body_lines.append("        request_body_data = {}") # For non-file form fields
@@ -800,6 +804,9 @@ def _generate_method_code(path, method, operation):
                     body_lines.append(f"        if {b_param.name} is not None:") # Check if form field is provided
                     body_lines.append(f"            request_body_data['{b_param.identifier}'] = {b_param.name}")
             body_lines.append("        files_data = {k: v for k, v in files_data.items() if v is not None}")
+            # Ensure files_data is None if it's empty after filtering, as httpx expects None, not {}
+            body_lines.append("        if not files_data: files_data = None")
+
         
         elif body_params: # Object request bodies (JSON, x-www-form-urlencoded) with specific parameters
             body_lines.append("        request_body_data = {")
@@ -809,19 +816,13 @@ def _generate_method_code(path, method, operation):
             body_lines.append(
                 "        request_body_data = {k: v for k, v in request_body_data.items() if v is not None}"
             )
-            body_lines.append(f"        files_data = None")
         
         elif raw_body_param_name: # Raw content type (octet-stream, text, image)
             body_lines.append(f"        request_body_data = {raw_body_param_name}")
-            body_lines.append(f"        files_data = None")
 
         elif has_empty_body and selected_content_type == "application/json": # Empty JSON object {}
             body_lines.append(f"        request_body_data = {final_empty_body_param_name} if {final_empty_body_param_name} is not None else {{}}")
-            body_lines.append(f"        files_data = None")
-        
-        else: # Fallback or body not applicable for this type with these params
-            body_lines.append("        request_body_data = None") # Or {} depending on API expectations
-            body_lines.append("        files_data = None")
+  
 
     # --- Format URL and Query Parameters for Request ---
     url = _generate_url(path, path_params)
