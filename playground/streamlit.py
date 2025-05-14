@@ -202,9 +202,7 @@ async def main() -> None:
                 messages = []
             else:
                 try:
-                    messages: ChatHistory = agent_client.get_history(
-                        thread_id=thread_id
-                    ).messages
+                    messages: ChatHistory = agent_client.get_history(thread_id=thread_id).messages
                 except AgentClientError:
                     st.error("No message history found for this Thread ID.")
                     messages = []
@@ -237,10 +235,7 @@ async def main() -> None:
                     f"File '{uploaded_file.name}' ready for processing with your next message.",
                     icon="📄",
                 )
-        elif (
-            uploaded_file is None
-            and st.session_state.get("uploaded_file_obj") is not None
-        ):
+        elif uploaded_file is None and st.session_state.get("uploaded_file_obj") is not None:
             st.session_state.uploaded_file_obj = None
             st.session_state.file_processed = False
             if "last_processed_file" in st.session_state:
@@ -269,17 +264,12 @@ async def main() -> None:
 
         # Chat input area
         st.markdown('<div class="chat-input-area">', unsafe_allow_html=True)
-        if user_input := st.chat_input(
-            "Enter message or upload a file and describe task...", key="chat_input"
-        ):
+        if user_input := st.chat_input("Enter message or upload a file and describe task...", key="chat_input"):
             final_message_content = user_input
             display_content = user_input
 
             # --- Handle File Upload Integration ---
-            if (
-                st.session_state.uploaded_file_obj
-                and not st.session_state.file_processed
-            ):
+            if st.session_state.uploaded_file_obj and not st.session_state.file_processed:
                 uploaded_file_obj = st.session_state.uploaded_file_obj
                 original_filename = uploaded_file_obj.name
                 try:
@@ -293,9 +283,7 @@ async def main() -> None:
                         f"{absolute_filepath_str}]\n\n"
                     )
                     final_message_content = file_metadata_prefix + user_input
-                    display_content = (
-                        f"[Using uploaded file: {original_filename}]\n\n{user_input}"
-                    )
+                    display_content = f"[Using uploaded file: {original_filename}]\n\n{user_input}"
                     st.session_state.last_processed_file = original_filename
                     st.session_state.file_processed = True
                 except OSError as e:
@@ -326,9 +314,7 @@ async def main() -> None:
             except AgentClientError as e:
                 st.error(f"Error generating response: {e}")
             except Exception as e:
-                st.error(
-                    f"An unexpected error occurred during agent communication: {e}"
-                )
+                st.error(f"An unexpected error occurred during agent communication: {e}")
         st.markdown("</div>", unsafe_allow_html=True)
 
         # End chat app wrapper
@@ -394,9 +380,7 @@ async def draw_messages(
                         for _ in range(len(call_results)):
                             tool_result: ChatMessage = await anext(messages_agen)
                             if tool_result.type != "tool":
-                                st.error(
-                                    f"Unexpected ChatMessage type: {tool_result.type}"
-                                )
+                                st.error(f"Unexpected ChatMessage type: {tool_result.type}")
                                 st.write(tool_result)
                                 st.stop()
                             if is_new:
@@ -416,9 +400,7 @@ async def draw_messages(
                     st.session_state.messages.append(msg)
                 if last_message_type != "task":
                     last_message_type = "task"
-                    st.session_state.last_message = st.chat_message(
-                        name="task", avatar="⚙️"
-                    )
+                    st.session_state.last_message = st.chat_message(name="task", avatar="⚙️")
                     with st.session_state.last_message:
                         status = TaskDataStatus()
                 status.add_and_draw_task_data(task_data)
@@ -434,10 +416,7 @@ async def handle_feedback() -> None:
         st.session_state.last_feedback = (None, None)
     latest_run_id = st.session_state.messages[-1].run_id
     feedback = st.feedback("stars", key=latest_run_id)
-    if (
-        feedback is not None
-        and (latest_run_id, feedback) != st.session_state.last_feedback
-    ):
+    if feedback is not None and (latest_run_id, feedback) != st.session_state.last_feedback:
         normalized_score = (feedback + 1) / 5.0
         agent_client: AgentClient = st.session_state.agent_client
         try:

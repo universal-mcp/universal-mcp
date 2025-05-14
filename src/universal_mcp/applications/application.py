@@ -82,11 +82,9 @@ class APIApplication(BaseApplication):
         super().__init__(name, **kwargs)
         self.default_timeout: int = 180
         self.integration: Integration | None = integration
-        logger.debug(
-            f"Initializing APIApplication '{name}' with integration: {integration}"
-        )
+        logger.debug(f"Initializing APIApplication '{name}' with integration: {integration}")
         self._client: httpx.Client | None = client
-        self.base_url: str = ""  # Initialize, but subclasses should set this
+        self.base_url: str = ""
 
     def _get_headers(self) -> dict[str, str]:
         """
@@ -112,11 +110,7 @@ class APIApplication(BaseApplication):
             return headers
 
         # Check if api key is provided
-        api_key = (
-            credentials.get("api_key")
-            or credentials.get("API_KEY")
-            or credentials.get("apiKey")
-        )
+        api_key = credentials.get("api_key") or credentials.get("API_KEY") or credentials.get("apiKey")
         if api_key:
             logger.debug("Using API key from credentials")
             return {
@@ -148,17 +142,11 @@ class APIApplication(BaseApplication):
         """
         if not self._client:
             headers = self._get_headers()
-            if not self.base_url:
-                logger.warning(f"APIApplication '{self.name}' base_url is not set.")
-                self._client = httpx.Client(
-                    headers=headers, timeout=self.default_timeout
-                )
-            else:
-                self._client = httpx.Client(
-                    base_url=self.base_url,
-                    headers=headers,
-                    timeout=self.default_timeout,
-                )
+            self._client = httpx.Client(
+                base_url=self.base_url,
+                headers=headers,
+                timeout=self.default_timeout,
+            )
         return self._client
 
     def _get(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
@@ -243,9 +231,7 @@ class APIApplication(BaseApplication):
                 params=params,
             )
         response.raise_for_status()
-        logger.debug(
-            f"POST request successful with status code: {response.status_code}"
-        )
+        logger.debug(f"POST request successful with status code: {response.status_code}")
         return response
 
     def _put(
@@ -333,14 +319,10 @@ class APIApplication(BaseApplication):
         logger.debug(f"Making DELETE request to {url} with params: {params}")
         response = self.client.delete(url, params=params, timeout=self.default_timeout)
         response.raise_for_status()
-        logger.debug(
-            f"DELETE request successful with status code: {response.status_code}"
-        )
+        logger.debug(f"DELETE request successful with status code: {response.status_code}")
         return response
 
-    def _patch(
-        self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None
-    ) -> httpx.Response:
+    def _patch(self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None) -> httpx.Response:
         """
         Make a PATCH request to the specified URL.
 
@@ -355,18 +337,14 @@ class APIApplication(BaseApplication):
         Raises:
             httpx.HTTPError: If the request fails
         """
-        logger.debug(
-            f"Making PATCH request to {url} with params: {params} and data: {data}"
-        )
+        logger.debug(f"Making PATCH request to {url} with params: {params} and data: {data}")
         response = self.client.patch(
             url,
             json=data,
             params=params,
         )
         response.raise_for_status()
-        logger.debug(
-            f"PATCH request successful with status code: {response.status_code}"
-        )
+        logger.debug(f"PATCH request successful with status code: {response.status_code}")
         return response
 
 
@@ -431,11 +409,7 @@ class GraphQLApplication(BaseApplication):
             return headers
 
         # Check if api key is provided
-        api_key = (
-            credentials.get("api_key")
-            or credentials.get("API_KEY")
-            or credentials.get("apiKey")
-        )
+        api_key = credentials.get("api_key") or credentials.get("API_KEY") or credentials.get("apiKey")
         if api_key:
             logger.debug("Using API key from credentials")
             return {
@@ -466,9 +440,7 @@ class GraphQLApplication(BaseApplication):
         if not self._client:
             headers = self._get_headers()
             transport = RequestsHTTPTransport(url=self.base_url, headers=headers)
-            self._client = GraphQLClient(
-                transport=transport, fetch_schema_from_transport=True
-            )
+            self._client = GraphQLClient(transport=transport, fetch_schema_from_transport=True)
         return self._client
 
     def mutate(

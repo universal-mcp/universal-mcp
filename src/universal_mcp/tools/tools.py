@@ -20,20 +20,15 @@ class Tool(BaseModel):
     args_description: dict[str, str] = Field(
         default_factory=dict, description="Descriptions of arguments from the docstring"
     )
-    returns_description: str = Field(
-        default="", description="Description of the return value from the docstring"
-    )
+    returns_description: str = Field(default="", description="Description of the return value from the docstring")
     raises_description: dict[str, str] = Field(
         default_factory=dict,
         description="Descriptions of exceptions raised from the docstring",
     )
-    tags: list[str] = Field(
-        default_factory=list, description="Tags for categorizing the tool"
-    )
+    tags: list[str] = Field(default_factory=list, description="Tags for categorizing the tool")
     parameters: dict[str, Any] = Field(description="JSON schema for tool parameters")
     fn_metadata: FuncMetadata = Field(
-        description="Metadata about the function including a pydantic model for tool"
-        " arguments"
+        description="Metadata about the function including a pydantic model for tool arguments"
     )
     is_async: bool = Field(description="Whether the tool is async")
 
@@ -55,9 +50,7 @@ class Tool(BaseModel):
 
         is_async = inspect.iscoroutinefunction(fn)
 
-        func_arg_metadata = FuncMetadata.func_metadata(
-            fn, arg_description=parsed_doc["args"]
-        )
+        func_arg_metadata = FuncMetadata.func_metadata(fn, arg_description=parsed_doc["args"])
         parameters = func_arg_metadata.arg_model.model_json_schema()
 
         return cls(

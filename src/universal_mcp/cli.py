@@ -7,8 +7,7 @@ from rich.panel import Panel
 
 from universal_mcp.utils.installation import (
     get_supported_apps,
-    install_claude,
-    install_cursor,
+    install_app,
 )
 
 # Setup rich console and logging
@@ -101,9 +100,7 @@ def docgen(
 
 @app.command()
 def run(
-    config_path: Path | None = typer.Option(
-        None, "--config", "-c", help="Path to the config file"
-    ),
+    config_path: Path | None = typer.Option(None, "--config", "-c", help="Path to the config file"),
 ):
     """Run the MCP server"""
     from universal_mcp.config import ServerConfig
@@ -112,10 +109,7 @@ def run(
 
     setup_logger()
 
-    if config_path:
-        config = ServerConfig.model_validate_json(config_path.read_text())
-    else:
-        config = ServerConfig()
+    config = ServerConfig.model_validate_json(config_path.read_text()) if config_path else ServerConfig()
     server = server_from_config(config)
     server.run(transport=config.transport)
 
@@ -151,14 +145,7 @@ def install(app_name: str = typer.Argument(..., help="Name of app to install")):
         type=str,
     )
     try:
-        if app_name == "claude":
-            console.print(f"[blue]Installing mcp server for: {app_name}[/blue]")
-            install_claude(api_key)
-            console.print("[green]App installed successfully[/green]")
-        elif app_name == "cursor":
-            console.print(f"[blue]Installing mcp server for: {app_name}[/blue]")
-            install_cursor(api_key)
-            console.print("[green]App installed successfully[/green]")
+        install_app(app_name, api_key)
     except Exception as e:
         console.print(f"[red]Error installing app: {e}[/red]")
         raise typer.Exit(1) from e
@@ -219,18 +206,12 @@ def init(
     if not output_dir.exists():
         try:
             output_dir.mkdir(parents=True, exist_ok=True)
-            console.print(
-                f"[green]✅ Created output directory at '{output_dir}'[/green]"
-            )
+            console.print(f"[green]✅ Created output directory at '{output_dir}'[/green]")
         except Exception as e:
-            console.print(
-                f"[red]❌ Failed to create output directory '{output_dir}': {e}[/red]"
-            )
+            console.print(f"[red]❌ Failed to create output directory '{output_dir}': {e}[/red]")
             raise typer.Exit(code=1) from e
     elif not output_dir.is_dir():
-        console.print(
-            f"[red]❌ Output path '{output_dir}' exists but is not a directory.[/red]"
-        )
+        console.print(f"[red]❌ Output path '{output_dir}' exists but is not a directory.[/red]")
         raise typer.Exit(code=1)
 
     # Integration type
@@ -241,9 +222,7 @@ def init(
             prompt_suffix=" (api_key, oauth, agentr, none): ",
         ).lower()
     if integration_type not in ("api_key", "oauth", "agentr", "none"):
-        console.print(
-            "[red]❌ Integration type must be one of: api_key, oauth, agentr, none[/red]"
-        )
+        console.print("[red]❌ Integration type must be one of: api_key, oauth, agentr, none[/red]")
         raise typer.Exit(code=1)
 
     console.print("[blue]🚀 Generating project using cookiecutter...[/blue]")
@@ -264,12 +243,14 @@ def init(
     project_dir = output_dir / f"{app_name}"
     console.print(f"✅ Project created at {project_dir}")
 
+
 @app.command()
 def preprocess(
     schema_path: Path = typer.Option(None, "--schema", "-s", help="Path to the OpenAPI schema file."),
     output_path: Path = typer.Option(None, "--output", "-o", help="Path to save the processed schema."),
 ):
     from universal_mcp.utils.openapi.preprocessor import run_preprocessing
+
     """Preprocess an OpenAPI schema using LLM to fill or enhance descriptions."""
     run_preprocessing(schema_path, output_path)
 

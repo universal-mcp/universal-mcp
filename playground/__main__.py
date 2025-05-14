@@ -13,20 +13,19 @@ def main():
     # Ask the user if they want to run the MCP server
     run_mcp_server = input("Do you want to run the MCP server? (y/n): ")
     if run_mcp_server == "y":
-        mcp_process = subprocess.Popen(
-            ["universal_mcp", "run", "-c", "local_config.json"]
-        )
+        mcp_process = subprocess.Popen(["universal_mcp", "run", "-c", "local_config.json"])
         processes.append(mcp_process)
         time.sleep(6)  # Give MCP server time to start
         logger.info("MCP server started")
 
     streamlit_cmd = [
-        sys.executable, "-m", "streamlit", "run",
-        os.path.join("playground", "streamlit.py")
+        sys.executable,
+        "-m",
+        "streamlit",
+        "run",
+        os.path.join("playground", "streamlit.py"),
     ]
-    processes.append(
-        subprocess.Popen(streamlit_cmd, env=os.environ)
-    )
+    processes.append(subprocess.Popen(streamlit_cmd, env=os.environ))
     logger.info("Streamlit app started")
     try:
         for p in processes:

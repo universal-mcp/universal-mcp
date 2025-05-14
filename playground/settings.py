@@ -13,9 +13,7 @@ class Settings(BaseSettings):
     BASE_DIR: Path = Path(__file__).parent.parent
     DATA_DIR: Path = BASE_DIR / "data"
 
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
 settings = Settings()

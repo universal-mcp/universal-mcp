@@ -26,9 +26,7 @@ class AgentrClient(metaclass=Singleton):
                 "API key for AgentR is missing. Please visit https://agentr.dev to create an API key, then set it as AGENTR_API_KEY environment variable."
             )
             raise ValueError("AgentR API key required - get one at https://agentr.dev")
-        self.base_url = (
-            base_url or os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
-        ).rstrip("/")
+        self.base_url = (base_url or os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")).rstrip("/")
 
     def get_credentials(self, integration_name: str) -> dict:
         """Get credentials for an integration from the AgentR API.
@@ -48,9 +46,7 @@ class AgentrClient(metaclass=Singleton):
             headers={"accept": "application/json", "X-API-KEY": self.api_key},
         )
         if response.status_code == 404:
-            logger.warning(
-                f"No credentials found for {integration_name}. Requesting authorization..."
-            )
+            logger.warning(f"No credentials found for {integration_name}. Requesting authorization...")
             action = self.get_authorization_url(integration_name)
             raise NotAuthorizedError(action)
         response.raise_for_status()

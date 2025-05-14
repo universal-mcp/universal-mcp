@@ -73,9 +73,7 @@ class AgentClient:
         configurable = {"thread_id": thread_id}
         if agent_config:
             if overlap := configurable.keys() & agent_config.keys():
-                raise AgentClientError(
-                    f"agent_config contains reserved keys: {overlap}"
-                )
+                raise AgentClientError(f"agent_config contains reserved keys: {overlap}")
             configurable.update(agent_config)
 
         kwargs = {
@@ -117,9 +115,7 @@ class AgentClient:
         configurable = {"thread_id": thread_id}
         if agent_config:
             if overlap := configurable.keys() & agent_config.keys():
-                raise AgentClientError(
-                    f"agent_config contains reserved keys: {overlap}"
-                )
+                raise AgentClientError(f"agent_config contains reserved keys: {overlap}")
             configurable.update(agent_config)
 
         kwargs = {
@@ -196,9 +192,7 @@ class AgentClient:
         configurable = {"thread_id": thread_id}
         if agent_config:
             if overlap := configurable.keys() & agent_config.keys():
-                raise AgentClientError(
-                    f"agent_config contains reserved keys: {overlap}"
-                )
+                raise AgentClientError(f"agent_config contains reserved keys: {overlap}")
             configurable.update(agent_config)
 
         kwargs = {
@@ -223,18 +217,12 @@ class AgentClient:
                     and any(t.startswith("graph:step:") for t in event.get("tags", []))
                 ):
                     if isinstance(event["data"]["output"], Command):
-                        new_messages = event["data"]["output"].update.get(
-                            "messages", []
-                        )
+                        new_messages = event["data"]["output"].update.get("messages", [])
                     elif "messages" in event["data"]["output"]:
                         new_messages = event["data"]["output"]["messages"]
 
                 # Also yield intermediate messages from agents.utils.CustomData.adispatch().
-                if event[
-                    "event"
-                ] == "on_custom_event" and "custom_data_dispatch" in event.get(
-                    "tags", []
-                ):
+                if event["event"] == "on_custom_event" and "custom_data_dispatch" in event.get("tags", []):
                     new_messages = [event["data"]]
 
                 for message in new_messages:
@@ -294,9 +282,7 @@ class AgentClient:
         configurable = {"thread_id": thread_id}
         if agent_config:
             if overlap := configurable.keys() & agent_config.keys():
-                raise AgentClientError(
-                    f"agent_config contains reserved keys: {overlap}"
-                )
+                raise AgentClientError(f"agent_config contains reserved keys: {overlap}")
             configurable.update(agent_config)
 
         kwargs = {
@@ -321,18 +307,12 @@ class AgentClient:
                     and any(t.startswith("graph:step:") for t in event.get("tags", []))
                 ):
                     if isinstance(event["data"]["output"], Command):
-                        new_messages = event["data"]["output"].update.get(
-                            "messages", []
-                        )
+                        new_messages = event["data"]["output"].update.get("messages", [])
                     elif "messages" in event["data"]["output"]:
                         new_messages = event["data"]["output"]["messages"]
 
                 # Also yield intermediate messages from agents.utils.CustomData.adispatch().
-                if event[
-                    "event"
-                ] == "on_custom_event" and "custom_data_dispatch" in event.get(
-                    "tags", []
-                ):
+                if event["event"] == "on_custom_event" and "custom_data_dispatch" in event.get("tags", []):
                     new_messages = [event["data"]]
 
                 for message in new_messages:

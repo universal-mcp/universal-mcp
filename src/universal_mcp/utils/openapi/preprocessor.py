@@ -94,9 +94,7 @@ def read_schema_file(schema_path: str) -> dict:
     # Keep this function as is
     logger.info(f"Attempting to read schema file: {schema_path}")
     if not os.path.exists(schema_path):
-        logger.critical(
-            f"Schema file not found at: {schema_path}"
-        )  # Use critical for pre-processing essential step
+        logger.critical(f"Schema file not found at: {schema_path}")  # Use critical for pre-processing essential step
         raise FileNotFoundError(f"Schema file not found at: {schema_path}")
 
     try:
@@ -132,9 +130,7 @@ def read_schema_file(schema_path: str) -> dict:
         logger.critical(f"Error reading schema file {schema_path}: {e}")
         raise
     except Exception as e:
-        logger.critical(
-            f"An unexpected error occurred while reading {schema_path}: {e}"
-        )
+        logger.critical(f"An unexpected error occurred while reading {schema_path}: {e}")
         traceback.print_exc(file=sys.stderr)
         raise
 
@@ -154,9 +150,7 @@ def write_schema_file(schema_data: dict, output_path: str):
 
             if file_extension == ".json":
                 json.dump(schema_data, f, indent=2, ensure_ascii=False)
-                logger.info(
-                    f"Successfully wrote processed schema as JSON to {output_path}"
-                )
+                logger.info(f"Successfully wrote processed schema as JSON to {output_path}")
             elif file_extension in [".yaml", ".yml"]:
                 yaml.dump(
                     schema_data,
@@ -165,24 +159,16 @@ def write_schema_file(schema_data: dict, output_path: str):
                     allow_unicode=True,
                     sort_keys=False,
                 )
-                logger.info(
-                    f"Successfully wrote processed schema as YAML to {output_path}"
-                )
+                logger.info(f"Successfully wrote processed schema as YAML to {output_path}")
             else:
-                logger.error(
-                    f"Unsupported output file extension '{file_extension}' for writing."
-                )
-                raise ValueError(
-                    f"Unsupported output file extension '{file_extension}'. Use .json or .yaml/.yml."
-                )
+                logger.error(f"Unsupported output file extension '{file_extension}' for writing.")
+                raise ValueError(f"Unsupported output file extension '{file_extension}'. Use .json or .yaml/.yml.")
 
     except OSError as e:
         logger.critical(f"Error writing schema file {output_path}: {e}")
         raise
     except Exception as e:
-        logger.critical(
-            f"An unexpected error occurred while writing {output_path}: {e}"
-        )
+        logger.critical(f"An unexpected error occurred while writing {output_path}: {e}")
         traceback.print_exc(file=sys.stderr)
         raise
 
@@ -251,15 +237,11 @@ def generate_description_llm(
         fallback_text = f"[LLM could not generate description for API '{api_title}']"  # More specific fallback
 
     else:
-        logger.error(
-            f"Invalid description_type '{description_type}' passed to generate_description_llm."
-        )
+        logger.error(f"Invalid description_type '{description_type}' passed to generate_description_llm.")
         return "[Invalid description type specified]"
 
     if not user_prompt:
-        logger.error(
-            f"User prompt was not generated for description_type '{description_type}'."
-        )
+        logger.error(f"User prompt was not generated for description_type '{description_type}'.")
         return fallback_text
 
     messages = [
@@ -305,12 +287,7 @@ def generate_description_llm(
             #     f"{COLORS['YELLOW']}--------------------------------------------{COLORS['ENDC']}\n"
             # )
 
-            if (
-                response
-                and response.choices
-                and response.choices[0]
-                and response.choices[0].message
-            ):
+            if response and response.choices and response.choices[0] and response.choices[0].message:
                 response_text = response.choices[0].message.content.strip()
 
                 # Remove potential quotes around the response
@@ -360,9 +337,7 @@ def generate_description_llm(
                 logger.info(f"Retrying in {retry_delay} seconds...")
                 time.sleep(retry_delay)
             else:
-                logger.error(
-                    f"Max retries ({max_retries}) reached for type '{description_type}'."
-                )
+                logger.error(f"Max retries ({max_retries}) reached for type '{description_type}'.")
                 break  # Exit retry loop
 
     # Restore original logging level
@@ -413,21 +388,15 @@ def simplify_operation_context(operation_value: dict) -> dict:
         simplified_request_body = {}
         if "required" in original_request_body:
             simplified_request_body["required"] = original_request_body["required"]
-        if "content" in original_request_body and isinstance(
-            original_request_body["content"], dict
-        ):
-            simplified_request_body["content_types"] = list(
-                original_request_body["content"].keys()
-            )
+        if "content" in original_request_body and isinstance(original_request_body["content"], dict):
+            simplified_request_body["content_types"] = list(original_request_body["content"].keys())
         if simplified_request_body:
             simplified_context["requestBody"] = simplified_request_body
 
     # Include security if present (simplified)
     original_security = operation_value.get("security")
     if isinstance(original_security, list) and original_security:
-        simplified_context["security"] = (
-            original_security  # List of security requirement objects (usually small)
-        )
+        simplified_context["security"] = original_security  # List of security requirement objects (usually small)
 
     return simplified_context
 
@@ -483,9 +452,7 @@ def scan_schema_for_status(schema_data: dict):
 
     info_title = info.get("title")
     if not isinstance(info_title, str) or not info_title.strip():
-        error_msg = (
-            f"Critical: Required field '{info_location}.title' is missing or empty."
-        )
+        error_msg = f"Critical: Required field '{info_location}.title' is missing or empty."
         logger.critical(error_msg)
         scan_report["critical_errors"].append(error_msg)
         # Cannot proceed meaningfully without title
@@ -503,9 +470,7 @@ def scan_schema_for_status(schema_data: dict):
     # --- Check Paths ---
     paths = schema_data.get("paths")
     if not isinstance(paths, dict):
-        if (
-            paths is not None
-        ):  # Allow None if schema is empty, but warn if it's wrong type
+        if paths is not None:  # Allow None if schema is empty, but warn if it's wrong type
             logger.warning("'paths' field is not a dictionary. Skipping path scanning.")
         else:
             logger.info("'paths' field is missing or null. No operations to scan.")
@@ -517,9 +482,7 @@ def scan_schema_for_status(schema_data: dict):
             continue
 
         if not isinstance(path_value, dict):
-            logger.warning(
-                f"Path value for '{path_key}' is not a dictionary. Skipping scanning for this path."
-            )
+            logger.warning(f"Path value for '{path_key}' is not a dictionary. Skipping scanning for this path.")
             continue
 
         for method, operation_value in path_value.items():
@@ -535,9 +498,7 @@ def scan_schema_for_status(schema_data: dict):
             ]:
                 operation_location_base = f"paths.{path_key}.{method.lower()}"
                 if not isinstance(operation_value, dict):
-                    logger.warning(
-                        f"Operation value for '{operation_location_base}' is not a dictionary. Skipping."
-                    )
+                    logger.warning(f"Operation value for '{operation_location_base}' is not a dictionary. Skipping.")
                     continue
 
                 # Check Operation Summary
@@ -569,30 +530,20 @@ def scan_schema_for_status(schema_data: dict):
                         param_name = parameter.get("name")
                         param_in = parameter.get("in")
                         param_location_id = (
-                            param_name
-                            if isinstance(param_name, str) and param_name.strip()
-                            else f"index {i}"
+                            param_name if isinstance(param_name, str) and param_name.strip() else f"index {i}"
                         )
-                        param_location_base = (
-                            f"{operation_location_base}.parameters[{param_location_id}]"
-                        )
+                        param_location_base = f"{operation_location_base}.parameters[{param_location_id}]"
 
                         # Check Parameter 'name' and 'in'
                         if not isinstance(param_name, str) or not param_name.strip():
                             error_msg = f"Missing/empty 'name' field for parameter at {param_location_base}. Cannot generate description."
-                            logger.warning(
-                                error_msg
-                            )  # Use warning as it might be fixable manually
-                            scan_report["parameters_missing_name"].append(
-                                param_location_base
-                            )
+                            logger.warning(error_msg)  # Use warning as it might be fixable manually
+                            scan_report["parameters_missing_name"].append(param_location_base)
 
                         if not isinstance(param_in, str) or not param_in.strip():
                             error_msg = f"Missing/empty 'in' field for parameter '{param_name}' at {param_location_base}. Cannot generate description."
                             logger.warning(error_msg)  # Use warning
-                            scan_report["parameters_missing_in"].append(
-                                param_location_base
-                            )
+                            scan_report["parameters_missing_in"].append(param_location_base)
 
                         # Check Parameter Description (only if name/in are present for meaningful description)
                         if (
@@ -602,14 +553,9 @@ def scan_schema_for_status(schema_data: dict):
                             and param_in.strip()
                         ):
                             param_description = parameter.get("description")
-                            if (
-                                isinstance(param_description, str)
-                                and param_description.strip()
-                            ):
+                            if isinstance(param_description, str) and param_description.strip():
                                 if is_fallback_text(param_description):
-                                    scan_report["parameter_description"][
-                                        "fallback"
-                                    ] += 1
+                                    scan_report["parameter_description"]["fallback"] += 1
                                 else:
                                     scan_report["parameter_description"]["present"] += 1
                             else:
@@ -625,23 +571,15 @@ def scan_schema_for_status(schema_data: dict):
                     )
 
             elif method.lower().startswith("x-"):
-                logger.debug(
-                    f"Skipping scanning of method extension '{method.lower()}' in path '{path_key}'."
-                )
+                logger.debug(f"Skipping scanning of method extension '{method.lower()}' in path '{path_key}'.")
                 continue
             elif method.lower() == "parameters":  # Path level parameters
-                logger.debug(
-                    f"Skipping scanning of path-level parameters in '{path_key}'."
-                )
+                logger.debug(f"Skipping scanning of path-level parameters in '{path_key}'.")
                 continue
             elif operation_value is not None:
-                logger.warning(
-                    f"Unknown method '{method}' found in path '{path_key}'. Skipping scanning."
-                )
+                logger.warning(f"Unknown method '{method}' found in path '{path_key}'. Skipping scanning.")
             elif operation_value is None:
-                logger.debug(
-                    f"Operation value for method '{method}' in path '{path_key}' is null. Skipping scanning."
-                )
+                logger.debug(f"Operation value for method '{method}' in path '{path_key}' is null. Skipping scanning.")
 
     logger.info("--- Scan Complete ---")
     return scan_report
@@ -649,11 +587,7 @@ def scan_schema_for_status(schema_data: dict):
 
 def report_scan_results(scan_report: dict):
     """Prints a formatted summary of the scan results."""
-    console = (
-        logging.getLogger().handlers[0].console
-        if hasattr(logging.getLogger().handlers[0], "console")
-        else None
-    )
+    console = logging.getLogger().handlers[0].console if hasattr(logging.getLogger().handlers[0], "console") else None
     if console is None:  # Fallback if rich console isn't attached to logger
         from rich.console import Console
 
@@ -665,9 +599,7 @@ def report_scan_results(scan_report: dict):
         console.print("[bold red]CRITICAL ERRORS FOUND:[/bold red]")
         for error in scan_report["critical_errors"]:
             console.print(f"  [red]❌[/red] {error}")
-        console.print(
-            "[bold red]Critical errors prevent automatic generation. Please fix these manually.[/bold red]"
-        )
+        console.print("[bold red]Critical errors prevent automatic generation. Please fix these manually.[/bold red]")
         return  # Stop here if critical errors exist
 
     console.print("[bold yellow]Description/Summary Status:[/bold yellow]")
@@ -694,9 +626,7 @@ def report_scan_results(scan_report: dict):
     missing_in = scan_report.get("parameters_missing_in", [])
 
     if missing_name or missing_in:
-        console.print(
-            "\n[bold red]Parameter Issues Preventing LLM Generation:[/bold red]"
-        )
+        console.print("\n[bold red]Parameter Issues Preventing LLM Generation:[/bold red]")
         console.print(
             "[yellow]Parameters below cannot have descriptions generated by LLM until 'name' and 'in' fields are fixed manually.[/yellow]"
         )
@@ -723,9 +653,7 @@ def report_scan_results(scan_report: dict):
             f"\n[bold]Total items missing or needing enhancement:[/bold] [orange1]{total_missing_or_fallback}[/orange1]"
         )
     else:
-        console.print(
-            "\n[bold green]Scan found no missing or fallback descriptions/summaries.[/bold green]"
-        )
+        console.print("\n[bold green]Scan found no missing or fallback descriptions/summaries.[/bold green]")
 
     console.print("[bold blue]-------------------------[/bold blue]")
 
@@ -739,9 +667,7 @@ def process_parameter(
     enhance_all: bool,  # New flag
 ):
     if not isinstance(parameter, dict):
-        logger.warning(
-            f"Invalid parameter object found in {operation_location_base}. Expected dictionary."
-        )
+        logger.warning(f"Invalid parameter object found in {operation_location_base}. Expected dictionary.")
         return
 
     if "$ref" in parameter:
@@ -762,9 +688,7 @@ def process_parameter(
     elif isinstance(param_in, str) and param_in.strip():
         param_location_id = f"{param_in.strip()}:[name missing]"
 
-    parameter_location_base = (
-        f"{operation_location_base}.parameters[{param_location_id}]"
-    )
+    parameter_location_base = f"{operation_location_base}.parameters[{param_location_id}]"
 
     # Crucial check: Cannot generate description without name/in
     if (
@@ -784,15 +708,11 @@ def process_parameter(
         enhance_all  # Generate if enhancing all
         or not isinstance(param_description, str)  # Generate if missing
         or not param_description.strip()  # Generate if empty
-        or is_fallback_text(
-            param_description
-        )  # Generate if it's previous fallback text
+        or is_fallback_text(param_description)  # Generate if it's previous fallback text
     )
 
     if needs_generation:
-        logger.info(
-            f"Generating description for parameter '{param_name}' at {parameter_location_base}."
-        )
+        logger.info(f"Generating description for parameter '{param_name}' at {parameter_location_base}.")
 
         simplified_context = simplify_parameter_context(parameter)
 
@@ -808,9 +728,7 @@ def process_parameter(
             },
         )
         parameter["description"] = generated_description
-        logger.debug(
-            f"Inserted description for parameter '{param_name}' at {parameter_location_base}."
-        )
+        logger.debug(f"Inserted description for parameter '{param_name}' at {parameter_location_base}.")
     else:
         logger.debug(
             f"Existing 'description' found for parameter '{param_name}' at {parameter_location_base}. Skipping generation."
@@ -818,16 +736,10 @@ def process_parameter(
 
     # --- Remove URLs from the parameter description ---
     current_description = parameter.get("description", "")
-    if (
-        isinstance(current_description, str)
-        and current_description
-        and not is_fallback_text(current_description)
-    ):
+    if isinstance(current_description, str) and current_description and not is_fallback_text(current_description):
         url_pattern = r"https?://[\S]+"
         modified_description = re.sub(url_pattern, "", current_description).strip()
-        modified_description = re.sub(
-            r"\s{2,}", " ", modified_description
-        ).strip()  # Collapse multiple spaces
+        modified_description = re.sub(r"\s{2,}", " ", modified_description).strip()  # Collapse multiple spaces
 
         if modified_description != current_description:
             parameter["description"] = modified_description
@@ -856,9 +768,7 @@ def process_operation(
     operation_location_base = f"paths.{path_key}.{method.lower()}"
 
     if not isinstance(operation_value, dict):
-        logger.warning(
-            f"Operation value for '{operation_location_base}' is not a dictionary. Skipping processing."
-        )
+        logger.warning(f"Operation value for '{operation_location_base}' is not a dictionary. Skipping processing.")
         return
 
     if method.lower().startswith("x-"):
@@ -892,9 +802,7 @@ def process_operation(
         operation_value["summary"] = generated_summary
         logger.debug(f"Inserted summary for '{operation_location_base}'.")
     else:
-        logger.debug(
-            f"Existing summary found for '{operation_location_base}'. Skipping generation."
-        )
+        logger.debug(f"Existing summary found for '{operation_location_base}'. Skipping generation.")
 
     # Validate final summary length (after potential generation)
     final_summary = operation_value.get("summary", "")
@@ -945,37 +853,25 @@ def process_paths(paths: dict, llm_model: str, enhance_all: bool):  # New flag
                     "patch",
                     "trace",
                 ]:
-                    process_operation(
-                        operation_value, path_key, method, llm_model, enhance_all
-                    )  # Pass enhance_all
+                    process_operation(operation_value, path_key, method, llm_model, enhance_all)  # Pass enhance_all
                 elif method.lower().startswith("x-"):
-                    logger.debug(
-                        f"Skipping processing of method extension '{method.lower()}' in path '{path_key}'."
-                    )
+                    logger.debug(f"Skipping processing of method extension '{method.lower()}' in path '{path_key}'.")
                     continue
                 elif method.lower() == "parameters":
-                    logger.debug(
-                        f"Skipping processing of path-level parameters in '{path_key}'."
-                    )
+                    logger.debug(f"Skipping processing of path-level parameters in '{path_key}'.")
                     continue
                 elif operation_value is not None:
-                    logger.warning(
-                        f"Unknown method '{method}' found in path '{path_key}'. Skipping processing."
-                    )
+                    logger.warning(f"Unknown method '{method}' found in path '{path_key}'. Skipping processing.")
                 elif operation_value is None:
                     logger.debug(
                         f"Operation value for method '{method}' in path '{path_key}' is null. Skipping processing."
                     )
 
         elif path_value is not None:
-            logger.warning(
-                f"Path value for '{path_key}' is not a dictionary. Skipping processing."
-            )
+            logger.warning(f"Path value for '{path_key}' is not a dictionary. Skipping processing.")
 
 
-def process_info_section(
-    schema_data: dict, llm_model: str, enhance_all: bool
-):  # New flag
+def process_info_section(schema_data: dict, llm_model: str, enhance_all: bool):  # New flag
     info = schema_data.get("info")
     info_location = "info"
 
@@ -1020,9 +916,7 @@ def process_info_section(
             )
 
 
-def preprocess_schema_with_llm(
-    schema_data: dict, llm_model: str, enhance_all: bool
-):  # New flag
+def preprocess_schema_with_llm(schema_data: dict, llm_model: str, enhance_all: bool):  # New flag
     """
     Processes the schema to add/enhance descriptions/summaries using an LLM.
     Decides whether to generate based on the 'enhance_all' flag and existing content.
@@ -1062,9 +956,7 @@ def run_preprocessing(
     except (FileNotFoundError, yaml.YAMLError, json.JSONDecodeError, OSError) as e:
         raise typer.Exit(1) from e
     except Exception as e:
-        console.print(
-            f"[red]An unexpected error occurred while reading schema: {e}[/red]"
-        )
+        console.print(f"[red]An unexpected error occurred while reading schema: {e}[/red]")
         raise typer.Exit(1) from e
 
     # --- Step 2: Scan and Report Status ---
@@ -1072,9 +964,7 @@ def run_preprocessing(
         scan_report = scan_schema_for_status(schema_data)
         report_scan_results(scan_report)
     except Exception as e:
-        console.print(
-            f"[red]An unexpected error occurred during schema scanning: {e}[/red]"
-        )
+        console.print(f"[red]An unexpected error occurred during schema scanning: {e}[/red]")
         raise typer.Exit(1) from e
 
     # --- Step 3: Check for Critical Errors ---
@@ -1130,13 +1020,9 @@ def run_preprocessing(
                 "[bold yellow]These parameters require manual fixing and cannot be generated by the LLM.[/bold yellow]"
             )
         else:
-            console.print(
-                "[bold green]Scan found no missing or fallback descriptions/summaries.[/bold green]"
-            )
+            console.print("[bold green]Scan found no missing or fallback descriptions/summaries.[/bold green]")
 
-        console.print(
-            "[bold blue]You can choose to enhance all existing descriptions or exit.[/bold blue]"
-        )
+        console.print("[bold blue]You can choose to enhance all existing descriptions or exit.[/bold blue]")
 
         prompt_options = [
             "  [2] Generate/Enhance [bold]all[/bold] descriptions/summaries",
@@ -1149,14 +1035,10 @@ def run_preprocessing(
         console.print(option_text)
 
     while True:
-        choice = typer.prompt(
-            "Enter choice", default=default_choice, show_default=False, type=str
-        ).strip()
+        choice = typer.prompt("Enter choice", default=default_choice, show_default=False, type=str).strip()
 
         if choice not in valid_choices:
-            console.print(
-                "[red]Invalid choice. Please select from the options above.[/red]"
-            )
+            console.print("[red]Invalid choice. Please select from the options above.[/red]")
             continue  # Ask again
 
         if choice == "3":
@@ -1170,17 +1052,11 @@ def run_preprocessing(
             break  # Exit prompt loop
 
     perform_generation = False
-    if enhance_all:
-        perform_generation = True
-    elif (
-        choice == "1" and total_missing_or_fallback > 0
-    ):  # Chosen option 1 AND there was something missing
+    if enhance_all or choice == "1" and total_missing_or_fallback > 0:
         perform_generation = True
 
     if perform_generation:
-        console.print(
-            f"[blue]Starting LLM generation with Enhance All: {enhance_all}[/blue]"
-        )
+        console.print(f"[blue]Starting LLM generation with Enhance All: {enhance_all}[/blue]")
         try:
             preprocess_schema_with_llm(schema_data, model, enhance_all)
             console.print("[green]LLM generation complete.[/green]")
@@ -1199,9 +1075,7 @@ def run_preprocessing(
     if output_path is None:
         base, ext = os.path.splitext(schema_path)
         output_path = Path(f"{base}_processed{ext}")
-        console.print(
-            f"[blue]No output path specified. Defaulting to: {output_path}[/blue]"
-        )
+        console.print(f"[blue]No output path specified. Defaulting to: {output_path}[/blue]")
     else:
         console.print(f"[blue]Saving processed schema to: {output_path}[/blue]")
 
@@ -1211,13 +1085,9 @@ def run_preprocessing(
         # write_schema_file logs critical errors, just exit here
         raise typer.Exit(1) from e
     except Exception as e:
-        console.print(
-            f"[red]An unexpected error occurred while writing the schema: {e}[/red]"
-        )
+        console.print(f"[red]An unexpected error occurred while writing the schema: {e}[/red]")
         raise typer.Exit(1) from e
 
-    console.print(
-        "\n[bold green]--- Schema Processing and Saving Complete ---[/bold green]"
-    )
+    console.print("\n[bold green]--- Schema Processing and Saving Complete ---[/bold green]")
     console.print(f"Processed schema saved to: [blue]{output_path}[/blue]")
     console.print("[bold blue]Preprocessor finished successfully.[/bold blue]")

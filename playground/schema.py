@@ -92,9 +92,7 @@ class ChatMessage(BaseModel):
 
 
 class TaskData(BaseModel):
-    name: str | None = Field(
-        description="Name of the task.", default=None, examples=["Check input safety"]
-    )
+    name: str | None = Field(description="Name of the task.", default=None, examples=["Check input safety"])
     run_id: str = Field(
         description="ID of the task run to pair state updates to.",
         default="",
@@ -151,10 +149,7 @@ class TaskDataStatus:
         self.current_task_data[task_data.run_id] = task_data
         if all(entry.completed() for entry in self.current_task_data.values()):
             # Status is "error" if any task has errored
-            if any(
-                entry.completed_with_error()
-                for entry in self.current_task_data.values()
-            ):
+            if any(entry.completed_with_error() for entry in self.current_task_data.values()):
                 state = "error"
             # Status is "complete" if all tasks have completed successfully
             else:

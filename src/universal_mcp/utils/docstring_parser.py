@@ -81,17 +81,13 @@ def parse_docstring(docstring: str | None) -> dict[str, Any]:
         elif stripped_lower.startswith(("raises ", "errors ", "exceptions ")):
             section_type = "raises"
             # Capture content after header word and potential colon/space
-            parts = re.split(
-                r"[:\s]+", line.strip(), maxsplit=1
-            )  # B034: Use keyword maxsplit
+            parts = re.split(r"[:\s]+", line.strip(), maxsplit=1)  # B034: Use keyword maxsplit
             if len(parts) > 1:
                 header_content = parts[1].strip()
         elif stripped_lower.startswith(("tags",)):
             section_type = "tags"
             # Capture content after header word and potential colon/space
-            parts = re.split(
-                r"[:\s]+", line.strip(), maxsplit=1
-            )  # B034: Use keyword maxsplit
+            parts = re.split(r"[:\s]+", line.strip(), maxsplit=1)  # B034: Use keyword maxsplit
             if len(parts) > 1:
                 header_content = parts[1].strip()
 
@@ -117,9 +113,7 @@ def parse_docstring(docstring: str | None) -> dict[str, Any]:
         stripped_line = line.strip()
         original_indentation = len(line) - len(line.lstrip(" "))
 
-        is_new_section_header, new_section_type_this_line, header_content_this_line = (
-            check_for_section_header(line)
-        )
+        is_new_section_header, new_section_type_this_line, header_content_this_line = check_for_section_header(line)
 
         should_finalize_previous = False
 
@@ -156,10 +150,7 @@ def parse_docstring(docstring: str | None) -> dict[str, Any]:
             or (
                 current_section in ["args", "raises"]
                 and current_key is not None
-                and (
-                    key_pattern.match(line)
-                    or (original_indentation == 0 and stripped_line)
-                )
+                and (key_pattern.match(line) or (original_indentation == 0 and stripped_line))
             )
             or (
                 current_section in ["returns", "tags", "other"]
