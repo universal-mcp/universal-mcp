@@ -210,7 +210,6 @@ class APIApplication(BaseApplication):
         )
         headers = self._get_headers().copy()
         # if files are provided or if data is to be multipart encoded.
-        # For other content types, we set it explicitly.
         if content_type != 'multipart/form-data':
             headers["Content-Type"] = content_type
 
@@ -226,14 +225,14 @@ class APIApplication(BaseApplication):
             response = self.client.post(
                 url,
                 headers=headers,
-                data=data,  # Expect data to be a dict
+                data=data,  
                 params=params,
             )
         elif content_type == "application/json":
             response = self.client.post(
                 url,
                 headers=headers,
-                json=data,  # Expect data to be a dict or list
+                json=data,  
                 params=params,
             )
         else:  # Handles 'application/octet-stream', 'text/plain', 'image/jpeg', etc.
@@ -287,7 +286,7 @@ class APIApplication(BaseApplication):
         if content_type == "multipart/form-data":
             response = self.client.put(
                 url,
-                headers=headers, # httpx will likely override Content-Type if `files` is used
+                headers=headers, 
                 data=data,    # For regular form fields
                 files=files,  # For file parts
                 params=params,
@@ -296,14 +295,14 @@ class APIApplication(BaseApplication):
             response = self.client.put(
                 url,
                 headers=headers,
-                data=data,  # Expect data to be a dict
+                data=data,  
                 params=params,
             )
         elif content_type == "application/json":
             response = self.client.put(
                 url,
                 headers=headers,
-                json=data,  # Expect data to be a dict or list
+                json=data,  
                 params=params,
             )
         else:  # Handles 'application/octet-stream', 'text/plain', 'image/jpeg', etc.
