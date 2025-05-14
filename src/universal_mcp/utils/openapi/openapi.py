@@ -200,7 +200,8 @@ def _determine_function_name(operation: dict[str, Any], path: str, method: str) 
     if "operationId" in operation:
         raw_name = operation["operationId"]
         cleaned_name = raw_name.replace(".", "_").replace("-", "_")
-        func_name = convert_to_snake_case(cleaned_name)
+        cleaned_name_no_numbers = re.sub(r'\d+', '', cleaned_name)
+        func_name = convert_to_snake_case(cleaned_name_no_numbers)
     else:
         # Generate name from path and method
         path_parts = path.strip("/").split("/")
