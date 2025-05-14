@@ -130,6 +130,11 @@ def _extract_properties_from_schema(
             sub_props, _ = _extract_properties_from_schema(sub_schema)
             properties.update(sub_props)
 
+    if "anyOf" in schema:
+        for sub_schema in schema["anyOf"]:
+            sub_props, _ = _extract_properties_from_schema(sub_schema)
+            properties.update(sub_props)
+
     # Combine with top-level properties and required fields, if any
     properties.update(schema.get("properties", {}))
     required_fields.extend(schema.get("required", []))
