@@ -379,7 +379,7 @@ def _generate_method_code(path, method, operation):
                 break
         
         if not found_preferred: # Check for image/* if no direct match yet
-            for ct_key in request_body_content_map.keys():
+            for ct_key in request_body_content_map:
                 if ct_key.startswith("image/"):
                     selected_content_type = ct_key
                     body_schema_to_use = request_body_content_map[ct_key].get("schema")
@@ -483,15 +483,14 @@ def _generate_method_code(path, method, operation):
         
         # Check for cases that might lead to an "empty" body parameter (for JSON) in the signature,
         # or indicate a raw body type where _generate_body_params wouldn't create named params.
-        if not body_params and not is_array_body:
-            if selected_content_type == "application/json":
-                if body_schema_to_use == {} or \
-                   (body_schema_to_use.get("type") == "object" and \
-                    not body_schema_to_use.get("properties") and \
-                    not body_schema_to_use.get("allOf") and \
-                    not body_schema_to_use.get("oneOf") and \
-                    not body_schema_to_use.get("anyOf")):
-                    has_empty_body = True # Indicates a generic 'request_body: dict = None' might be needed for empty JSON
+        if not body_params and not is_array_body and selected_content_type == "application/json" and \
+           (body_schema_to_use == {} or \
+            (body_schema_to_use.get("type") == "object" and \
+             not body_schema_to_use.get("properties") and \
+             not body_schema_to_use.get("allOf") and \
+             not body_schema_to_use.get("oneOf") and \
+             not body_schema_to_use.get("anyOf"))):
+            has_empty_body = True # Indicates a generic 'request_body: dict = None' might be needed for empty JSON
 
     # --- Build Function Arguments for Signature ---
     # This section constructs the list of arguments (required and optional)
@@ -572,7 +571,7 @@ def _generate_method_code(path, method, operation):
             # Although it's a single param, it represents the request body for docstring example purposes.
             final_request_body_arg_names_for_signature.append(raw_body_param_name)
 
-        elif body_params:  # Object body with discernible properties
+        elif body_params: # Object body with discernible properties
             for param in body_params:  # Iterate ALIASED body_params
                 arg_name_for_sig = param.name  #final aliased name (e.g., "id_body")
 
@@ -850,13 +849,6 @@ def _generate_method_code(path, method, operation):
     # --- Determine Final Content-Type for API Call (Obsolete Block, selected_content_type is used) ---
     # The following block for request_body_content_type is largely superseded by selected_content_type,
    
-    request_body_content_type = "application/json" # Default, but usually overridden by selected_content_type logic
-    if has_body:
-        request_body_content = operation.get("requestBody", {}).get("content", {})
-        if "application/x-www-form-urlencoded" in request_body_content: # Example of an older check
-            # This specific assignment might be redundant if selected_content_type is already x-www-form-urlencoded
-            request_body_content_type = "application/x-www-form-urlencoded"
-
     # Use the selected_content_type determined by the new logic as the primary source of truth.
     final_content_type_for_api_call = selected_content_type if selected_content_type else "application/json"
 
@@ -886,7 +878,6 @@ def _generate_method_code(path, method, operation):
                 f"        response = self._put(url, data=request_body_data, params=query_params, content_type='{final_content_type_for_api_call}')"
             )
     elif method_lower == "patch":
-        patch_content_type = final_content_type_for_api_call if "json" in final_content_type_for_api_call else "application/json"
         
         body_lines.append(
             "        response = self._patch(url, data=request_body_data, params=query_params)" 
