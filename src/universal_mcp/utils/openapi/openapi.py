@@ -889,7 +889,7 @@ def _generate_method_code(path, method, operation):
         patch_content_type = final_content_type_for_api_call if "json" in final_content_type_for_api_call else "application/json"
         
         body_lines.append(
-            f"        response = self._patch(url, data=request_body_data, params=query_params)" 
+            "        response = self._patch(url, data=request_body_data, params=query_params)" 
         )
     elif method_lower == "delete":
         body_lines.append("        response = self._delete(url, params=query_params)")
