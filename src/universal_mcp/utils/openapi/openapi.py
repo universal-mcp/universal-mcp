@@ -340,7 +340,7 @@ def _generate_method_code(path, method, operation):
     Returns:
         tuple: (method_code, func_name) - The Python code for the method and its name.
     """
-    print(f"--- Generating code for: {method.upper()} {path} ---")  # Log endpoint being processed
+    # print(f"--- Generating code for: {method.upper()} {path} ---")  # Log endpoint being processed
 
     # --- Determine Function Name and Basic Operation Details ---
     func_name = _determine_function_name(operation, path, method)
@@ -423,7 +423,7 @@ def _generate_method_code(path, method, operation):
         if temp_q_name in path_param_base_conflict_names:
             temp_q_name = f"{original_q_name}_query"
         # Ensure uniqueness among query params themselves after potential aliasing
-        # (though less common, if _sanitize_identifier produced same base for different originals)
+
         # This step is more about ensuring the final suffixed name is unique if multiple query params mapped to same path param name
         counter = 1
         final_q_name = temp_q_name
@@ -498,12 +498,10 @@ def _generate_method_code(path, method, operation):
     # that will appear in the generated Python function's signature.
     required_args = []
     optional_args = []
-    # seen_clean_names = set() # No longer needed if logic below is correct
 
     # 1. Process Path Parameters (Highest Priority)
     for param in path_params:
         # Path param names are sanitized but not suffixed by aliasing.
-        # They are the baseline.
         if param.name not in required_args:  # param.name is the sanitized name
             required_args.append(param.name)
 
@@ -519,7 +517,6 @@ def _generate_method_code(path, method, operation):
 
     # 3. Process Body Parameters / Request Body
     # This list tracks the *final* names of parameters in the signature that come from the request body,
-    # used later for docstring example placement.
     final_request_body_arg_names_for_signature = []
     final_empty_body_param_name = None # For the specific case of has_empty_body (empty JSON object)
     raw_body_param_name = None # For raw content like octet-stream, text/plain, image/*
@@ -577,9 +574,9 @@ def _generate_method_code(path, method, operation):
 
         elif body_params:  # Object body with discernible properties
             for param in body_params:  # Iterate ALIASED body_params
-                arg_name_for_sig = param.name  # This is the final, aliased name (e.g., "id_body")
+                arg_name_for_sig = param.name  #final aliased name (e.g., "id_body")
 
-                # Defensive check against already added args (should be covered by aliasing logic)
+                # Defensive check against already added args 
                 current_arg_names_set_loop = set(required_args) | {arg.split("=")[0] for arg in optional_args}
                 if arg_name_for_sig not in current_arg_names_set_loop:
                     if param.required:
@@ -788,13 +785,12 @@ def _generate_method_code(path, method, operation):
         if method_lower in ["post", "put"] and selected_content_type == "multipart/form-data":
             body_lines.append("        files_data = None")
     # For GET/DELETE methods, request_body_data and files_data are not initialized here,
-    # as their respective self._get/_delete calls do not use them.
-    # For non-POST/PUT methods, or non-multipart POST/PUT, files_data is not initialized here.
+
 
     # --- Build Request Payload (request_body_data and files_data) ---
     # This section prepares the data to be sent in the request body,
     # differentiating between files and other data for multipart forms,
-    # and handling various body types (array, object, raw, empty).
+
     if has_body:
         # This block will now overwrite the initial None values if a body is present.
         if is_array_body:
@@ -853,8 +849,7 @@ def _generate_method_code(path, method, operation):
 
     # --- Determine Final Content-Type for API Call (Obsolete Block, selected_content_type is used) ---
     # The following block for request_body_content_type is largely superseded by selected_content_type,
-    # but kept for potential minor compatibility or specific edge cases if they arise.
-    # Modern logic primarily relies on `selected_content_type` determined earlier.
+   
     request_body_content_type = "application/json" # Default, but usually overridden by selected_content_type logic
     if has_body:
         request_body_content = operation.get("requestBody", {}).get("content", {})
@@ -866,7 +861,7 @@ def _generate_method_code(path, method, operation):
     final_content_type_for_api_call = selected_content_type if selected_content_type else "application/json"
 
     # --- Make HTTP Request ---
-    # This section generates the actual HTTP call (e.g., self._get, self._post)
+    # This section generates the actual HTTP call 
     # using the prepared URL, query parameters, request body data, files, and content type.
 
 
