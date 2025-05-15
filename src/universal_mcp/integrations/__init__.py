@@ -22,8 +22,8 @@ def integration_from_config(config: IntegrationConfig, store: BaseStore | None =
 
 __all__ = [
     "AgentRIntegration",
-    "Integration",
     "ApiKeyIntegration",
+    "Integration",
     "OAuthIntegration",
     "integration_from_config",
 ]

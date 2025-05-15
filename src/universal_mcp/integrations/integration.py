@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from typing import Any
 
 import httpx
@@ -18,7 +17,7 @@ def sanitize_api_key_name(name: str) -> str:
         return f"{name.upper()}{suffix}"
 
 
-class Integration(ABC):
+class Integration:
     """Abstract base class for handling application integrations and authentication.
 
     This class defines the interface for different types of integrations that handle
@@ -35,9 +34,11 @@ class Integration(ABC):
 
     def __init__(self, name: str, store: BaseStore | None = None):
         self.name = name
-        self.store = store
+        if store is None:
+            self.store = MemoryStore()
+        else:
+            self.store = store
 
-    @abstractmethod
     def authorize(self) -> str | dict[str, Any]:
         """Authorize the integration.
 
@@ -49,7 +50,6 @@ class Integration(ABC):
         """
         pass
 
-    @abstractmethod
     def get_credentials(self) -> dict[str, Any]:
         """Get credentials for the integration.
 
@@ -59,9 +59,9 @@ class Integration(ABC):
         Raises:
             NotAuthorizedError: If credentials are not found or invalid.
         """
-        pass
+        credentials = self.store.get(self.name)
+        return credentials
 
-    @abstractmethod
     def set_credentials(self, credentials: dict[str, Any]) -> None:
         """Set credentials for the integration.
 
@@ -71,7 +71,7 @@ class Integration(ABC):
         Raises:
             ValueError: If credentials are invalid or missing required fields.
         """
-        pass
+        self.store.set(self.name, credentials)
 
 
 class ApiKeyIntegration(Integration):
@@ -91,7 +91,7 @@ class ApiKeyIntegration(Integration):
         store: Store instance for persisting credentials and other data
     """
 
-    def __init__(self, name: str, store: BaseStore = MemoryStore(), **kwargs):
+    def __init__(self, name: str, store: BaseStore | None = None, **kwargs):
         self.type = "api_key"
         sanitized_name = sanitize_api_key_name(name)
         super().__init__(sanitized_name, store, **kwargs)

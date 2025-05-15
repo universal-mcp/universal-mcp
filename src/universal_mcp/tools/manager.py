@@ -1,3 +1,4 @@
+import re
 from collections.abc import Callable
 from typing import Any
 
@@ -19,14 +20,21 @@ DEFAULT_IMPORTANT_TAG = "important"
 TOOL_NAME_SEPARATOR = "_"
 
 
-def _filter_by_name(tools: list[Tool], tool_names: list[str]) -> list[Tool]:
+def _filter_by_name(tools: list[Tool], tool_names: list[str] | None) -> list[Tool]:
     if not tool_names:
         return tools
-    return [tool for tool in tools if tool.name in tool_names]
+    logger.debug(f"Filtering tools by name: {tool_names}")
+    filtered_tools = []
+    for tool in tools:
+        for name in tool_names:
+            if re.search(name, tool.name):
+                filtered_tools.append(tool)
+    return filtered_tools
 
 
 def _filter_by_tags(tools: list[Tool], tags: list[str] | None) -> list[Tool]:
-    tags = tags or [DEFAULT_IMPORTANT_TAG]
+    if not tags:
+        return tools
     return [tool for tool in tools if any(tag in tool.tags for tag in tags)]
 
 
@@ -148,14 +156,14 @@ class ToolManager:
     def register_tools_from_app(
         self,
         app: BaseApplication,
-        tool_names: list[str] = None,
-        tags: list[str] = None,
+        tool_names: list[str] | None = None,
+        tags: list[str] | None = None,
     ) -> None:
         """Register tools from an application.
 
         Args:
             app: The application to register tools from.
-            tools: Optional list of specific tool names to register.
+            tool_names: Optional list of specific tool names to register.
             tags: Optional list of tags to filter tools by.
         """
         try:
@@ -186,8 +194,16 @@ class ToolManager:
                 tool_name = getattr(function, "__name__", "unknown")
                 logger.error(f"Failed to create Tool from '{tool_name}' in {app.name}: {e}")
 
-        tools = _filter_by_name(tools, tool_names)
-        tools = _filter_by_tags(tools, tags)
+        if tags:
+            tools = _filter_by_tags(tools, tags)
+
+        if tool_names:
+            tools = _filter_by_name(tools, tool_names)
+
+        # If no tool names or tags are provided, use the default important tag
+        if not tool_names and not tags:
+            tools = _filter_by_tags(tools, [DEFAULT_IMPORTANT_TAG])
+
         self.register_tools(tools)
         return
 

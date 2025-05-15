@@ -1,5 +1,5 @@
 from universal_mcp.config import ServerConfig
-from universal_mcp.servers.server import AgentRServer, LocalServer, SingleMCPServer
+from universal_mcp.servers.server import AgentRServer, BaseServer, LocalServer, SingleMCPServer
 
 
 def server_from_config(config: ServerConfig):
@@ -12,4 +12,4 @@ def server_from_config(config: ServerConfig):
         raise ValueError(f"Unsupported server type: {config.type}")
 
 
-__all__ = [AgentRServer, LocalServer, SingleMCPServer, server_from_config]
+__all__ = [AgentRServer, LocalServer, SingleMCPServer, BaseServer, server_from_config]

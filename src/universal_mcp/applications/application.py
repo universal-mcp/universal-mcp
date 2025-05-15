@@ -81,7 +81,7 @@ class APIApplication(BaseApplication):
         """
         super().__init__(name, **kwargs)
         self.default_timeout: int = 180
-        self.integration: Integration | None = integration
+        self.integration = integration
         logger.debug(f"Initializing APIApplication '{name}' with integration: {integration}")
         self._client: httpx.Client | None = client
         self.base_url: str = ""
