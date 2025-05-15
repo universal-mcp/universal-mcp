@@ -344,6 +344,7 @@ def _generate_method_code(path, method, operation):
 
     # --- Determine Function Name and Basic Operation Details ---
     func_name = _determine_function_name(operation, path, method)
+    method_lower = method.lower() # Define method_lower earlier
     operation.get("summary", "") # Ensure summary is accessed if needed elsewhere, though not directly used here
     operation.get("tags", [])   # Ensure tags are accessed if needed elsewhere
     
@@ -774,11 +775,21 @@ def _generate_method_code(path, method, operation):
     for param in path_params:
         body_lines.append(f"        if {param.name} is None:")
         body_lines.append(
-            f'            raise ValueError("Missing required parameter \'{param.identifier}\'")'  # Use original name in error
+            f'            raise ValueError("Missing required parameter \'{param.identifier}\'.")'  # Use original name in error, ensure quotes are balanced
         )
 
-    body_lines.append("        request_body_data = None")
-    body_lines.append("        files_data = None")
+
+    if method_lower not in ["get", "delete"]:
+        body_lines.append("        request_body_data = None")
+
+        # Initialize files_data only if it's POST or PUT and multipart/form-data,
+        # as these are the primary cases where files_data is explicitly prepared and used.
+        # The population logic (e.g., files_data = {}) will define it for other multipart cases if they arise.
+        if method_lower in ["post", "put"] and selected_content_type == "multipart/form-data":
+            body_lines.append("        files_data = None")
+    # For GET/DELETE methods, request_body_data and files_data are not initialized here,
+    # as their respective self._get/_delete calls do not use them.
+    # For non-POST/PUT methods, or non-multipart POST/PUT, files_data is not initialized here.
 
     # --- Build Request Payload (request_body_data and files_data) ---
     # This section prepares the data to be sent in the request body,
@@ -857,7 +868,6 @@ def _generate_method_code(path, method, operation):
     # --- Make HTTP Request ---
     # This section generates the actual HTTP call (e.g., self._get, self._post)
     # using the prepared URL, query parameters, request body data, files, and content type.
-    method_lower = method.lower()
 
 
     if method_lower == "get":
