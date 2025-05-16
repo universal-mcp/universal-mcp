@@ -45,14 +45,26 @@ def generate(
         raise typer.Exit(1)
 
     try:
-        # Run the async function in the event loop
-        app_file = generate_api_from_schema(
+        app_file_data = generate_api_from_schema(
             schema_path=schema_path,
             output_path=output_path,
             class_name=class_name,
         )
-        console.print("[green]API client successfully generated and installed.[/green]")
-        console.print(f"[blue]Application file: {app_file}[/blue]")
+        if isinstance(app_file_data, dict) and "code" in app_file_data:
+            console.print("[yellow]No output path specified, printing generated code to console:[/yellow]")
+            console.print(app_file_data["code"])
+        elif isinstance(app_file_data, Path):
+            console.print("[green]API client successfully generated and installed.[/green]")
+            console.print(f"[blue]Application file: {app_file_data}[/blue]")
+        else:
+            # Handle the error case from api_generator if validation fails
+            if isinstance(app_file_data, dict) and "error" in app_file_data:
+                 console.print(f"[red]{app_file_data['error']}[/red]")
+                 raise typer.Exit(1)
+            else:
+                console.print("[red]Unexpected return value from API generator.[/red]")
+                raise typer.Exit(1)
+
     except Exception as e:
         console.print(f"[red]Error generating API client: {e}[/red]")
         raise typer.Exit(1) from e
@@ -253,6 +265,34 @@ def preprocess(
 
     """Preprocess an OpenAPI schema using LLM to fill or enhance descriptions."""
     run_preprocessing(schema_path, output_path)
+
+
+@app.command()
+def split_api(
+    input_app_file: Path = typer.Argument(..., help="Path to the generated app.py file to split"),
+    output_dir: Path = typer.Option(..., "--output-dir", "-o", help="Directory to save the split files"),
+):
+    """Splits a single generated API client file into multiple files based on path groups."""
+    from universal_mcp.utils.openapi.api_splitter import split_generated_app_file
+
+    if not input_app_file.exists() or not input_app_file.is_file():
+        console.print(f"[red]Error: Input file {input_app_file} does not exist or is not a file.[/red]")
+        raise typer.Exit(1)
+
+    if not output_dir.exists():
+        output_dir.mkdir(parents=True, exist_ok=True)
+        console.print(f"[green]Created output directory: {output_dir}[/green]")
+    elif not output_dir.is_dir():
+        console.print(f"[red]Error: Output path {output_dir} is not a directory.[/red]")
+        raise typer.Exit(1)
+
+    try:
+        split_generated_app_file(input_app_file, output_dir)
+        console.print(f"[green]Successfully split {input_app_file} into {output_dir}[/green]")
+    except Exception as e:
+        console.print(f"[red]Error splitting API client: {e}[/red]")
+      
+        raise typer.Exit(1) from e
 
 
 if __name__ == "__main__":
