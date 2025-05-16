@@ -2,21 +2,10 @@ import ast
 import re
 from pathlib import Path
 from collections import defaultdict
-import shutil # For creating __init__.py if needed
 from keyword import iskeyword
 
-# Using ast.unparse (Python 3.9+) or astor for older versions
-# try:
-#     import astor
-#     unparse = astor.to_source
-# except ImportError:
-#     if hasattr(ast, 'unparse'):
-#         unparse = ast.unparse
-#     else:
-#         raise ImportError("Please install astor or use Python 3.9+ for ast.unparse")
-
 API_SEGMENT_BASE_CODE = '''
-from typing import Any, Dict, Optional
+from typing import Any
 
 class APISegmentBase:
     def __init__(self, main_app_client: Any):
@@ -309,7 +298,6 @@ def split_generated_app_file(input_app_file: Path, output_dir: Path):
 
     new_main_app_body = []
     main_app_init_node = None
-    main_app_list_tools_node_found = False
 
     for node in other_main_app_body_nodes:
         if isinstance(node, ast.FunctionDef):
@@ -317,7 +305,6 @@ def split_generated_app_file(input_app_file: Path, output_dir: Path):
                 main_app_init_node = node
                 continue
             elif node.name == 'list_tools':
-                main_app_list_tools_node_found = True
                 continue
         new_main_app_body.append(node)
 
