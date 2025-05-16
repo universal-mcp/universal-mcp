@@ -22,84 +22,134 @@ class APISegmentBase:
     def __init__(self, main_app_client: Any):
         self.main_app_client = main_app_client
 
-    def _get(self, url: str, params: dict = None, headers: dict = None, **kwargs):
-        return self.main_app_client._get(url, params=params, headers=headers, **kwargs)
+    def _get(self, url: str, params: dict = None, **kwargs):
+        return self.main_app_client._get(url, params=params, **kwargs)
 
-    def _post(self, url: str, data: Any = None, files: Any = None, params: dict = None, headers: dict = None, content_type: str = None, **kwargs):
-        return self.main_app_client._post(url, data=data, files=files, params=params, headers=headers, content_type=content_type, **kwargs)
+    def _post(self, url: str, data: Any = None, files: Any = None, params: dict = None, content_type: str = None, **kwargs):
+        return self.main_app_client._post(url, data=data, files=files, params=params, content_type=content_type, **kwargs)
 
-    def _put(self, url: str, data: Any = None, files: Any = None, params: dict = None, headers: dict = None, content_type: str = None, **kwargs):
-        return self.main_app_client._put(url, data=data, files=files, params=params, headers=headers, content_type=content_type, **kwargs)
+    def _put(self, url: str, data: Any = None, files: Any = None, params: dict = None, content_type: str = None, **kwargs):
+        return self.main_app_client._put(url, data=data, files=files, params=params, content_type=content_type, **kwargs)
 
-    def _patch(self, url: str, data: Any = None, params: dict = None, headers: dict = None, **kwargs):
-        return self.main_app_client._patch(url, data=data, params=params, headers=headers, **kwargs)
+    def _patch(self, url: str, data: Any = None, params: dict = None, **kwargs):
+        return self.main_app_client._patch(url, data=data, params=params, **kwargs)
 
-    def _delete(self, url: str, params: dict = None, headers: dict = None, **kwargs):
-        return self.main_app_client._delete(url, params=params, headers=headers, **kwargs)
+    def _delete(self, url: str, params: dict = None, **kwargs):
+        return self.main_app_client._delete(url, params=params, **kwargs)
 '''
+
+def get_sanitized_path_segment(openapi_path: str) -> str:
+    # Remove leading/trailing slashes and split
+    path_parts = [part for part in openapi_path.strip("/").split("/") if part]
+
+    if not path_parts:
+        return "default_api"
+
+    # Handle common prefixes like /api/ or /v1/api/ etc.
+    # Adjust this list based on common patterns in your OpenAPI specs.
+    known_prefixes = ["api"] 
+    while len(path_parts) > 0 and path_parts[0].lower() in known_prefixes:
+        path_parts.pop(0)
+        if not path_parts: # Path was only made of prefixes e.g. "/api/"
+            return "default_api" 
+
+    segment_to_use = "default_api" # Default if logic below doesn't find a better one
+
+    # Now, check if the current first segment is version-like (e.g., "2", "v1", "v0")
+    if path_parts:
+        first_segment = path_parts[0]
+        # Check if it's purely numeric (like "2") or matches "v" followed by digits
+        is_version_segment = first_segment.isdigit() or re.match(r"v\\d+", first_segment.lower())
+
+        if is_version_segment and len(path_parts) > 1:
+            # If it's a version segment and there's something after it, use the next segment
+            segment_to_use = path_parts[1]
+        elif not is_version_segment:
+            # If it's not a version segment, use it directly
+            segment_to_use = path_parts[0]
+        else:
+            # It was a version segment but nothing followed (e.g. "/2/" or "/api/v1/")
+            # Or path_parts became empty after prefix stripping.
+            # Fallback to a generic name based on the version segment.
+            segment_to_use = f"api_{first_segment}"
+    else: # Path was empty after stripping prefixes (e.g. "/api/")
+        return "default_api" # segment_to_use remains "default_api"
+
+    # Sanitize the chosen segment to be a valid Python identifier component
+    # Replace non-alphanumeric (excluding underscore) with underscore
+    sanitized_segment = re.sub(r"[^a-zA-Z0-9_]", "_", segment_to_use)
+    
+    # Remove leading/trailing underscores that might result from sanitization
+    sanitized_segment = sanitized_segment.strip("_")
+
+    # If the segment becomes empty after sanitization (e.g., path was "---"), or is purely digits,
+    # prefix it to ensure validity.
+    if not sanitized_segment:
+        return "default_api"
+    if sanitized_segment.isdigit(): # e.g. if path was /2/123 -> segment is 123
+        return f"api_{sanitized_segment}"
+        
+    return sanitized_segment
 
 def get_group_name_from_path(openapi_path: str) -> str:
     processed_path = openapi_path
-    version_pattern = re.compile(r"^/v[0-9]+(?:\.[0-9]+){0,2}")
+    
+    # Pattern for /vN, /vN.N, /vN.N.N
+    version_pattern_v_prefix = re.compile(r"^/v[0-9]+(?:\\.[0-9]+){0,2}")
+    # Pattern for just /N (like /2)
+    version_pattern_numeric_prefix = re.compile(r"^/[0-9]+")
+    
     api_prefix_pattern = re.compile(r"^/api")
 
-    processed_path = api_prefix_pattern.sub("", processed_path)
-    processed_path = version_pattern.sub("", processed_path)
+    # Strip /api prefix first if present
+    if api_prefix_pattern.match(processed_path):
+        processed_path = api_prefix_pattern.sub("", processed_path)
+        processed_path = processed_path.lstrip("/") # Ensure we strip leading slash if api was the only thing
+        # Add leading slash back if removed and path remains and it doesn't already have one
+        if processed_path and not processed_path.startswith("/"):
+             processed_path = "/" + processed_path
+        elif not processed_path: # Path was only /api/
+            processed_path = "/" # Reset to / so subsequent logic doesn't fail
+
+    # Try to strip /vN style version
+    path_after_v_version_strip = version_pattern_v_prefix.sub("", processed_path)
+    
+    if path_after_v_version_strip != processed_path: # /vN was stripped
+        processed_path = path_after_v_version_strip
+    else: # /vN was not found, try to strip /N (like /2/)
+        path_after_numeric_version_strip = version_pattern_numeric_prefix.sub("", processed_path)
+        if path_after_numeric_version_strip != processed_path: # /N was stripped
+            processed_path = path_after_numeric_version_strip
+            
     processed_path = processed_path.lstrip("/")
 
-    path_segments = processed_path.split("/")
+    path_segments = [segment for segment in processed_path.split("/") if segment] # Ensure no empty segments
+
     group_name_raw = "default"
     if path_segments and path_segments[0]:
-        group_name_raw = re.sub(r'[{}]', '', path_segments[0]) # Remove {} from path params
+        # Remove {param} style parts from the segment if any
+        group_name_raw = re.sub(r"[{}]", "", path_segments[0]) # Corrected regex string
+    
+    # Sanitize to make it a valid Python identifier component (lowercase, underscores)
+    group_name = re.sub(r"[^a-zA-Z0-9_]", "_", group_name_raw).lower() # Corrected regex string
+    group_name = group_name.strip("_")
 
-    group_name = re.sub(r'[^a-zA-Z0-9_]', '', group_name_raw).lower()
-    if not group_name or group_name[0].isdigit():
+    if not group_name or group_name.isdigit(): # If empty after sanitization or purely numeric
         group_name = f"api_{group_name}" if group_name else "default_api"
-    if iskeyword(group_name):
+    
+    if iskeyword(group_name): # Avoid Python keywords
         group_name += "_"
+        
     return group_name if group_name else "default_api"
 
 
 class MethodTransformer(ast.NodeTransformer):
     def __init__(self, original_path: str):
         self.original_path = original_path
-        self.headers_param_name = "headers" 
+        # self.headers_param_name = "headers" # This line can be fully removed or kept commented
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
-        headers_annotation_str = "Dict[str, Any] | None"
-        
-        try:
-            headers_annotation = ast.parse(headers_annotation_str, mode='eval').body # type: ignore
-        except SyntaxError: 
-             headers_annotation = ast.Subscript(
-                value=ast.Name(id='Optional', ctx=ast.Load()),
-                slice=ast.Subscript(
-                    value=ast.Name(id='Dict', ctx=ast.Load()),
-                    slice=ast.Tuple(elts=[ast.Name(id='str', ctx=ast.Load()), ast.Name(id='Any', ctx=ast.Load())], ctx=ast.Load()),
-                    ctx=ast.Load()
-                ),
-                ctx=ast.Load()
-            )
-
-        headers_arg = ast.arg(arg=self.headers_param_name, annotation=headers_annotation)
-        default_none = ast.Constant(value=None)
-
-        existing_param_names = {arg.arg for arg in node.args.args}
-        if self.headers_param_name in existing_param_names:
-            counter = 1
-            while f"headers_{counter}" in existing_param_names:
-                counter += 1
-            self.headers_param_name = f"headers_{counter}"
-            headers_arg.arg = self.headers_param_name
-
-        if not hasattr(node.args, 'args'):
-            node.args.args = [] # type: ignore
-        if not hasattr(node.args, 'defaults'):
-            node.args.defaults = [] # type: ignore
-            
-        node.args.args.append(headers_arg)
-        node.args.defaults.append(default_none)
-
+        # All logic related to adding headers parameter has been removed.
         self.generic_visit(node)
         return node
 
@@ -113,14 +163,7 @@ class MethodTransformer(ast.NodeTransformer):
         return self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> ast.Call:
-        if isinstance(node.func, ast.Attribute) and \
-           isinstance(node.func.value, ast.Name) and node.func.value.id == 'self' and \
-           node.func.attr in ['_get', '_post', '_put', '_patch', '_delete']:
-            has_headers_kw = any(kw.arg == 'headers' for kw in node.keywords)
-            if not has_headers_kw:
-                node.keywords.append(
-                    ast.keyword(arg='headers', value=ast.Name(id=self.headers_param_name, ctx=ast.Load()))
-                )
+        
         return self.generic_visit(node)
 
 
