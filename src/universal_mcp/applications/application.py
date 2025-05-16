@@ -169,14 +169,23 @@ class APIApplication(BaseApplication):
         logger.debug(f"GET request successful with status code: {response.status_code}")
         return response
 
-    def _post(self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None) -> httpx.Response:
+    def _post(
+        self, url: str, data: Any, params: dict[str, Any] | None = None, content_type: str = "application/json", files: dict[str, Any] | None = None
+    ) -> httpx.Response:
         """
         Make a POST request to the specified URL.
 
         Args:
             url: The URL to send the request to
-            data: The data to send in the request body
+            data: The data to send. For 'application/json', this is JSON-serializable.
+                  For 'application/x-www-form-urlencoded' or 'multipart/form-data', this is a dict of form fields.
+                  For other content types, this is raw bytes or string.
             params: Optional query parameters
+            content_type: The Content-Type of the request body.
+                         Examples: 'application/json', 'application/x-www-form-urlencoded',
+                                   'multipart/form-data', 'application/octet-stream', 'text/plain'.
+            files: Optional dictionary of files to upload for 'multipart/form-data'.
+                   Example: {'file_field_name': ('filename.txt', open('file.txt', 'rb'), 'text/plain')}
 
         Returns:
             httpx.Response: The response from the server
@@ -184,25 +193,64 @@ class APIApplication(BaseApplication):
         Raises:
             httpx.HTTPError: If the request fails
         """
-        logger.debug(f"Making POST request to {url} with params: {params} and data: {data}")
-        response = httpx.post(
-            url,
-            headers=self._get_headers(),
-            json=data,
-            params=params,
+        logger.debug(
+            f"Making POST request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
         )
+        headers = self._get_headers().copy()
+
+        if content_type != 'multipart/form-data':
+            headers["Content-Type"] = content_type
+
+        if content_type == "multipart/form-data":
+            response = self.client.post(
+                url,
+                headers=headers,
+                data=data,    # For regular form fields
+                files=files,  # For file parts
+                params=params,
+            )
+        elif content_type == "application/x-www-form-urlencoded":
+            response = self.client.post(
+                url,
+                headers=headers,
+                data=data,  
+                params=params,
+            )
+        elif content_type == "application/json":
+            response = self.client.post(
+                url,
+                headers=headers,
+                json=data,  
+                params=params,
+            )
+        else:  # Handles 'application/octet-stream', 'text/plain', 'image/jpeg', etc.
+            response = self.client.post(
+                url,
+                headers=headers,
+                content=data,  # Expect data to be bytes or str
+                params=params,
+            )
         response.raise_for_status()
         logger.debug(f"POST request successful with status code: {response.status_code}")
         return response
 
-    def _put(self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None) -> httpx.Response:
+    def _put(
+        self, url: str, data: Any, params: dict[str, Any] | None = None, content_type: str = "application/json", files: dict[str, Any] | None = None
+    ) -> httpx.Response:
         """
         Make a PUT request to the specified URL.
 
         Args:
             url: The URL to send the request to
-            data: The data to send in the request body
+            data: The data to send. For 'application/json', this is JSON-serializable.
+                  For 'application/x-www-form-urlencoded' or 'multipart/form-data', this is a dict of form fields.
+                  For other content types, this is raw bytes or string.
             params: Optional query parameters
+            content_type: The Content-Type of the request body.
+                         Examples: 'application/json', 'application/x-www-form-urlencoded',
+                                   'multipart/form-data', 'application/octet-stream', 'text/plain'.
+            files: Optional dictionary of files to upload for 'multipart/form-data'.
+                   Example: {'file_field_name': ('filename.txt', open('file.txt', 'rb'), 'text/plain')}
 
         Returns:
             httpx.Response: The response from the server
@@ -210,12 +258,44 @@ class APIApplication(BaseApplication):
         Raises:
             httpx.HTTPError: If the request fails
         """
-        logger.debug(f"Making PUT request to {url} with params: {params} and data: {data}")
-        response = self.client.put(
-            url,
-            json=data,
-            params=params,
+        logger.debug(
+            f"Making PUT request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
         )
+        headers = self._get_headers().copy()
+        # For multipart/form-data, httpx handles the Content-Type header (with boundary)
+        # For other content types, we set it explicitly.
+        if content_type != 'multipart/form-data':
+            headers["Content-Type"] = content_type
+            
+        if content_type == "multipart/form-data":
+            response = self.client.put(
+                url,
+                headers=headers, 
+                data=data,    # For regular form fields
+                files=files,  # For file parts
+                params=params,
+            )
+        elif content_type == "application/x-www-form-urlencoded":
+            response = self.client.put(
+                url,
+                headers=headers,
+                data=data,  
+                params=params,
+            )
+        elif content_type == "application/json":
+            response = self.client.put(
+                url,
+                headers=headers,
+                json=data,  
+                params=params,
+            )
+        else:  # Handles 'application/octet-stream', 'text/plain', 'image/jpeg', etc.
+            response = self.client.put(
+                url,
+                headers=headers,
+                content=data,  # Expect data to be bytes or str
+                params=params,
+            )
         response.raise_for_status()
         logger.debug(f"PUT request successful with status code: {response.status_code}")
         return response
