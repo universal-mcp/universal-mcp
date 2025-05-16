@@ -35,16 +35,15 @@ def get_sanitized_path_segment(openapi_path: str) -> str:
         return "default_api"
 
     # Handle common prefixes like /api/ or /v1/api/ etc.
-    # Adjust this list based on common patterns in your OpenAPI specs.
     known_prefixes = ["api"] 
     while len(path_parts) > 0 and path_parts[0].lower() in known_prefixes:
         path_parts.pop(0)
-        if not path_parts: # Path was only made of prefixes e.g. "/api/"
+        if not path_parts: 
             return "default_api" 
 
-    segment_to_use = "default_api" # Default if logic below doesn't find a better one
+    segment_to_use = "default_api" 
 
-    # Now, check if the current first segment is version-like (e.g., "2", "v1", "v0")
+    # check if the current first segment is version-like (e.g., "2", "v1", "v0")
     if path_parts:
         first_segment = path_parts[0]
         # Check if it's purely numeric (like "2") or matches "v" followed by digits
@@ -57,9 +56,7 @@ def get_sanitized_path_segment(openapi_path: str) -> str:
             # If it's not a version segment, use it directly
             segment_to_use = path_parts[0]
         else:
-            # It was a version segment but nothing followed (e.g. "/2/" or "/api/v1/")
-            # Or path_parts became empty after prefix stripping.
-            # Fallback to a generic name based on the version segment.
+      
             segment_to_use = f"api_{first_segment}"
     else: # Path was empty after stripping prefixes (e.g. "/api/")
         return "default_api" # segment_to_use remains "default_api"
@@ -71,8 +68,7 @@ def get_sanitized_path_segment(openapi_path: str) -> str:
     # Remove leading/trailing underscores that might result from sanitization
     sanitized_segment = sanitized_segment.strip("_")
 
-    # If the segment becomes empty after sanitization (e.g., path was "---"), or is purely digits,
-    # prefix it to ensure validity.
+  
     if not sanitized_segment:
         return "default_api"
     if sanitized_segment.isdigit(): # e.g. if path was /2/123 -> segment is 123
@@ -94,7 +90,6 @@ def get_group_name_from_path(openapi_path: str) -> str:
     if api_prefix_pattern.match(processed_path):
         processed_path = api_prefix_pattern.sub("", processed_path)
         processed_path = processed_path.lstrip("/") # Ensure we strip leading slash if api was the only thing
-        # Add leading slash back if removed and path remains and it doesn't already have one
         if processed_path and not processed_path.startswith("/"):
              processed_path = "/" + processed_path
         elif not processed_path: # Path was only /api/

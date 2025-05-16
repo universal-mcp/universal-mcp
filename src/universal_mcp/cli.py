@@ -45,13 +45,11 @@ def generate(
         raise typer.Exit(1)
 
     try:
-        # Run the async function in the event loop
         app_file_data = generate_api_from_schema(
             schema_path=schema_path,
             output_path=output_path,
             class_name=class_name,
         )
-        # generate_api_from_schema now returns a dict if no output_path, or path if output_path is given
         if isinstance(app_file_data, dict) and "code" in app_file_data:
             console.print("[yellow]No output path specified, printing generated code to console:[/yellow]")
             console.print(app_file_data["code"])
@@ -293,9 +291,7 @@ def split_api(
         console.print(f"[green]Successfully split {input_app_file} into {output_dir}[/green]")
     except Exception as e:
         console.print(f"[red]Error splitting API client: {e}[/red]")
-        # For more detailed debugging, uncomment the following lines:
-        # import traceback
-        # console.print(f"[red]{traceback.format_exc()}[/red]")
+      
         raise typer.Exit(1) from e
 
 
