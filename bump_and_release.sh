@@ -59,3 +59,26 @@ else
     # Push only the branch if not on main/develop
     git push origin $BRANCH
 fi
+
+
+# Either release is passed as arg or not
+if [ "$1" = "release" ]; then
+    # Execute release steps
+    echo "Releasing version $NEW_VERSION..."
+    rm -rf dist
+    rm -rf build
+    rm -rf *.egg-info
+    rm -rf .pytest_cache
+    rm -rf .ruff_cache
+    rm -rf .mypy_cache
+    rm -rf .venv
+    rm -rf .cache
+    rm -rf .DS_Store
+    rm -rf .idea
+    rm -rf .vscode
+
+    uv sync && uv build && uv publish
+    echo "Release complete!"
+else
+    echo "Skipping release steps"
+fi

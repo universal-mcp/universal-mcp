@@ -47,7 +47,7 @@ def _generate_mcp_config(api_key: str) -> None:
         "args": ["universal_mcp@latest", "run"],
         "env": {
             "AGENTR_API_KEY": api_key,
-            "PATH": str(uvx_path.parent),
+            "UV_PATH": str(uvx_path.parent),
         },
     }
 

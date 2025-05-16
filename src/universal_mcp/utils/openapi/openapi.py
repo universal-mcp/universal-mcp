@@ -18,6 +18,7 @@ class Parameters(BaseModel):
     where: Literal["path", "query", "header", "body"]
     required: bool
     example: str | None = None
+    is_file: bool = False
 
     def __str__(self):
         return f"{self.name}: ({self.type})"
@@ -125,6 +126,16 @@ def _extract_properties_from_schema(
             properties.update(sub_props)
             required_fields.extend(sub_required)
 
+    if "oneOf" in schema:
+        for sub_schema in schema["oneOf"]:
+            sub_props, _ = _extract_properties_from_schema(sub_schema)
+            properties.update(sub_props)
+
+    if "anyOf" in schema:
+        for sub_schema in schema["anyOf"]:
+            sub_props, _ = _extract_properties_from_schema(sub_schema)
+            properties.update(sub_props)
+
     # Combine with top-level properties and required fields, if any
     properties.update(schema.get("properties", {}))
     required_fields.extend(schema.get("required", []))
@@ -189,7 +200,8 @@ def _determine_function_name(operation: dict[str, Any], path: str, method: str) 
     if "operationId" in operation:
         raw_name = operation["operationId"]
         cleaned_name = raw_name.replace(".", "_").replace("-", "_")
-        func_name = convert_to_snake_case(cleaned_name)
+        cleaned_name_no_numbers = re.sub(r'\d+', '', cleaned_name)
+        func_name = convert_to_snake_case(cleaned_name_no_numbers)
     else:
         # Generate name from path and method
         path_parts = path.strip("/").split("/")
@@ -276,40 +288,40 @@ def _generate_query_params(operation: dict[str, Any]) -> list[Parameters]:
     return query_params
 
 
-def _generate_body_params(operation: dict[str, Any]) -> list[Parameters]:
+def _generate_body_params(schema_to_process: dict[str, Any] | None, overall_body_is_required: bool) -> list[Parameters]:
     body_params = []
-    request_body = operation.get("requestBody", {})
-    if not request_body:
-        return []  # No request body defined
+    if not schema_to_process:
+        return []
 
-    required_body = request_body.get("required", False)
-    content = request_body.get("content", {})
-    json_content = content.get("application/json", {})
-    if not json_content or "schema" not in json_content:
-        return []  # No JSON schema found
+    properties, required_fields_in_schema = _extract_properties_from_schema(schema_to_process)
 
-    schema = json_content.get("schema", {})
-    properties, required_fields = _extract_properties_from_schema(schema)
+    for param_name, param_schema_details in properties.items():
+        param_type = param_schema_details.get("type", "string")
+        param_description = param_schema_details.get("description", param_name)
+        param_required = overall_body_is_required and param_name in required_fields_in_schema
+        param_example = param_schema_details.get("example")
+        param_format = param_schema_details.get("format")
 
-    for param_name, param_schema in properties.items():
-        param_type = param_schema.get("type", "string")
-        param_description = param_schema.get("description", param_name)
-        # Parameter is required if the body is required AND the field is in the schema's required list
-        param_required = required_body and param_name in required_fields
-        # Extract example
-        param_example = param_schema.get("example")
+        current_is_file = False
+        effective_param_type = param_type
+
+        if param_type == "string" and param_format in ["binary", "byte"]:
+            current_is_file = True
+            effective_param_type = "file"  # Represent as 'file' for docstrings/type hints
 
         body_params.append(
             Parameters(
-                name=_sanitize_identifier(param_name),  # Clean name for Python
-                identifier=param_name,  # Original name for API
+                name=_sanitize_identifier(param_name),
+                identifier=param_name,
                 description=param_description,
-                type=param_type,
+                type=effective_param_type, 
                 where="body",
                 required=param_required,
                 example=str(param_example) if param_example is not None else None,
+                is_file=current_is_file 
             )
         )
+    # print(f"[DEBUG] Final body_params list generated: {body_params}") # DEBUG
     return body_params
 
 
@@ -328,18 +340,69 @@ def _generate_method_code(path, method, operation):
     Returns:
         tuple: (method_code, func_name) - The Python code for the method and its name.
     """
-    print(f"--- Generating code for: {method.upper()} {path} ---")  # Log endpoint being processed
+    # print(f"--- Generating code for: {method.upper()} {path} ---")  # Log endpoint being processed
 
+    # --- Determine Function Name and Basic Operation Details ---
     func_name = _determine_function_name(operation, path, method)
-    operation.get("summary", "")
-    operation.get("tags", [])
-    # Extract path parameters from the URL path
+    method_lower = method.lower() # Define method_lower earlier
+    operation.get("summary", "") # Ensure summary is accessed if needed elsewhere
+    operation.get("tags", [])   # Ensure tags are accessed if needed elsewhere
+    
+    # --- Generate Path and Query Parameters (pre-aliasing) ---
     path_params = _generate_path_params(path)
     query_params = _generate_query_params(operation)
-    body_params = _generate_body_params(operation)
 
-    # --- Alias duplicate parameter names ---
-    # Path parameters have the highest priority and their names are not changed.
+    # --- Determine Request Body Content Type and Schema ---
+    # This section selects the primary content type and its schema to be used for the request body.
+    has_body = "requestBody" in operation
+    body_schema_to_use = None
+    selected_content_type = None # This will hold the chosen content type string
+
+    if has_body:
+        request_body_spec = operation["requestBody"]
+        request_body_content_map = request_body_spec.get("content", {})
+
+        preferred_content_types = [
+            "multipart/form-data",
+            "application/x-www-form-urlencoded",
+            "application/json",
+            "application/octet-stream",
+            "text/plain",
+        ]
+        
+        found_preferred = False
+        for ct in preferred_content_types:
+            if ct in request_body_content_map:
+                selected_content_type = ct
+                body_schema_to_use = request_body_content_map[ct].get("schema")
+                found_preferred = True
+                break
+        
+        if not found_preferred: # Check for image/* if no direct match yet
+            for ct_key in request_body_content_map:
+                if ct_key.startswith("image/"):
+                    selected_content_type = ct_key
+                    body_schema_to_use = request_body_content_map[ct_key].get("schema")
+                    found_preferred = True
+                    break
+            
+        if not found_preferred and request_body_content_map: # Fallback to first listed
+            first_ct_key = next(iter(request_body_content_map))
+            selected_content_type = first_ct_key
+            body_schema_to_use = request_body_content_map[first_ct_key].get("schema")
+
+    # --- Generate Body Parameters (based on selected schema, pre-aliasing) ---
+    if body_schema_to_use: # If a schema was actually found for the selected content type
+        body_params = _generate_body_params(
+            body_schema_to_use, # Pass the specific schema
+            operation.get("requestBody", {}).get("required", False) # Pass the overall body requirement
+        )
+    else:
+        body_params = []
+    # --- End new logic for content type selection ---
+
+    # --- Alias Duplicate Parameter Names ---
+    # This section ensures that parameter names (path, query, body) are unique in the function signature, applying suffixes like '_query' or '_body' if needed.
     path_param_names = {p.name for p in path_params}
 
     # Define the string that "self" sanitizes to. This name will be treated as reserved
@@ -359,7 +422,7 @@ def _generate_method_code(path, method, operation):
         if temp_q_name in path_param_base_conflict_names:
             temp_q_name = f"{original_q_name}_query"
         # Ensure uniqueness among query params themselves after potential aliasing
-        # (though less common, if _sanitize_identifier produced same base for different originals)
+
         # This step is more about ensuring the final suffixed name is unique if multiple query params mapped to same path param name
         counter = 1
         final_q_name = temp_q_name
@@ -404,46 +467,43 @@ def _generate_method_code(path, method, operation):
         current_body_param_names.add(b_param.name)
     # --- End Alias duplicate parameter names ---
 
+
+    # --- Determine Return Type and Body Characteristics ---
     return_type = _determine_return_type(operation)
 
-    has_body = "requestBody" in operation
-    body_required = has_body and operation["requestBody"].get("required", False)
-    has_empty_body = False
-    request_body_properties = {}
-    required_fields = []
+    body_required = has_body and operation["requestBody"].get("required", False) # Remains useful
+    
     is_array_body = False
+    has_empty_body = False 
 
-    if has_body:
-        request_body_content = operation.get("requestBody", {}).get("content", {})
-        json_content = request_body_content.get("application/json", {})
-        if json_content and "schema" in json_content:
-            schema = json_content["schema"]
-            if schema.get("type") == "array":
-                is_array_body = True
-            else:
-                request_body_properties, required_fields = _extract_properties_from_schema(schema)
-                if (not request_body_properties or len(request_body_properties) == 0) and schema.get(
-                    "additionalProperties"
-                ) is True:
-                    has_empty_body = True
-        elif not request_body_content or all(
-            not c for _, c in request_body_content.items()
-        ):  # Check if content is truly empty
-            has_empty_body = True
+    if has_body and body_schema_to_use: # Use the determined body_schema_to_use
+        if body_schema_to_use.get("type") == "array":
+            is_array_body = True
+        
+        # Check for cases that might lead to an "empty" body parameter (for JSON) in the signature,
+        # or indicate a raw body type where _generate_body_params wouldn't create named params.
+        if not body_params and not is_array_body and selected_content_type == "application/json" and \
+           (body_schema_to_use == {} or \
+            (body_schema_to_use.get("type") == "object" and \
+             not body_schema_to_use.get("properties") and \
+             not body_schema_to_use.get("allOf") and \
+             not body_schema_to_use.get("oneOf") and \
+             not body_schema_to_use.get("anyOf"))):
+            has_empty_body = True # Indicates a generic 'request_body: dict = None' might be needed for empty JSON
 
-    # Build function arguments with deduplication (Priority: Path > Body > Query)
+    # --- Build Function Arguments for Signature ---
+    # This section constructs the list of arguments (required and optional)
+    # that will appear in the generated Python function's signature.
     required_args = []
     optional_args = []
-    # seen_clean_names = set() # No longer needed if logic below is correct
 
-    # 1. Process Path Parameters (Highest Priority)
+    #  Process Path Parameters (Highest Priority)
     for param in path_params:
         # Path param names are sanitized but not suffixed by aliasing.
-        # They are the baseline.
         if param.name not in required_args:  # param.name is the sanitized name
             required_args.append(param.name)
 
-    # 2. Process Query Parameters
+    #  Process Query Parameters
     for param in query_params:  # param.name is the potentially aliased name (e.g., id_query)
         arg_name_for_sig = param.name
         current_arg_names_set = set(required_args) | {arg.split("=")[0] for arg in optional_args}
@@ -453,11 +513,11 @@ def _generate_method_code(path, method, operation):
             else:
                 optional_args.append(f"{arg_name_for_sig}=None")
 
-    # 3. Process Body Parameters / Request Body
+    #  Process Body Parameters / Request Body
     # This list tracks the *final* names of parameters in the signature that come from the request body,
-    # used later for docstring example placement.
     final_request_body_arg_names_for_signature = []
-    final_empty_body_param_name = None  # For the specific case of has_empty_body
+    final_empty_body_param_name = None # For the specific case of has_empty_body (empty JSON object)
+    raw_body_param_name = None # For raw content like octet-stream, text/plain, image/*
 
     if has_body:
         current_arg_names_set = set(required_args) | {arg.split("=")[0] for arg in optional_args}
@@ -485,11 +545,35 @@ def _generate_method_code(path, method, operation):
                 optional_args.append(f"{final_array_param_name}=None")
             final_request_body_arg_names_for_signature.append(final_array_param_name)
 
-        elif request_body_properties:  # Object body
-            for param in body_params:  # Iterate ALIASED body_params
-                arg_name_for_sig = param.name  # This is the final, aliased name (e.g., "id_body")
+        # New: Handle raw body parameter (if body_params is empty but body is expected and not array/empty JSON)
+        elif not body_params and not is_array_body and selected_content_type and selected_content_type not in ["application/json", "application/x-www-form-urlencoded", "multipart/form-data"]:
+            # This branch is for raw content types like application/octet-stream, text/plain, image/*
+            # where _generate_body_params returned an empty list because the schema isn't an object with properties.
+            raw_body_param_name_base = "body_content"
+            
+            temp_raw_body_name = raw_body_param_name_base
+            counter = 1
+            is_first_suffix_attempt = True
+            while temp_raw_body_name in current_arg_names_set:
+                if is_first_suffix_attempt:
+                    temp_raw_body_name = f"{raw_body_param_name_base}_body"
+                    is_first_suffix_attempt = False
+                else:
+                    temp_raw_body_name = f"{raw_body_param_name_base}_body_{counter}"
+                counter += 1
+            raw_body_param_name = temp_raw_body_name
 
-                # Defensive check against already added args (should be covered by aliasing logic)
+            if body_required: # If the raw body itself is required
+                required_args.append(raw_body_param_name)
+            else:
+                optional_args.append(f"{raw_body_param_name}=None")
+            final_request_body_arg_names_for_signature.append(raw_body_param_name)
+
+        elif body_params: # Object body with discernible properties
+            for param in body_params:  # Iterate ALIASED body_params
+                arg_name_for_sig = param.name  #final aliased name (e.g., "id_body")
+
+                # Defensive check against already added args 
                 current_arg_names_set_loop = set(required_args) | {arg.split("=")[0] for arg in optional_args}
                 if arg_name_for_sig not in current_arg_names_set_loop:
                     if param.required:
@@ -499,12 +583,11 @@ def _generate_method_code(path, method, operation):
                         optional_args.append(f"{arg_name_for_sig}=None")
                 final_request_body_arg_names_for_signature.append(arg_name_for_sig)
 
-    # If request body is present but empty (e.g. content: {}), add a generic request_body parameter
-    # This is handled *after* specific body params, as it's a fallback.
-    if has_empty_body:
-        empty_body_param_name_base = "request_body"
-        current_arg_names_set = set(required_args) | {arg.split("=")[0] for arg in optional_args}
 
+    if has_empty_body and selected_content_type == "application/json" and not body_params and not is_array_body and not raw_body_param_name:
+        empty_body_param_name_base = "request_body" # For empty JSON object
+        current_arg_names_set = set(required_args) | {arg.split('=')[0] for arg in optional_args}
+        
         final_empty_body_param_name = empty_body_param_name_base
         counter = 1
         is_first_suffix_attempt = True
@@ -517,7 +600,7 @@ def _generate_method_code(path, method, operation):
             counter += 1
 
         # Check if it was somehow added by other logic (e.g. if 'request_body' was an explicit param name)
-        # This check is mostly defensive.
+
         if final_empty_body_param_name not in (set(required_args) | {arg.split("=")[0] for arg in optional_args}):
             optional_args.append(f"{final_empty_body_param_name}=None")
         # Track for docstring, even if it's just 'request_body' or 'request_body_body'
@@ -526,8 +609,11 @@ def _generate_method_code(path, method, operation):
 
     # Combine required and optional arguments
     args = required_args + optional_args
+    print(f"[DEBUG] Final combined args for signature: {args}") # DEBUG
 
-    # ----- Build Docstring -----
+    # ----- Build Docstring ----- 
+    # This section constructs the entire docstring for the generated method,
+    # including summary, argument descriptions, return type, and tags.
     docstring_parts = []
     return_type = _determine_return_type(operation)
 
@@ -542,12 +628,15 @@ def _generate_method_code(path, method, operation):
     # Args
     args_doc_lines = []
     param_details = {}
-    all_params = path_params + query_params + body_params
+    
+    # Create a combined list of all parameter objects (path, query, body) to fetch details for docstring
+    all_parameter_objects_for_docstring = path_params + query_params + body_params
+
     signature_arg_names = {a.split("=")[0] for a in args}
 
-    for param in all_params:
-        if param.name in signature_arg_names and param.name not in param_details:
-            param_details[param.name] = param
+    for param_obj in all_parameter_objects_for_docstring:
+        if param_obj.name in signature_arg_names and param_obj.name not in param_details:
+            param_details[param_obj.name] = param_obj
 
     # Fetch request body example
     request_body_example_str = None
@@ -591,8 +680,12 @@ def _generate_method_code(path, method, operation):
             if detail:
                 desc = detail.description or "No description provided."
                 type_hint = detail.type if detail.type else "Any"
+                # Adjust type_hint for file parameters for the docstring
+                if detail.is_file:
+                    type_hint = "file (e.g., open('path/to/file', 'rb'))"
+                
                 arg_line = f"    {arg_name} ({type_hint}): {desc}"
-                if detail.example:
+                if detail.example and not detail.is_file: # Don't show schema example for file inputs
                     example_str = repr(detail.example)
                     arg_line += f" Example: {example_str}."
 
@@ -610,12 +703,27 @@ def _generate_method_code(path, method, operation):
                 args_doc_lines.append(arg_line)
             elif arg_name == final_empty_body_param_name and has_empty_body:  # Use potentially suffixed name
                 args_doc_lines.append(
-                    f"    {arg_name} (dict | None): Optional dictionary for arbitrary request body data."
+                    f"    {arg_name} (dict | None): Optional dictionary for an empty JSON request body (e.g., {{}})."
                 )
-                # Also append example here if this is the designated body arg
-                if arg_name == last_body_arg_name and request_body_example_str:
+                if ( arg_name == last_body_arg_name and request_body_example_str ): 
                     args_doc_lines[-1] += request_body_example_str
+            elif arg_name == raw_body_param_name: # Docstring for raw body parameter
+                raw_body_type_hint = "bytes"
+                raw_body_desc = "Raw binary content for the request body."
+                if selected_content_type and "text" in selected_content_type:
+                    raw_body_type_hint = "str"
+                    raw_body_desc = "Raw text content for the request body."
+                elif selected_content_type and selected_content_type.startswith("image/"):
+                     raw_body_type_hint = "bytes (image data)"
+                     raw_body_desc = f"Raw image content ({selected_content_type}) for the request body."
 
+                args_doc_lines.append(
+                    f"    {arg_name} ({raw_body_type_hint} | None): {raw_body_desc}"
+                )
+                # Example for raw body is harder to give generically, but if present in spec, could be added.
+                if ( arg_name == last_body_arg_name and request_body_example_str ): 
+                    args_doc_lines[-1] += request_body_example_str
+    
     if args_doc_lines:
         docstring_parts.append("\n".join(args_doc_lines))
 
@@ -645,43 +753,83 @@ def _generate_method_code(path, method, operation):
     formatted_docstring = f'\n{doc_indent}"""\n{indented_docstring_content}\n{doc_indent}"""'
     # ----- End Build Docstring -----
 
+    # --- Construct Method Signature String ---
     if args:
         signature = f"    def {func_name}(self, {', '.join(args)}) -> {return_type}:"
     else:
         signature = f"    def {func_name}(self) -> {return_type}:"
 
-    # Build method body
+    # --- Build Method Body --- 
+    # This section constructs the executable lines of code within the generated method.
     body_lines = []
 
-    # Path parameter validation (uses aliased name for signature, original identifier for error)
+    # --- Path Parameter Validation ---
     for param in path_params:
         body_lines.append(f"        if {param.name} is None:")
         body_lines.append(
-            f"            raise ValueError(\"Missing required parameter '{param.identifier}'\")"  # Use original name in error
+            f'            raise ValueError("Missing required parameter \'{param.identifier}\'.")'  # Use original name in error, ensure quotes are balanced
         )
 
-    # Build request body (handle array and object types differently)
+
+    if method_lower not in ["get", "delete"]:
+        body_lines.append("        request_body_data = None")
+
+        # Initialize files_data only if it's POST or PUT and multipart/form-data,
+        # as these are the primary cases where files_data is explicitly prepared and used.
+        # The population logic (e.g., files_data = {}) will define it for other multipart cases if they arise.
+        if method_lower in ["post", "put"] and selected_content_type == "multipart/form-data":
+            body_lines.append("        files_data = None")
+
+
+    # --- Build Request Payload (request_body_data and files_data) ---
+    # This section prepares the data to be sent in the request body,
+    # differentiating between files and other data for multipart forms,
+
     if has_body:
+        # This block will now overwrite the initial None values if a body is present.
         if is_array_body:
             # For array request bodies, use the array parameter directly
-            body_lines.append("        # Use items array directly as request body")
-            body_lines.append(f"        request_body = {final_request_body_arg_names_for_signature[0]}")
-        elif request_body_properties:
-            # For object request bodies, build the request body from individual parameters
-            body_lines.append("        request_body = {")
-            for b_param in body_params:  # Iterate through original body_params list
-                # Use b_param.identifier for the key in the request_body dictionary
-                # and b_param.name for the variable name from the function signature
+            array_arg_name = final_request_body_arg_names_for_signature[0] if final_request_body_arg_names_for_signature else "items_body" # Fallback
+            body_lines.append(f"        # Using array parameter '{array_arg_name}' directly as request body")
+            body_lines.append(f"        request_body_data = {array_arg_name}") # Use a neutral temp name
+            # files_data remains None
+
+        elif selected_content_type == "multipart/form-data":
+            body_lines.append("        request_body_data = {}") # For non-file form fields
+            body_lines.append("        files_data = {}")      # For file fields
+            for b_param in body_params: # Iterate through ALIASED body_params
+                if b_param.is_file:
+                    body_lines.append(f"        if {b_param.name} is not None:") # Check if file param is provided
+                    body_lines.append(f"            files_data['{b_param.identifier}'] = {b_param.name}")
+                else:
+                    body_lines.append(f"        if {b_param.name} is not None:") # Check if form field is provided
+                    body_lines.append(f"            request_body_data['{b_param.identifier}'] = {b_param.name}")
+            body_lines.append("        files_data = {k: v for k, v in files_data.items() if v is not None}")
+            # Ensure files_data is None if it's empty after filtering, as httpx expects None, not {}
+            body_lines.append("        if not files_data: files_data = None")
+
+        
+        elif body_params: # Object request bodies (JSON, x-www-form-urlencoded) with specific parameters
+            body_lines.append("        request_body_data = {")
+            for b_param in body_params:
                 body_lines.append(f"            '{b_param.identifier}': {b_param.name},")
             body_lines.append("        }")
-            body_lines.append("        request_body = {k: v for k, v in request_body.items() if v is not None}")
+            body_lines.append(
+                "        request_body_data = {k: v for k, v in request_body_data.items() if v is not None}"
+            )
+        
+        elif raw_body_param_name: # Raw content type (octet-stream, text, image)
+            body_lines.append(f"        request_body_data = {raw_body_param_name}")
 
-    # Format URL directly with path parameters
+        elif has_empty_body and selected_content_type == "application/json": # Empty JSON object {}
+            body_lines.append(f"        request_body_data = {final_empty_body_param_name} if {final_empty_body_param_name} is not None else {{}}")
+  
+
+    # --- Format URL and Query Parameters for Request ---
     url = _generate_url(path, path_params)
     url_line = f'        url = f"{{self.base_url}}{url}"'
     body_lines.append(url_line)
 
-    # Build query parameters dictionary for the request
     if query_params:
         query_params_items = []
         for param in query_params:  # Iterate through original query_params list
@@ -693,35 +841,54 @@ def _generate_method_code(path, method, operation):
     else:
         body_lines.append("        query_params = {}")
 
-    # Make HTTP request using the proper method
-    method_lower = method.lower()
+    # --- Determine Final Content-Type for API Call (Obsolete Block, selected_content_type is used) ---
+    # The following block for request_body_content_type is largely superseded by selected_content_type,
+   
+    # Use the selected_content_type determined by the new logic as the primary source of truth.
+    final_content_type_for_api_call = selected_content_type if selected_content_type else "application/json"
 
-    # Determine what to use as the request body argument
-    if has_empty_body:
-        request_body_arg = "request_body"
-    elif not has_body:
-        request_body_arg = "{}"
-    else:
-        request_body_arg = "request_body"
+    # --- Make HTTP Request ---
+    # This section generates the actual HTTP call 
+    # using the prepared URL, query parameters, request body data, files, and content type.
+
 
     if method_lower == "get":
         body_lines.append("        response = self._get(url, params=query_params)")
     elif method_lower == "post":
-        body_lines.append(f"        response = self._post(url, data={request_body_arg}, params=query_params)")
+        if selected_content_type == "multipart/form-data":
+            body_lines.append(
+                 f"        response = self._post(url, data=request_body_data, files=files_data, params=query_params, content_type='{final_content_type_for_api_call}')"
+            )
+        else:
+            body_lines.append(
+                f"        response = self._post(url, data=request_body_data, params=query_params, content_type='{final_content_type_for_api_call}')"
+            )
     elif method_lower == "put":
-        body_lines.append(f"        response = self._put(url, data={request_body_arg}, params=query_params)")
+        if selected_content_type == "multipart/form-data":
+            body_lines.append(
+                 f"        response = self._put(url, data=request_body_data, files=files_data, params=query_params, content_type='{final_content_type_for_api_call}')"
+            )
+        else:
+            body_lines.append(
+                f"        response = self._put(url, data=request_body_data, params=query_params, content_type='{final_content_type_for_api_call}')"
+            )
     elif method_lower == "patch":
-        body_lines.append(f"        response = self._patch(url, data={request_body_arg}, params=query_params)")
+        
+        body_lines.append(
+            "        response = self._patch(url, data=request_body_data, params=query_params)" 
+        )
     elif method_lower == "delete":
         body_lines.append("        response = self._delete(url, params=query_params)")
     else:
-        body_lines.append(f"        response = self._{method_lower}(url, data={request_body_arg}, params=query_params)")
+        body_lines.append(
+            f"        response = self._{method_lower}(url, data=request_body_data, params=query_params)"
+        )
 
-    # Handle response
+    # --- Handle Response ---
     body_lines.append("        response.raise_for_status()")
     body_lines.append("        return response.json()")
 
-    # Combine signature, docstring, and body
+    # --- Combine Signature, Docstring, and Body for Final Method Code ---
     method_code = signature + formatted_docstring + "\n" + "\n".join(body_lines)
     return method_code, func_name
 
