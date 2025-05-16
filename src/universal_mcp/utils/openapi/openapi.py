@@ -615,6 +615,10 @@ def _generate_method_code(path, method, operation):
     # This section constructs the entire docstring for the generated method,
     # including summary, argument descriptions, return type, and tags.
     docstring_parts = []
+    # NEW: Add OpenAPI path as the first line of the docstring
+    openapi_path_comment_for_docstring = f"# openapi_path: {path}"
+    docstring_parts.append(openapi_path_comment_for_docstring)
+
     return_type = _determine_return_type(operation)
 
     # Summary
