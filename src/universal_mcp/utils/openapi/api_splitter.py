@@ -1,8 +1,8 @@
 import ast
 import re
-from pathlib import Path
 from collections import defaultdict
 from keyword import iskeyword
+from pathlib import Path
 
 API_SEGMENT_BASE_CODE = '''
 from typing import Any
@@ -368,8 +368,9 @@ def split_generated_app_file(input_app_file: Path, output_dir: Path):
     original_imports_from_main_file = set()
 
     for top_node in tree.body:
-        if top_node == main_app_class_node: continue
-        if isinstance(top_node, (ast.Import, ast.ImportFrom)):
+        if top_node == main_app_class_node:
+            continue
+        if isinstance(top_node, ast.Import | ast.ImportFrom):
             final_main_module_imports.append(top_node)
             if isinstance(top_node, ast.ImportFrom):
                 if top_node.module: # module can be None for from . import x
