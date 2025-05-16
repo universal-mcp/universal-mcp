@@ -197,7 +197,7 @@ class APIApplication(BaseApplication):
             f"Making POST request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
         )
         headers = self._get_headers().copy()
-        # if files are provided or if data is to be multipart encoded.
+
         if content_type != 'multipart/form-data':
             headers["Content-Type"] = content_type
 
@@ -263,8 +263,6 @@ class APIApplication(BaseApplication):
         )
         headers = self._get_headers().copy()
         # For multipart/form-data, httpx handles the Content-Type header (with boundary)
-        # if files are provided or if data is to be multipart encoded.
-        # It's generally safer to let httpx set it for this content type.
         # For other content types, we set it explicitly.
         if content_type != 'multipart/form-data':
             headers["Content-Type"] = content_type
