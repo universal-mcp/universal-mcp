@@ -146,7 +146,6 @@ def get_group_name_from_path(openapi_path: str) -> str:
 class MethodTransformer(ast.NodeTransformer):
     def __init__(self, original_path: str):
         self.original_path = original_path
-        # self.headers_param_name = "headers" # This line can be fully removed or kept commented
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
         # All logic related to adding headers parameter has been removed.
@@ -163,7 +162,6 @@ class MethodTransformer(ast.NodeTransformer):
         return self.generic_visit(node)
 
     def visit_Call(self, node: ast.Call) -> ast.Call:
-        
         return self.generic_visit(node)
 
 
@@ -209,6 +207,34 @@ def split_generated_app_file(input_app_file: Path, output_dir: Path):
                 if hasattr(ast, 'fix_missing_locations'):
                     transformed_method_node = ast.fix_missing_locations(transformed_method_node)
 
+                # Remove the # openapi_path: comment from the docstring
+                if (transformed_method_node.body and
+                        isinstance(transformed_method_node.body[0], ast.Expr) and
+                        isinstance(transformed_method_node.body[0].value, ast.Constant) and
+                        isinstance(transformed_method_node.body[0].value.value, str)):
+                    
+                    docstring_expr_node = transformed_method_node.body[0]
+                    original_docstring_text = docstring_expr_node.value.value
+                    
+                    all_lines_raw = original_docstring_text.splitlines(True)
+                    line_to_remove_idx = -1
+                    
+                    for i, current_line_raw in enumerate(all_lines_raw):
+                        current_line_stripped = current_line_raw.strip()
+                        if current_line_stripped: # Found the first significant line
+                            if openapi_path_regex.match(current_line_stripped):
+                                line_to_remove_idx = i
+                            break # Only inspect the first significant line
+
+                    if line_to_remove_idx != -1:
+                        del all_lines_raw[line_to_remove_idx]
+                        modified_docstring_text = "".join(all_lines_raw)
+                        
+                        if not modified_docstring_text.strip():
+                            transformed_method_node.body.pop(0) # Docstring is now empty
+                        else:
+                            docstring_expr_node.value.value = modified_docstring_text
+                
                 grouped_methods[group].append(transformed_method_node)
                 processed_method_names_in_main.add(item.name)
             else:
@@ -388,4 +414,4 @@ def split_generated_app_file(input_app_file: Path, output_dir: Path):
     (output_dir / "app.py").write_text(ast.unparse(final_main_app_module_ast))
 
     (output_dir / "__init__.py").touch(exist_ok=True)
-    (segments_dir / "__init__.py").touch(exist_ok=True) # __init__.py for segments subfolder 
+    (segments_dir / "__init__.py").touch(exist_ok=True) 
