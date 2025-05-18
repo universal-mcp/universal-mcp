@@ -738,7 +738,14 @@ def _generate_method_code(path, method, operation):
         if code.startswith("2"):
             success_desc = resp_info.get("description", "").strip()
             break
-    docstring_parts.append(f"Returns:\n    {return_type}: {success_desc or 'API response data.'}")  # Use return_type
+    docstring_parts.append(f"Returns:\n    {return_type}: {success_desc or 'API response data.'}")
+
+    raises_section_lines = [
+        "Raises:",
+        "    HTTPError: Raised when the API request fails (e.g., non-2XX status code).",
+        "    JSONDecodeError: Raised if the response body cannot be parsed as JSON."
+    ]
+    docstring_parts.append("\n".join(raises_section_lines))
 
     # Tags Section
     operation_tags = operation.get("tags", [])
