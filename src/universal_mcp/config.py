@@ -49,7 +49,9 @@ class ServerConfig(BaseSettings):
     description: str = Field(default="Universal MCP", description="Description of the MCP server")
     api_key: SecretStr | None = Field(default=None, description="API key for authentication")
     type: Literal["local", "agentr"] = Field(default="agentr", description="Type of server deployment")
-    transport: Literal["stdio", "sse", "http"] = Field(default="stdio", description="Transport protocol to use")
+    transport: Literal["stdio", "sse", "streamable-http"] = Field(
+        default="stdio", description="Transport protocol to use"
+    )
     port: int = Field(default=8005, description="Port to run the server on (if applicable)")
     host: str = Field(default="localhost", description="Host to bind the server to (if applicable)")
     apps: list[AppConfig] | None = Field(default=None, description="List of configured applications")
