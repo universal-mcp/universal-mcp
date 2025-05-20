@@ -329,4 +329,4 @@ class SingleMCPServer(BaseServer):
                 description=f"Minimal MCP server for the local {app_instance.name} application.",
             )
         super().__init__(config, **kwargs)
-        self._tool_manager.register_tools_from_app(app_instance)
+        self._tool_manager.register_tools_from_app(app_instance, tags="all")

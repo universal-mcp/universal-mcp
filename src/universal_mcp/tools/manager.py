@@ -33,6 +33,9 @@ def _filter_by_name(tools: list[Tool], tool_names: list[str] | None) -> list[Too
 
 
 def _filter_by_tags(tools: list[Tool], tags: list[str] | None) -> list[Tool]:
+    if "all" in tags:
+        return tools
+    
     if not tags:
         return tools
     return [tool for tool in tools if any(tag in tool.tags for tag in tags)]
