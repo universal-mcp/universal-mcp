@@ -5,10 +5,9 @@ from loguru import logger
 
 from universal_mcp.config import AppConfig
 from universal_mcp.exceptions import NotAuthorizedError
-from universal_mcp.utils.singleton import Singleton
 
 
-class AgentrClient(metaclass=Singleton):
+class AgentrClient:
     """Helper class for AgentR API operations.
 
     This class provides utility methods for interacting with the AgentR API,
