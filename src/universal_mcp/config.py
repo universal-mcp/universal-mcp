@@ -46,7 +46,7 @@ class ServerConfig(BaseSettings):
 
     name: str = Field(default="Universal MCP", description="Name of the MCP server")
     description: str = Field(default="Universal MCP", description="Description of the MCP server")
-    api_key: SecretStr | None = Field(default=None, description="API key for authentication")
+    api_key: SecretStr | None = Field(default=None, description="API key for authentication", alias="AGENTR_API_KEY")
     type: Literal["local", "agentr"] = Field(default="agentr", description="Type of server deployment")
     transport: Literal["stdio", "sse", "streamable-http"] = Field(
         default="stdio", description="Transport protocol to use"

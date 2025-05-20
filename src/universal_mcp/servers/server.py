@@ -217,8 +217,9 @@ class AgentRServer(BaseServer):
         **kwargs: Additional keyword arguments passed to FastMCP
     """
 
-    def __init__(self, config: ServerConfig, api_key: str | None = None, **kwargs):
-        self.api_key = api_key or str(config.api_key)
+    def __init__(self, config: ServerConfig, **kwargs):
+        self.api_key = config.api_key.get_secret_value() if config.api_key else None
+        logger.info(f"Initializing AgentR server with API key: {self.api_key}")
         self.client = AgentrClient(api_key=self.api_key)
         super().__init__(config, **kwargs)
         self.integration = AgentRIntegration(name="agentr", api_key=self.client.api_key)

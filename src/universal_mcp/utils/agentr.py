@@ -18,9 +18,12 @@ class AgentrClient:
         base_url (str, optional): Base URL for AgentR API. Defaults to https://api.agentr.dev
     """
 
-    def __init__(self, api_key: str = None, base_url: str = None):
-        self.api_key = api_key or os.getenv("AGENTR_API_KEY")
-        if not self.api_key:
+    def __init__(self, api_key: str | None = None, base_url: str | None = None):
+        if api_key:
+            self.api_key = api_key
+        elif os.getenv("AGENTR_API_KEY"):
+            self.api_key = os.getenv("AGENTR_API_KEY")
+        else:
             logger.error(
                 "API key for AgentR is missing. Please visit https://agentr.dev to create an API key, then set it as AGENTR_API_KEY environment variable."
             )
