@@ -38,7 +38,6 @@ class ServerConfig(BaseSettings):
     """Main server configuration."""
 
     model_config = SettingsConfigDict(
-        env_prefix="MCP_",
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
@@ -52,14 +51,12 @@ class ServerConfig(BaseSettings):
     transport: Literal["stdio", "sse", "streamable-http"] = Field(
         default="stdio", description="Transport protocol to use"
     )
-    port: int = Field(default=8005, description="Port to run the server on (if applicable)")
+    port: int = Field(default=8005, description="Port to run the server on (if applicable)", ge=1024, le=65535)
     host: str = Field(default="localhost", description="Host to bind the server to (if applicable)")
     apps: list[AppConfig] | None = Field(default=None, description="List of configured applications")
     store: StoreConfig | None = Field(default=None, description="Default store configuration")
     debug: bool = Field(default=False, description="Enable debug mode")
     log_level: str = Field(default="INFO", description="Logging level")
-    max_connections: int = Field(default=100, description="Maximum number of concurrent connections")
-    request_timeout: int = Field(default=60, description="Default request timeout in seconds")
 
     @field_validator("log_level", mode="before")
     def validate_log_level(cls, v: str) -> str:

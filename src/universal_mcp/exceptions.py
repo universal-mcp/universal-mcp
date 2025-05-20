@@ -19,3 +19,7 @@ class StoreError(Exception):
 
 class KeyNotFoundError(StoreError):
     """Exception raised when a key is not found in the store."""
+
+
+class ConfigurationError(Exception):
+    """Exception raised when a configuration error occurs."""

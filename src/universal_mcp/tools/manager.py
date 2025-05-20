@@ -85,7 +85,6 @@ class ToolManager:
         tools = list(self._tools.values())
         if tags:
             tools = _filter_by_tags(tools, tags)
-
         if format == ToolFormat.MCP:
             tools = [convert_tool_to_mcp_tool(tool) for tool in tools]
         elif format == ToolFormat.LANGCHAIN:
@@ -94,7 +93,6 @@ class ToolManager:
             tools = [convert_tool_to_openai_tool(tool) for tool in tools]
         else:
             raise ValueError(f"Invalid format: {format}")
-
         return tools
 
     def add_tool(self, fn: Callable[..., Any] | Tool, name: str | None = None) -> Tool:

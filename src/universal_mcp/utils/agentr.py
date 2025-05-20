@@ -27,6 +27,9 @@ class AgentrClient(metaclass=Singleton):
             )
             raise ValueError("AgentR API key required - get one at https://agentr.dev")
         self.base_url = (base_url or os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")).rstrip("/")
+        self.client = httpx.Client(
+            base_url=self.base_url, headers={"X-API-KEY": self.api_key}, timeout=30, follow_redirects=True
+        )
 
     def get_credentials(self, integration_name: str) -> dict:
         """Get credentials for an integration from the AgentR API.
@@ -41,9 +44,8 @@ class AgentrClient(metaclass=Singleton):
             NotAuthorizedError: If credentials are not found (404 response)
             HTTPError: For other API errors
         """
-        response = httpx.get(
-            f"{self.base_url}/api/{integration_name}/credentials/",
-            headers={"accept": "application/json", "X-API-KEY": self.api_key},
+        response = self.client.get(
+            f"/api/{integration_name}/credentials/",
         )
         if response.status_code == 404:
             logger.warning(f"No credentials found for {integration_name}. Requesting authorization...")
@@ -64,15 +66,14 @@ class AgentrClient(metaclass=Singleton):
         Raises:
             HTTPError: If API request fails
         """
-        response = httpx.get(
-            f"{self.base_url}/api/{integration_name}/authorize/",
-            headers={"X-API-KEY": self.api_key},
+        response = self.client.get(
+            f"/api/{integration_name}/authorize/",
         )
         response.raise_for_status()
         url = response.json()
         return f"Please ask the user to visit the following url to authorize the application: {url}. Render the url in proper markdown format with a clickable link."
 
-    def fetch_apps(self) -> list[dict]:
+    def fetch_apps(self) -> list[AppConfig]:
         """Fetch available apps from AgentR API.
 
         Returns:
@@ -81,11 +82,7 @@ class AgentrClient(metaclass=Singleton):
         Raises:
             httpx.HTTPError: If API request fails
         """
-        response = httpx.get(
-            f"{self.base_url}/api/apps/",
-            headers={"X-API-KEY": self.api_key},
-            timeout=10,
-        )
+        response = self.client.get("/api/apps/")
         response.raise_for_status()
         data = response.json()
         return [AppConfig.model_validate(app) for app in data]

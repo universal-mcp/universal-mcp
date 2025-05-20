@@ -3,21 +3,24 @@ from contextlib import asynccontextmanager
 
 from langchain_core.messages import HumanMessage
 from langchain_mcp_adapters.client import MultiServerMCPClient
+from langchain_mcp_adapters.tools import load_mcp_tools
 from langchain_openai import AzureChatOpenAI
 from langgraph.prebuilt import create_react_agent
 
 
 @asynccontextmanager
 async def load_tools():
-    async with MultiServerMCPClient(
+    url = "http://0.0.0.0:8005/sse"
+    client = MultiServerMCPClient(
         {
             "agentr": {
-                "url": "http://localhost:8005/sse",
+                "url": url,
                 "transport": "sse",
             },
         }
-    ) as client:
-        tools = client.get_tools()
+    )
+    async with client.session("agentr") as session:
+        tools = await load_mcp_tools(session)
         yield tools
 
 
