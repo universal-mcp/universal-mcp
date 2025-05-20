@@ -897,7 +897,12 @@ def _generate_method_code(path, method, operation):
 
     # --- Handle Response ---
     body_lines.append("        response.raise_for_status()")
-    body_lines.append("        return response.json()")
+    body_lines.append("        if response.status_code == 204 or not response.content or not response.text.strip():")
+    body_lines.append("            return None")
+    body_lines.append("        try:")
+    body_lines.append("            return response.json()")
+    body_lines.append("        except ValueError:")
+    body_lines.append("            return None")
 
     # --- Combine Signature, Docstring, and Body for Final Method Code ---
     method_code = signature + formatted_docstring + "\n" + "\n".join(body_lines)
