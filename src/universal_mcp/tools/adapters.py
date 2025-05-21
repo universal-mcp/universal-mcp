@@ -17,7 +17,7 @@ def convert_tool_to_mcp_tool(
     from mcp.server.fastmcp.server import MCPTool
 
     return MCPTool(
-        name=tool.name,
+        name=tool.name[:63],
         description=tool.description or "",
         inputSchema=tool.parameters,
     )
