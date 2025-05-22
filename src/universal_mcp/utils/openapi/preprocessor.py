@@ -236,6 +236,24 @@ def generate_description_llm(
         Respond ONLY with the description text."""
         fallback_text = f"[LLM could not generate description for API '{api_title}']"  # More specific fallback
 
+    elif description_type == "operation_id":
+        path_key = context.get("path_key", "unknown path")
+        method = context.get("method", "unknown method")
+        operation_context_str = json.dumps(
+            context.get("operation_value", {}),
+            indent=None,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        if len(operation_context_str) > 500:
+            operation_context_str = operation_context_str[:500] + "..."
+        user_prompt = f"""Generate a short, unique, and readable operationId for the OpenAPI operation at path '{path_key}' using the '{method.upper()}' method.\n- The operationId MUST be a single word in camelCase or snake_case.\n- It MUST NOT exceed 30 characters.\n- It should be descriptive of the action and resource, e.g., 'getUser', 'createOrder', 'listInvoices', 'deleteUserById'.\n- Do NOT include spaces or special characters.\n- Respond ONLY with the operationId string.\nContext (operation details): {operation_context_str}"""
+        fallback_text = f"[LLM could not generate operationId for {method.upper()} {path_key}]"
+        logger.info("\n--- LLM OperationId Generation Prompt ---")
+        logger.info(f"System prompt:\n{system_prompt}")
+        logger.info(f"User prompt:\n{user_prompt}")
+        logger.info("--- End LLM OperationId Prompt ---\n")
+
     else:
         logger.error(f"Invalid description_type '{description_type}' passed to generate_description_llm.")
         return "[Invalid description type specified]"
@@ -765,6 +783,7 @@ def process_operation(
     llm_model: str,
     enhance_all: bool,  # New flag
     summaries_only: bool = False,
+    operation_ids_only: bool = False,
 ):
     operation_location_base = f"paths.{path_key}.{method.lower()}"
 
@@ -774,6 +793,24 @@ def process_operation(
 
     if method.lower().startswith("x-"):
         logger.debug(f"Skipping extension operation '{operation_location_base}'.")
+        return
+
+    # --- Ensure operationId is present, using LLM if missing, but only if not summaries_only ---
+    if (operation_ids_only or not summaries_only) and ("operationId" not in operation_value or not operation_value["operationId"]):
+        simplified_context = simplify_operation_context(operation_value)
+        generated_operation_id = generate_description_llm(
+            description_type="operation_id",
+            model=llm_model,
+            context={
+                "path_key": path_key,
+                "method": method,
+                "operation_value": simplified_context,
+            },
+        )
+        operation_value["operationId"] = generated_operation_id
+        logger.info(f"Added operationId '{generated_operation_id}' to '{operation_location_base}'.")
+
+    if operation_ids_only:
         return
 
     # --- Process Summary ---
@@ -833,7 +870,7 @@ def process_operation(
             )
 
 
-def process_paths(paths: dict, llm_model: str, enhance_all: bool, summaries_only: bool = False):
+def process_paths(paths: dict, llm_model: str, enhance_all: bool, summaries_only: bool = False, operation_ids_only: bool = False):
     if not isinstance(paths, dict):
         logger.warning("'paths' field is not a dictionary. Skipping path processing.")
         return
@@ -855,7 +892,7 @@ def process_paths(paths: dict, llm_model: str, enhance_all: bool, summaries_only
                     "patch",
                     "trace",
                 ]:
-                    process_operation(operation_value, path_key, method, llm_model, enhance_all, summaries_only)
+                    process_operation(operation_value, path_key, method, llm_model, enhance_all, summaries_only, operation_ids_only)
                 elif method.lower().startswith("x-"):
                     logger.debug(f"Skipping processing of method extension '{method.lower()}' in path '{path_key}'.")
                     continue
@@ -918,19 +955,22 @@ def process_info_section(schema_data: dict, llm_model: str, enhance_all: bool): 
             )
 
 
-def preprocess_schema_with_llm(schema_data: dict, llm_model: str, enhance_all: bool, summaries_only: bool = False):
+def preprocess_schema_with_llm(schema_data: dict, llm_model: str, enhance_all: bool, summaries_only: bool = False, operation_ids_only: bool = False):
     """
     Processes the schema to add/enhance descriptions/summaries using an LLM.
     Decides whether to generate based on the 'enhance_all' flag and existing content.
     If summaries_only is True, only operation summaries (and info.description) are enriched.
+    If operation_ids_only is True, only missing operationIds are generated (never overwritten).
     Assumes basic schema structure validation (info, title) has already passed.
     """
-    logger.info(f"\n--- Starting LLM Generation (enhance_all={enhance_all}, summaries_only={summaries_only}) ---")
+    logger.info(f"\n--- Starting LLM Generation (enhance_all={enhance_all}, summaries_only={summaries_only}, operation_ids_only={operation_ids_only}) ---")
 
-    process_info_section(schema_data, llm_model, enhance_all)
+    # Only process info section if not operation_ids_only
+    if not operation_ids_only:
+        process_info_section(schema_data, llm_model, enhance_all)
 
     paths = schema_data.get("paths")
-    process_paths(paths, llm_model, enhance_all, summaries_only)
+    process_paths(paths, llm_model, enhance_all, summaries_only, operation_ids_only)
 
     logger.info("--- LLM Generation Complete ---")
 
@@ -1011,8 +1051,9 @@ def run_preprocessing(
             "  [2] Generate/Enhance [bold]all[/bold] descriptions/summaries",
             "  [3] [bold red]Quit[/bold red] (exit without changes)",
             "  [4] Generate/Enhance [bold]only operation summaries[/bold]",
+            "  [5] Generate [bold]only missing operationIds[/bold]",
         ]
-        valid_choices = ["1", "2", "3", "4"]
+        valid_choices = ["1", "2", "3", "4", "5"]
         default_choice = "1"  # Default to filling missing
 
     else:  # total_missing_or_fallback == 0
@@ -1032,8 +1073,9 @@ def run_preprocessing(
             "  [2] Generate/Enhance [bold]all[/bold] descriptions/summaries",
             "  [3] [bold red]Quit[/bold red] [green](default)[/green]",
             "  [4] Generate/Enhance [bold]only operation summaries[/bold]",
+            "  [5] Generate [bold]only missing operationIds[/bold]",
         ]
-        valid_choices = ["2", "3", "4"]
+        valid_choices = ["2", "3", "4", "5"]
         default_choice = "3"  # Default to quitting if nothing missing
 
     for option_text in prompt_options:
@@ -1052,24 +1094,32 @@ def run_preprocessing(
         elif choice == "1":
             enhance_all = False
             summaries_only = False
+            operation_ids_only = False
             break  # Exit prompt loop
         elif choice == "2":
             enhance_all = True
             summaries_only = False
+            operation_ids_only = False
             break  # Exit prompt loop
         elif choice == "4":
             enhance_all = True  # or False, doesn't matter since we skip parameters
             summaries_only = True
+            operation_ids_only = False
+            break  # Exit prompt loop
+        elif choice == "5":
+            enhance_all = False
+            summaries_only = False
+            operation_ids_only = True
             break  # Exit prompt loop
 
     perform_generation = False
-    if summaries_only or enhance_all or (choice == "1" and total_missing_or_fallback > 0):
+    if operation_ids_only or summaries_only or enhance_all or (choice == "1" and total_missing_or_fallback > 0):
         perform_generation = True
 
     if perform_generation:
-        console.print(f"[blue]Starting LLM generation with Enhance All: {enhance_all}, Summaries Only: {summaries_only}[/blue]")
+        console.print(f"[blue]Starting LLM generation with Enhance All: {enhance_all}, Summaries Only: {summaries_only}, OperationIds Only: {operation_ids_only}[/blue]")
         try:
-            preprocess_schema_with_llm(schema_data, model, enhance_all, summaries_only)
+            preprocess_schema_with_llm(schema_data, model, enhance_all, summaries_only, operation_ids_only)
             console.print("[green]LLM generation complete.[/green]")
         except Exception as e:
             console.print(f"[red]Error during LLM generation: {e}[/red]")
