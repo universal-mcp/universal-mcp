@@ -226,37 +226,42 @@ if __name__ == "__main__":
     
     from universal_mcp.utils.docstring_parser import parse_docstring
 
-    def get_weather(city: str, unit: str = "celsius", include_humidity: bool = False) -> str:
+    def post_crm_v_objects_emails_create(self, associations, properties) -> dict[str, Any]:
         """
-        Fetches the weather for a given city.
+
+        Creates an email object in the CRM using the POST method, allowing for the association of metadata with the email and requiring authentication via OAuth2 or private apps to access the necessary permissions.
 
         Args:
-            city: The name of the city.
-            unit (str): The temperature unit ('celsius' or 'fahrenheit').
-            include_humidity (bool): Whether to include humidity in the report.
+            associations (array): associations Example: [{Category': 'HUBSPOT_DEFINED', 'associationTypeId': 2}]}].
+            properties (object): No description provided. Example: "{'ncy': 'monthly'}".
 
         Returns:
-            A string describing the weather.
-        
-        Raises:
-            ValueError: If the city is not found.
-        """
-        if city == "Atlantis":
-            raise ValueError("City not found")
-        
-        humidity_report = ""
-        if include_humidity:
-            humidity_report = " with 50% humidity"
+            dict[str, Any]: successful operation
 
-        if unit == "celsius":
-            return f"The weather in {city} is 25°C{humidity_report}."
-        elif unit == "fahrenheit":
-            return f"The weather in {city} is 77°F{humidity_report}."
-        return f"Unknown unit {unit} for {city}."
+        Raises:
+            HTTPError: Raised when the API request fails (e.g., non-2XX status code).
+            JSONDecodeError: Raised if the response body cannot be parsed as JSON.
+
+        Tags:
+            Basic
+        """
+        request_body_data = None
+        request_body_data = {'associations': associations, 'properties': properties}
+        request_body_data = {k: v for k, v in request_body_data.items() if v is not None}
+        url = f'{self.main_app_client.base_url}/crm/v3/objects/emails'
+        query_params = {}
+        response = self._post(url, data=request_body_data, params=query_params, content_type='application/json')
+        response.raise_for_status()
+        if response.status_code == 204 or not response.content or (not response.text.strip()):
+            return None
+        try:
+            return response.json()
+        except ValueError:
+            return None
 
     print("--- Testing FuncMetadata with get_weather function ---")
 
-    raw_doc = inspect.getdoc(get_weather)
+    raw_doc = inspect.getdoc(post_crm_v_objects_emails_create)
     parsed_doc_info = parse_docstring(raw_doc)
     arg_descriptions_from_doc = parsed_doc_info.get("args", {}) # Extract just the args part
 
@@ -266,7 +271,7 @@ if __name__ == "__main__":
     # 2. Create FuncMetadata instance
     # The arg_description parameter expects a dict mapping arg name to its details
     func_arg_metadata_instance = FuncMetadata.func_metadata(
-        get_weather,
+        post_crm_v_objects_emails_create,
         arg_description=arg_descriptions_from_doc
     )
 
