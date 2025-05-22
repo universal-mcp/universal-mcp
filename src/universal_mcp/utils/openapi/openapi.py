@@ -643,32 +643,26 @@ def _generate_method_code(path, method, operation):
             param_details[param_obj.name] = param_obj
 
     # Fetch request body example
-    request_body_example_str = None
+    example_data = None # Initialize example_data here for wider scope
+
     if has_body:
         try:
             json_content = operation["requestBody"]["content"]["application/json"]
-            example_data = None
+            #From direct content definition
             if "example" in json_content:
                 example_data = json_content["example"]
             elif "examples" in json_content and json_content["examples"]:
                 first_example_key = list(json_content["examples"].keys())[0]
                 example_data = json_content["examples"][first_example_key].get("value")
-
-            if example_data is not None:
-                try:
-                    example_json = json.dumps(example_data, indent=2)
-                    indented_example = textwrap.indent(example_json, " " * 8)  # 8 spaces
-                    request_body_example_str = f"\n        Example:\n        ```json\n{indented_example}\n        ```"
-                except TypeError:
-                    request_body_example_str = f"\n        Example: {example_data}"
+            #If not found directly, try from resolved body schema (for nested/referenced examples)
+            if example_data is None and body_schema_to_use and "example" in body_schema_to_use:
+                example_data = body_schema_to_use["example"]
         except KeyError:
-            pass  # No example found
+            pass  # No example found or application/json content not present
 
     # Identify the last argument related to the request body
     last_body_arg_name = None
-    # request_body_params contains the names as they appear in the signature
     if final_request_body_arg_names_for_signature:  # Use the new list with final aliased names
-        # Find which of these appears last in the combined args list
         body_args_in_signature = [
             a.split("=")[0] for a in args if a.split("=")[0] in final_request_body_arg_names_for_signature
         ]
@@ -679,7 +673,7 @@ def _generate_method_code(path, method, operation):
         args_doc_lines.append("Args:")
         for arg_signature_str in args:
             arg_name = arg_signature_str.split("=")[0]
-            example_str = None  # Initialize example_str here
+            example_str = None  # Initialize example_str here for each argument
             detail = param_details.get(arg_name)
             if detail:
                 desc = detail.description or "No description provided."
@@ -692,26 +686,22 @@ def _generate_method_code(path, method, operation):
                 if detail.example and not detail.is_file: # Don't show schema example for file inputs
                     example_str = repr(detail.example)
                     arg_line += f" Example: {example_str}."
-
-                # Append the full body example after the last body-related argument
-                if arg_name == last_body_arg_name and request_body_example_str:
-                    # Remove the simple Example: if it exists before adding the detailed one
-                    if example_str and (
-                        f" Example: {example_str}." in arg_line or f" Example: {example_str} ." in arg_line
-                    ):
-                        arg_line = arg_line.replace(
-                            f" Example: {example_str}.", ""
-                        )  # Remove with or without trailing period
-                    arg_line += request_body_example_str  # Append the formatted JSON example
+                # Fallback for body parameters if no direct example was found
+                elif not example_str and detail.where == "body" and example_data and isinstance(example_data, dict) and detail.identifier in example_data:
+                    current_body_param_example = example_data[detail.identifier]
+                    if current_body_param_example is not None: # Ensure the extracted part is not None
+                        try:
+                            arg_line += f" Example: {repr(current_body_param_example)}."
+                        except Exception: # Fallback if repr fails
+                            arg_line += f" Example: [Could not represent example]."
 
                 args_doc_lines.append(arg_line)
-            elif arg_name == final_empty_body_param_name and has_empty_body:  # Use potentially suffixed name
+
+            elif arg_name == final_empty_body_param_name and has_empty_body:
                 args_doc_lines.append(
                     f"    {arg_name} (dict | None): Optional dictionary for an empty JSON request body (e.g., {{}})."
                 )
-                if ( arg_name == last_body_arg_name and request_body_example_str ): 
-                    args_doc_lines[-1] += request_body_example_str
-            elif arg_name == raw_body_param_name: # Docstring for raw body parameter
+            elif arg_name == raw_body_param_name: 
                 raw_body_type_hint = "bytes"
                 raw_body_desc = "Raw binary content for the request body."
                 if selected_content_type and "text" in selected_content_type:
@@ -720,13 +710,9 @@ def _generate_method_code(path, method, operation):
                 elif selected_content_type and selected_content_type.startswith("image/"):
                      raw_body_type_hint = "bytes (image data)"
                      raw_body_desc = f"Raw image content ({selected_content_type}) for the request body."
-
                 args_doc_lines.append(
                     f"    {arg_name} ({raw_body_type_hint} | None): {raw_body_desc}"
                 )
-                # Example for raw body is harder to give generically, but if present in spec, could be added.
-                if ( arg_name == last_body_arg_name and request_body_example_str ): 
-                    args_doc_lines[-1] += request_body_example_str
     
     if args_doc_lines:
         docstring_parts.append("\n".join(args_doc_lines))
