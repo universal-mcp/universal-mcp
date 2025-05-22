@@ -764,6 +764,7 @@ def process_operation(
     method: str,
     llm_model: str,
     enhance_all: bool,  # New flag
+    summaries_only: bool = False,
 ):
     operation_location_base = f"paths.{path_key}.{method.lower()}"
 
@@ -814,24 +815,25 @@ def process_operation(
             )
 
     # --- Process Parameters ---
-    parameters = operation_value.get("parameters")
-    if isinstance(parameters, list):
-        for _i, parameter in enumerate(parameters):
-            process_parameter(
-                parameter,
-                operation_location_base,
-                path_key,
-                method,
-                llm_model,
-                enhance_all,  # Pass enhance_all
+    if not summaries_only:
+        parameters = operation_value.get("parameters")
+        if isinstance(parameters, list):
+            for _i, parameter in enumerate(parameters):
+                process_parameter(
+                    parameter,
+                    operation_location_base,
+                    path_key,
+                    method,
+                    llm_model,
+                    enhance_all,
+                )
+        elif parameters is not None:
+            logger.warning(
+                f"'parameters' field for operation '{operation_location_base}' is not a list. Skipping parameter processing."
             )
-    elif parameters is not None:
-        logger.warning(
-            f"'parameters' field for operation '{operation_location_base}' is not a list. Skipping parameter processing."
-        )
 
 
-def process_paths(paths: dict, llm_model: str, enhance_all: bool):  # New flag
+def process_paths(paths: dict, llm_model: str, enhance_all: bool, summaries_only: bool = False):
     if not isinstance(paths, dict):
         logger.warning("'paths' field is not a dictionary. Skipping path processing.")
         return
@@ -853,7 +855,7 @@ def process_paths(paths: dict, llm_model: str, enhance_all: bool):  # New flag
                     "patch",
                     "trace",
                 ]:
-                    process_operation(operation_value, path_key, method, llm_model, enhance_all)  # Pass enhance_all
+                    process_operation(operation_value, path_key, method, llm_model, enhance_all, summaries_only)
                 elif method.lower().startswith("x-"):
                     logger.debug(f"Skipping processing of method extension '{method.lower()}' in path '{path_key}'.")
                     continue
@@ -916,18 +918,19 @@ def process_info_section(schema_data: dict, llm_model: str, enhance_all: bool): 
             )
 
 
-def preprocess_schema_with_llm(schema_data: dict, llm_model: str, enhance_all: bool):  # New flag
+def preprocess_schema_with_llm(schema_data: dict, llm_model: str, enhance_all: bool, summaries_only: bool = False):
     """
     Processes the schema to add/enhance descriptions/summaries using an LLM.
     Decides whether to generate based on the 'enhance_all' flag and existing content.
+    If summaries_only is True, only operation summaries (and info.description) are enriched.
     Assumes basic schema structure validation (info, title) has already passed.
     """
-    logger.info(f"\n--- Starting LLM Generation (enhance_all={enhance_all}) ---")
+    logger.info(f"\n--- Starting LLM Generation (enhance_all={enhance_all}, summaries_only={summaries_only}) ---")
 
     process_info_section(schema_data, llm_model, enhance_all)
 
     paths = schema_data.get("paths")
-    process_paths(paths, llm_model, enhance_all)
+    process_paths(paths, llm_model, enhance_all, summaries_only)
 
     logger.info("--- LLM Generation Complete ---")
 
@@ -1007,8 +1010,9 @@ def run_preprocessing(
             "  [1] Generate [bold]only missing[/bold] descriptions/summaries [green](default)[/green]",
             "  [2] Generate/Enhance [bold]all[/bold] descriptions/summaries",
             "  [3] [bold red]Quit[/bold red] (exit without changes)",
+            "  [4] Generate/Enhance [bold]only operation summaries[/bold]",
         ]
-        valid_choices = ["1", "2", "3"]
+        valid_choices = ["1", "2", "3", "4"]
         default_choice = "1"  # Default to filling missing
 
     else:  # total_missing_or_fallback == 0
@@ -1027,8 +1031,9 @@ def run_preprocessing(
         prompt_options = [
             "  [2] Generate/Enhance [bold]all[/bold] descriptions/summaries",
             "  [3] [bold red]Quit[/bold red] [green](default)[/green]",
+            "  [4] Generate/Enhance [bold]only operation summaries[/bold]",
         ]
-        valid_choices = ["2", "3"]
+        valid_choices = ["2", "3", "4"]
         default_choice = "3"  # Default to quitting if nothing missing
 
     for option_text in prompt_options:
@@ -1046,19 +1051,25 @@ def run_preprocessing(
             raise typer.Exit(0)
         elif choice == "1":
             enhance_all = False
+            summaries_only = False
             break  # Exit prompt loop
         elif choice == "2":
             enhance_all = True
+            summaries_only = False
+            break  # Exit prompt loop
+        elif choice == "4":
+            enhance_all = True  # or False, doesn't matter since we skip parameters
+            summaries_only = True
             break  # Exit prompt loop
 
     perform_generation = False
-    if enhance_all or choice == "1" and total_missing_or_fallback > 0:
+    if summaries_only or enhance_all or (choice == "1" and total_missing_or_fallback > 0):
         perform_generation = True
 
     if perform_generation:
-        console.print(f"[blue]Starting LLM generation with Enhance All: {enhance_all}[/blue]")
+        console.print(f"[blue]Starting LLM generation with Enhance All: {enhance_all}, Summaries Only: {summaries_only}[/blue]")
         try:
-            preprocess_schema_with_llm(schema_data, model, enhance_all)
+            preprocess_schema_with_llm(schema_data, model, enhance_all, summaries_only)
             console.print("[green]LLM generation complete.[/green]")
         except Exception as e:
             console.print(f"[red]Error during LLM generation: {e}[/red]")
