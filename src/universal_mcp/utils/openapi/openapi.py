@@ -660,15 +660,6 @@ def _generate_method_code(path, method, operation):
         except KeyError:
             pass  # No example found or application/json content not present
 
-    # Identify the last argument related to the request body
-    last_body_arg_name = None
-    if final_request_body_arg_names_for_signature:  # Use the new list with final aliased names
-        body_args_in_signature = [
-            a.split("=")[0] for a in args if a.split("=")[0] in final_request_body_arg_names_for_signature
-        ]
-        if body_args_in_signature:
-            last_body_arg_name = body_args_in_signature[-1]
-
     if signature_arg_names:
         args_doc_lines.append("Args:")
         for arg_signature_str in args:
