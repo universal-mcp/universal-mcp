@@ -693,7 +693,7 @@ def _generate_method_code(path, method, operation):
                         try:
                             arg_line += f" Example: {repr(current_body_param_example)}."
                         except Exception: # Fallback if repr fails
-                            arg_line += f" Example: [Could not represent example]."
+                            arg_line += " Example: [Could not represent example]."
 
                 args_doc_lines.append(arg_line)
 
