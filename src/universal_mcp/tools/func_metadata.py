@@ -211,3 +211,71 @@ class FuncMetadata(BaseModel):
             __base__=ArgModelBase,
         )
         return FuncMetadata(arg_model=arguments_model)
+
+if __name__ == "__main__":
+
+    import sys
+    from pathlib import Path
+
+    current_file = Path(__file__).resolve()
+    package_source_parent_dir = current_file.parent.parent.parent
+
+    if str(package_source_parent_dir) not in sys.path:
+        sys.path.insert(0, str(package_source_parent_dir))
+        print(f"DEBUG: Added to sys.path: {package_source_parent_dir}")
+    
+    from universal_mcp.utils.docstring_parser import parse_docstring
+
+    def get_weather(city: str, unit: str = "celsius", include_humidity: bool = False) -> str:
+        """
+        Fetches the weather for a given city.
+
+        Args:
+            city: The name of the city.
+            unit (str): The temperature unit ('celsius' or 'fahrenheit').
+            include_humidity (bool): Whether to include humidity in the report.
+
+        Returns:
+            A string describing the weather.
+        
+        Raises:
+            ValueError: If the city is not found.
+        """
+        if city == "Atlantis":
+            raise ValueError("City not found")
+        
+        humidity_report = ""
+        if include_humidity:
+            humidity_report = " with 50% humidity"
+
+        if unit == "celsius":
+            return f"The weather in {city} is 25°C{humidity_report}."
+        elif unit == "fahrenheit":
+            return f"The weather in {city} is 77°F{humidity_report}."
+        return f"Unknown unit {unit} for {city}."
+
+    print("--- Testing FuncMetadata with get_weather function ---")
+
+    raw_doc = inspect.getdoc(get_weather)
+    parsed_doc_info = parse_docstring(raw_doc)
+    arg_descriptions_from_doc = parsed_doc_info.get("args", {}) # Extract just the args part
+
+    print("\n1. Parsed Argument Descriptions from Docstring (for FuncMetadata input):")
+    print(json.dumps(arg_descriptions_from_doc, indent=2))
+
+    # 2. Create FuncMetadata instance
+    # The arg_description parameter expects a dict mapping arg name to its details
+    func_arg_metadata_instance = FuncMetadata.func_metadata(
+        get_weather,
+        arg_description=arg_descriptions_from_doc
+    )
+
+    print("\n2. FuncMetadata Instance (its __repr__):")
+    print(func_arg_metadata_instance)
+
+    # 3. Get and print the JSON schema for the arguments model
+    parameters_schema = func_arg_metadata_instance.arg_model.model_json_schema()
+    print("\n3. Generated JSON Schema for Parameters (from arg_model.model_json_schema()):")
+    print(json.dumps(parameters_schema, indent=2))
+
+    print("\n--- Test Complete ---")
