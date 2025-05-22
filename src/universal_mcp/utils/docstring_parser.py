@@ -1,6 +1,7 @@
 import re
 from typing import Any
 
+
 def parse_docstring(docstring: str | None) -> dict[str, Any]:
     """
     Parses a Python docstring into structured components: summary, arguments,

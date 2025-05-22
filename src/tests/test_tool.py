@@ -1,11 +1,11 @@
-from typing import Annotated, Any
+import inspect
+from typing import Annotated
 
-import pytest # For parametrize, if needed for more advanced tests later
 from pydantic import Field
 
 from universal_mcp.tools.func_metadata import FuncMetadata
 from universal_mcp.tools.tools import Tool
-from universal_mcp.utils.docstring_parser import parse_docstring # Assuming this is the updated one
+from universal_mcp.utils.docstring_parser import parse_docstring  # Assuming this is the updated one
 
 
 def test_func_metadata_annotated():
@@ -332,8 +332,6 @@ def test_parse_docstring_type_str_with_spaces_in_type():
     }
     assert parse_docstring(docstring) == expected
 
-
-import inspect 
 
 def test_func_metadata_untyped_with_docstring_type():
     def func(name, age, data=None):

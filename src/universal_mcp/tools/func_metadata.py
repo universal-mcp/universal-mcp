@@ -5,10 +5,9 @@ from typing import (
     Annotated,
     Any,
     ForwardRef,
-    Type,
 )
 
-from mcp.server.fastmcp.exceptions import InvalidSignature # Assuming this path is correct
+from mcp.server.fastmcp.exceptions import InvalidSignature  # Assuming this path is correct
 from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema, create_model
 from pydantic._internal._typing_extra import eval_type_backport
 from pydantic.fields import FieldInfo
