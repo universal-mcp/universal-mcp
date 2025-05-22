@@ -134,34 +134,22 @@ def parse_docstring(docstring: str | None) -> dict[str, Any]:
 
         if should_finalize_previous:
             finalize_current_item()
-            # MODIFICATION 1: Unconditionally reset state for the finalized item
             current_key = None
             current_arg_type_str = None
             current_desc_lines = []
 
         if is_new_section_header:
             current_section = new_section_type_this_line
-            # State is already reset by `should_finalize_previous` or was initially None/empty.
-            # current_key, current_arg_type_str are None. current_desc_lines is [].
             if header_content_this_line:
-                # If header had content (e.g. "Tags: foo, bar"), add it as first line of desc.
                 current_desc_lines.append(header_content_this_line)
             continue
 
         if not stripped_line:
-            # If an empty line caused finalization, it's already handled.
-            # Otherwise, just skip it.
             continue
 
         if current_section == "args" or current_section == "raises":
             match = key_pattern.match(line)
             if match:
-                # MODIFICATION 2: Remove the redundant finalize_current_item() call here.
-                # The `should_finalize_previous` block is now responsible for finalizing
-                # the previous item and resetting current_key.
-                # So, current_key should be None here if a previous item was just finalized,
-                # or this is the first item in the section.
-
                 current_key = match.group(1)
                 current_arg_type_str = match.group(2).strip() if match.group(2) else None
                 current_desc_lines = [match.group(3).strip()] # Start new description

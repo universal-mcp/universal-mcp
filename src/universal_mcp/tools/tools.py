@@ -42,7 +42,7 @@ class Tool(BaseModel):
 
         func_name = name or fn.__name__
 
-        if func_name == "<lambda>":
+        if func_name == "<lambda>": # pragma: no cover
             raise ValueError("You must provide a name for lambda functions")
 
         raw_doc = inspect.getdoc(fn)
@@ -53,11 +53,17 @@ class Tool(BaseModel):
         func_arg_metadata = FuncMetadata.func_metadata(fn, arg_description=parsed_doc["args"])
         parameters = func_arg_metadata.arg_model.model_json_schema()
 
+        simple_args_descriptions: dict[str, str] = {}
+        if parsed_doc.get("args"):
+            for arg_name, arg_details in parsed_doc["args"].items():
+                if isinstance(arg_details, dict):
+                    simple_args_descriptions[arg_name] = arg_details.get("description") or ""
+
         return cls(
             fn=fn,
             name=func_name,
             description=parsed_doc["summary"],
-            args_description=parsed_doc["args"],
+            args_description=simple_args_descriptions, # Pass the transformed dict
             returns_description=parsed_doc["returns"],
             raises_description=parsed_doc["raises"],
             tags=parsed_doc["tags"],
