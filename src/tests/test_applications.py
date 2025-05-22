@@ -34,6 +34,7 @@ ALL_APPS = [
     "google-sheet",
     "hashnode",
     "heygen",
+    "hubspot",
     "jira",
     "klaviyo",
     "mailchimp",
@@ -84,6 +85,7 @@ class TestApplications:
         important_tools = []
         for tool in tools:
             assert tool.name is not None
+            assert len(tool.name) > 0 and len(tool.name) < 64
             assert tool.description is not None
             if "important" in tool.tags:
                 important_tools.append(tool.name)

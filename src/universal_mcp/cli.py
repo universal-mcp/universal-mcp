@@ -59,8 +59,8 @@ def generate(
         else:
             # Handle the error case from api_generator if validation fails
             if isinstance(app_file_data, dict) and "error" in app_file_data:
-                 console.print(f"[red]{app_file_data['error']}[/red]")
-                 raise typer.Exit(1)
+                console.print(f"[red]{app_file_data['error']}[/red]")
+                raise typer.Exit(1)
             else:
                 console.print("[red]Unexpected return value from API generator.[/red]")
                 raise typer.Exit(1)
@@ -119,9 +119,8 @@ def run(
     from universal_mcp.logger import setup_logger
     from universal_mcp.servers import server_from_config
 
-    setup_logger()
-
     config = ServerConfig.model_validate_json(config_path.read_text()) if config_path else ServerConfig()
+    setup_logger(level=config.log_level)
     server = server_from_config(config)
     server.run(transport=config.transport)
 
@@ -291,7 +290,7 @@ def split_api(
         console.print(f"[green]Successfully split {input_app_file} into {output_dir}[/green]")
     except Exception as e:
         console.print(f"[red]Error splitting API client: {e}[/red]")
-      
+
         raise typer.Exit(1) from e
 
 

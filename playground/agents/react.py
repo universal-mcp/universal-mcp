@@ -4,13 +4,13 @@ from contextlib import asynccontextmanager
 from langchain_core.messages import HumanMessage
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
-from langchain_openai import AzureChatOpenAI
+from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 
 
 @asynccontextmanager
 async def load_tools():
-    url = "http://0.0.0.0:8000/sk_5045f664-2248-4cc4-83d7-5680e4bd5417/sse"
+    url = "http://0.0.0.0:8000/sse"
     client = MultiServerMCPClient(
         {
             "agentr": {
@@ -26,10 +26,11 @@ async def load_tools():
 
 @asynccontextmanager
 async def create_agent():
-    llm = AzureChatOpenAI(
-        model="gpt-4o",
-        api_version="2024-12-01-preview",
-    )
+    # llm = AzureChatOpenAI(
+    #     model="gpt-4o",
+    #     api_version="2024-12-01-preview",
+    # )
+    llm = ChatOpenAI()
     async with load_tools() as tools:
         yield create_react_agent(
             model=llm,

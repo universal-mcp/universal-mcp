@@ -33,9 +33,10 @@ def _filter_by_name(tools: list[Tool], tool_names: list[str] | None) -> list[Too
 
 
 def _filter_by_tags(tools: list[Tool], tags: list[str] | None) -> list[Tool]:
+    logger.debug(f"Filtering tools by tags: {tags}")
     if "all" in tags:
         return tools
-    
+
     if not tags:
         return tools
     return [tool for tool in tools if any(tag in tool.tags for tag in tags)]
@@ -200,11 +201,9 @@ class ToolManager:
 
         if tool_names:
             tools = _filter_by_name(tools, tool_names)
-
         # If no tool names or tags are provided, use the default important tag
         if not tool_names and not tags:
             tools = _filter_by_tags(tools, [DEFAULT_IMPORTANT_TAG])
-
         self.register_tools(tools)
         return
 

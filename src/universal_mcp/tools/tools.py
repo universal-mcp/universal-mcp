@@ -55,7 +55,7 @@ class Tool(BaseModel):
 
         return cls(
             fn=fn,
-            name=func_name,
+            name=func_name[:48],
             description=parsed_doc["summary"],
             args_description=parsed_doc["args"],
             returns_description=parsed_doc["returns"],
