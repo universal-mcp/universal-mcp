@@ -7,7 +7,7 @@ from typing import (
     ForwardRef,
 )
 
-from mcp.server.fastmcp.exceptions import InvalidSignature  # Assuming this path is correct
+from mcp.server.fastmcp.exceptions import InvalidSignature 
 from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema, create_model
 from pydantic._internal._typing_extra import eval_type_backport
 from pydantic.fields import FieldInfo
@@ -57,7 +57,7 @@ def _map_docstring_type_to_schema_type(type_str: str | None) -> str:
         "array": "array",
         "dict": "object",
         "object": "object",
-        "any": "string", # Defaulting "any" from docstring to schema "string" if not more specific
+        "any": "string",
     }
     return mapping.get(type_str_lower, "string")
 
@@ -183,7 +183,7 @@ class FuncMetadata(BaseModel):
             if sig_annotation is None:
                 annotation_for_field_builder = type(None)
             elif sig_annotation is inspect.Parameter.empty:
-                py_type_from_doc = _map_docstring_type_to_python_type(docstring_type_str) # Defaults to Any
+                py_type_from_doc = _map_docstring_type_to_python_type(docstring_type_str)
 
                 if py_type_from_doc is Any and not docstring_type_str:
                     schema_type_for_any = _map_docstring_type_to_schema_type(docstring_type_str)
@@ -199,9 +199,8 @@ class FuncMetadata(BaseModel):
                 field_info.description = docstring_description
             
             if field_info.title is None:
-                field_info.title = param.name # Default title to parameter name
+                field_info.title = param.name
 
-            # field_info.annotation contains the core Python type (e.g., int from Annotated[int, Field(...)])
             core_type_for_model = field_info.annotation
             
             dynamic_pydantic_model_params[param.name] = (core_type_for_model, field_info)
