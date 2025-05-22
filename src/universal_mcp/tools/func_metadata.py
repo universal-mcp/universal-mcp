@@ -7,7 +7,7 @@ from typing import (
     ForwardRef,
 )
 
-from mcp.server.fastmcp.exceptions import InvalidSignature 
+from mcp.server.fastmcp.exceptions import InvalidSignature
 from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema, create_model
 from pydantic._internal._typing_extra import eval_type_backport
 from pydantic.fields import FieldInfo
