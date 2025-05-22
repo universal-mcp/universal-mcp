@@ -1,4 +1,3 @@
-
 import inspect
 import json
 from collections.abc import Awaitable, Callable, Sequence
@@ -180,35 +179,23 @@ class FuncMetadata(BaseModel):
             docstring_description = param_doc_info.get("description")
             docstring_type_str = param_doc_info.get("type_str")
             
-            # This will be the annotation passed to FieldInfo.from_annotated_attribute
             annotation_for_field_builder: Any
 
-            if sig_annotation is None: # Handles `x: None` or `x: None = None`
-                annotation_for_field_builder = Type[None]
-            elif sig_annotation is inspect.Parameter.empty: # Parameter is untyped in signature
+            if sig_annotation is None:
+                annotation_for_field_builder = type(None)
+            elif sig_annotation is inspect.Parameter.empty:
                 py_type_from_doc = _map_docstring_type_to_python_type(docstring_type_str) # Defaults to Any
 
-                # If truly untyped (no type in signature, no type string in docstring),
-                # tests expect schema type "string". We achieve this by using
-                # Field(json_schema_extra={"type": "string"}).
-                # _map_docstring_type_to_schema_type(None) defaults to "string".
                 if py_type_from_doc is Any and not docstring_type_str:
                     schema_type_for_any = _map_docstring_type_to_schema_type(docstring_type_str)
                     annotation_for_field_builder = Annotated[Any, Field(json_schema_extra={"type": schema_type_for_any})]
                 else:
-                    # Type comes from docstring (e.g., "(int)", "(list)")
-                    # Or docstring specified "(any)" which maps to Python Any.
-                    # Pydantic infers schema type from py_type_from_doc (e.g., int -> "integer", list -> "array").
                     annotation_for_field_builder = py_type_from_doc
             else: # Parameter has a type hint in the signature
                 annotation_for_field_builder = _get_typed_annotation(sig_annotation, globalns)
 
-            # Create FieldInfo. This correctly processes annotation_for_field_builder,
-            # including any nested Annotated[Type, Field(...)] or constraints.
             field_info = FieldInfo.from_annotated_attribute(annotation_for_field_builder, default_val)
 
-            # Augment title and description on the FieldInfo object if they weren't already provided
-            # by Field(title=...) or Field(description=...) in an Annotated hint.
             if field_info.description is None and docstring_description:
                 field_info.description = docstring_description
             
