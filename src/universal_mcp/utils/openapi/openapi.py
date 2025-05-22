@@ -19,6 +19,7 @@ class Parameters(BaseModel):
     required: bool
     example: str | None = None
     is_file: bool = False
+    schema: dict = {}
 
     def __str__(self):
         return f"{self.name}: ({self.type})"
@@ -77,6 +78,61 @@ def convert_to_snake_case(identifier: str) -> str:
     result = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", result)
     result = re.sub(r"__+", "_", result)
     return result.strip("_").lower()
+
+
+# Added new recursive type mapper
+def _openapi_type_to_python_type(schema: dict, required: bool = True) -> str:
+    """
+    Recursively map OpenAPI schema to Python type hints.
+    """
+    openapi_type = schema.get("type")
+
+    
+    if "$ref" in schema and not openapi_type: 
+        py_type = "dict[str, Any]" 
+    elif openapi_type == "array":
+        items_schema = schema.get("items", {})
+        item_type = _openapi_type_to_python_type(items_schema, required=True) 
+        py_type = f"List[{item_type}]"
+    elif openapi_type == "object":
+        
+        if schema.get("format") in ["binary", "byte"]:
+             py_type = "bytes"
+        else:
+            
+            if "additionalProperties" in schema and isinstance(schema["additionalProperties"], dict):
+                additional_props_schema = schema["additionalProperties"]
+            
+                value_type = _openapi_type_to_python_type(additional_props_schema, required=True)
+                py_type = f"dict[str, {value_type}]"
+            elif not schema.get("properties") and not schema.get("allOf") and not schema.get("oneOf") and not schema.get("anyOf"):
+                
+                py_type = "dict[str, Any]" 
+            else:
+                 
+                py_type = "dict[str, Any]"
+    elif openapi_type == "integer":
+        py_type = "int"
+    elif openapi_type == "number":
+        py_type = "float" 
+    elif openapi_type == "boolean":
+        py_type = "bool"
+    elif openapi_type == "string":
+        if schema.get("format") in ["binary", "byte"]:
+            py_type = "bytes"
+        elif schema.get("format") == "date" or schema.get("format") == "date-time":
+            py_type = "str"
+        else:
+            py_type = "str"
+    else: 
+       
+        py_type = "Any" 
+
+    if not required:
+        if py_type.startswith("Optional[") and py_type.endswith("]"):
+            return py_type
+        return f"Optional[{py_type}]"
+    return py_type
 
 
 def _sanitize_identifier(name: str | None) -> str:
@@ -235,6 +291,7 @@ def _generate_path_params(path: str) -> list[Parameters]:
                     where="path",
                     required=True,
                     example=None,
+                    schema={"type": "string"}
                 )
             )
         except Exception as e:
@@ -283,6 +340,7 @@ def _generate_query_params(operation: dict[str, Any]) -> list[Parameters]:
                 where=where,
                 required=required,
                 example=str(example_value) if example_value is not None else None,
+                schema=param_schema if param_schema else {"type": type_value}
             )
             query_params.append(parameter)
     return query_params
@@ -318,7 +376,8 @@ def _generate_body_params(schema_to_process: dict[str, Any] | None, overall_body
                 where="body",
                 required=param_required,
                 example=str(param_example) if param_example is not None else None,
-                is_file=current_is_file 
+                is_file=current_is_file,
+                schema=param_schema_details
             )
         )
     # print(f"[DEBUG] Final body_params list generated: {body_params}") # DEBUG
@@ -497,21 +556,34 @@ def _generate_method_code(path, method, operation):
     required_args = []
     optional_args = []
 
+    # Arguments for the function signature with type hints
+    signature_required_args_typed = []
+    signature_optional_args_typed = []
+
     #  Process Path Parameters (Highest Priority)
     for param in path_params:
         # Path param names are sanitized but not suffixed by aliasing.
         if param.name not in required_args:  # param.name is the sanitized name
             required_args.append(param.name)
+            # For signature with types
+            param_py_type = _openapi_type_to_python_type(param.schema, required=True)
+            signature_required_args_typed.append(f"{param.name}: {param_py_type}")
 
     #  Process Query Parameters
     for param in query_params:  # param.name is the potentially aliased name (e.g., id_query)
         arg_name_for_sig = param.name
         current_arg_names_set = set(required_args) | {arg.split("=")[0] for arg in optional_args}
+
+        # For signature with types
+        param_py_type = _openapi_type_to_python_type(param.schema, required=param.required)
+
         if arg_name_for_sig not in current_arg_names_set:
             if param.required:
                 required_args.append(arg_name_for_sig)
+                signature_required_args_typed.append(f"{arg_name_for_sig}: {param_py_type}")
             else:
                 optional_args.append(f"{arg_name_for_sig}=None")
+                signature_optional_args_typed.append(f"{arg_name_for_sig}: {param_py_type} = None")
 
     #  Process Body Parameters / Request Body
     # This list tracks the *final* names of parameters in the signature that come from the request body,
@@ -539,10 +611,16 @@ def _generate_method_code(path, method, operation):
                     final_array_param_name = f"{array_param_name_base}_body_{counter}"
                 counter += 1
 
+            # For signature with types
+            # The schema for an array body is body_schema_to_use itself
+            array_body_py_type = _openapi_type_to_python_type(body_schema_to_use, required=body_required)
+
             if body_required:
                 required_args.append(final_array_param_name)
+                signature_required_args_typed.append(f"{final_array_param_name}: {array_body_py_type}")
             else:
                 optional_args.append(f"{final_array_param_name}=None")
+                signature_optional_args_typed.append(f"{final_array_param_name}: {array_body_py_type} = None")
             final_request_body_arg_names_for_signature.append(final_array_param_name)
 
         # New: Handle raw body parameter (if body_params is empty but body is expected and not array/empty JSON)
@@ -563,10 +641,22 @@ def _generate_method_code(path, method, operation):
                 counter += 1
             raw_body_param_name = temp_raw_body_name
 
+            # For signature with types
+            # Determine type based on selected_content_type for raw body
+            raw_body_schema_for_type = {"type": "string", "format": "binary"} # Default to bytes
+            if selected_content_type and "text" in selected_content_type:
+                raw_body_schema_for_type = {"type": "string"}
+            elif selected_content_type and selected_content_type.startswith("image/"):
+                raw_body_schema_for_type = {"type": "string", "format": "binary"} # image is bytes
+            
+            raw_body_py_type = _openapi_type_to_python_type(raw_body_schema_for_type, required=body_required)
+
             if body_required: # If the raw body itself is required
                 required_args.append(raw_body_param_name)
+                signature_required_args_typed.append(f"{raw_body_param_name}: {raw_body_py_type}")
             else:
                 optional_args.append(f"{raw_body_param_name}=None")
+                signature_optional_args_typed.append(f"{raw_body_param_name}: {raw_body_py_type} = None")
             final_request_body_arg_names_for_signature.append(raw_body_param_name)
 
         elif body_params: # Object body with discernible properties
@@ -575,12 +665,18 @@ def _generate_method_code(path, method, operation):
 
                 # Defensive check against already added args 
                 current_arg_names_set_loop = set(required_args) | {arg.split("=")[0] for arg in optional_args}
+                
+                # For signature with types
+                param_py_type = _openapi_type_to_python_type(param.schema, required=param.required)
+
                 if arg_name_for_sig not in current_arg_names_set_loop:
                     if param.required:
                         required_args.append(arg_name_for_sig)
+                        signature_required_args_typed.append(f"{arg_name_for_sig}: {param_py_type}")
                     else:
                         # Parameters model does not store schema 'default'. Optional params default to None.
                         optional_args.append(f"{arg_name_for_sig}=None")
+                        signature_optional_args_typed.append(f"{arg_name_for_sig}: {param_py_type} = None")
                 final_request_body_arg_names_for_signature.append(arg_name_for_sig)
 
 
@@ -599,17 +695,26 @@ def _generate_method_code(path, method, operation):
                 final_empty_body_param_name = f"{empty_body_param_name_base}_body_{counter}"
             counter += 1
 
-        # Check if it was somehow added by other logic (e.g. if 'request_body' was an explicit param name)
+        # For signature with types
+        # Empty body usually implies an empty JSON object, so dict or Optional[dict]
+        empty_body_py_type = _openapi_type_to_python_type({"type": "object"}, required=False)
 
         if final_empty_body_param_name not in (set(required_args) | {arg.split("=")[0] for arg in optional_args}):
             optional_args.append(f"{final_empty_body_param_name}=None")
+            # Add to typed signature list
+            signature_optional_args_typed.append(f"{final_empty_body_param_name}: {empty_body_py_type} = None")
+
         # Track for docstring, even if it's just 'request_body' or 'request_body_body'
         if final_empty_body_param_name not in final_request_body_arg_names_for_signature:
             final_request_body_arg_names_for_signature.append(final_empty_body_param_name)
 
-    # Combine required and optional arguments
+    # Combine required and optional arguments FOR DOCSTRING (as before, without types)
     args = required_args + optional_args
-    print(f"[DEBUG] Final combined args for signature: {args}") # DEBUG
+    print(f"[DEBUG] Final combined args for DOCSTRING: {args}") # DEBUG
+
+    # Combine required and optional arguments FOR SIGNATURE (with types)
+    signature_args_combined_typed = signature_required_args_typed + signature_optional_args_typed
+    print(f"[DEBUG] Final combined args for SIGNATURE: {signature_args_combined_typed}") # DEBUG
 
     # ----- Build Docstring ----- 
     # This section constructs the entire docstring for the generated method,
@@ -742,8 +847,9 @@ def _generate_method_code(path, method, operation):
     # ----- End Build Docstring -----
 
     # --- Construct Method Signature String ---
-    if args:
-        signature = f"    def {func_name}(self, {', '.join(args)}) -> {return_type}:"
+    # Use signature_args_combined_typed for the signature
+    if signature_args_combined_typed:
+        signature = f"    def {func_name}(self, {', '.join(signature_args_combined_typed)}) -> {return_type}:"
     else:
         signature = f"    def {func_name}(self) -> {return_type}:"
 
@@ -965,7 +1071,7 @@ def generate_api_client(schema, class_name: str | None = None):
 
     # Generate class imports
     imports = [
-        "from typing import Any",
+        "from typing import Any, Optional, List",
         "from universal_mcp.applications import APIApplication",
         "from universal_mcp.integrations import Integration",
     ]
