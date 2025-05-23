@@ -991,7 +991,7 @@ def regenerate_duplicate_operation_ids(schema_data: dict, llm_model: str):
     used_operation_ids = set()
     paths = schema_data.get("paths", {})
     # First, collect all unique operationIds
-    for path_key, path_value in paths.items():
+    for _path_key, path_value in paths.items():
         if not isinstance(path_value, dict):
             continue
         for method, operation_value in path_value.items():
@@ -1006,20 +1006,20 @@ def regenerate_duplicate_operation_ids(schema_data: dict, llm_model: str):
                 used_operation_ids.add(op_id)
     # Now, find and fix duplicates
     duplicates = find_duplicate_operation_ids(schema_data)
-    for op_id, occurrences in duplicates.items():
+    for _op_id, occurrences in duplicates.items():
         # Keep the first occurrence, fix the rest
-        for path_key, method in occurrences[1:]:
-            operation_value = paths[path_key][method]
+        for _path_key, method in occurrences[1:]:
+            operation_value = paths[_path_key][method]
             simplified_context = simplify_operation_context(operation_value)
             # Prompt LLM with used_operation_ids to avoid
             avoid_list = list(used_operation_ids)
-            user_prompt = f"Generate a short, unique, and readable operationId for the OpenAPI operation at path '{path_key}' using the '{method.upper()}' method.\n- The operationId MUST be a single word in camelCase or snake_case.\n- It MUST NOT exceed 30 characters.\n- It should be descriptive of the action and resource, e.g., 'getUser', 'createOrder', 'listInvoices', 'deleteUserById'.\n- Do NOT include spaces or special characters.\n- Respond ONLY with the operationId string, with NO explanation, NO notes, NO formatting, NO markdown, and NO extra text.\n- Avoid these operationIds: {avoid_list}\nContext (operation details): {json.dumps(simplified_context, separators=(',', ':'), sort_keys=True)[:500]}"
+            user_prompt = f"Generate a short, unique, and readable operationId for the OpenAPI operation at path '{_path_key}' using the '{method.upper()}' method.\n- The operationId MUST be a single word in camelCase or snake_case.\n- It MUST NOT exceed 30 characters.\n- It should be descriptive of the action and resource, e.g., 'getUser', 'createOrder', 'listInvoices', 'deleteUserById'.\n- Do NOT include spaces or special characters.\n- Respond ONLY with the operationId string, with NO explanation, NO notes, NO formatting, NO markdown, and NO extra text.\n- Avoid these operationIds: {avoid_list}\nContext (operation details): {json.dumps(simplified_context, separators=(',', ':'), sort_keys=True)[:500]}"
             # Use the same LLM call as before, but override the user_prompt
             generated_operation_id = generate_description_llm(
                 description_type="operation_id",
                 model=llm_model,
                 context={
-                    "path_key": path_key,
+                    "path_key": _path_key,
                     "method": method,
                     "operation_value": simplified_context,
                     "user_prompt_override": user_prompt,
@@ -1027,7 +1027,7 @@ def regenerate_duplicate_operation_ids(schema_data: dict, llm_model: str):
             )
             operation_value["operationId"] = sanitize_operation_id(generated_operation_id)
             used_operation_ids.add(operation_value["operationId"])
-            logger.info(f"Regenerated duplicate operationId for {path_key} {method}: {operation_value['operationId']}")
+            logger.info(f"Regenerated duplicate operationId for {_path_key} {method}: {operation_value['operationId']}")
 
 
 def preprocess_schema_with_llm(schema_data: dict, llm_model: str, enhance_all: bool, summaries_only: bool = False, operation_ids_only: bool = False):
