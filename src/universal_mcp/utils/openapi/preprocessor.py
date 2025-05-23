@@ -955,6 +955,57 @@ def process_info_section(schema_data: dict, llm_model: str, enhance_all: bool): 
             )
 
 
+def sanitize_descriptions(schema_data: dict, max_length: int = 250, sanitize_summaries: bool = False):
+    """
+    Trims all descriptions (info, operation descriptions, parameter descriptions) to max_length and removes URLs and HTML tags.
+    If sanitize_summaries is True, also trims and cleans operation summaries.
+    """
+    url_pattern = r"https?://[\S]+"
+    def clean_text(text: str) -> str:
+        if not isinstance(text, str):
+            return text
+        # Remove URLs
+        text = re.sub(url_pattern, "", text)
+        # Remove HTML tags
+        text = re.sub(r"<[^>]+>", "", text)
+        # Collapse multiple spaces
+        text = re.sub(r"\s{2,}", " ", text)
+        # Trim to max_length
+        text = text.strip()
+        if len(text) > max_length:
+            text = text[:max_length].rstrip() + "..."
+        return text
+
+    # Clean info.description
+    info = schema_data.get("info")
+    if isinstance(info, dict) and "description" in info:
+        info["description"] = clean_text(info["description"])
+
+    # Clean operation descriptions, parameter descriptions, and optionally summaries
+    paths = schema_data.get("paths")
+    if isinstance(paths, dict):
+        for path_key, path_value in paths.items():
+            if not isinstance(path_value, dict):
+                continue
+            for method, operation_value in path_value.items():
+                if not (isinstance(operation_value, dict) and method.lower() in [
+                    "get", "put", "post", "delete", "options", "head", "patch", "trace"
+                ]):
+                    continue
+                # Clean operation description
+                if "description" in operation_value:
+                    operation_value["description"] = clean_text(operation_value["description"])
+                # Clean operation summary if requested
+                if sanitize_summaries and "summary" in operation_value:
+                    operation_value["summary"] = clean_text(operation_value["summary"])
+                # Clean parameter descriptions
+                parameters = operation_value.get("parameters")
+                if isinstance(parameters, list):
+                    for parameter in parameters:
+                        if isinstance(parameter, dict) and "description" in parameter:
+                            parameter["description"] = clean_text(parameter["description"])
+
+
 def preprocess_schema_with_llm(schema_data: dict, llm_model: str, enhance_all: bool, summaries_only: bool = False, operation_ids_only: bool = False):
     """
     Processes the schema to add/enhance descriptions/summaries using an LLM.
@@ -1052,8 +1103,9 @@ def run_preprocessing(
             "  [3] [bold red]Quit[/bold red] (exit without changes)",
             "  [4] Generate/Enhance [bold]only operation summaries[/bold]",
             "  [5] Generate [bold]only missing operationIds[/bold]",
+            "  [6] [bold]Clean up all descriptions (trim to 250 chars, remove links)[/bold]",
         ]
-        valid_choices = ["1", "2", "3", "4", "5"]
+        valid_choices = ["1", "2", "3", "4", "5", "6"]
         default_choice = "1"  # Default to filling missing
 
     else:  # total_missing_or_fallback == 0
@@ -1074,8 +1126,9 @@ def run_preprocessing(
             "  [3] [bold red]Quit[/bold red] [green](default)[/green]",
             "  [4] Generate/Enhance [bold]only operation summaries[/bold]",
             "  [5] Generate [bold]only missing operationIds[/bold]",
+            "  [6] [bold]Clean up all descriptions (trim to 250 chars, remove links)[/bold]",
         ]
-        valid_choices = ["2", "3", "4", "5"]
+        valid_choices = ["2", "3", "4", "5", "6"]
         default_choice = "3"  # Default to quitting if nothing missing
 
     for option_text in prompt_options:
@@ -1111,6 +1164,20 @@ def run_preprocessing(
             summaries_only = False
             operation_ids_only = True
             break  # Exit prompt loop
+        elif choice == "6":
+            # Clean up all descriptions (no LLM)
+            console.print("[blue]Cleaning up all descriptions (trimming and removing links)...[/blue]")
+            sanitize_summaries = typer.confirm("Also sanitize operation summaries? (This will trim and clean operation summaries)", default=False)
+            try:
+                sanitize_descriptions(schema_data, max_length=240, sanitize_summaries=sanitize_summaries)
+                console.print("[green]Description clean-up complete.[/green]")
+            except Exception as e:
+                console.print(f"[red]Error during description clean-up: {e}[/red]")
+                import traceback
+                traceback.print_exc(file=sys.stderr)
+                raise typer.Exit(1) from e
+            enhance_all = summaries_only = operation_ids_only = False
+            break
 
     perform_generation = False
     if operation_ids_only or summaries_only or enhance_all or (choice == "1" and total_missing_or_fallback > 0):
