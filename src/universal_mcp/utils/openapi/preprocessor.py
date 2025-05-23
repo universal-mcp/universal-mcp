@@ -66,6 +66,7 @@ console_handler.setFormatter(colored_formatter)
 logger.addHandler(console_handler)
 
 
+
 def set_logging_level(level: str):
     level_map = {
         "DEBUG": logging.DEBUG,
@@ -225,10 +226,13 @@ def generate_description_llm(
         if len(param_context_str) > 1000:  # Limit context size
             param_context_str = param_context_str[:1000] + "..."
 
-        user_prompt = f"""Generate a clear, brief description for the API parameter named "{param_name}" located "{param_in}" for the "{method.upper()}" operation at path "{path_key}".
-        Context (parameter details): {param_context_str}
-        Respond ONLY with the *SINGLE LINE* description text."""
-        fallback_text = f"[LLM could not generate description for parameter {param_name} in {method.upper()} {path_key}]"  # More specific fallback
+        current_description = context.get("current_description", None)
+        if current_description and isinstance(current_description, str) and current_description.strip():
+            user_prompt = f"""The current description for the API parameter named '{param_name}' located '{param_in}' for the '{method.upper()}' operation at path '{path_key}' is:\n'{current_description.strip()}'\n\nTask: Rewrite and enrich this description so it is clear, self-contained, and makes sense to a user. If the description is cut off, incomplete, or awkward, make it complete and natural. Ensure it is concise and under {MAX_DESCRIPTION_LENGTH} characters. Do not include any links, HTML, markdown, or any notes or comments about the character limit. Respond ONLY with the improved single-line description."""
+            fallback_text = f"[LLM could not generate description for parameter {param_name} in {method.upper()} {path_key}]"
+        else:
+            user_prompt = f"""Generate a clear, brief description for the API parameter named "{param_name}" located "{param_in}" for the "{method.upper()}" operation at path "{path_key}".\nContext (parameter details): {param_context_str}\nRespond ONLY with the *SINGLE LINE* description text."""
+            fallback_text = f"[LLM could not generate description for parameter {param_name} in {method.upper()} {path_key}]"
 
     elif description_type == "api_description":
         api_title = context.get("title", "Untitled API")
@@ -247,7 +251,7 @@ def generate_description_llm(
         )
         if len(operation_context_str) > 500:
             operation_context_str = operation_context_str[:500] + "..."
-        user_prompt = f"""Generate a short, unique, and readable operationId for the OpenAPI operation at path '{path_key}' using the '{method.upper()}' method.\n- The operationId MUST be a single word in camelCase or snake_case.\n- It MUST NOT exceed 30 characters.\n- It should be descriptive of the action and resource, e.g., 'getUser', 'createOrder', 'listInvoices', 'deleteUserById'.\n- Do NOT include spaces or special characters.\n- Respond ONLY with the operationId string.\nContext (operation details): {operation_context_str}"""
+        user_prompt = f"""Generate a short, unique, and readable operationId for the OpenAPI operation at path '{path_key}' using the '{method.upper()}' method.\n- The operationId MUST be a single word in camelCase or snake_case.\n- It MUST NOT exceed 30 characters.\n- It should be descriptive of the action and resource, e.g., 'getUser', 'createOrder', 'listInvoices', 'deleteUserById'.\n- Do NOT include spaces or special characters.\n- Respond ONLY with the operationId string, with NO explanation, NO notes, NO formatting, NO markdown, and NO extra text.\nContext (operation details): {operation_context_str}"""
         fallback_text = f"[LLM could not generate operationId for {method.upper()} {path_key}]"
         logger.info("\n--- LLM OperationId Generation Prompt ---")
         logger.info(f"System prompt:\n{system_prompt}")
@@ -261,6 +265,10 @@ def generate_description_llm(
     if not user_prompt:
         logger.error(f"User prompt was not generated for description_type '{description_type}'.")
         return fallback_text
+
+    # If user_prompt_override is provided in context, use it
+    if context and "user_prompt_override" in context:
+        user_prompt = context["user_prompt_override"]
 
     messages = [
         {"role": "system", "content": system_prompt},
@@ -734,6 +742,7 @@ def process_parameter(
 
         simplified_context = simplify_parameter_context(parameter)
 
+        current_description = parameter.get("description", "")
         generated_description = generate_description_llm(
             description_type="parameter",
             model=llm_model,
@@ -743,6 +752,7 @@ def process_parameter(
                 "param_name": param_name,
                 "param_in": param_in,
                 "parameter_details": simplified_context,
+                "current_description": current_description,
             },
         )
         parameter["description"] = generated_description
@@ -807,8 +817,8 @@ def process_operation(
                 "operation_value": simplified_context,
             },
         )
-        operation_value["operationId"] = generated_operation_id
-        logger.info(f"Added operationId '{generated_operation_id}' to '{operation_location_base}'.")
+        operation_value["operationId"] = sanitize_operation_id(generated_operation_id)
+        logger.info(f"Added operationId '{operation_value['operationId']}' to '{operation_location_base}'.")
 
     if operation_ids_only:
         return
@@ -955,55 +965,69 @@ def process_info_section(schema_data: dict, llm_model: str, enhance_all: bool): 
             )
 
 
-def sanitize_descriptions(schema_data: dict, max_length: int = 250, sanitize_summaries: bool = False):
-    """
-    Trims all descriptions (info, operation descriptions, parameter descriptions) to max_length and removes URLs and HTML tags.
-    If sanitize_summaries is True, also trims and cleans operation summaries.
-    """
-    url_pattern = r"https?://[\S]+"
-    def clean_text(text: str) -> str:
-        if not isinstance(text, str):
-            return text
-        # Remove URLs
-        text = re.sub(url_pattern, "", text)
-        # Remove HTML tags
-        text = re.sub(r"<[^>]+>", "", text)
-        # Collapse multiple spaces
-        text = re.sub(r"\s{2,}", " ", text)
-        # Trim to max_length
-        text = text.strip()
-        if len(text) > max_length:
-            text = text[:max_length].rstrip() + "..."
-        return text
-
-    # Clean info.description
-    info = schema_data.get("info")
-    if isinstance(info, dict) and "description" in info:
-        info["description"] = clean_text(info["description"])
-
-    # Clean operation descriptions, parameter descriptions, and optionally summaries
-    paths = schema_data.get("paths")
-    if isinstance(paths, dict):
-        for path_key, path_value in paths.items():
-            if not isinstance(path_value, dict):
+def find_duplicate_operation_ids(schema_data: dict) -> dict:
+    """Returns a dict mapping duplicate operationIds to a list of (path, method) tuples where they occur."""
+    operation_id_map = {}
+    paths = schema_data.get("paths", {})
+    for path_key, path_value in paths.items():
+        if not isinstance(path_value, dict):
+            continue
+        for method, operation_value in path_value.items():
+            if method.lower() not in [
+                "get", "put", "post", "delete", "options", "head", "patch", "trace"
+            ]:
                 continue
-            for method, operation_value in path_value.items():
-                if not (isinstance(operation_value, dict) and method.lower() in [
-                    "get", "put", "post", "delete", "options", "head", "patch", "trace"
-                ]):
-                    continue
-                # Clean operation description
-                if "description" in operation_value:
-                    operation_value["description"] = clean_text(operation_value["description"])
-                # Clean operation summary if requested
-                if sanitize_summaries and "summary" in operation_value:
-                    operation_value["summary"] = clean_text(operation_value["summary"])
-                # Clean parameter descriptions
-                parameters = operation_value.get("parameters")
-                if isinstance(parameters, list):
-                    for parameter in parameters:
-                        if isinstance(parameter, dict) and "description" in parameter:
-                            parameter["description"] = clean_text(parameter["description"])
+            if not isinstance(operation_value, dict):
+                continue
+            op_id = operation_value.get("operationId")
+            if op_id:
+                operation_id_map.setdefault(op_id, []).append((path_key, method))
+    # Only keep duplicates
+    return {k: v for k, v in operation_id_map.items() if len(v) > 1}
+
+
+def regenerate_duplicate_operation_ids(schema_data: dict, llm_model: str):
+    """For each duplicate operationId, re-run the LLM to generate a new one, providing used operationIds to avoid."""
+    used_operation_ids = set()
+    paths = schema_data.get("paths", {})
+    # First, collect all unique operationIds
+    for path_key, path_value in paths.items():
+        if not isinstance(path_value, dict):
+            continue
+        for method, operation_value in path_value.items():
+            if method.lower() not in [
+                "get", "put", "post", "delete", "options", "head", "patch", "trace"
+            ]:
+                continue
+            if not isinstance(operation_value, dict):
+                continue
+            op_id = operation_value.get("operationId")
+            if op_id:
+                used_operation_ids.add(op_id)
+    # Now, find and fix duplicates
+    duplicates = find_duplicate_operation_ids(schema_data)
+    for op_id, occurrences in duplicates.items():
+        # Keep the first occurrence, fix the rest
+        for path_key, method in occurrences[1:]:
+            operation_value = paths[path_key][method]
+            simplified_context = simplify_operation_context(operation_value)
+            # Prompt LLM with used_operation_ids to avoid
+            avoid_list = list(used_operation_ids)
+            user_prompt = f"Generate a short, unique, and readable operationId for the OpenAPI operation at path '{path_key}' using the '{method.upper()}' method.\n- The operationId MUST be a single word in camelCase or snake_case.\n- It MUST NOT exceed 30 characters.\n- It should be descriptive of the action and resource, e.g., 'getUser', 'createOrder', 'listInvoices', 'deleteUserById'.\n- Do NOT include spaces or special characters.\n- Respond ONLY with the operationId string, with NO explanation, NO notes, NO formatting, NO markdown, and NO extra text.\n- Avoid these operationIds: {avoid_list}\nContext (operation details): {json.dumps(simplified_context, separators=(',', ':'), sort_keys=True)[:500]}"
+            # Use the same LLM call as before, but override the user_prompt
+            generated_operation_id = generate_description_llm(
+                description_type="operation_id",
+                model=llm_model,
+                context={
+                    "path_key": path_key,
+                    "method": method,
+                    "operation_value": simplified_context,
+                    "user_prompt_override": user_prompt,
+                },
+            )
+            operation_value["operationId"] = sanitize_operation_id(generated_operation_id)
+            used_operation_ids.add(operation_value["operationId"])
+            logger.info(f"Regenerated duplicate operationId for {path_key} {method}: {operation_value['operationId']}")
 
 
 def preprocess_schema_with_llm(schema_data: dict, llm_model: str, enhance_all: bool, summaries_only: bool = False, operation_ids_only: bool = False):
@@ -1022,6 +1046,8 @@ def preprocess_schema_with_llm(schema_data: dict, llm_model: str, enhance_all: b
 
     paths = schema_data.get("paths")
     process_paths(paths, llm_model, enhance_all, summaries_only, operation_ids_only)
+
+    # After process_paths, regenerate_duplicate_operation_ids(schema_data, llm_model)
 
     logger.info("--- LLM Generation Complete ---")
 
@@ -1103,7 +1129,7 @@ def run_preprocessing(
             "  [3] [bold red]Quit[/bold red] (exit without changes)",
             "  [4] Generate/Enhance [bold]only operation summaries[/bold]",
             "  [5] Generate [bold]only missing operationIds[/bold]",
-            "  [6] [bold]Clean up all descriptions (trim to 250 chars, remove links)[/bold]",
+            "  [6] [bold]Enrich only parameter descriptions (LLM, ≤250 chars, run after clean-up)[/bold]",
         ]
         valid_choices = ["1", "2", "3", "4", "5", "6"]
         default_choice = "1"  # Default to filling missing
@@ -1126,7 +1152,7 @@ def run_preprocessing(
             "  [3] [bold red]Quit[/bold red] [green](default)[/green]",
             "  [4] Generate/Enhance [bold]only operation summaries[/bold]",
             "  [5] Generate [bold]only missing operationIds[/bold]",
-            "  [6] [bold]Clean up all descriptions (trim to 250 chars, remove links)[/bold]",
+            "  [6] [bold]Enrich only parameter descriptions (LLM, ≤250 chars, run after clean-up)[/bold]",
         ]
         valid_choices = ["2", "3", "4", "5", "6"]
         default_choice = "3"  # Default to quitting if nothing missing
@@ -1165,14 +1191,12 @@ def run_preprocessing(
             operation_ids_only = True
             break  # Exit prompt loop
         elif choice == "6":
-            # Clean up all descriptions (no LLM)
-            console.print("[blue]Cleaning up all descriptions (trimming and removing links)...[/blue]")
-            sanitize_summaries = typer.confirm("Also sanitize operation summaries? (This will trim and clean operation summaries)", default=False)
+            console.print("[blue]Enriching only parameter descriptions using the LLM (≤250 chars, only if current description is longer)...[/blue]")
             try:
-                sanitize_descriptions(schema_data, max_length=240, sanitize_summaries=sanitize_summaries)
-                console.print("[green]Description clean-up complete.[/green]")
+                enrich_parameter_descriptions(schema_data, model, max_length=250)
+                console.print("[green]Parameter description enrichment complete.[/green]")
             except Exception as e:
-                console.print(f"[red]Error during description clean-up: {e}[/red]")
+                console.print(f"[red]Error during parameter description enrichment: {e}[/red]")
                 import traceback
                 traceback.print_exc(file=sys.stderr)
                 raise typer.Exit(1) from e
@@ -1219,3 +1243,72 @@ def run_preprocessing(
     console.print("\n[bold green]--- Schema Processing and Saving Complete ---[/bold green]")
     console.print(f"Processed schema saved to: [blue]{output_path}[/blue]")
     console.print("[bold blue]Preprocessor finished successfully.[/bold blue]")
+
+
+def enrich_parameter_descriptions(schema_data: dict, llm_model: str, max_length: int = 250):
+    """
+    Enriches parameter descriptions using the LLM, but ONLY if the current description is longer than max_length chars.
+    Only processes parameter descriptions, does not touch examples or other fields.
+    """
+    MAX_ATTEMPTS = 3
+    paths = schema_data.get("paths")
+    if not isinstance(paths, dict):
+        return
+    for path_key, path_value in paths.items():
+        if not isinstance(path_value, dict):
+            continue
+        for method, operation_value in path_value.items():
+            if not (isinstance(operation_value, dict) and method.lower() in [
+                "get", "put", "post", "delete", "options", "head", "patch", "trace"
+            ]):
+                continue
+            parameters = operation_value.get("parameters")
+            if isinstance(parameters, list):
+                for parameter in parameters:
+                    if isinstance(parameter, dict):
+                        param_name = parameter.get("name")
+                        param_in = parameter.get("in")
+                        # Only enrich if name and in are present
+                        if not (isinstance(param_name, str) and param_name.strip() and isinstance(param_in, str) and param_in.strip()):
+                            continue
+                        current_description = parameter.get("description", "")
+                        if not isinstance(current_description, str) or len(current_description) <= max_length:
+                            continue  
+                        logger.info(f"Enriching parameter description >{max_length} chars: path='{path_key}', method='{method}', param_name='{param_name}', param_in='{param_in}', length={len(current_description)}")
+                        simplified_context = simplify_parameter_context(parameter)
+                        attempt = 0
+                        generated_description = current_description
+                        while attempt < MAX_ATTEMPTS:
+                            generated_description = generate_description_llm(
+                                description_type="parameter",
+                                model=llm_model,
+                                context={
+                                    "path_key": path_key,
+                                    "method": method,
+                                    "param_name": param_name,
+                                    "param_in": param_in,
+                                    "parameter_details": simplified_context,
+                                    "current_description": generated_description,
+                                },
+                            )
+                            if isinstance(generated_description, str) and len(generated_description) <= max_length:
+                                break
+                            attempt += 1
+                        # If still too long, truncate
+                        if isinstance(generated_description, str) and len(generated_description) > max_length:
+                            generated_description = generated_description[:max_length].rstrip() + "..."
+                        parameter["description"] = generated_description
+
+
+def sanitize_operation_id(llm_response: str) -> str:
+    """Extracts the first valid operationId from the LLM response."""
+    for line in llm_response.splitlines():
+        line = line.strip()
+        # Skip empty lines and markdown/comments
+        if not line or line.startswith("#") or line.startswith("*") or line.startswith("**"):
+            continue
+        # Only allow valid operationId patterns (alphanumeric, camelCase, snake_case, max 30 chars)
+        if re.match(r"^[a-zA-Z_][a-zA-Z0-9_]{0,29}$", line):
+            return line
+    # Fallback: return the first word
+    return llm_response.strip().split()[0] if llm_response.strip() else ""
