@@ -1,9 +1,9 @@
 import ast
 import re
+import subprocess
 from collections import defaultdict
 from keyword import iskeyword
 from pathlib import Path
-import subprocess
 
 API_SEGMENT_BASE_CODE = '''
 from typing import Any
