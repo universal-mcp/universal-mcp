@@ -307,6 +307,21 @@ def _generate_url(path: str, path_params: list[Parameters]):
     return formatted_path
 
 
+def extract_deep_example(schema: dict) -> Any:
+    if not isinstance(schema, dict):
+        return None
+    if "example" in schema:
+        return schema["example"]
+    # Check allOf, oneOf, anyOf recursively
+    for key in ("allOf", "oneOf", "anyOf"):
+        if key in schema:
+            for sub_schema in schema[key]:
+                ex = extract_deep_example(sub_schema)
+                if ex is not None:
+                    return ex
+    return None
+
+
 def _generate_query_params(operation: dict[str, Any]) -> list[Parameters]:
     query_params = []
     for param in operation.get("parameters", []):
@@ -314,20 +329,18 @@ def _generate_query_params(operation: dict[str, Any]) -> list[Parameters]:
         if name is None:
             continue
 
-        # Clean the parameter name for use as a Python identifier
         clean_name = _sanitize_identifier(name)
-
         description = param.get("description", "")
 
-        # Extract type from schema if available
         param_schema = param.get("schema", {})
         type_value = param_schema.get("type") if param_schema else param.get("type")
-        # Default to string if type is not available
         if type_value is None:
             type_value = "string"
 
-        # Extract example
-        example_value = param.get("example", param_schema.get("example"))
+        # Extract example, searching deeply
+        example_value = param.get("example")
+        if example_value is None:
+            example_value = extract_deep_example(param_schema)
 
         where = param.get("in")
         required = param.get("required", False)
