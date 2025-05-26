@@ -10,7 +10,7 @@ from langgraph.prebuilt import create_react_agent
 
 @asynccontextmanager
 async def load_tools():
-    url = "http://0.0.0.0:8005/sse"
+    url = "http://0.0.0.0:8000/sse"
     client = MultiServerMCPClient(
         {
             "agentr": {
