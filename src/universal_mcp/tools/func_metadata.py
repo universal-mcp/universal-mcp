@@ -192,8 +192,10 @@ class FuncMetadata(BaseModel):
                 _get_typed_annotation(annotation, globalns),
                 param.default if param.default is not inspect.Parameter.empty else PydanticUndefined,
             )
-            if not field_info.title and arg_description and arg_description.get(param.name):
-                field_info.title = arg_description.get(param.name)
+            if not field_info.title:
+                field_info.title = param.name
+            if not field_info.description and arg_description and arg_description.get(param.name):
+                field_info.description = arg_description.get(param.name)
             dynamic_pydantic_model_params[param.name] = (
                 field_info.annotation,
                 field_info,

@@ -13,6 +13,7 @@ from universal_mcp.exceptions import ConfigurationError, ToolError
 from universal_mcp.integrations import AgentRIntegration, integration_from_config
 from universal_mcp.stores import BaseStore, store_from_config
 from universal_mcp.tools import ToolManager
+from universal_mcp.tools.adapters import ToolFormat
 from universal_mcp.utils.agentr import AgentrClient
 
 
@@ -56,7 +57,7 @@ class BaseServer(FastMCP):
         Returns:
             List of tool definitions
         """
-        return self._tool_manager.list_tools(format="mcp")
+        return self._tool_manager.list_tools(format=ToolFormat.MCP)
 
     def _format_tool_result(self, result: Any) -> list[TextContent]:
         """Format tool result into TextContent list.

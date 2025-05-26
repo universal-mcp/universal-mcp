@@ -1,5 +1,6 @@
 import ast
 import re
+import subprocess
 from collections import defaultdict
 from keyword import iskeyword
 from pathlib import Path
@@ -276,7 +277,7 @@ def split_generated_app_file(input_app_file: Path, output_dir: Path):
         )
         
         segment_module_body = [
-            ast.ImportFrom(module='typing', names=[ast.alias(name='Any'), ast.alias(name='Dict'), ast.alias(name='Optional')], level=0),
+            ast.ImportFrom(module='typing', names=[ast.alias(name='Any'), ast.alias(name='List'), ast.alias(name='Optional')], level=0),
             ast.ImportFrom(module='.api_segment_base', names=[ast.alias(name='APISegmentBase')], level=0), # This relative import is fine as they are in the same dir
             segment_class_node
         ]
@@ -285,6 +286,8 @@ def split_generated_app_file(input_app_file: Path, output_dir: Path):
             segment_module_ast = ast.fix_missing_locations(segment_module_ast)
             
         (segments_dir / segment_filename).write_text(ast.unparse(segment_module_ast))
+        # Format the generated segment file with black
+        subprocess.run(["black", str(segments_dir / segment_filename)])
         segment_class_details_for_main_app.append({
             "attr_name": group.lower(),
             "class_name": SegmentClassName,

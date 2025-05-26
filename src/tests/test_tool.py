@@ -18,7 +18,7 @@ def test_func_metadata_annotated():
         "title": "funcArguments",
         "properties": {
             "a": {"type": "integer", "title": "First integer"},
-            "b": {"type": "integer", "title": "B"},
+            "b": {"type": "integer", "title": "b"},
         },
         "required": ["a", "b"],
     }
@@ -40,8 +40,8 @@ def test_func_metadata_no_annotated():
         "type": "object",
         "title": "funcArguments",
         "properties": {
-            "a": {"type": "integer", "title": "The first integer"},
-            "b": {"type": "integer", "title": "The second integer"},
+            "a": {"type": "integer", "description": "The first integer", "title": "a"},
+            "b": {"type": "integer", "description": "The second integer", "title": "b"},
         },
         "required": ["a", "b"],
     }
@@ -57,7 +57,6 @@ def test_func_metadata_no_args():
         "type": "object",
         "title": "funcArguments",
         "properties": {},
-        # "required": [],
     }
 
 
@@ -88,9 +87,9 @@ def test_func_metadata_required():
         "type": "object",
         "title": "funcArguments",
         "properties": {
-            "a": {"type": "integer", "title": "A"},
-            "b": {"type": "string", "title": "B"},
-            "c": {"type": "number", "title": "C", "default": 1.0},
+            "a": {"type": "integer", "title": "a"},
+            "b": {"type": "string", "title": "b"},
+            "c": {"type": "number", "title": "c", "default": 1.0},
         },
         "required": ["a", "b"],
     }
@@ -106,7 +105,7 @@ def test_func_metadata_none_type():
         "type": "object",
         "title": "funcArguments",
         "properties": {
-            "a": {"type": "null", "title": "A", "default": None},
+            "a": {"type": "null", "title": "a", "default": None},
         },
     }
 
