@@ -87,34 +87,34 @@ def _openapi_type_to_python_type(schema: dict, required: bool = True) -> str:
     """
     openapi_type = schema.get("type")
 
-    
-    if "$ref" in schema and not openapi_type: 
-        py_type = "dict[str, Any]" 
+    if "$ref" in schema and not openapi_type:
+        py_type = "dict[str, Any]"
     elif openapi_type == "array":
         items_schema = schema.get("items", {})
-        item_type = _openapi_type_to_python_type(items_schema, required=True) 
+        item_type = _openapi_type_to_python_type(items_schema, required=True)
         py_type = f"List[{item_type}]"
     elif openapi_type == "object":
-        
         if schema.get("format") in ["binary", "byte"]:
-             py_type = "bytes"
+            py_type = "bytes"
         else:
-            
             if "additionalProperties" in schema and isinstance(schema["additionalProperties"], dict):
                 additional_props_schema = schema["additionalProperties"]
-            
+
                 value_type = _openapi_type_to_python_type(additional_props_schema, required=True)
                 py_type = f"dict[str, {value_type}]"
-            elif not schema.get("properties") and not schema.get("allOf") and not schema.get("oneOf") and not schema.get("anyOf"):
-                
-                py_type = "dict[str, Any]" 
+            elif (
+                not schema.get("properties")
+                and not schema.get("allOf")
+                and not schema.get("oneOf")
+                and not schema.get("anyOf")
+            ):
+                py_type = "dict[str, Any]"
             else:
-                 
                 py_type = "dict[str, Any]"
     elif openapi_type == "integer":
         py_type = "int"
     elif openapi_type == "number":
-        py_type = "float" 
+        py_type = "float"
     elif openapi_type == "boolean":
         py_type = "bool"
     elif openapi_type == "string":
@@ -124,9 +124,8 @@ def _openapi_type_to_python_type(schema: dict, required: bool = True) -> str:
             py_type = "str"
         else:
             py_type = "str"
-    else: 
-       
-        py_type = "Any" 
+    else:
+        py_type = "Any"
 
     if not required:
         if py_type.startswith("Optional[") and py_type.endswith("]"):
@@ -256,7 +255,7 @@ def _determine_function_name(operation: dict[str, Any], path: str, method: str) 
     if "operationId" in operation:
         raw_name = operation["operationId"]
         cleaned_name = raw_name.replace(".", "_").replace("-", "_")
-        cleaned_name_no_numbers = re.sub(r'\d+', '', cleaned_name)
+        cleaned_name_no_numbers = re.sub(r"\d+", "", cleaned_name)
         func_name = convert_to_snake_case(cleaned_name_no_numbers)
     else:
         # Generate name from path and method
@@ -291,7 +290,7 @@ def _generate_path_params(path: str) -> list[Parameters]:
                     where="path",
                     required=True,
                     example=None,
-                    schema={"type": "string"}
+                    schema={"type": "string"},
                 )
             )
         except Exception as e:
@@ -340,7 +339,7 @@ def _generate_query_params(operation: dict[str, Any]) -> list[Parameters]:
                 where=where,
                 required=required,
                 example=str(example_value) if example_value is not None else None,
-                schema=param_schema if param_schema else {"type": type_value}
+                schema=param_schema if param_schema else {"type": type_value},
             )
             query_params.append(parameter)
     return query_params
@@ -372,12 +371,12 @@ def _generate_body_params(schema_to_process: dict[str, Any] | None, overall_body
                 name=_sanitize_identifier(param_name),
                 identifier=param_name,
                 description=param_description,
-                type=effective_param_type, 
+                type=effective_param_type,
                 where="body",
                 required=param_required,
                 example=str(param_example) if param_example is not None else None,
                 is_file=current_is_file,
-                schema=param_schema_details
+                schema=param_schema_details,
             )
         )
     # print(f"[DEBUG] Final body_params list generated: {body_params}") # DEBUG
@@ -403,10 +402,10 @@ def _generate_method_code(path, method, operation):
 
     # --- Determine Function Name and Basic Operation Details ---
     func_name = _determine_function_name(operation, path, method)
-    method_lower = method.lower() # Define method_lower earlier
-    operation.get("summary", "") # Ensure summary is accessed if needed elsewhere
-    operation.get("tags", [])   # Ensure tags are accessed if needed elsewhere
-    
+    method_lower = method.lower()  # Define method_lower earlier
+    operation.get("summary", "")  # Ensure summary is accessed if needed elsewhere
+    operation.get("tags", [])  # Ensure tags are accessed if needed elsewhere
+
     # --- Generate Path and Query Parameters (pre-aliasing) ---
     path_params = _generate_path_params(path)
     query_params = _generate_query_params(operation)
@@ -415,7 +414,7 @@ def _generate_method_code(path, method, operation):
     # This section selects the primary content type and its schema to be used for the request body.
     has_body = "requestBody" in operation
     body_schema_to_use = None
-    selected_content_type = None # This will hold the chosen content type string
+    selected_content_type = None  # This will hold the chosen content type string
 
     if has_body:
         request_body_spec = operation["requestBody"]
@@ -428,7 +427,7 @@ def _generate_method_code(path, method, operation):
             "application/octet-stream",
             "text/plain",
         ]
-        
+
         found_preferred = False
         for ct in preferred_content_types:
             if ct in request_body_content_map:
@@ -436,25 +435,25 @@ def _generate_method_code(path, method, operation):
                 body_schema_to_use = request_body_content_map[ct].get("schema")
                 found_preferred = True
                 break
-        
-        if not found_preferred: # Check for image/* if no direct match yet
+
+        if not found_preferred:  # Check for image/* if no direct match yet
             for ct_key in request_body_content_map:
                 if ct_key.startswith("image/"):
                     selected_content_type = ct_key
                     body_schema_to_use = request_body_content_map[ct_key].get("schema")
                     found_preferred = True
                     break
-            
-        if not found_preferred and request_body_content_map: # Fallback to first listed
+
+        if not found_preferred and request_body_content_map:  # Fallback to first listed
             first_ct_key = next(iter(request_body_content_map))
             selected_content_type = first_ct_key
             body_schema_to_use = request_body_content_map[first_ct_key].get("schema")
 
     # --- Generate Body Parameters (based on selected schema, pre-aliasing) ---
-    if body_schema_to_use: # If a schema was actually found for the selected content type
+    if body_schema_to_use:  # If a schema was actually found for the selected content type
         body_params = _generate_body_params(
-            body_schema_to_use, # Pass the specific schema
-            operation.get("requestBody", {}).get("required", False) # Pass the overall body requirement
+            body_schema_to_use,  # Pass the specific schema
+            operation.get("requestBody", {}).get("required", False),  # Pass the overall body requirement
         )
     else:
         body_params = []
@@ -526,29 +525,36 @@ def _generate_method_code(path, method, operation):
         current_body_param_names.add(b_param.name)
     # --- End Alias duplicate parameter names ---
 
-
     # --- Determine Return Type and Body Characteristics ---
     return_type = _determine_return_type(operation)
 
-    body_required = has_body and operation["requestBody"].get("required", False) # Remains useful
-    
-    is_array_body = False
-    has_empty_body = False 
+    body_required = has_body and operation["requestBody"].get("required", False)  # Remains useful
 
-    if has_body and body_schema_to_use: # Use the determined body_schema_to_use
+    is_array_body = False
+    has_empty_body = False
+
+    if has_body and body_schema_to_use:  # Use the determined body_schema_to_use
         if body_schema_to_use.get("type") == "array":
             is_array_body = True
-        
+
         # Check for cases that might lead to an "empty" body parameter (for JSON) in the signature,
         # or indicate a raw body type where _generate_body_params wouldn't create named params.
-        if not body_params and not is_array_body and selected_content_type == "application/json" and \
-           (body_schema_to_use == {} or \
-            (body_schema_to_use.get("type") == "object" and \
-             not body_schema_to_use.get("properties") and \
-             not body_schema_to_use.get("allOf") and \
-             not body_schema_to_use.get("oneOf") and \
-             not body_schema_to_use.get("anyOf"))):
-            has_empty_body = True # Indicates a generic 'request_body: dict = None' might be needed for empty JSON
+        if (
+            not body_params
+            and not is_array_body
+            and selected_content_type == "application/json"
+            and (
+                body_schema_to_use == {}
+                or (
+                    body_schema_to_use.get("type") == "object"
+                    and not body_schema_to_use.get("properties")
+                    and not body_schema_to_use.get("allOf")
+                    and not body_schema_to_use.get("oneOf")
+                    and not body_schema_to_use.get("anyOf")
+                )
+            )
+        ):
+            has_empty_body = True  # Indicates a generic 'request_body: dict = None' might be needed for empty JSON
 
     # --- Build Function Arguments for Signature ---
     # This section constructs the list of arguments (required and optional)
@@ -588,8 +594,8 @@ def _generate_method_code(path, method, operation):
     #  Process Body Parameters / Request Body
     # This list tracks the *final* names of parameters in the signature that come from the request body,
     final_request_body_arg_names_for_signature = []
-    final_empty_body_param_name = None # For the specific case of has_empty_body (empty JSON object)
-    raw_body_param_name = None # For raw content like octet-stream, text/plain, image/*
+    final_empty_body_param_name = None  # For the specific case of has_empty_body (empty JSON object)
+    raw_body_param_name = None  # For raw content like octet-stream, text/plain, image/*
 
     if has_body:
         current_arg_names_set = set(required_args) | {arg.split("=")[0] for arg in optional_args}
@@ -624,11 +630,17 @@ def _generate_method_code(path, method, operation):
             final_request_body_arg_names_for_signature.append(final_array_param_name)
 
         # New: Handle raw body parameter (if body_params is empty but body is expected and not array/empty JSON)
-        elif not body_params and not is_array_body and selected_content_type and selected_content_type not in ["application/json", "application/x-www-form-urlencoded", "multipart/form-data"]:
+        elif (
+            not body_params
+            and not is_array_body
+            and selected_content_type
+            and selected_content_type
+            not in ["application/json", "application/x-www-form-urlencoded", "multipart/form-data"]
+        ):
             # This branch is for raw content types like application/octet-stream, text/plain, image/*
             # where _generate_body_params returned an empty list because the schema isn't an object with properties.
             raw_body_param_name_base = "body_content"
-            
+
             temp_raw_body_name = raw_body_param_name_base
             counter = 1
             is_first_suffix_attempt = True
@@ -643,15 +655,15 @@ def _generate_method_code(path, method, operation):
 
             # For signature with types
             # Determine type based on selected_content_type for raw body
-            raw_body_schema_for_type = {"type": "string", "format": "binary"} # Default to bytes
+            raw_body_schema_for_type = {"type": "string", "format": "binary"}  # Default to bytes
             if selected_content_type and "text" in selected_content_type:
                 raw_body_schema_for_type = {"type": "string"}
             elif selected_content_type and selected_content_type.startswith("image/"):
-                raw_body_schema_for_type = {"type": "string", "format": "binary"} # image is bytes
-            
+                raw_body_schema_for_type = {"type": "string", "format": "binary"}  # image is bytes
+
             raw_body_py_type = _openapi_type_to_python_type(raw_body_schema_for_type, required=body_required)
 
-            if body_required: # If the raw body itself is required
+            if body_required:  # If the raw body itself is required
                 required_args.append(raw_body_param_name)
                 signature_required_args_typed.append(f"{raw_body_param_name}: {raw_body_py_type}")
             else:
@@ -659,13 +671,13 @@ def _generate_method_code(path, method, operation):
                 signature_optional_args_typed.append(f"{raw_body_param_name}: {raw_body_py_type} = None")
             final_request_body_arg_names_for_signature.append(raw_body_param_name)
 
-        elif body_params: # Object body with discernible properties
+        elif body_params:  # Object body with discernible properties
             for param in body_params:  # Iterate ALIASED body_params
-                arg_name_for_sig = param.name  #final aliased name (e.g., "id_body")
+                arg_name_for_sig = param.name  # final aliased name (e.g., "id_body")
 
-                # Defensive check against already added args 
+                # Defensive check against already added args
                 current_arg_names_set_loop = set(required_args) | {arg.split("=")[0] for arg in optional_args}
-                
+
                 # For signature with types
                 param_py_type = _openapi_type_to_python_type(param.schema, required=param.required)
 
@@ -679,11 +691,16 @@ def _generate_method_code(path, method, operation):
                         signature_optional_args_typed.append(f"{arg_name_for_sig}: {param_py_type} = None")
                 final_request_body_arg_names_for_signature.append(arg_name_for_sig)
 
+    if (
+        has_empty_body
+        and selected_content_type == "application/json"
+        and not body_params
+        and not is_array_body
+        and not raw_body_param_name
+    ):
+        empty_body_param_name_base = "request_body"  # For empty JSON object
+        current_arg_names_set = set(required_args) | {arg.split("=")[0] for arg in optional_args}
 
-    if has_empty_body and selected_content_type == "application/json" and not body_params and not is_array_body and not raw_body_param_name:
-        empty_body_param_name_base = "request_body" # For empty JSON object
-        current_arg_names_set = set(required_args) | {arg.split('=')[0] for arg in optional_args}
-        
         final_empty_body_param_name = empty_body_param_name_base
         counter = 1
         is_first_suffix_attempt = True
@@ -710,13 +727,13 @@ def _generate_method_code(path, method, operation):
 
     # Combine required and optional arguments FOR DOCSTRING (as before, without types)
     args = required_args + optional_args
-    print(f"[DEBUG] Final combined args for DOCSTRING: {args}") # DEBUG
+    print(f"[DEBUG] Final combined args for DOCSTRING: {args}")  # DEBUG
 
     # Combine required and optional arguments FOR SIGNATURE (with types)
     signature_args_combined_typed = signature_required_args_typed + signature_optional_args_typed
-    print(f"[DEBUG] Final combined args for SIGNATURE: {signature_args_combined_typed}") # DEBUG
+    print(f"[DEBUG] Final combined args for SIGNATURE: {signature_args_combined_typed}")  # DEBUG
 
-    # ----- Build Docstring ----- 
+    # ----- Build Docstring -----
     # This section constructs the entire docstring for the generated method,
     # including summary, argument descriptions, return type, and tags.
     docstring_parts = []
@@ -737,7 +754,7 @@ def _generate_method_code(path, method, operation):
     # Args
     args_doc_lines = []
     param_details = {}
-    
+
     # Create a combined list of all parameter objects (path, query, body) to fetch details for docstring
     all_parameter_objects_for_docstring = path_params + query_params + body_params
 
@@ -748,18 +765,18 @@ def _generate_method_code(path, method, operation):
             param_details[param_obj.name] = param_obj
 
     # Fetch request body example
-    example_data = None # Initialize example_data here for wider scope
+    example_data = None  # Initialize example_data here for wider scope
 
     if has_body:
         try:
             json_content = operation["requestBody"]["content"]["application/json"]
-            #From direct content definition
+            # From direct content definition
             if "example" in json_content:
                 example_data = json_content["example"]
             elif "examples" in json_content and json_content["examples"]:
                 first_example_key = list(json_content["examples"].keys())[0]
                 example_data = json_content["examples"][first_example_key].get("value")
-            #If not found directly, try from resolved body schema (for nested/referenced examples)
+            # If not found directly, try from resolved body schema (for nested/referenced examples)
             if example_data is None and body_schema_to_use and "example" in body_schema_to_use:
                 example_data = body_schema_to_use["example"]
         except KeyError:
@@ -777,18 +794,24 @@ def _generate_method_code(path, method, operation):
                 # Adjust type_hint for file parameters for the docstring
                 if detail.is_file:
                     type_hint = "file (e.g., open('path/to/file', 'rb'))"
-                
+
                 arg_line = f"    {arg_name} ({type_hint}): {desc}"
-                if detail.example and not detail.is_file: # Don't show schema example for file inputs
+                if detail.example and not detail.is_file:  # Don't show schema example for file inputs
                     example_str = repr(detail.example)
                     arg_line += f" Example: {example_str}."
                 # Fallback for body parameters if no direct example was found
-                elif not example_str and detail.where == "body" and example_data and isinstance(example_data, dict) and detail.identifier in example_data:
+                elif (
+                    not example_str
+                    and detail.where == "body"
+                    and example_data
+                    and isinstance(example_data, dict)
+                    and detail.identifier in example_data
+                ):
                     current_body_param_example = example_data[detail.identifier]
-                    if current_body_param_example is not None: # Ensure the extracted part is not None
+                    if current_body_param_example is not None:  # Ensure the extracted part is not None
                         try:
                             arg_line += f" Example: {repr(current_body_param_example)}."
-                        except Exception: # Fallback if repr fails
+                        except Exception:  # Fallback if repr fails
                             arg_line += " Example: [Could not represent example]."
 
                 args_doc_lines.append(arg_line)
@@ -797,19 +820,17 @@ def _generate_method_code(path, method, operation):
                 args_doc_lines.append(
                     f"    {arg_name} (dict | None): Optional dictionary for an empty JSON request body (e.g., {{}})."
                 )
-            elif arg_name == raw_body_param_name: 
+            elif arg_name == raw_body_param_name:
                 raw_body_type_hint = "bytes"
                 raw_body_desc = "Raw binary content for the request body."
                 if selected_content_type and "text" in selected_content_type:
                     raw_body_type_hint = "str"
                     raw_body_desc = "Raw text content for the request body."
                 elif selected_content_type and selected_content_type.startswith("image/"):
-                     raw_body_type_hint = "bytes (image data)"
-                     raw_body_desc = f"Raw image content ({selected_content_type}) for the request body."
-                args_doc_lines.append(
-                    f"    {arg_name} ({raw_body_type_hint} | None): {raw_body_desc}"
-                )
-    
+                    raw_body_type_hint = "bytes (image data)"
+                    raw_body_desc = f"Raw image content ({selected_content_type}) for the request body."
+                args_doc_lines.append(f"    {arg_name} ({raw_body_type_hint} | None): {raw_body_desc}")
+
     if args_doc_lines:
         docstring_parts.append("\n".join(args_doc_lines))
 
@@ -825,7 +846,7 @@ def _generate_method_code(path, method, operation):
     raises_section_lines = [
         "Raises:",
         "    HTTPError: Raised when the API request fails (e.g., non-2XX status code).",
-        "    JSONDecodeError: Raised if the response body cannot be parsed as JSON."
+        "    JSONDecodeError: Raised if the response body cannot be parsed as JSON.",
     ]
     docstring_parts.append("\n".join(raises_section_lines))
 
@@ -853,7 +874,7 @@ def _generate_method_code(path, method, operation):
     else:
         signature = f"    def {func_name}(self) -> {return_type}:"
 
-    # --- Build Method Body --- 
+    # --- Build Method Body ---
     # This section constructs the executable lines of code within the generated method.
     body_lines = []
 
@@ -861,9 +882,8 @@ def _generate_method_code(path, method, operation):
     for param in path_params:
         body_lines.append(f"        if {param.name} is None:")
         body_lines.append(
-            f'            raise ValueError("Missing required parameter \'{param.identifier}\'.")'  # Use original name in error, ensure quotes are balanced
+            f"            raise ValueError(\"Missing required parameter '{param.identifier}'.\")"  # Use original name in error, ensure quotes are balanced
         )
-
 
     if method_lower not in ["get", "delete"]:
         body_lines.append("        request_body_data = None")
@@ -874,7 +894,6 @@ def _generate_method_code(path, method, operation):
         if method_lower in ["post", "put"] and selected_content_type == "multipart/form-data":
             body_lines.append("        files_data = None")
 
-
     # --- Build Request Payload (request_body_data and files_data) ---
     # This section prepares the data to be sent in the request body,
     # differentiating between files and other data for multipart forms,
@@ -883,27 +902,30 @@ def _generate_method_code(path, method, operation):
         # This block will now overwrite the initial None values if a body is present.
         if is_array_body:
             # For array request bodies, use the array parameter directly
-            array_arg_name = final_request_body_arg_names_for_signature[0] if final_request_body_arg_names_for_signature else "items_body" # Fallback
+            array_arg_name = (
+                final_request_body_arg_names_for_signature[0]
+                if final_request_body_arg_names_for_signature
+                else "items_body"
+            )  # Fallback
             body_lines.append(f"        # Using array parameter '{array_arg_name}' directly as request body")
-            body_lines.append(f"        request_body_data = {array_arg_name}") # Use a neutral temp name
+            body_lines.append(f"        request_body_data = {array_arg_name}")  # Use a neutral temp name
             # files_data remains None
 
         elif selected_content_type == "multipart/form-data":
-            body_lines.append("        request_body_data = {}") # For non-file form fields
-            body_lines.append("        files_data = {}")      # For file fields
-            for b_param in body_params: # Iterate through ALIASED body_params
+            body_lines.append("        request_body_data = {}")  # For non-file form fields
+            body_lines.append("        files_data = {}")  # For file fields
+            for b_param in body_params:  # Iterate through ALIASED body_params
                 if b_param.is_file:
-                    body_lines.append(f"        if {b_param.name} is not None:") # Check if file param is provided
+                    body_lines.append(f"        if {b_param.name} is not None:")  # Check if file param is provided
                     body_lines.append(f"            files_data['{b_param.identifier}'] = {b_param.name}")
                 else:
-                    body_lines.append(f"        if {b_param.name} is not None:") # Check if form field is provided
+                    body_lines.append(f"        if {b_param.name} is not None:")  # Check if form field is provided
                     body_lines.append(f"            request_body_data['{b_param.identifier}'] = {b_param.name}")
             body_lines.append("        files_data = {k: v for k, v in files_data.items() if v is not None}")
             # Ensure files_data is None if it's empty after filtering, as httpx expects None, not {}
             body_lines.append("        if not files_data: files_data = None")
 
-        
-        elif body_params: # Object request bodies (JSON, x-www-form-urlencoded) with specific parameters
+        elif body_params:  # Object request bodies (JSON, x-www-form-urlencoded) with specific parameters
             body_lines.append("        request_body_data = {")
             for b_param in body_params:
                 body_lines.append(f"            '{b_param.identifier}': {b_param.name},")
@@ -911,13 +933,14 @@ def _generate_method_code(path, method, operation):
             body_lines.append(
                 "        request_body_data = {k: v for k, v in request_body_data.items() if v is not None}"
             )
-        
-        elif raw_body_param_name: # Raw content type (octet-stream, text, image)
+
+        elif raw_body_param_name:  # Raw content type (octet-stream, text, image)
             body_lines.append(f"        request_body_data = {raw_body_param_name}")
 
-        elif has_empty_body and selected_content_type == "application/json": # Empty JSON object {}
-            body_lines.append(f"        request_body_data = {final_empty_body_param_name} if {final_empty_body_param_name} is not None else {{}}")
-  
+        elif has_empty_body and selected_content_type == "application/json":  # Empty JSON object {}
+            body_lines.append(
+                f"        request_body_data = {final_empty_body_param_name} if {final_empty_body_param_name} is not None else {{}}"
+            )
 
     # --- Format URL and Query Parameters for Request ---
     url = _generate_url(path, path_params)
@@ -937,21 +960,20 @@ def _generate_method_code(path, method, operation):
 
     # --- Determine Final Content-Type for API Call (Obsolete Block, selected_content_type is used) ---
     # The following block for request_body_content_type is largely superseded by selected_content_type,
-   
+
     # Use the selected_content_type determined by the new logic as the primary source of truth.
     final_content_type_for_api_call = selected_content_type if selected_content_type else "application/json"
 
     # --- Make HTTP Request ---
-    # This section generates the actual HTTP call 
+    # This section generates the actual HTTP call
     # using the prepared URL, query parameters, request body data, files, and content type.
-
 
     if method_lower == "get":
         body_lines.append("        response = self._get(url, params=query_params)")
     elif method_lower == "post":
         if selected_content_type == "multipart/form-data":
             body_lines.append(
-                 f"        response = self._post(url, data=request_body_data, files=files_data, params=query_params, content_type='{final_content_type_for_api_call}')"
+                f"        response = self._post(url, data=request_body_data, files=files_data, params=query_params, content_type='{final_content_type_for_api_call}')"
             )
         else:
             body_lines.append(
@@ -960,23 +982,18 @@ def _generate_method_code(path, method, operation):
     elif method_lower == "put":
         if selected_content_type == "multipart/form-data":
             body_lines.append(
-                 f"        response = self._put(url, data=request_body_data, files=files_data, params=query_params, content_type='{final_content_type_for_api_call}')"
+                f"        response = self._put(url, data=request_body_data, files=files_data, params=query_params, content_type='{final_content_type_for_api_call}')"
             )
         else:
             body_lines.append(
                 f"        response = self._put(url, data=request_body_data, params=query_params, content_type='{final_content_type_for_api_call}')"
             )
     elif method_lower == "patch":
-        
-        body_lines.append(
-            "        response = self._patch(url, data=request_body_data, params=query_params)" 
-        )
+        body_lines.append("        response = self._patch(url, data=request_body_data, params=query_params)")
     elif method_lower == "delete":
         body_lines.append("        response = self._delete(url, params=query_params)")
     else:
-        body_lines.append(
-            f"        response = self._{method_lower}(url, data=request_body_data, params=query_params)"
-        )
+        body_lines.append(f"        response = self._{method_lower}(url, data=request_body_data, params=query_params)")
 
     # --- Handle Response ---
     body_lines.append("        response.raise_for_status()")

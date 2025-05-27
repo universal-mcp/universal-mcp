@@ -1,5 +1,3 @@
-import os
-
 import httpx
 from loguru import logger
 
@@ -18,17 +16,9 @@ class AgentrClient:
         base_url (str, optional): Base URL for AgentR API. Defaults to https://api.agentr.dev
     """
 
-    def __init__(self, api_key: str | None = None, base_url: str | None = None):
-        if api_key:
-            self.api_key = api_key
-        elif os.getenv("AGENTR_API_KEY"):
-            self.api_key = os.getenv("AGENTR_API_KEY")
-        else:
-            logger.error(
-                "API key for AgentR is missing. Please visit https://agentr.dev to create an API key, then set it as AGENTR_API_KEY environment variable."
-            )
-            raise ValueError("AgentR API key required - get one at https://agentr.dev")
-        self.base_url = (base_url or os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")).rstrip("/")
+    def __init__(self, api_key: str, base_url: str = "https://api.agentr.dev"):
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
         self.client = httpx.Client(
             base_url=self.base_url, headers={"X-API-KEY": self.api_key}, timeout=30, follow_redirects=True
         )
