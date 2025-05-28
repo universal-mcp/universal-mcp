@@ -149,7 +149,7 @@ def _sanitize_identifier(name: str | None) -> str:
         return ""
 
     # Initial replacements for common non-alphanumeric characters
-    sanitized = name.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "").replace("$", "_")
+    sanitized = name.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "").replace("$", "_").replace("/", "_")
 
     # Remove leading underscores, but preserve a single underscore if the name (after initial replace)
     # consisted only of underscores.
