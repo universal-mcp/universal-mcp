@@ -1,5 +1,8 @@
 from enum import Enum
 
+from loguru import logger
+from mcp.types import TextContent
+
 from universal_mcp.tools.tools import Tool
 
 
@@ -21,6 +24,24 @@ def convert_tool_to_mcp_tool(
         description=tool.description or "",
         inputSchema=tool.parameters,
     )
+
+
+def format_to_mcp_result(result: any) -> list[TextContent]:
+    """Format tool result into TextContent list.
+
+    Args:
+        result: Raw tool result
+
+    Returns:
+        List of TextContent objects
+    """
+    if isinstance(result, str):
+        return [TextContent(type="text", text=result)]
+    elif isinstance(result, list) and all(isinstance(item, TextContent) for item in result):
+        return result
+    else:
+        logger.warning(f"Tool returned unexpected type: {type(result)}. Wrapping in TextContent.")
+        return [TextContent(type="text", text=str(result))]
 
 
 def convert_tool_to_langchain_tool(

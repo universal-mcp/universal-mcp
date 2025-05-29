@@ -4,6 +4,7 @@ from typing import Any
 import httpx
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.server import MCPTool
 from mcp.types import TextContent
 from pydantic import ValidationError
 
@@ -13,7 +14,7 @@ from universal_mcp.exceptions import ConfigurationError, ToolError
 from universal_mcp.integrations import AgentRIntegration, integration_from_config
 from universal_mcp.stores import BaseStore, store_from_config
 from universal_mcp.tools import ToolManager
-from universal_mcp.tools.adapters import ToolFormat
+from universal_mcp.tools.adapters import ToolFormat, format_to_mcp_result
 from universal_mcp.utils.agentr import AgentrClient
 
 
@@ -34,6 +35,7 @@ class BaseServer(FastMCP):
             logger.info(f"Initializing server: {config.name} ({config.type}) with store: {config.store}")
             self.config = config
             self._tool_manager = tool_manager or ToolManager(warn_on_duplicate_tools=True)
+            # Validate config after setting attributes to ensure proper initialization
             ServerConfig.model_validate(config)
         except Exception as e:
             logger.error(f"Failed to initialize server: {e}", exc_info=True)
@@ -48,33 +50,15 @@ class BaseServer(FastMCP):
         Raises:
             ValueError: If tool is invalid
         """
-
         self._tool_manager.add_tool(tool)
 
-    async def list_tools(self) -> list[dict]:
+    async def list_tools(self) -> list:
         """List all available tools in MCP format.
 
         Returns:
             List of tool definitions
         """
         return self._tool_manager.list_tools(format=ToolFormat.MCP)
-
-    def _format_tool_result(self, result: Any) -> list[TextContent]:
-        """Format tool result into TextContent list.
-
-        Args:
-            result: Raw tool result
-
-        Returns:
-            List of TextContent objects
-        """
-        if isinstance(result, str):
-            return [TextContent(type="text", text=result)]
-        elif isinstance(result, list) and all(isinstance(item, TextContent) for item in result):
-            return result
-        else:
-            logger.warning(f"Tool returned unexpected type: {type(result)}. Wrapping in TextContent.")
-            return [TextContent(type="text", text=str(result))]
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
         """Call a tool with comprehensive error handling.
@@ -99,7 +83,7 @@ class BaseServer(FastMCP):
         try:
             result = await self._tool_manager.call_tool(name, arguments)
             logger.info(f"Tool '{name}' completed successfully")
-            return self._format_tool_result(result)
+            return format_to_mcp_result(result)
         except Exception as e:
             logger.error(f"Tool '{name}' failed: {e}", exc_info=True)
             raise ToolError(f"Tool execution failed: {str(e)}") from e
@@ -219,12 +203,23 @@ class AgentRServer(BaseServer):
     """
 
     def __init__(self, config: ServerConfig, **kwargs):
+        # Initialize API key and client before calling super().__init__
         self.api_key = config.api_key.get_secret_value() if config.api_key else None
+        if not self.api_key:
+            raise ValueError("API key is required for AgentR server")
+
         logger.info(f"Initializing AgentR server with API key: {self.api_key}")
         self.client = AgentrClient(api_key=self.api_key)
         super().__init__(config, **kwargs)
-        self.integration = AgentRIntegration(name="agentr", api_key=self.client.api_key)
-        self._load_apps()
+        self.integration = AgentRIntegration(name="agentr", api_key=self.api_key)
+        # Don't load apps in __init__ for stateless operation
+        self._apps_loaded = False
+
+    def _ensure_apps_loaded(self) -> None:
+        """Ensure apps are loaded, loading them if necessary."""
+        if not self._apps_loaded:
+            self._load_apps()
+            self._apps_loaded = True
 
     def _fetch_apps(self) -> list[AppConfig]:
         """Fetch available apps from AgentR API with retry logic.
@@ -297,6 +292,16 @@ class AgentRServer(BaseServer):
             # Don't raise the exception to allow server to start with partial functionality
             logger.warning("Server will start with limited functionality due to app loading failures")
 
+    async def list_tools(self) -> list[MCPTool]:
+        """List available tools, ensuring apps are loaded first."""
+        self._ensure_apps_loaded()
+        return await super().list_tools()
+
+    async def call_tool(self, name: str, arguments: dict) -> list[TextContent]:
+        """Call a tool by name, ensuring apps are loaded first."""
+        self._ensure_apps_loaded()
+        return await super().call_tool(name, arguments)
+
 
 class SingleMCPServer(BaseServer):
     """
@@ -322,12 +327,12 @@ class SingleMCPServer(BaseServer):
         **kwargs,
     ):
         if not app_instance:
-            raise ValueError("app_instance is required")
-        if not config:
-            config = ServerConfig(
-                type="local",
-                name=f"{app_instance.name.title()} MCP Server for Local Development",
-                description=f"Minimal MCP server for the local {app_instance.name} application.",
-            )
+            raise ValueError("app_instance is required for SingleMCPServer")
+
+        config = config or ServerConfig(
+            type="local",
+            name=f"{app_instance.name.title()} MCP Server for Local Development",
+            description=f"Minimal MCP server for the local {app_instance.name} application.",
+        )
         super().__init__(config, **kwargs)
         self._tool_manager.register_tools_from_app(app_instance, tags="all")

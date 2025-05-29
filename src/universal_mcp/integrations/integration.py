@@ -3,9 +3,8 @@ from typing import Any
 import httpx
 from loguru import logger
 
-from universal_mcp.exceptions import NotAuthorizedError
-from universal_mcp.stores import BaseStore
-from universal_mcp.stores.store import KeyNotFoundError, MemoryStore
+from universal_mcp.exceptions import KeyNotFoundError, NotAuthorizedError
+from universal_mcp.stores import BaseStore, MemoryStore
 from universal_mcp.utils.agentr import AgentrClient
 
 
@@ -34,10 +33,7 @@ class Integration:
 
     def __init__(self, name: str, store: BaseStore | None = None):
         self.name = name
-        if store is None:
-            self.store = MemoryStore()
-        else:
-            self.store = store
+        self.store = store or MemoryStore()
 
     def authorize(self) -> str | dict[str, Any]:
         """Authorize the integration.
@@ -329,7 +325,7 @@ class AgentRIntegration(Integration):
         ValueError: If no API key is provided or found in environment variables
     """
 
-    def __init__(self, name: str, api_key: str = None, **kwargs):
+    def __init__(self, name: str, api_key: str, **kwargs):
         super().__init__(name, **kwargs)
         self.client = AgentrClient(api_key=api_key)
         self._credentials = None

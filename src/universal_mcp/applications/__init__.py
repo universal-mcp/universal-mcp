@@ -35,7 +35,6 @@ def _install_or_upgrade_package(package_name: str, repository_path: str):
     """
     Helper to install a package via pip from the universal-mcp GitHub repository.
     """
-
     uv_path = os.getenv("UV_PATH")
     uv_executable = str(Path(uv_path) / "uv") if uv_path else "uv"
     logger.info(f"Using uv executable: {uv_executable}")

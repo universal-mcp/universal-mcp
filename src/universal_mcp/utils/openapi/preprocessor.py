@@ -66,7 +66,6 @@ console_handler.setFormatter(colored_formatter)
 logger.addHandler(console_handler)
 
 
-
 def set_logging_level(level: str):
     level_map = {
         "DEBUG": logging.DEBUG,
@@ -229,10 +228,14 @@ def generate_description_llm(
         current_description = context.get("current_description", None)
         if current_description and isinstance(current_description, str) and current_description.strip():
             user_prompt = f"""The current description for the API parameter named '{param_name}' located '{param_in}' for the '{method.upper()}' operation at path '{path_key}' is:\n'{current_description.strip()}'\n\nTask: Rewrite and enrich this description so it is clear, self-contained, and makes sense to a user. If the description is cut off, incomplete, or awkward, make it complete and natural. Ensure it is concise and under {MAX_DESCRIPTION_LENGTH} characters. Do not include any links, HTML, markdown, or any notes or comments about the character limit. Respond ONLY with the improved single-line description."""
-            fallback_text = f"[LLM could not generate description for parameter {param_name} in {method.upper()} {path_key}]"
+            fallback_text = (
+                f"[LLM could not generate description for parameter {param_name} in {method.upper()} {path_key}]"
+            )
         else:
             user_prompt = f"""Generate a clear, brief description for the API parameter named "{param_name}" located "{param_in}" for the "{method.upper()}" operation at path "{path_key}".\nContext (parameter details): {param_context_str}\nRespond ONLY with the *SINGLE LINE* description text."""
-            fallback_text = f"[LLM could not generate description for parameter {param_name} in {method.upper()} {path_key}]"
+            fallback_text = (
+                f"[LLM could not generate description for parameter {param_name} in {method.upper()} {path_key}]"
+            )
 
     elif description_type == "api_description":
         api_title = context.get("title", "Untitled API")
@@ -806,7 +809,9 @@ def process_operation(
         return
 
     # --- Ensure operationId is present, using LLM if missing, but only if not summaries_only ---
-    if (operation_ids_only or not summaries_only) and ("operationId" not in operation_value or not operation_value["operationId"]):
+    if (operation_ids_only or not summaries_only) and (
+        "operationId" not in operation_value or not operation_value["operationId"]
+    ):
         simplified_context = simplify_operation_context(operation_value)
         generated_operation_id = generate_description_llm(
             description_type="operation_id",
@@ -880,7 +885,9 @@ def process_operation(
             )
 
 
-def process_paths(paths: dict, llm_model: str, enhance_all: bool, summaries_only: bool = False, operation_ids_only: bool = False):
+def process_paths(
+    paths: dict, llm_model: str, enhance_all: bool, summaries_only: bool = False, operation_ids_only: bool = False
+):
     if not isinstance(paths, dict):
         logger.warning("'paths' field is not a dictionary. Skipping path processing.")
         return
@@ -902,7 +909,9 @@ def process_paths(paths: dict, llm_model: str, enhance_all: bool, summaries_only
                     "patch",
                     "trace",
                 ]:
-                    process_operation(operation_value, path_key, method, llm_model, enhance_all, summaries_only, operation_ids_only)
+                    process_operation(
+                        operation_value, path_key, method, llm_model, enhance_all, summaries_only, operation_ids_only
+                    )
                 elif method.lower().startswith("x-"):
                     logger.debug(f"Skipping processing of method extension '{method.lower()}' in path '{path_key}'.")
                     continue
@@ -973,9 +982,7 @@ def find_duplicate_operation_ids(schema_data: dict) -> dict:
         if not isinstance(path_value, dict):
             continue
         for method, operation_value in path_value.items():
-            if method.lower() not in [
-                "get", "put", "post", "delete", "options", "head", "patch", "trace"
-            ]:
+            if method.lower() not in ["get", "put", "post", "delete", "options", "head", "patch", "trace"]:
                 continue
             if not isinstance(operation_value, dict):
                 continue
@@ -995,9 +1002,7 @@ def regenerate_duplicate_operation_ids(schema_data: dict, llm_model: str):
         if not isinstance(path_value, dict):
             continue
         for method, operation_value in path_value.items():
-            if method.lower() not in [
-                "get", "put", "post", "delete", "options", "head", "patch", "trace"
-            ]:
+            if method.lower() not in ["get", "put", "post", "delete", "options", "head", "patch", "trace"]:
                 continue
             if not isinstance(operation_value, dict):
                 continue
@@ -1030,7 +1035,9 @@ def regenerate_duplicate_operation_ids(schema_data: dict, llm_model: str):
             logger.info(f"Regenerated duplicate operationId for {_path_key} {method}: {operation_value['operationId']}")
 
 
-def preprocess_schema_with_llm(schema_data: dict, llm_model: str, enhance_all: bool, summaries_only: bool = False, operation_ids_only: bool = False):
+def preprocess_schema_with_llm(
+    schema_data: dict, llm_model: str, enhance_all: bool, summaries_only: bool = False, operation_ids_only: bool = False
+):
     """
     Processes the schema to add/enhance descriptions/summaries using an LLM.
     Decides whether to generate based on the 'enhance_all' flag and existing content.
@@ -1038,7 +1045,9 @@ def preprocess_schema_with_llm(schema_data: dict, llm_model: str, enhance_all: b
     If operation_ids_only is True, only missing operationIds are generated (never overwritten).
     Assumes basic schema structure validation (info, title) has already passed.
     """
-    logger.info(f"\n--- Starting LLM Generation (enhance_all={enhance_all}, summaries_only={summaries_only}, operation_ids_only={operation_ids_only}) ---")
+    logger.info(
+        f"\n--- Starting LLM Generation (enhance_all={enhance_all}, summaries_only={summaries_only}, operation_ids_only={operation_ids_only}) ---"
+    )
 
     # Only process info section if not operation_ids_only
     if not operation_ids_only:
@@ -1191,13 +1200,16 @@ def run_preprocessing(
             operation_ids_only = True
             break  # Exit prompt loop
         elif choice == "6":
-            console.print("[blue]Enriching only parameter descriptions using the LLM (≤250 chars, only if current description is longer)...[/blue]")
+            console.print(
+                "[blue]Enriching only parameter descriptions using the LLM (≤250 chars, only if current description is longer)...[/blue]"
+            )
             try:
                 enrich_parameter_descriptions(schema_data, model, max_length=250)
                 console.print("[green]Parameter description enrichment complete.[/green]")
             except Exception as e:
                 console.print(f"[red]Error during parameter description enrichment: {e}[/red]")
                 import traceback
+
                 traceback.print_exc(file=sys.stderr)
                 raise typer.Exit(1) from e
             enhance_all = summaries_only = operation_ids_only = False
@@ -1208,7 +1220,9 @@ def run_preprocessing(
         perform_generation = True
 
     if perform_generation:
-        console.print(f"[blue]Starting LLM generation with Enhance All: {enhance_all}, Summaries Only: {summaries_only}, OperationIds Only: {operation_ids_only}[/blue]")
+        console.print(
+            f"[blue]Starting LLM generation with Enhance All: {enhance_all}, Summaries Only: {summaries_only}, OperationIds Only: {operation_ids_only}[/blue]"
+        )
         try:
             preprocess_schema_with_llm(schema_data, model, enhance_all, summaries_only, operation_ids_only)
             console.print("[green]LLM generation complete.[/green]")
@@ -1258,9 +1272,10 @@ def enrich_parameter_descriptions(schema_data: dict, llm_model: str, max_length:
         if not isinstance(path_value, dict):
             continue
         for method, operation_value in path_value.items():
-            if not (isinstance(operation_value, dict) and method.lower() in [
-                "get", "put", "post", "delete", "options", "head", "patch", "trace"
-            ]):
+            if not (
+                isinstance(operation_value, dict)
+                and method.lower() in ["get", "put", "post", "delete", "options", "head", "patch", "trace"]
+            ):
                 continue
             parameters = operation_value.get("parameters")
             if isinstance(parameters, list):
@@ -1269,12 +1284,19 @@ def enrich_parameter_descriptions(schema_data: dict, llm_model: str, max_length:
                         param_name = parameter.get("name")
                         param_in = parameter.get("in")
                         # Only enrich if name and in are present
-                        if not (isinstance(param_name, str) and param_name.strip() and isinstance(param_in, str) and param_in.strip()):
+                        if not (
+                            isinstance(param_name, str)
+                            and param_name.strip()
+                            and isinstance(param_in, str)
+                            and param_in.strip()
+                        ):
                             continue
                         current_description = parameter.get("description", "")
                         if not isinstance(current_description, str) or len(current_description) <= max_length:
-                            continue  
-                        logger.info(f"Enriching parameter description >{max_length} chars: path='{path_key}', method='{method}', param_name='{param_name}', param_in='{param_in}', length={len(current_description)}")
+                            continue
+                        logger.info(
+                            f"Enriching parameter description >{max_length} chars: path='{path_key}', method='{method}', param_name='{param_name}', param_in='{param_in}', length={len(current_description)}"
+                        )
                         simplified_context = simplify_parameter_context(parameter)
                         attempt = 0
                         generated_description = current_description

@@ -76,7 +76,7 @@ def parse_docstring(docstring: str | None) -> dict[str, Any]:
             section_type = "tags"
         elif stripped_lower.startswith(("raises ", "errors ", "exceptions ")):
             section_type = "raises"
-            parts = re.split(r"[:\s]+", line.strip(), maxsplit=1) 
+            parts = re.split(r"[:\s]+", line.strip(), maxsplit=1)
             if len(parts) > 1:
                 header_content = parts[1].strip()
         elif stripped_lower.startswith(("tags",)):
@@ -119,7 +119,7 @@ def parse_docstring(docstring: str | None) -> dict[str, Any]:
 
             else:
                 summary_lines.append(stripped_line)
-                continue 
+                continue
 
         if (
             is_new_section_header
