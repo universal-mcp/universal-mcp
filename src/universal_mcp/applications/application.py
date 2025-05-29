@@ -206,7 +206,7 @@ class APIApplication(BaseApplication):
         # For non-JSON responses (like DELETE operations), return success message
         return f"Success: HTTP {response.status_code}"
 
-    def _get(self, url: str, params: dict[str, Any] | None = None) -> dict[str, Any] | str:
+    def _get(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
         """
         Make a GET request to the specified URL.
 
@@ -215,15 +215,15 @@ class APIApplication(BaseApplication):
             params: Optional query parameters
 
         Returns:
-            dict[str, Any] | str: Parsed JSON response if available, otherwise success message
+            httpx.Response: The raw HTTP response object
 
         Raises:
-            httpx.HTTPStatusError: If the request fails with detailed error information including response body
+            httpx.HTTPStatusError: If the request fails (when raise_for_status() is called)
         """
         logger.debug(f"Making GET request to {url} with params: {params}")
         response = self.client.get(url, params=params)
         logger.debug(f"GET request successful with status code: {response.status_code}")
-        return self._handle_response(response)
+        return response
 
     def _post(
         self,
@@ -232,7 +232,7 @@ class APIApplication(BaseApplication):
         params: dict[str, Any] | None = None,
         content_type: str = "application/json",
         files: dict[str, Any] | None = None,
-    ) -> dict[str, Any] | str:
+    ) -> httpx.Response:
         """
         Make a POST request to the specified URL.
 
@@ -249,10 +249,10 @@ class APIApplication(BaseApplication):
                    Example: {'file_field_name': ('filename.txt', open('file.txt', 'rb'), 'text/plain')}
 
         Returns:
-            dict[str, Any] | str: Parsed JSON response if available, otherwise success message
+            httpx.Response: The raw HTTP response object
 
         Raises:
-            httpx.HTTPStatusError: If the request fails with detailed error information including response body
+            httpx.HTTPStatusError: If the request fails (when raise_for_status() is called)
         """
         logger.debug(
             f"Making POST request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
@@ -292,7 +292,7 @@ class APIApplication(BaseApplication):
                 params=params,
             )
         logger.debug(f"POST request successful with status code: {response.status_code}")
-        return self._handle_response(response)
+        return response
 
     def _put(
         self,
@@ -301,7 +301,7 @@ class APIApplication(BaseApplication):
         params: dict[str, Any] | None = None,
         content_type: str = "application/json",
         files: dict[str, Any] | None = None,
-    ) -> dict[str, Any] | str:
+    ) -> httpx.Response:
         """
         Make a PUT request to the specified URL.
 
@@ -318,10 +318,10 @@ class APIApplication(BaseApplication):
                    Example: {'file_field_name': ('filename.txt', open('file.txt', 'rb'), 'text/plain')}
 
         Returns:
-            dict[str, Any] | str: Parsed JSON response if available, otherwise success message
+            httpx.Response: The raw HTTP response object
 
         Raises:
-            httpx.HTTPStatusError: If the request fails with detailed error information including response body
+            httpx.HTTPStatusError: If the request fails (when raise_for_status() is called)
         """
         logger.debug(
             f"Making PUT request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
@@ -362,11 +362,55 @@ class APIApplication(BaseApplication):
                 params=params,
             )
         logger.debug(f"PUT request successful with status code: {response.status_code}")
-        return self._handle_response(response)
+        return response
 
-    def _delete(self, url: str, params: dict[str, Any] | None = None) -> dict[str, Any] | str:
+    def _delete(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
         """
         Make a DELETE request to the specified URL.
+
+        Args:
+            url: The URL to send the request to
+            params: Optional query parameters
+
+        Returns:
+            httpx.Response: The raw HTTP response object
+
+        Raises:
+            httpx.HTTPStatusError: If the request fails (when raise_for_status() is called)
+        """
+        logger.debug(f"Making DELETE request to {url} with params: {params}")
+        response = self.client.delete(url, params=params, timeout=self.default_timeout)
+        logger.debug(f"DELETE request successful with status code: {response.status_code}")
+        return response
+
+    def _patch(self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None) -> httpx.Response:
+        """
+        Make a PATCH request to the specified URL.
+
+        Args:
+            url: The URL to send the request to
+            data: The data to send in the request body
+            params: Optional query parameters
+
+        Returns:
+            httpx.Response: The raw HTTP response object
+
+        Raises:
+            httpx.HTTPStatusError: If the request fails (when raise_for_status() is called)
+        """
+        logger.debug(f"Making PATCH request to {url} with params: {params} and data: {data}")
+        response = self.client.patch(
+            url,
+            json=data,
+            params=params,
+        )
+        logger.debug(f"PATCH request successful with status code: {response.status_code}")
+        return response
+
+    # New convenience methods that handle responses automatically with enhanced error handling
+    def _get_json(self, url: str, params: dict[str, Any] | None = None) -> dict[str, Any] | str:
+        """
+        Make a GET request and automatically handle the response with enhanced error handling.
 
         Args:
             url: The URL to send the request to
@@ -378,14 +422,83 @@ class APIApplication(BaseApplication):
         Raises:
             httpx.HTTPStatusError: If the request fails with detailed error information including response body
         """
-        logger.debug(f"Making DELETE request to {url} with params: {params}")
-        response = self.client.delete(url, params=params, timeout=self.default_timeout)
-        logger.debug(f"DELETE request successful with status code: {response.status_code}")
+        response = self._get(url, params)
         return self._handle_response(response)
 
-    def _patch(self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None) -> dict[str, Any] | str:
+    def _post_json(
+        self,
+        url: str,
+        data: Any,
+        params: dict[str, Any] | None = None,
+        content_type: str = "application/json",
+        files: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | str:
         """
-        Make a PATCH request to the specified URL.
+        Make a POST request and automatically handle the response with enhanced error handling.
+
+        Args:
+            url: The URL to send the request to
+            data: The data to send
+            params: Optional query parameters
+            content_type: The Content-Type of the request body
+            files: Optional dictionary of files to upload
+
+        Returns:
+            dict[str, Any] | str: Parsed JSON response if available, otherwise success message
+
+        Raises:
+            httpx.HTTPStatusError: If the request fails with detailed error information including response body
+        """
+        response = self._post(url, data, params, content_type, files)
+        return self._handle_response(response)
+
+    def _put_json(
+        self,
+        url: str,
+        data: Any,
+        params: dict[str, Any] | None = None,
+        content_type: str = "application/json",
+        files: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | str:
+        """
+        Make a PUT request and automatically handle the response with enhanced error handling.
+
+        Args:
+            url: The URL to send the request to
+            data: The data to send
+            params: Optional query parameters
+            content_type: The Content-Type of the request body
+            files: Optional dictionary of files to upload
+
+        Returns:
+            dict[str, Any] | str: Parsed JSON response if available, otherwise success message
+
+        Raises:
+            httpx.HTTPStatusError: If the request fails with detailed error information including response body
+        """
+        response = self._put(url, data, params, content_type, files)
+        return self._handle_response(response)
+
+    def _delete_json(self, url: str, params: dict[str, Any] | None = None) -> dict[str, Any] | str:
+        """
+        Make a DELETE request and automatically handle the response with enhanced error handling.
+
+        Args:
+            url: The URL to send the request to
+            params: Optional query parameters
+
+        Returns:
+            dict[str, Any] | str: Parsed JSON response if available, otherwise success message
+
+        Raises:
+            httpx.HTTPStatusError: If the request fails with detailed error information including response body
+        """
+        response = self._delete(url, params)
+        return self._handle_response(response)
+
+    def _patch_json(self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None) -> dict[str, Any] | str:
+        """
+        Make a PATCH request and automatically handle the response with enhanced error handling.
 
         Args:
             url: The URL to send the request to
@@ -398,13 +511,7 @@ class APIApplication(BaseApplication):
         Raises:
             httpx.HTTPStatusError: If the request fails with detailed error information including response body
         """
-        logger.debug(f"Making PATCH request to {url} with params: {params} and data: {data}")
-        response = self.client.patch(
-            url,
-            json=data,
-            params=params,
-        )
-        logger.debug(f"PATCH request successful with status code: {response.status_code}")
+        response = self._patch(url, data, params)
         return self._handle_response(response)
 
 
