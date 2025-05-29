@@ -149,6 +149,35 @@ class APIApplication(BaseApplication):
             )
         return self._client
 
+    def _handle_api_error(self, response: httpx.Response) -> None:
+        """
+        Handle API errors with full error context including status code and response body.
+        
+        This provides complete error information to LLMs including the actual API error
+        response body, not just the HTTP status code.
+        
+        Args:
+            response: The HTTP response to check for errors
+            
+        Raises:
+            httpx.HTTPStatusError: If the response indicates an error status, with full error details
+        """
+        if response.is_error:
+            try:
+                error_body = response.text if response.text else "<empty response>"
+            except Exception:
+                error_body = "<unable to read response>"
+            
+            # Create detailed error message with status code and full response
+            error_message = f"HTTP {response.status_code}: {error_body}"
+            
+            logger.error(f"API Error: {error_message}")
+            raise httpx.HTTPStatusError(
+                error_message,
+                request=response.request,
+                response=response,
+            )
+
     def _get(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
         """
         Make a GET request to the specified URL.
@@ -161,11 +190,11 @@ class APIApplication(BaseApplication):
             httpx.Response: The response from the server
 
         Raises:
-            httpx.HTTPError: If the request fails
+            httpx.HTTPStatusError: If the request fails with detailed error information including response body
         """
         logger.debug(f"Making GET request to {url} with params: {params}")
         response = self.client.get(url, params=params)
-        response.raise_for_status()
+        self._handle_api_error(response)
         logger.debug(f"GET request successful with status code: {response.status_code}")
         return response
 
@@ -196,7 +225,7 @@ class APIApplication(BaseApplication):
             httpx.Response: The response from the server
 
         Raises:
-            httpx.HTTPError: If the request fails
+            httpx.HTTPStatusError: If the request fails with detailed error information including response body
         """
         logger.debug(
             f"Making POST request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
@@ -235,7 +264,7 @@ class APIApplication(BaseApplication):
                 content=data,  # Expect data to be bytes or str
                 params=params,
             )
-        response.raise_for_status()
+        self._handle_api_error(response)
         logger.debug(f"POST request successful with status code: {response.status_code}")
         return response
 
@@ -266,7 +295,7 @@ class APIApplication(BaseApplication):
             httpx.Response: The response from the server
 
         Raises:
-            httpx.HTTPError: If the request fails
+            httpx.HTTPStatusError: If the request fails with detailed error information including response body
         """
         logger.debug(
             f"Making PUT request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
@@ -306,7 +335,7 @@ class APIApplication(BaseApplication):
                 content=data,  # Expect data to be bytes or str
                 params=params,
             )
-        response.raise_for_status()
+        self._handle_api_error(response)
         logger.debug(f"PUT request successful with status code: {response.status_code}")
         return response
 
@@ -322,11 +351,11 @@ class APIApplication(BaseApplication):
             httpx.Response: The response from the server
 
         Raises:
-            httpx.HTTPError: If the request fails
+            httpx.HTTPStatusError: If the request fails with detailed error information including response body
         """
         logger.debug(f"Making DELETE request to {url} with params: {params}")
         response = self.client.delete(url, params=params, timeout=self.default_timeout)
-        response.raise_for_status()
+        self._handle_api_error(response)
         logger.debug(f"DELETE request successful with status code: {response.status_code}")
         return response
 
@@ -343,7 +372,7 @@ class APIApplication(BaseApplication):
             httpx.Response: The response from the server
 
         Raises:
-            httpx.HTTPError: If the request fails
+            httpx.HTTPStatusError: If the request fails with detailed error information including response body
         """
         logger.debug(f"Making PATCH request to {url} with params: {params} and data: {data}")
         response = self.client.patch(
@@ -351,7 +380,7 @@ class APIApplication(BaseApplication):
             json=data,
             params=params,
         )
-        response.raise_for_status()
+        self._handle_api_error(response)
         logger.debug(f"PATCH request successful with status code: {response.status_code}")
         return response
 
