@@ -57,6 +57,7 @@ ALL_APPS = [
     "supabase",
     "tavily",
     "trello",
+    "unipile",
     "whatsapp-business",
     "wrike",
     "youtube",

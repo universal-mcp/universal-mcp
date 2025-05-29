@@ -4,7 +4,6 @@ from typing import Any
 import httpx
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp.server import MCPTool
 from mcp.types import TextContent
 from pydantic import ValidationError
 
@@ -203,23 +202,13 @@ class AgentRServer(BaseServer):
     """
 
     def __init__(self, config: ServerConfig, **kwargs):
-        # Initialize API key and client before calling super().__init__
+        super().__init__(config, **kwargs)
         self.api_key = config.api_key.get_secret_value() if config.api_key else None
         if not self.api_key:
             raise ValueError("API key is required for AgentR server")
-
         logger.info(f"Initializing AgentR server with API key: {self.api_key}")
         self.client = AgentrClient(api_key=self.api_key)
-        super().__init__(config, **kwargs)
-        self.integration = AgentRIntegration(name="agentr", api_key=self.api_key)
-        # Don't load apps in __init__ for stateless operation
-        self._apps_loaded = False
-
-    def _ensure_apps_loaded(self) -> None:
-        """Ensure apps are loaded, loading them if necessary."""
-        if not self._apps_loaded:
-            self._load_apps()
-            self._apps_loaded = True
+        self._load_apps()
 
     def _fetch_apps(self) -> list[AppConfig]:
         """Fetch available apps from AgentR API with retry logic.
@@ -256,7 +245,7 @@ class AgentRServer(BaseServer):
         """
         try:
             integration = (
-                AgentRIntegration(name=app_config.integration.name, api_key=self.client.api_key)
+                AgentRIntegration(name=app_config.integration.name, api_key=self.api_key)
                 if app_config.integration
                 else None
             )
@@ -291,16 +280,6 @@ class AgentRServer(BaseServer):
             logger.error("Failed to load apps", exc_info=True)
             # Don't raise the exception to allow server to start with partial functionality
             logger.warning("Server will start with limited functionality due to app loading failures")
-
-    async def list_tools(self) -> list[MCPTool]:
-        """List available tools, ensuring apps are loaded first."""
-        self._ensure_apps_loaded()
-        return await super().list_tools()
-
-    async def call_tool(self, name: str, arguments: dict) -> list[TextContent]:
-        """Call a tool by name, ensuring apps are loaded first."""
-        self._ensure_apps_loaded()
-        return await super().call_tool(name, arguments)
 
 
 class SingleMCPServer(BaseServer):

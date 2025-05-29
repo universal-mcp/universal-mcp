@@ -19,11 +19,14 @@ def convert_tool_to_mcp_tool(
 ):
     from mcp.server.fastmcp.server import MCPTool
 
-    return MCPTool(
+    logger.debug(f"Converting tool '{tool.name}' to MCP format")
+    mcp_tool = MCPTool(
         name=tool.name[:63],
         description=tool.description or "",
         inputSchema=tool.parameters,
     )
+    logger.debug(f"Successfully converted tool '{tool.name}' to MCP format")
+    return mcp_tool
 
 
 def format_to_mcp_result(result: any) -> list[TextContent]:
@@ -35,9 +38,12 @@ def format_to_mcp_result(result: any) -> list[TextContent]:
     Returns:
         List of TextContent objects
     """
+    logger.debug(f"Formatting result to MCP format, type: {type(result)}")
     if isinstance(result, str):
+        logger.debug("Result is string, wrapping in TextContent")
         return [TextContent(type="text", text=result)]
     elif isinstance(result, list) and all(isinstance(item, TextContent) for item in result):
+        logger.debug("Result is already list of TextContent objects")
         return result
     else:
         logger.warning(f"Tool returned unexpected type: {type(result)}. Wrapping in TextContent.")
@@ -60,26 +66,33 @@ def convert_tool_to_langchain_tool(
         a LangChain tool
     """
 
+    logger.debug(f"Converting tool '{tool.name}' to LangChain format")
+
     async def call_tool(
         **arguments: dict[str, any],
     ):
+        logger.debug(f"Executing LangChain tool '{tool.name}' with arguments: {arguments}")
         call_tool_result = await tool.run(arguments)
+        logger.debug(f"Tool '{tool.name}' execution completed")
         return call_tool_result
 
-    return StructuredTool(
+    langchain_tool = StructuredTool(
         name=tool.name,
         description=tool.description or "",
         coroutine=call_tool,
         response_format="content",
         args_schema=tool.parameters,
     )
+    logger.debug(f"Successfully converted tool '{tool.name}' to LangChain format")
+    return langchain_tool
 
 
 def convert_tool_to_openai_tool(
     tool: Tool,
 ):
     """Convert a Tool object to an OpenAI function."""
-    return {
+    logger.debug(f"Converting tool '{tool.name}' to OpenAI format")
+    openai_tool = {
         "type": "function",
         "function": {
             "name": tool.name,
@@ -87,3 +100,5 @@ def convert_tool_to_openai_tool(
             "parameters": tool.parameters,
         },
     }
+    logger.debug(f"Successfully converted tool '{tool.name}' to OpenAI format")
+    return openai_tool

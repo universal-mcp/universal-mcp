@@ -78,3 +78,27 @@ class AgentrClient:
         response.raise_for_status()
         data = response.json()
         return [AppConfig.model_validate(app) for app in data]
+
+    def list_all_apps(self) -> list:
+        """List all apps from AgentR API.
+
+        Returns:
+            List of app names
+        """
+        response = self.client.get("/apps/")
+        response.raise_for_status()
+        return response.json()
+
+    def list_actions(self, app_name: str):
+        """List actions for an app.
+
+        Args:
+            app_name (str): Name of the app to list actions for
+
+        Returns:
+            List of action configurations
+        """
+
+        response = self.client.get(f"/apps/{app_name}/actions/")
+        response.raise_for_status()
+        return response.json()
