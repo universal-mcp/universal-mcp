@@ -192,12 +192,12 @@ class APIApplication(BaseApplication):
             dict[str, Any] | str: Parsed JSON data if response contains JSON, 
                                  otherwise a success message with status code
         """
-        # First check for errors
+        #  check for errors
         self._handle_api_error(response)
         
         # Try to parse as JSON first
         try:
-            if response.text.strip():  # Only try to parse if there's content
+            if response.text.strip():  
                 return response.json()
         except Exception:
             # If JSON parsing fails or response is empty, return success message
