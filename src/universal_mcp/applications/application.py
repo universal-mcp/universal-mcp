@@ -178,7 +178,35 @@ class APIApplication(BaseApplication):
                 response=response,
             )
 
-    def _get(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
+    def _handle_response(self, response: httpx.Response) -> dict[str, Any] | str:
+        """
+        Handle successful API responses by automatically parsing JSON or returning success message.
+        
+        This method automatically handles JSON parsing for responses that contain JSON data,
+        and returns appropriate success messages for operations that don't return JSON (like DELETE).
+        
+        Args:
+            response: The HTTP response to process
+            
+        Returns:
+            dict[str, Any] | str: Parsed JSON data if response contains JSON, 
+                                 otherwise a success message with status code
+        """
+        # First check for errors
+        self._handle_api_error(response)
+        
+        # Try to parse as JSON first
+        try:
+            if response.text.strip():  # Only try to parse if there's content
+                return response.json()
+        except Exception:
+            # If JSON parsing fails or response is empty, return success message
+            pass
+        
+        # For non-JSON responses (like DELETE operations), return success message
+        return f"Success: HTTP {response.status_code}"
+
+    def _get(self, url: str, params: dict[str, Any] | None = None) -> dict[str, Any] | str:
         """
         Make a GET request to the specified URL.
 
@@ -187,16 +215,15 @@ class APIApplication(BaseApplication):
             params: Optional query parameters
 
         Returns:
-            httpx.Response: The response from the server
+            dict[str, Any] | str: Parsed JSON response if available, otherwise success message
 
         Raises:
             httpx.HTTPStatusError: If the request fails with detailed error information including response body
         """
         logger.debug(f"Making GET request to {url} with params: {params}")
         response = self.client.get(url, params=params)
-        self._handle_api_error(response)
         logger.debug(f"GET request successful with status code: {response.status_code}")
-        return response
+        return self._handle_response(response)
 
     def _post(
         self,
@@ -205,7 +232,7 @@ class APIApplication(BaseApplication):
         params: dict[str, Any] | None = None,
         content_type: str = "application/json",
         files: dict[str, Any] | None = None,
-    ) -> httpx.Response:
+    ) -> dict[str, Any] | str:
         """
         Make a POST request to the specified URL.
 
@@ -222,7 +249,7 @@ class APIApplication(BaseApplication):
                    Example: {'file_field_name': ('filename.txt', open('file.txt', 'rb'), 'text/plain')}
 
         Returns:
-            httpx.Response: The response from the server
+            dict[str, Any] | str: Parsed JSON response if available, otherwise success message
 
         Raises:
             httpx.HTTPStatusError: If the request fails with detailed error information including response body
@@ -264,9 +291,8 @@ class APIApplication(BaseApplication):
                 content=data,  # Expect data to be bytes or str
                 params=params,
             )
-        self._handle_api_error(response)
         logger.debug(f"POST request successful with status code: {response.status_code}")
-        return response
+        return self._handle_response(response)
 
     def _put(
         self,
@@ -275,7 +301,7 @@ class APIApplication(BaseApplication):
         params: dict[str, Any] | None = None,
         content_type: str = "application/json",
         files: dict[str, Any] | None = None,
-    ) -> httpx.Response:
+    ) -> dict[str, Any] | str:
         """
         Make a PUT request to the specified URL.
 
@@ -292,7 +318,7 @@ class APIApplication(BaseApplication):
                    Example: {'file_field_name': ('filename.txt', open('file.txt', 'rb'), 'text/plain')}
 
         Returns:
-            httpx.Response: The response from the server
+            dict[str, Any] | str: Parsed JSON response if available, otherwise success message
 
         Raises:
             httpx.HTTPStatusError: If the request fails with detailed error information including response body
@@ -335,11 +361,10 @@ class APIApplication(BaseApplication):
                 content=data,  # Expect data to be bytes or str
                 params=params,
             )
-        self._handle_api_error(response)
         logger.debug(f"PUT request successful with status code: {response.status_code}")
-        return response
+        return self._handle_response(response)
 
-    def _delete(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
+    def _delete(self, url: str, params: dict[str, Any] | None = None) -> dict[str, Any] | str:
         """
         Make a DELETE request to the specified URL.
 
@@ -348,18 +373,17 @@ class APIApplication(BaseApplication):
             params: Optional query parameters
 
         Returns:
-            httpx.Response: The response from the server
+            dict[str, Any] | str: Parsed JSON response if available, otherwise success message
 
         Raises:
             httpx.HTTPStatusError: If the request fails with detailed error information including response body
         """
         logger.debug(f"Making DELETE request to {url} with params: {params}")
         response = self.client.delete(url, params=params, timeout=self.default_timeout)
-        self._handle_api_error(response)
         logger.debug(f"DELETE request successful with status code: {response.status_code}")
-        return response
+        return self._handle_response(response)
 
-    def _patch(self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None) -> httpx.Response:
+    def _patch(self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None) -> dict[str, Any] | str:
         """
         Make a PATCH request to the specified URL.
 
@@ -369,7 +393,7 @@ class APIApplication(BaseApplication):
             params: Optional query parameters
 
         Returns:
-            httpx.Response: The response from the server
+            dict[str, Any] | str: Parsed JSON response if available, otherwise success message
 
         Raises:
             httpx.HTTPStatusError: If the request fails with detailed error information including response body
@@ -380,9 +404,8 @@ class APIApplication(BaseApplication):
             json=data,
             params=params,
         )
-        self._handle_api_error(response)
         logger.debug(f"PATCH request successful with status code: {response.status_code}")
-        return response
+        return self._handle_response(response)
 
 
 class GraphQLApplication(BaseApplication):
