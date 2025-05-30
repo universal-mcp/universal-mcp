@@ -30,6 +30,8 @@ sys.path.append(str(UNIVERSAL_MCP_HOME))
 # Name are in the format of "app-name", eg, google-calendar
 # Class name is NameApp, eg, GoogleCalendarApp
 
+app_cache: dict[str, type[BaseApplication]] = {}
+
 
 def _install_or_upgrade_package(package_name: str, repository_path: str):
     """
@@ -71,6 +73,8 @@ def app_from_slug(slug: str):
     Dynamically resolve and return the application class for the given slug.
     Attempts installation from GitHub if the package is not found locally.
     """
+    if slug in app_cache:
+        return app_cache[slug]
     class_name = get_default_class_name(slug)
     module_path = get_default_module_path(slug)
     package_name = get_default_package_name(slug)
@@ -81,6 +85,7 @@ def app_from_slug(slug: str):
         module = importlib.import_module(module_path)
         class_ = getattr(module, class_name)
         logger.debug(f"Loaded class '{class_}' from module '{module_path}'")
+        app_cache[slug] = class_
         return class_
     except ModuleNotFoundError as e:
         raise ModuleNotFoundError(f"Package '{module_path}' not found locally. Please install it first.") from e
