@@ -1,5 +1,7 @@
 from loguru import logger
+
 from universal_mcp.tools.tools import Tool
+
 
 def check_application_instance(app_instance, app_name):
     assert app_instance is not None, f"Application object is None for {app_name}"

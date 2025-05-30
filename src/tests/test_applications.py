@@ -1,5 +1,4 @@
 import pytest
-from loguru import logger
 
 from universal_mcp.applications import app_from_slug
 from universal_mcp.utils.testing import check_application_instance
