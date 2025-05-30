@@ -162,7 +162,9 @@ class APIApplication(BaseApplication):
         Raises:
             httpx.HTTPStatusError: If the response indicates an error status, with full error details
         """
-        if response.is_error:
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
             try:
                 error_body = response.text if response.text else "<empty response>"
             except Exception:
@@ -174,9 +176,9 @@ class APIApplication(BaseApplication):
             logger.error(f"API Error: {error_message}")
             raise httpx.HTTPStatusError(
                 error_message,
-                request=response.request,
-                response=response,
-            )
+                request=exc.request,
+                response=exc.response,
+            ) from exc
 
     def _handle_response(self, response: httpx.Response) -> dict[str, Any] | str:
         """
@@ -192,7 +194,7 @@ class APIApplication(BaseApplication):
             dict[str, Any] | str: Parsed JSON data if response contains JSON, 
                                  otherwise a success message with status code
         """
-        #  check for errors
+        # Use enhanced error handling that includes response body context
         self._handle_api_error(response)
         
         # Try to parse as JSON first
