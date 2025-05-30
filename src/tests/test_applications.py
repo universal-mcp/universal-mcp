@@ -57,14 +57,15 @@ ALL_APPS = [
     "supabase",
     "tavily",
     "trello",
+    "unipile",
     "whatsapp-business",
     "wrike",
     "youtube",
-    "zenquotes",
-]
+    "zenquotes",]
 
 
 @pytest.mark.parametrize("app_name", ALL_APPS)
 def test_application(app_name):
     app = app_from_slug(app_name)
-    check_application_instance(app, app_name)
+    app_instance = app(integration=None)
+    check_application_instance(app_instance, app_name)
