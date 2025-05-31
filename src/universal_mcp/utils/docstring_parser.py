@@ -137,13 +137,8 @@ def parse_docstring(docstring: str | None) -> dict[str, Any]:
             )
         ):
             should_finalize_previous = True
-        elif (
-            current_section in ["args", "raises"]
-            and current_key is not None
-            or current_section in ["returns", "tags", "other"]
-            and current_desc_lines
-        ):
-            pass
+        elif current_section in ["args", "raises"] and current_key is not None or current_section in ["returns", "tags", "other"] and current_desc_lines:
+            pass 
 
         if should_finalize_previous:
             finalize_current_item()
