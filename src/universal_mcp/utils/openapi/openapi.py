@@ -845,8 +845,7 @@ def _generate_method_code(path, method, operation):
 
     raises_section_lines = [
         "Raises:",
-        "    HTTPError: Raised when the API request fails (e.g., non-2XX status code).",
-        "    JSONDecodeError: Raised if the response body cannot be parsed as JSON.",
+        "    HTTPStatusError: Raised when the API request fails with detailed error information including status code and response body.",
     ]
     docstring_parts.append("\n".join(raises_section_lines))
 
@@ -967,42 +966,36 @@ def _generate_method_code(path, method, operation):
     # --- Make HTTP Request ---
     # This section generates the actual HTTP call
     # using the prepared URL, query parameters, request body data, files, and content type.
+    # Use convenience methods that automatically handle responses and errors
 
     if method_lower == "get":
-        body_lines.append("        response = self._get(url, params=query_params)")
+        body_lines.append("        return self._get_json(url, params=query_params)")
     elif method_lower == "post":
         if selected_content_type == "multipart/form-data":
             body_lines.append(
-                f"        response = self._post(url, data=request_body_data, files=files_data, params=query_params, content_type='{final_content_type_for_api_call}')"
+                f"        return self._post_json(url, data=request_body_data, files=files_data, params=query_params, content_type='{final_content_type_for_api_call}')"
             )
         else:
             body_lines.append(
-                f"        response = self._post(url, data=request_body_data, params=query_params, content_type='{final_content_type_for_api_call}')"
+                f"        return self._post_json(url, data=request_body_data, params=query_params, content_type='{final_content_type_for_api_call}')"
             )
     elif method_lower == "put":
         if selected_content_type == "multipart/form-data":
             body_lines.append(
-                f"        response = self._put(url, data=request_body_data, files=files_data, params=query_params, content_type='{final_content_type_for_api_call}')"
+                f"        return self._put_json(url, data=request_body_data, files=files_data, params=query_params, content_type='{final_content_type_for_api_call}')"
             )
         else:
             body_lines.append(
-                f"        response = self._put(url, data=request_body_data, params=query_params, content_type='{final_content_type_for_api_call}')"
+                f"        return self._put_json(url, data=request_body_data, params=query_params, content_type='{final_content_type_for_api_call}')"
             )
     elif method_lower == "patch":
-        body_lines.append("        response = self._patch(url, data=request_body_data, params=query_params)")
+        body_lines.append("        return self._patch_json(url, data=request_body_data, params=query_params)")
     elif method_lower == "delete":
-        body_lines.append("        response = self._delete(url, params=query_params)")
+        body_lines.append("        return self._delete_json(url, params=query_params)")
     else:
-        body_lines.append(f"        response = self._{method_lower}(url, data=request_body_data, params=query_params)")
+        body_lines.append(f"        return self._{method_lower}_json(url, data=request_body_data, params=query_params)")
 
-    # --- Handle Response ---
-    body_lines.append("        response.raise_for_status()")
-    body_lines.append("        if response.status_code == 204 or not response.content or not response.text.strip():")
-    body_lines.append("            return None")
-    body_lines.append("        try:")
-    body_lines.append("            return response.json()")
-    body_lines.append("        except ValueError:")
-    body_lines.append("            return None")
+    # No need for manual response handling anymore - convenience methods handle it automatically
 
     # --- Combine Signature, Docstring, and Body for Final Method Code ---
     method_code = signature + formatted_docstring + "\n" + "\n".join(body_lines)
