@@ -26,6 +26,21 @@ class APISegmentBase:
 
     def _delete(self, url: str, params: dict = None, **kwargs):
         return self.main_app_client._delete(url, params=params, **kwargs)
+
+    def _get_json(self, url: str, params: dict = None, **kwargs):
+        return self.main_app_client._get_json(url, params=params, **kwargs)
+
+    def _post_json(self, url: str, data: Any = None, files: Any = None, params: dict = None, content_type: str = "application/json", **kwargs):
+        return self.main_app_client._post_json(url, data=data, files=files, params=params, content_type=content_type, **kwargs)
+
+    def _put_json(self, url: str, data: Any = None, files: Any = None, params: dict = None, content_type: str = "application/json", **kwargs):
+        return self.main_app_client._put_json(url, data=data, files=files, params=params, content_type=content_type, **kwargs)
+
+    def _patch_json(self, url: str, data: Any = None, params: dict = None, **kwargs):
+        return self.main_app_client._patch_json(url, data=data, params=params, **kwargs)
+
+    def _delete_json(self, url: str, params: dict = None, **kwargs):
+        return self.main_app_client._delete_json(url, params=params, **kwargs)
 """
 
 
