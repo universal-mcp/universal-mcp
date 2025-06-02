@@ -14,6 +14,55 @@ from pydantic.fields import FieldInfo
 from pydantic_core import PydanticUndefined
 
 
+def _map_docstring_type_to_python_type(type_str: str | None) -> Any:
+    """Maps common docstring type strings to Python types."""
+    if not type_str:
+        return Any
+    type_str_lower = type_str.lower()
+    mapping = {
+        "str": str,
+        "string": str,
+        "int": int,
+        "integer": int,
+        "float": float,
+        "number": float,
+        "bool": bool,
+        "boolean": bool,
+        "list": list,
+        "array": list,
+        "dict": dict,
+        "object": dict,
+        "any": Any,
+    }
+    return mapping.get(type_str_lower, Any)
+
+
+def _map_docstring_type_to_schema_type(type_str: str | None) -> str:
+    """Maps common docstring type strings to JSON schema type strings."""
+    # This function might not be strictly needed if Pydantic correctly infers
+    # schema types from Python types, but kept for explicitness if used.
+    # The primary use-case now is for json_schema_extra for untyped Any.
+    if not type_str:
+        return "string"
+    type_str_lower = type_str.lower()
+    mapping = {
+        "str": "string",
+        "string": "string",
+        "int": "integer",
+        "integer": "integer",
+        "float": "number",
+        "number": "number",
+        "bool": "boolean",
+        "boolean": "boolean",
+        "list": "array",
+        "array": "array",
+        "dict": "object",
+        "object": "object",
+        "any": "string",
+    }
+    return mapping.get(type_str_lower, "string")
+
+
 def _get_typed_annotation(annotation: Any, globalns: dict[str, Any]) -> Any:
     def try_eval_type(value: Any, globalns: dict[str, Any], localns: dict[str, Any]) -> tuple[Any, bool]:
         try:
@@ -25,8 +74,6 @@ def _get_typed_annotation(annotation: Any, globalns: dict[str, Any]) -> Any:
         annotation = ForwardRef(annotation)
         annotation, status = try_eval_type(annotation, globalns, globalns)
 
-        # This check and raise could perhaps be skipped, and we (FastMCP) just call
-        # model_rebuild right before using it 🤷
         if status is False:
             raise InvalidSignature(f"Unable to evaluate type annotation {annotation}")
 
@@ -34,7 +81,6 @@ def _get_typed_annotation(annotation: Any, globalns: dict[str, Any]) -> Any:
 
 
 def _get_typed_signature(call: Callable[..., Any]) -> inspect.Signature:
-    """Get function signature while evaluating forward references"""
     signature = inspect.signature(call)
     globalns = getattr(call, "__globals__", {})
     typed_params = [
@@ -51,13 +97,7 @@ def _get_typed_signature(call: Callable[..., Any]) -> inspect.Signature:
 
 
 class ArgModelBase(BaseModel):
-    """A model representing the arguments to a function."""
-
     def model_dump_one_level(self) -> dict[str, Any]:
-        """Return a dict of the model's fields, one level deep.
-
-        That is, sub-models etc are not dumped - they are kept as pydantic models.
-        """
         kwargs: dict[str, Any] = {}
         for field_name in self.__class__.model_fields:
             kwargs[field_name] = getattr(self, field_name)
@@ -70,9 +110,6 @@ class ArgModelBase(BaseModel):
 
 class FuncMetadata(BaseModel):
     arg_model: Annotated[type[ArgModelBase], WithJsonSchema(None)]
-    # We can add things in the future like
-    #  - Maybe some args are excluded from attempting to parse from JSON
-    #  - Maybe some args are special (like context) for dependency injection
 
     async def call_fn_with_arg_validation(
         self,
@@ -82,11 +119,6 @@ class FuncMetadata(BaseModel):
         arguments_to_pass_directly: dict[str, Any] | None,
         context: dict[str, Any] | None = None,
     ) -> Any:
-        """Call the given function with arguments validated and injected.
-
-        Arguments are first attempted to be parsed from JSON, then validated against
-        the argument model, before being passed to the function.
-        """
         arguments_pre_parsed = self.pre_parse_json(arguments_to_validate)
         arguments_parsed_model = self.arg_model.model_validate(arguments_pre_parsed)
         arguments_parsed_dict = arguments_parsed_model.model_dump_one_level()
@@ -102,17 +134,7 @@ class FuncMetadata(BaseModel):
         raise TypeError("fn must be either Callable or Awaitable")
 
     def pre_parse_json(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Pre-parse data from JSON.
-
-        Return a dict with same keys as input but with values parsed from JSON
-        if appropriate.
-
-        This is to handle cases like `["a", "b", "c"]` being passed in as JSON inside
-        a string rather than an actual list. Claude desktop is prone to this - in fact
-        it seems incapable of NOT doing this. For sub-models, it tends to pass
-        dicts (JSON objects) as JSON strings, which can be pre-parsed here.
-        """
-        new_data = data.copy()  # Shallow copy
+        new_data = data.copy()
         for field_name, _field_info in self.arg_model.model_fields.items():
             if field_name not in data:
                 continue
@@ -120,11 +142,8 @@ class FuncMetadata(BaseModel):
                 try:
                     pre_parsed = json.loads(data[field_name])
                 except json.JSONDecodeError:
-                    continue  # Not JSON - skip
+                    continue
                 if isinstance(pre_parsed, str | int | float):
-                    # This is likely that the raw value is e.g. `"hello"` which we
-                    # Should really be parsed as '"hello"' in Python - but if we parse
-                    # it as JSON it'll turn into just 'hello'. So we skip it.
                     continue
                 new_data[field_name] = pre_parsed
         assert new_data.keys() == data.keys()
@@ -139,73 +158,131 @@ class FuncMetadata(BaseModel):
         cls,
         func: Callable[..., Any],
         skip_names: Sequence[str] = (),
-        arg_description: dict[str, str] | None = None,
+        arg_description: dict[str, dict[str, str | None]] | None = None,
     ) -> "FuncMetadata":
-        """Given a function, return metadata including a pydantic model representing its
-        signature.
-
-        The use case for this is
-        ```
-        meta = func_to_pyd(func)
-        validated_args = meta.arg_model.model_validate(some_raw_data_dict)
-        return func(**validated_args.model_dump_one_level())
-        ```
-
-        **critically** it also provides pre-parse helper to attempt to parse things from
-        JSON.
-
-        Args:
-            func: The function to convert to a pydantic model
-            skip_names: A list of parameter names to skip. These will not be included in
-                the model.
-        Returns:
-            A pydantic model representing the function's signature.
-        """
         sig = _get_typed_signature(func)
         params = sig.parameters
         dynamic_pydantic_model_params: dict[str, Any] = {}
         globalns = getattr(func, "__globals__", {})
+        arg_description_map = arg_description or {}
+
         for param in params.values():
             if param.name.startswith("_"):
                 raise InvalidSignature(f"Parameter {param.name} of {func.__name__} cannot start with '_'")
             if param.name in skip_names:
                 continue
-            annotation = param.annotation
 
-            # `x: None` / `x: None = None`
-            if annotation is None:
-                annotation = Annotated[
-                    None,
-                    Field(default=param.default if param.default is not inspect.Parameter.empty else PydanticUndefined),
-                ]
+            sig_annotation = param.annotation
+            default_val = param.default if param.default is not inspect.Parameter.empty else PydanticUndefined
 
-            # Untyped field
-            if annotation is inspect.Parameter.empty:
-                annotation = Annotated[
-                    Any,
-                    Field(),
-                    # 🤷
-                    WithJsonSchema({"title": param.name, "type": "string"}),
-                ]
+            param_doc_info = arg_description_map.get(param.name, {})
+            docstring_description = param_doc_info.get("description")
+            docstring_type_str = param_doc_info.get("type_str")
 
-            field_info = FieldInfo.from_annotated_attribute(
-                _get_typed_annotation(annotation, globalns),
-                param.default if param.default is not inspect.Parameter.empty else PydanticUndefined,
-            )
-            if not field_info.title:
+            annotation_for_field_builder: Any
+
+            if sig_annotation is None:
+                annotation_for_field_builder = type(None)
+            elif sig_annotation is inspect.Parameter.empty:
+                py_type_from_doc = _map_docstring_type_to_python_type(docstring_type_str)
+
+                if py_type_from_doc is Any and not docstring_type_str:
+                    schema_type_for_any = _map_docstring_type_to_schema_type(docstring_type_str)
+                    annotation_for_field_builder = Annotated[
+                        Any, Field(json_schema_extra={"type": schema_type_for_any})
+                    ]
+                else:
+                    annotation_for_field_builder = py_type_from_doc
+            else:  # Parameter has a type hint in the signature
+                annotation_for_field_builder = _get_typed_annotation(sig_annotation, globalns)
+
+            field_info = FieldInfo.from_annotated_attribute(annotation_for_field_builder, default_val)
+
+            if field_info.description is None and docstring_description:
+                field_info.description = docstring_description
+
+            if field_info.title is None:
                 field_info.title = param.name
-            if not field_info.description and arg_description and arg_description.get(param.name):
-                field_info.description = arg_description.get(param.name)
-            dynamic_pydantic_model_params[param.name] = (
-                field_info.annotation,
-                field_info,
-            )
-            continue
+
+            core_type_for_model = field_info.annotation
+
+            dynamic_pydantic_model_params[param.name] = (core_type_for_model, field_info)
 
         arguments_model = create_model(
             f"{func.__name__}Arguments",
             **dynamic_pydantic_model_params,
             __base__=ArgModelBase,
         )
-        resp = FuncMetadata(arg_model=arguments_model)
-        return resp
+        return FuncMetadata(arg_model=arguments_model)
+
+
+if __name__ == "__main__":
+    import sys
+    from pathlib import Path
+
+    current_file = Path(__file__).resolve()
+    package_source_parent_dir = current_file.parent.parent.parent
+
+    if str(package_source_parent_dir) not in sys.path:
+        sys.path.insert(0, str(package_source_parent_dir))
+        print(f"DEBUG: Added to sys.path: {package_source_parent_dir}")
+
+    from universal_mcp.utils.docstring_parser import parse_docstring
+
+    def post_crm_v_objects_emails_create(self, associations, properties) -> dict[str, Any]:
+        """
+
+        Creates an email object in the CRM using the POST method, allowing for the association of metadata with the email and requiring authentication via OAuth2 or private apps to access the necessary permissions.
+
+        Args:
+            associations (array): associations Example: [{Category': 'HUBSPOT_DEFINED', 'associationTypeId': 2}]}].
+            properties (object): No description provided. Example: "{'ncy': 'monthly'}".
+
+        Returns:
+            dict[str, Any]: successful operation
+
+        Raises:
+            HTTPError: Raised when the API request fails (e.g., non-2XX status code).
+            JSONDecodeError: Raised if the response body cannot be parsed as JSON.
+
+        Tags:
+            Basic
+        """
+        request_body_data = None
+        request_body_data = {"associations": associations, "properties": properties}
+        request_body_data = {k: v for k, v in request_body_data.items() if v is not None}
+        url = f"{self.main_app_client.base_url}/crm/v3/objects/emails"
+        query_params = {}
+        response = self._post(url, data=request_body_data, params=query_params, content_type="application/json")
+        response.raise_for_status()
+        if response.status_code == 204 or not response.content or (not response.text.strip()):
+            return None
+        try:
+            return response.json()
+        except ValueError:
+            return None
+
+    print("--- Testing FuncMetadata with get_weather function ---")
+
+    raw_doc = inspect.getdoc(post_crm_v_objects_emails_create)
+    parsed_doc_info = parse_docstring(raw_doc)
+    arg_descriptions_from_doc = parsed_doc_info.get("args", {})  # Extract just the args part
+
+    print("\n1. Parsed Argument Descriptions from Docstring (for FuncMetadata input):")
+    print(json.dumps(arg_descriptions_from_doc, indent=2))
+
+    # 2. Create FuncMetadata instance
+    # The arg_description parameter expects a dict mapping arg name to its details
+    func_arg_metadata_instance = FuncMetadata.func_metadata(
+        post_crm_v_objects_emails_create, arg_description=arg_descriptions_from_doc
+    )
+
+    print("\n2. FuncMetadata Instance (its __repr__):")
+    print(func_arg_metadata_instance)
+
+    # 3. Get and print the JSON schema for the arguments model
+    parameters_schema = func_arg_metadata_instance.arg_model.model_json_schema()
+    print("\n3. Generated JSON Schema for Parameters (from arg_model.model_json_schema()):")
+    print(json.dumps(parameters_schema, indent=2))
+
+    print("\n--- Test Complete ---")

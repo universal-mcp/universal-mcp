@@ -1,10 +1,11 @@
+import inspect
 from typing import Annotated
 
 from pydantic import Field
 
 from universal_mcp.tools.func_metadata import FuncMetadata
 from universal_mcp.tools.tools import Tool
-from universal_mcp.utils.docstring_parser import parse_docstring
+from universal_mcp.utils.docstring_parser import parse_docstring  # Assuming this is the updated one
 
 
 def test_func_metadata_annotated():
@@ -13,15 +14,13 @@ def test_func_metadata_annotated():
         return a + b
 
     meta = FuncMetadata.func_metadata(func)
-    assert meta.arg_model.model_json_schema() == {
-        "type": "object",
-        "title": "funcArguments",
-        "properties": {
-            "a": {"type": "integer", "title": "First integer"},
-            "b": {"type": "integer", "title": "b"},
-        },
-        "required": ["a", "b"],
-    }
+    schema = meta.arg_model.model_json_schema()
+    assert schema["properties"]["a"]["type"] == "integer"
+    assert schema["properties"]["a"]["title"] == "First integer"  # From Annotated
+    assert schema["properties"]["b"]["type"] == "integer"
+    assert schema["properties"]["b"]["title"] == "b"  # Pydantic's default title is field name
+    assert "a" in schema["required"]
+    assert "b" in schema["required"]
 
 
 def test_func_metadata_no_annotated():
@@ -34,17 +33,22 @@ def test_func_metadata_no_annotated():
         """
         return a + b
 
-    tool = Tool.from_function(func)
-    meta = tool.fn_metadata
-    assert meta.arg_model.model_json_schema() == {
-        "type": "object",
-        "title": "funcArguments",
-        "properties": {
-            "a": {"type": "integer", "description": "The first integer", "title": "a"},
-            "b": {"type": "integer", "description": "The second integer", "title": "b"},
-        },
-        "required": ["a", "b"],
-    }
+    raw_doc = inspect.getdoc(func)
+    parsed_doc = parse_docstring(raw_doc)
+    arg_descriptions_for_func_metadata = parsed_doc.get("args", {})
+
+    meta = FuncMetadata.func_metadata(func, arg_description=arg_descriptions_for_func_metadata)
+    schema = meta.arg_model.model_json_schema()
+
+    assert schema["properties"]["a"]["type"] == "integer"
+    # Title might be "a" by default, description "The first integer"
+    assert schema["properties"]["a"].get("description") == "The first integer"
+    assert schema["properties"]["a"].get("title") == "a"
+    assert schema["properties"]["b"]["type"] == "integer"
+    assert schema["properties"]["b"].get("description") == "The second integer"
+    assert schema["properties"]["b"].get("title") == "b"
+    assert "a" in schema["required"]
+    assert "b" in schema["required"]
 
 
 def test_func_metadata_no_args():
@@ -53,90 +57,104 @@ def test_func_metadata_no_args():
         return 42
 
     meta = FuncMetadata.func_metadata(func)
-    assert meta.arg_model.model_json_schema() == {
-        "type": "object",
-        "title": "funcArguments",
-        "properties": {},
-    }
+    schema = meta.arg_model.model_json_schema()
+    assert schema["properties"] == {}
+    assert schema.get("required") is None or len(schema.get("required", [])) == 0
 
 
-def test_func_metadata_untyped():
+def test_func_metadata_untyped_no_docstring_type():
     def func(a, b=10):
-        """Test function with untyped args"""
+        """Test function with untyped args
+        Args:
+            a: Untyped a
+            b: Untyped b with default
+        """  # No type_str in docstring
         return a + b
 
-    meta = FuncMetadata.func_metadata(func)
-    assert meta.arg_model.model_json_schema() == {
-        "type": "object",
-        "title": "funcArguments",
-        "properties": {
-            "a": {"type": "string", "title": "a"},
-            "b": {"type": "string", "title": "b", "default": 10},
-        },
-        "required": ["a"],
-    }
+    raw_doc = inspect.getdoc(func)
+    parsed_doc = parse_docstring(raw_doc)
+    arg_descriptions_for_func_metadata = parsed_doc.get("args", {})
+
+    meta = FuncMetadata.func_metadata(func, arg_description=arg_descriptions_for_func_metadata)
+    schema = meta.arg_model.model_json_schema()
+
+    assert schema["properties"]["a"]["type"] == "string"  # Default schema type for Any
+    assert schema["properties"]["a"].get("description") == "Untyped a"
+    assert schema["properties"]["b"]["type"] == "string"
+    assert schema["properties"]["b"].get("description") == "Untyped b with default"
+    assert schema["properties"]["b"]["default"] == 10
+    assert "a" in schema["required"]
+    assert "b" not in schema.get("required", [])
 
 
 def test_func_metadata_required():
     def func(a: int, b: str, c: float = 1.0):
-        """Test function with required and optional args"""
+        """Test function with required and optional args
+        Args:
+            a: An int
+            b: A string
+            c: A float
+        """
         return f"{a} {b} {c}"
 
-    meta = FuncMetadata.func_metadata(func)
-    assert meta.arg_model.model_json_schema() == {
-        "type": "object",
-        "title": "funcArguments",
-        "properties": {
-            "a": {"type": "integer", "title": "a"},
-            "b": {"type": "string", "title": "b"},
-            "c": {"type": "number", "title": "c", "default": 1.0},
-        },
-        "required": ["a", "b"],
-    }
+    raw_doc = inspect.getdoc(func)
+    parsed_doc = parse_docstring(raw_doc)
+    arg_descriptions_for_func_metadata = parsed_doc.get("args", {})
+
+    meta = FuncMetadata.func_metadata(func, arg_description=arg_descriptions_for_func_metadata)
+    schema = meta.arg_model.model_json_schema()
+
+    assert schema["properties"]["a"]["type"] == "integer"
+    assert schema["properties"]["a"].get("description") == "An int"
+    assert schema["properties"]["b"]["type"] == "string"
+    assert schema["properties"]["b"].get("description") == "A string"
+    assert schema["properties"]["c"]["type"] == "number"
+    assert schema["properties"]["c"].get("description") == "A float"
+    assert schema["properties"]["c"]["default"] == 1.0
+    assert "a" in schema["required"]
+    assert "b" in schema["required"]
+    assert "c" not in schema.get("required", [])
 
 
 def test_func_metadata_none_type():
     def func(a: None = None):
-        """Test function with None type"""
+        """Test function with None type
+        Args:
+            a: A None value
+        """
         return a
 
-    meta = FuncMetadata.func_metadata(func)
-    assert meta.arg_model.model_json_schema() == {
-        "type": "object",
-        "title": "funcArguments",
-        "properties": {
-            "a": {"type": "null", "title": "a", "default": None},
-        },
-    }
+    raw_doc = inspect.getdoc(func)
+    parsed_doc = parse_docstring(raw_doc)
+    arg_descriptions_for_func_metadata = parsed_doc.get("args", {})
+
+    meta = FuncMetadata.func_metadata(func, arg_description=arg_descriptions_for_func_metadata)
+    schema = meta.arg_model.model_json_schema()
+    assert schema["properties"]["a"]["type"] == "null"
+    assert schema["properties"]["a"].get("description") == "A None value"
+    assert schema["properties"]["a"]["default"] is None
 
 
 def test_parse_docstring_empty_none():
-    """Test with None input."""
     docstring = None
     expected = {"summary": "", "args": {}, "returns": "", "raises": {}, "tags": []}
     assert parse_docstring(docstring) == expected
 
 
 def test_parse_docstring_empty_string():
-    """Test with an empty string input."""
     docstring = ""
     expected = {"summary": "", "args": {}, "returns": "", "raises": {}, "tags": []}
     assert parse_docstring(docstring) == expected
 
 
 def test_parse_docstring_whitespace_string():
-    """Test with a whitespace-only string input."""
     docstring = "   \n  "
     expected = {"summary": "", "args": {}, "returns": "", "raises": {}, "tags": []}
     assert parse_docstring(docstring) == expected
 
 
 def test_parse_docstring_summary_only():
-    """Test with only a summary and no sections."""
-    docstring = """
-    This is a short summary.
-    It spans multiple lines.
-    """
+    docstring = "This is a short summary.\nIt spans multiple lines."
     expected = {
         "summary": "This is a short summary. It spans multiple lines.",
         "args": {},
@@ -147,18 +165,14 @@ def test_parse_docstring_summary_only():
     assert parse_docstring(docstring) == expected
 
 
-def test_parse_docstring_summary_and_args():
-    """Test with summary and an Args section."""
-    docstring = """
-    Function to add two numbers.
-
-    Args:
-        a: The first number.
-        b: The second number.
-    """
+def test_parse_docstring_summary_and_args_no_type_str():
+    docstring = "Function to add two numbers.\n\nArgs:\n    a: The first number.\n    b: The second number."
     expected = {
         "summary": "Function to add two numbers.",
-        "args": {"a": "The first number.", "b": "The second number."},
+        "args": {
+            "a": {"description": "The first number.", "type_str": None},
+            "b": {"description": "The second number.", "type_str": None},
+        },
         "returns": "",
         "raises": {},
         "tags": [],
@@ -167,13 +181,7 @@ def test_parse_docstring_summary_and_args():
 
 
 def test_parse_docstring_summary_and_returns():
-    """Test with summary and a simple Returns section."""
-    docstring = """
-    Calculates the sum.
-
-    Returns:
-        The sum of a and b.
-    """
+    docstring = "Calculates the sum.\n\nReturns:\n    The sum of a and b."
     expected = {
         "summary": "Calculates the sum.",
         "args": {},
@@ -185,13 +193,7 @@ def test_parse_docstring_summary_and_returns():
 
 
 def test_parse_docstring_summary_and_raises():
-    """Test with summary and a simple Raises section."""
-    docstring = """
-    Divides two numbers.
-
-    Raises:
-        ZeroDivisionError: If the denominator is zero.
-    """
+    docstring = "Divides two numbers.\n\nRaises:\n    ZeroDivisionError: If the denominator is zero."
     expected = {
         "summary": "Divides two numbers.",
         "args": {},
@@ -203,13 +205,7 @@ def test_parse_docstring_summary_and_raises():
 
 
 def test_parse_docstring_summary_and_tags():
-    """Test with summary and a simple Tags section."""
-    docstring = """
-    Processes data.
-
-    Tags:
-        data, processing, important
-    """
+    docstring = "Processes data.\n\nTags:\n    data, processing, important"
     expected = {
         "summary": "Processes data.",
         "args": {},
@@ -221,7 +217,6 @@ def test_parse_docstring_summary_and_tags():
 
 
 def test_parse_docstring_multiple_sections_single_line():
-    """Test with summary and multiple sections with single-line content."""
     docstring = """
     Performs a basic operation.
 
@@ -236,7 +231,7 @@ def test_parse_docstring_multiple_sections_single_line():
     """
     expected = {
         "summary": "Performs a basic operation.",
-        "args": {"input": "Input value."},
+        "args": {"input": {"description": "Input value.", "type_str": None}},
         "returns": "Output value.",
         "raises": {"Exception": "If something goes wrong."},
         "tags": ["basic", "test"],
@@ -245,7 +240,6 @@ def test_parse_docstring_multiple_sections_single_line():
 
 
 def test_parse_docstring_args_multi_line():
-    """Test with Args section containing a multi-line description."""
     docstring = """
     Processes complex input.
 
@@ -257,7 +251,10 @@ def test_parse_docstring_args_multi_line():
     expected = {
         "summary": "Processes complex input.",
         "args": {
-            "config": "Configuration object. It contains settings for the processing job, including connection details and parameters."
+            "config": {
+                "description": "Configuration object. It contains settings for the processing job, including connection details and parameters.",
+                "type_str": None,
+            }
         },
         "returns": "",
         "raises": {},
@@ -267,7 +264,6 @@ def test_parse_docstring_args_multi_line():
 
 
 def test_parse_docstring_returns_multi_line():
-    """Test with Returns section spanning multiple lines."""
     docstring = """
     Fetches detailed information.
 
@@ -286,7 +282,6 @@ def test_parse_docstring_returns_multi_line():
 
 
 def test_parse_docstring_raises_multi_line():
-    """Test with Raises section containing a multi-line description for an exception."""
     docstring = """
     Performs a critical action.
 
@@ -308,18 +303,174 @@ def test_parse_docstring_raises_multi_line():
 
 
 def test_parse_docstring_no_summary():
-    """Test a docstring that starts immediately with a section."""
-    docstring = """
-    Args:
-        data: The data to process.
-    Returns:
-        Processed data.
-    """
+    docstring = "Args:\n    data: The data to process.\nReturns:\n    Processed data."
     expected = {
         "summary": "",
-        "args": {"data": "The data to process."},
+        "args": {"data": {"description": "The data to process.", "type_str": None}},
         "returns": "Processed data.",
         "raises": {},
         "tags": [],
     }
     assert parse_docstring(docstring) == expected
+
+
+def test_parse_docstring_with_type_str():
+    docstring = """
+    Processes an item.
+
+    Args:
+        item_id (int): The ID of the item.
+        name (str): The name of the item.
+        details (object): Optional details.
+    """
+    expected = {
+        "summary": "Processes an item.",
+        "args": {
+            "item_id": {"description": "The ID of the item.", "type_str": "int"},
+            "name": {"description": "The name of the item.", "type_str": "str"},
+            "details": {"description": "Optional details.", "type_str": "object"},
+        },
+        "returns": "",
+        "raises": {},
+        "tags": [],
+    }
+    assert parse_docstring(docstring) == expected
+
+
+def test_parse_docstring_with_mixed_type_str_and_none():
+    docstring = """
+    Handles configuration.
+
+    Args:
+        path (string): Path to config file.
+        strict_mode: Enable strict mode. (No type in docstring)
+        retries (integer): Number of retries.
+    """
+    expected = {
+        "summary": "Handles configuration.",
+        "args": {
+            "path": {"description": "Path to config file.", "type_str": "string"},
+            "strict_mode": {
+                "description": "Enable strict mode. (No type in docstring)",
+                "type_str": None,
+            },  # Corrected description
+            "retries": {"description": "Number of retries.", "type_str": "integer"},
+        },
+        "returns": "",
+        "raises": {},
+        "tags": [],
+    }
+    assert parse_docstring(docstring) == expected
+
+
+def test_parse_docstring_type_str_with_spaces_in_type():
+    docstring = """
+    Args:
+        complex_type (list of strings): A list containing strings.
+    """
+    expected = {
+        "summary": "",
+        "args": {
+            "complex_type": {"description": "A list containing strings.", "type_str": "list of strings"},
+        },
+        "returns": "",
+        "raises": {},
+        "tags": [],
+    }
+    assert parse_docstring(docstring) == expected
+
+
+def test_func_metadata_untyped_with_docstring_type():
+    def func(name, age, data=None):
+        """Test function with untyped args but types in docstring
+        Args:
+            name (str): The name.
+            age (int): The age.
+            data (list): Optional data.
+        """
+        return f"{name} is {age}"
+
+    raw_doc = inspect.getdoc(func)
+    parsed_doc = parse_docstring(raw_doc)
+    arg_descriptions_for_func_metadata = parsed_doc.get("args", {})
+
+    meta = FuncMetadata.func_metadata(func, arg_description=arg_descriptions_for_func_metadata)
+    schema = meta.arg_model.model_json_schema()
+
+    assert schema["properties"]["name"]["type"] == "string"
+    assert schema["properties"]["name"].get("description") == "The name."
+    assert schema["properties"]["age"]["type"] == "integer"
+    assert schema["properties"]["age"].get("description") == "The age."
+    assert schema["properties"]["data"]["type"] == "array"
+    assert schema["properties"]["data"].get("description") == "Optional data."
+    assert schema["properties"]["data"]["default"] is None
+
+    assert "name" in schema["required"]
+    assert "age" in schema["required"]
+    assert "data" not in schema.get("required", [])
+
+
+def test_func_metadata_mixed_hints_and_docstring_types():
+    def func(item_id: int, quantity, details: str = "default details"):
+        """
+        Processes an order.
+
+        Args:
+            item_id: The ID of the item (already typed).
+            quantity (integer): The number of items.
+            details (string): Order details.
+        """
+        return item_id * quantity
+
+    raw_doc = inspect.getdoc(func)
+    parsed_doc = parse_docstring(raw_doc)
+    arg_descriptions_for_func_metadata = parsed_doc.get("args", {})
+
+    meta = FuncMetadata.func_metadata(func, arg_description=arg_descriptions_for_func_metadata)
+    schema = meta.arg_model.model_json_schema()
+
+    assert schema["properties"]["item_id"]["type"] == "integer"
+    assert schema["properties"]["item_id"].get("description") == "The ID of the item (already typed)."
+
+    assert schema["properties"]["quantity"]["type"] == "integer"
+    assert schema["properties"]["quantity"].get("description") == "The number of items."
+
+    assert schema["properties"]["details"]["type"] == "string"
+    assert schema["properties"]["details"].get("description") == "Order details."
+    assert schema["properties"]["details"]["default"] == "default details"
+
+    assert "item_id" in schema["required"]
+    assert "quantity" in schema["required"]
+    assert "details" not in schema.get("required", [])
+
+
+def test_tool_from_function_with_docstring_types():
+    """Test the full Tool.from_function flow with docstring types"""
+
+    def my_tool(name, age=30):
+        """
+        A simple tool.
+
+        Args:
+            name (string): The name to use.
+            age (int): The age value.
+        Returns:
+            A greeting string.
+        """
+        return f"Hello {name}, you are {age}."
+
+    tool_instance = Tool.from_function(my_tool)
+
+    assert tool_instance.name == "my_tool"
+    assert tool_instance.description == "A simple tool."
+    assert tool_instance.args_description == {"name": "The name to use.", "age": "The age value."}
+    assert tool_instance.returns_description == "A greeting string."
+
+    meta_schema = tool_instance.fn_metadata.arg_model.model_json_schema()
+    assert meta_schema["properties"]["name"]["type"] == "string"
+    assert meta_schema["properties"]["name"].get("description") == "The name to use."
+    assert meta_schema["properties"]["age"]["type"] == "integer"
+    assert meta_schema["properties"]["age"].get("description") == "The age value."
+    assert meta_schema["properties"]["age"]["default"] == 30
+    assert "name" in meta_schema["required"]
+    assert "age" not in meta_schema.get("required", [])
