@@ -149,64 +149,29 @@ class APIApplication(BaseApplication):
             )
         return self._client
 
-    def _handle_api_error(self, response: httpx.Response) -> None:
+    def _handle_response(self, response: httpx.Response) -> dict[str, Any]:
         """
-        Handle API errors with full error context including status code and response body.
-        
-        This provides complete error information to LLMs including the actual API error
-        response body, not just the HTTP status code.
-        
+        Handle API responses by checking for errors and parsing the response appropriately.
+
+        This method:
+        1. Checks for API errors and provides detailed error context including status code and response body
+        2. For successful responses, automatically parses JSON or returns success message
+
         Args:
-            response: The HTTP response to check for errors
-            
+            response: The HTTP response to process
+
+        Returns:
+            dict[str, Any] | str: Parsed JSON data if response contains JSON,
+                                 otherwise a success message with status code
+
         Raises:
             httpx.HTTPStatusError: If the response indicates an error status, with full error details
         """
+        response.raise_for_status()
         try:
-            response.raise_for_status()
-        except httpx.HTTPStatusError as exc:
-            try:
-                error_body = response.text if response.text else "<empty response>"
-            except Exception:
-                error_body = "<unable to read response>"
-            
-            # Create detailed error message with status code and full response
-            error_message = f"HTTP {response.status_code}: {error_body}"
-            
-            logger.error(f"API Error: {error_message}")
-            raise httpx.HTTPStatusError(
-                error_message,
-                request=exc.request,
-                response=exc.response,
-            ) from exc
-
-    def _handle_response(self, response: httpx.Response) -> dict[str, Any] | str:
-        """
-        Handle successful API responses by automatically parsing JSON or returning success message.
-        
-        This method automatically handles JSON parsing for responses that contain JSON data,
-        and returns appropriate success messages for operations that don't return JSON (like DELETE).
-        
-        Args:
-            response: The HTTP response to process
-            
-        Returns:
-            dict[str, Any] | str: Parsed JSON data if response contains JSON, 
-                                 otherwise a success message with status code
-        """
-        # Use enhanced error handling that includes response body context
-        self._handle_api_error(response)
-        
-        # Try to parse as JSON first
-        try:
-            if response.text.strip():  
-                return response.json()
+            return response.json()
         except Exception:
-            # If JSON parsing fails or response is empty, return success message
-            pass
-        
-        # For non-JSON responses (like DELETE operations), return success message
-        return f"Success: HTTP {response.status_code}"
+            return {"status": "success", "status_code": response.status_code, "text": response.text}
 
     def _get(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
         """

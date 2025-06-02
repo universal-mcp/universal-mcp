@@ -85,8 +85,9 @@ class Tool(BaseModel):
         except NotAuthorizedError as e:
             message = f"Not authorized to call tool {self.name}: {e.message}"
             return message
-        except httpx.HTTPError as e:
-            message = f"HTTP error calling tool {self.name}: {str(e)}"
+        except httpx.HTTPStatusError as e:
+            error_body = e.response.text or "<empty response>"
+            message = f"HTTP {e.response.status_code}: {error_body}"
             raise ToolError(message) from e
         except ValueError as e:
             message = f"Invalid arguments for tool {self.name}: {e}"
