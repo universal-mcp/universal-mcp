@@ -325,7 +325,7 @@ class AgentRIntegration(Integration):
         ValueError: If no API key is provided or found in environment variables
     """
 
-    def __init__(self, name: str, api_key: str, **kwargs):
+    def __init__(self, name: str, api_key: str | None = None, **kwargs):
         super().__init__(name, **kwargs)
         self.client = AgentrClient(api_key=api_key)
         self._credentials = None
