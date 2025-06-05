@@ -971,33 +971,37 @@ def _generate_method_code(path, method, operation):
     # Use convenience methods that automatically handle responses and errors
 
     if method_lower == "get":
-        body_lines.append("        return self._get_json(url, params=query_params)")
+        body_lines.append("        response = self._get(url, params=query_params)")
+        body_lines.append("        return self._handle_response(response)")
     elif method_lower == "post":
         if selected_content_type == "multipart/form-data":
             body_lines.append(
-                f"        return self._post_json(url, data=request_body_data, files=files_data, params=query_params, content_type='{final_content_type_for_api_call}')"
+                f"        response = self._post(url, data=request_body_data, files=files_data, params=query_params, content_type='{final_content_type_for_api_call}')"
             )
         else:
             body_lines.append(
-                f"        return self._post_json(url, data=request_body_data, params=query_params, content_type='{final_content_type_for_api_call}')"
+                f"        response = self._post(url, data=request_body_data, params=query_params, content_type='{final_content_type_for_api_call}')"
             )
+        body_lines.append("        return self._handle_response(response)")
     elif method_lower == "put":
         if selected_content_type == "multipart/form-data":
             body_lines.append(
-                f"        return self._put_json(url, data=request_body_data, files=files_data, params=query_params, content_type='{final_content_type_for_api_call}')"
+                f"        response = self._put(url, data=request_body_data, files=files_data, params=query_params, content_type='{final_content_type_for_api_call}')"
             )
         else:
             body_lines.append(
-                f"        return self._put_json(url, data=request_body_data, params=query_params, content_type='{final_content_type_for_api_call}')"
+                f"        response = self._put(url, data=request_body_data, params=query_params, content_type='{final_content_type_for_api_call}')"
             )
+        body_lines.append("        return self._handle_response(response)")
     elif method_lower == "patch":
-        body_lines.append("        return self._patch_json(url, data=request_body_data, params=query_params)")
+        body_lines.append("        response = self._patch(url, data=request_body_data, params=query_params)")
+        body_lines.append("        return self._handle_response(response)")
     elif method_lower == "delete":
-        body_lines.append("        return self._delete_json(url, params=query_params)")
+        body_lines.append("        response = self._delete(url, params=query_params)")
+        body_lines.append("        return self._handle_response(response)")
     else:
-        body_lines.append(f"        return self._{method_lower}_json(url, data=request_body_data, params=query_params)")
-
-    # No need for manual response handling anymore - convenience methods handle it automatically
+        body_lines.append(f"        response = self._{method_lower}(url, data=request_body_data, params=query_params)")
+        body_lines.append("        return self._handle_response(response)")
 
     # --- Combine Signature, Docstring, and Body for Final Method Code ---
     method_code = signature + formatted_docstring + "\n" + "\n".join(body_lines)
