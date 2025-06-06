@@ -154,7 +154,8 @@ class MethodTransformer(ast.NodeTransformer):
         return self.generic_visit(node)
 
 
-def split_generated_app_file(input_app_file: Path, output_dir: Path):
+def split_generated_app_file(input_app_file: Path, output_dir: Path, package_name: str = None):
+
     content = input_app_file.read_text()
     tree = ast.parse(content)
 
@@ -504,7 +505,7 @@ def split_generated_app_file(input_app_file: Path, output_dir: Path):
         # Adjust import path for segments subfolder
         final_main_module_imports.append(
             ast.ImportFrom(
-                module=f".{segments_foldername}.{seg_detail['module_name']}",
+                module=f"{package_name}.{segments_foldername}.{seg_detail['module_name']}",
                 names=[ast.alias(name=seg_detail["class_name"])],
                 level=0,
             )

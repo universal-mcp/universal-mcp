@@ -270,6 +270,7 @@ def preprocess(
 def split_api(
     input_app_file: Path = typer.Argument(..., help="Path to the generated app.py file to split"),
     output_dir: Path = typer.Option(..., "--output-dir", "-o", help="Directory to save the split files"),
+    package_name: str = typer.Option(None, "--package-name", "-p", help="Package name for absolute imports (e.g., 'universal_mcp_hubspot')"),
 ):
     """Splits a single generated API client file into multiple files based on path groups."""
     from universal_mcp.utils.openapi.api_splitter import split_generated_app_file
@@ -286,7 +287,7 @@ def split_api(
         raise typer.Exit(1)
 
     try:
-        split_generated_app_file(input_app_file, output_dir)
+        split_generated_app_file(input_app_file, output_dir, package_name)
         console.print(f"[green]Successfully split {input_app_file} into {output_dir}[/green]")
     except Exception as e:
         console.print(f"[red]Error splitting API client: {e}[/red]")
