@@ -505,7 +505,7 @@ def split_generated_app_file(input_app_file: Path, output_dir: Path, package_nam
         # Adjust import path for segments subfolder
         final_main_module_imports.append(
             ast.ImportFrom(
-                module=f"{package_name}.{segments_foldername}.{seg_detail['module_name']}",
+                module=f"universal_mcp_{package_name}.{segments_foldername}.{seg_detail['module_name']}",
                 names=[ast.alias(name=seg_detail["class_name"])],
                 level=0,
             )
