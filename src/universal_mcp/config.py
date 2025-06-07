@@ -1,7 +1,8 @@
+import json
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
-from pydantic import BaseModel, Field, SecretStr, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -70,3 +71,58 @@ class ServerConfig(BaseSettings):
         if not 1 <= v <= 65535:
             raise ValueError("Port must be between 1 and 65535")
         return v
+
+    @classmethod
+    def load_json_config(cls, path: str = "local_config.json") -> Self:
+        with open(path) as f:
+            data = json.load(f)
+        return cls.model_validate(data)
+
+
+class ClientTransportConfig(BaseModel):
+    transport: str | None = None
+    command: str | None = None
+    args: list[str] = []
+    env: dict[str, str] = {}
+    url: str | None = None
+    headers: dict[str, str] = {}
+
+    @model_validator(mode="after")
+    def model_validate(self) -> Self:
+        """
+        Set the transport type based on the presence of command or url.
+        - If command is present, transport is 'stdio'.
+        - Else if url ends with 'mcp', transport is 'streamable_http'.
+        - Else, transport is 'sse'.
+        """
+        if self.command:
+            self.transport = "stdio"
+        elif self.url:
+            # Remove search params from url
+            url = self.url.split("?")[0]
+            if url.rstrip("/").endswith("mcp"):
+                self.transport = "streamable_http"
+            elif url.rstrip("/").endswith("sse"):
+                self.transport = "sse"
+            else:
+                raise ValueError(f"Unknown transport: {self.url}")
+        else:
+            raise ValueError("Either command or url must be provided")
+        return self
+
+
+class LLMConfig(BaseModel):
+    api_key: str
+    base_url: str
+    model: str
+
+
+class ClientConfig(BaseSettings):
+    mcpServers: dict[str, ClientTransportConfig]
+    llm: LLMConfig | None = None
+
+    @classmethod
+    def load_json_config(cls, path: str = "servers.json") -> Self:
+        with open(path) as f:
+            data = json.load(f)
+        return cls.model_validate(data)

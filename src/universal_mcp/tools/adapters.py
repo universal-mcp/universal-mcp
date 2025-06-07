@@ -102,3 +102,19 @@ def convert_tool_to_openai_tool(
     }
     logger.debug(f"Successfully converted tool '{tool.name}' to OpenAI format")
     return openai_tool
+
+
+def transform_mcp_tool_to_openai_tool(mcp_tool: Tool):
+    """Convert an MCP tool to an OpenAI tool."""
+    from openai.types import FunctionDefinition
+    from openai.types.chat import ChatCompletionToolParam
+
+    return ChatCompletionToolParam(
+        type="function",
+        function=FunctionDefinition(
+            name=mcp_tool.name,
+            description=mcp_tool.description or "",
+            parameters=mcp_tool.inputSchema,
+            strict=False,
+        ),
+    )
