@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
-from typing import Any, Literal, Self
+from typing import Any, Literal
+from typing_extensions import Self
 
 from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict

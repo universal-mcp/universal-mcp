@@ -9,7 +9,7 @@ Universal MCP acts as a middleware layer for your API applications, enabling sea
 - **Managed Authentication**: Built-in support for API keys and OAuth-based authentication flows, often managed via the AgentR platform.
 - **Extensible Architecture**: Easily build and add new app integrations with minimal boilerplate using provided base classes and generation tools.
 - **Credential Management**: Flexible and secure storage options for API credentials (memory, environment variables, system keyring).
-- **Comprehensive Tool Management**: Robust tool registration, Pydantic-based validation, automatic docstring parsing, and execution capabilities. Supports conversion between MCP, LangChain, and OpenAI tool formats.
+- **Comprehensive Tool Management**: Robust tool registration, Pydantic-based validation, automatic docstring parsing, and execution capabilities. Supports conversion between MCP, LangChain, OpenAI, LangGraph, CrewAI, and SmolAgents tool formats.
 - **Multiple Server Types**: Configurations for local development, AgentR-connected dynamic app loading, and single-application servers.
 - **Playground Environment**: Includes an interactive Streamlit-based playground for testing agents and tools.
 
