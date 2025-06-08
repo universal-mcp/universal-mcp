@@ -18,19 +18,37 @@ from universal_mcp.utils.agentr import AgentrClient
 
 
 class BaseServer(FastMCP):
-    """Base server class with common functionality.
+    """Provides foundational functionality for Universal MCP server implementations.
 
-    This class provides core server functionality including store setup,
-    tool management, and application loading.
+    This class extends `mcp.server.fastmcp.FastMCP` and serves as the
+    base for more specialized server types like `LocalServer` and `AgentRServer`.
+    It handles common tasks such as initializing with a `ServerConfig`,
+    managing a `ToolManager` for adding, listing, and calling tools,
+    and basic error handling for server and tool operations.
 
-    Args:
-        config: Server configuration
-        **kwargs: Additional keyword arguments passed to FastMCP
+    Attributes:
+        config (ServerConfig): The server's configuration object.
+        _tool_manager (ToolManager): Manages the registration and execution
+                                   of tools available on this server.
     """
 
     def __init__(self, config: ServerConfig, tool_manager: ToolManager | None = None, **kwargs):
+        """Initializes the BaseServer.
+
+        Args:
+            config (ServerConfig): The configuration object for the server.
+            tool_manager (ToolManager | None, optional): An instance of
+                `ToolManager`. If None, a new one is created.
+                Defaults to None.
+            **kwargs: Additional keyword arguments passed to the `FastMCP`
+                      parent class (e.g., port, host).
+
+        Raises:
+            ConfigurationError: If server initialization fails due to invalid
+                                configuration or other issues.
+        """
         try:
-            super().__init__(config.name, config.description, port=config.port, **kwargs)
+            super().__init__(config.name, config.description, port=config.port, **kwargs) # type: ignore
             logger.info(f"Initializing server: {config.name} ({config.type}) with store: {config.store}")
             self.config = config
             self._tool_manager = tool_manager or ToolManager(warn_on_duplicate_tools=True)
@@ -41,37 +59,46 @@ class BaseServer(FastMCP):
             raise ConfigurationError(f"Server initialization failed: {str(e)}") from e
 
     def add_tool(self, tool: Callable) -> None:
-        """Add a tool to the server.
+        """Adds a new tool to the server's tool manager.
 
         Args:
-            tool: Tool to add
+            tool (Callable): The callable object representing the tool to be added.
+                             This tool should conform to the expected signature
+                             and metadata conventions for MCP tools.
 
         Raises:
-            ValueError: If tool is invalid
+            ValueError: If the provided tool is invalid or cannot be registered.
         """
         self._tool_manager.add_tool(tool)
 
-    async def list_tools(self) -> list:
-        """List all available tools in MCP format.
+    async def list_tools(self) -> list: # type: ignore
+        """Lists all tools registered with the server in MCP format.
 
         Returns:
-            List of tool definitions
+            list: A list of tool definitions, formatted according to the
+                  MCP specification.
         """
         return self._tool_manager.list_tools(format=ToolFormat.MCP)
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
-        """Call a tool with comprehensive error handling.
+        """Calls a registered tool by name with the provided arguments.
+
+        Handles tool execution and wraps the outcome (success or error)
+        in a list of MCP `TextContent` objects.
 
         Args:
-            name: Tool name
-            arguments: Tool arguments
+            name (str): The name of the tool to call.
+            arguments (dict[str, Any]): A dictionary of arguments for the tool.
 
         Returns:
-            List of TextContent results
+            list[TextContent]: A list of `TextContent` objects representing the
+                               output of the tool. If an error occurs, this list
+                               may contain error information.
 
         Raises:
-            ToolError: If tool execution fails
-            ValueError: If tool name is invalid or arguments are malformed
+            ToolError: If tool execution fails for reasons other than invalid
+                       name or arguments (which raise ValueError).
+            ValueError: If the tool name is empty or arguments are not a dictionary.
         """
         if not name:
             raise ValueError("Tool name is required")
@@ -89,29 +116,48 @@ class BaseServer(FastMCP):
 
 
 class LocalServer(BaseServer):
-    """Local development server implementation.
+    """MCP server for local development, loading apps from local configuration.
 
-    Args:
-        config: Server configuration
-        **kwargs: Additional keyword arguments passed to FastMCP
+    This server type reads its application and integration settings from the
+    provided `ServerConfig`. It is typically used for running and testing
+    MCP applications in a local environment. It handles setting up a
+    credential store (e.g., memory, keyring, environment) and dynamically
+    loading application modules by their slugs.
+
+    Attributes:
+        store (BaseStore | None): The configured credential store instance.
+                                None if no store is configured.
     """
 
     def __init__(self, config: ServerConfig, **kwargs):
+        """Initializes the LocalServer.
+
+        Args:
+            config (ServerConfig): The server configuration object, which includes
+                                 settings for applications and the default store.
+            **kwargs: Additional keyword arguments passed to the `BaseServer`.
+        """
         super().__init__(config, **kwargs)
         self.store = self._setup_store(config.store)
         self._load_apps()
 
     def _setup_store(self, store_config: StoreConfig | None) -> BaseStore | None:
-        """Setup and configure the store.
+        """Initializes the credential store based on the server configuration.
+
+        If a `store_config` is provided, this method creates and configures
+        the specified store type (e.g., memory, keyring). It also registers
+        the store's `set` and `delete` methods as tools with the server.
 
         Args:
-            store_config: Store configuration
+            store_config (StoreConfig | None): The configuration for the store.
 
         Returns:
-            Configured store instance or None if no config provided
+            BaseStore | None: The initialized store instance, or None if no
+                              `store_config` was provided.
 
         Raises:
-            ConfigurationError: If store configuration is invalid
+            ConfigurationError: If the store setup fails due to invalid
+                                configuration or other issues.
         """
         if not store_config:
             logger.info("No store configuration provided")
@@ -128,13 +174,19 @@ class LocalServer(BaseServer):
             raise ConfigurationError(f"Store setup failed: {str(e)}") from e
 
     def _load_app(self, app_config: AppConfig) -> BaseApplication | None:
-        """Load a single application with its integration.
+        """Loads and configures a single application based on `AppConfig`.
+
+        This method instantiates an application module identified by `app_config.name`
+        (slug). It also sets up the application's integration (for authentication)
+        based on `app_config.integration`, using the server's configured store
+        if the integration requires one.
 
         Args:
-            app_config: Application configuration
+            app_config (AppConfig): The configuration for the application to load.
 
         Returns:
-            Configured application instance or None if loading fails
+            BaseApplication | None: The initialized application instance if loading
+                                    and configuration are successful, otherwise None.
         """
         if not app_config.name:
             logger.error("App configuration missing name")
@@ -158,7 +210,16 @@ class LocalServer(BaseServer):
             return None
 
     def _load_apps(self) -> None:
-        """Load all configured applications with graceful degradation."""
+        """Loads all applications defined in the server's configuration.
+
+        Iterates through the `AppConfig` entries in `self.config.apps`.
+        For each entry, it attempts to load the application and its integration
+        using `_load_app`. If successful, the application's tools (actions)
+        are registered with the server's `ToolManager`.
+
+        This method handles errors gracefully for individual app loading,
+        allowing the server to start even if some applications fail to load.
+        """
         if not self.config.apps:
             logger.warning("No applications configured")
             return
@@ -190,35 +251,56 @@ class LocalServer(BaseServer):
 
 
 class AgentRServer(BaseServer):
-    """AgentR API-connected server implementation.
+    """MCP server that connects to the AgentR platform to manage applications.
 
-    Args:
-        config: Server configuration
-        api_key: Optional API key for AgentR authentication. If not provided,
-                will attempt to read from AGENTR_API_KEY environment variable.
-        max_retries: Maximum number of retries for API calls (default: 3)
-        retry_delay: Delay between retries in seconds (default: 1)
-        **kwargs: Additional keyword arguments passed to FastMCP
+    This server type dynamically fetches its list of available applications
+    and their configurations from the AgentR API. It primarily uses
+    `AgentRIntegration` for handling authentication and authorization,
+    delegating these tasks to the AgentR platform. An AgentR API key is
+    required for its operation.
+
+    Attributes:
+        api_key (str | None): The AgentR API key used for authentication.
+        client (AgentrClient): The client instance for interacting with the
+                             AgentR API.
     """
 
     def __init__(self, config: ServerConfig, **kwargs):
+        """Initializes the AgentRServer.
+
+        Args:
+            config (ServerConfig): The server configuration object. The `api_key`
+                                 and `base_url` from this config are used to
+                                 initialize the `AgentrClient`.
+            **kwargs: Additional keyword arguments passed to the `BaseServer`.
+
+        Raises:
+            ValueError: If the `api_key` is not provided in the configuration.
+        """
         super().__init__(config, **kwargs)
         self.api_key = config.api_key.get_secret_value() if config.api_key else None
         if not self.api_key:
             raise ValueError("API key is required for AgentR server")
-        logger.info(f"Initializing AgentR server with API key: {self.api_key} and base URL: {config.base_url}")
-        self.client = AgentrClient(api_key=self.api_key, base_url=config.base_url)
+        logger.info(f"Initializing AgentR server with API key: {self.api_key} and base URL: {config.base_url}") # type: ignore
+        self.client = AgentrClient(api_key=self.api_key, base_url=config.base_url) # type: ignore
         self._load_apps()
 
     def _fetch_apps(self) -> list[AppConfig]:
-        """Fetch available apps from AgentR API with retry logic.
+        """Fetches available application configurations from the AgentR API.
+
+        This method uses the `AgentrClient` to retrieve the list of applications
+        associated with the configured API key. It includes retry logic for
+        transient network issues.
 
         Returns:
-            List of application configurations
+            list[AppConfig]: A list of `AppConfig` objects parsed from the
+                             AgentR API response.
 
         Raises:
-            httpx.HTTPError: If API request fails after all retries
-            ValidationError: If app configuration validation fails
+            httpx.HTTPStatusError: If the API request to AgentR fails definitively
+                                 (e.g., 4xx or 5xx errors after retries).
+            ValidationError: If the application configuration data received from
+                             AgentR fails Pydantic validation.
         """
         try:
             apps = self.client.fetch_apps()
@@ -235,21 +317,27 @@ class AgentRServer(BaseServer):
             raise
 
     def _load_app(self, app_config: AppConfig) -> BaseApplication | None:
-        """Load a single application with AgentR integration.
+        """Loads a single application using AgentRIntegration.
+
+        For each `AppConfig` fetched from AgentR, this method instantiates the
+        application module (identified by `app_config.name`) and configures it
+        with an `AgentRIntegration`. This integration will use the server's
+        AgentR API key and base URL for its operations.
 
         Args:
-            app_config: Application configuration
+            app_config (AppConfig): The configuration for the application to load.
 
         Returns:
-            Configured application instance or None if loading fails
+            BaseApplication | None: The initialized application instance if loading
+                                    is successful, otherwise None.
         """
         try:
             integration = (
-                AgentRIntegration(name=app_config.integration.name, api_key=self.api_key, base_url=self.config.base_url)
+                AgentRIntegration(name=app_config.integration.name, api_key=self.api_key, base_url=self.config.base_url) # type: ignore
                 if app_config.integration
                 else None
             )
-            app = app_from_slug(app_config.name)(integration=integration)
+            app = app_from_slug(app_config.name)(integration=integration) # type: ignore
             logger.info(f"Successfully loaded app: {app_config.name}")
             return app
         except Exception as e:
@@ -257,7 +345,16 @@ class AgentRServer(BaseServer):
             return None
 
     def _load_apps(self) -> None:
-        """Load all apps available from AgentR with graceful degradation."""
+        """Fetches all application configurations from AgentR and registers their tools.
+
+        This method first calls `_fetch_apps` to get the list of applications
+        from the AgentR platform. Then, for each application, it uses `_load_app`
+        to instantiate it with `AgentRIntegration`. If successful, the application's
+        tools are registered with the server's `ToolManager`.
+
+        Handles errors gracefully, allowing the server to start even if some
+        applications fail to load or if fetching apps from AgentR fails.
+        """
         try:
             app_configs = self._fetch_apps()
             if not app_configs:
@@ -283,20 +380,18 @@ class AgentRServer(BaseServer):
 
 
 class SingleMCPServer(BaseServer):
-    """
-    Minimal server implementation hosting a single BaseApplication instance.
+    """Minimal MCP server for hosting a single, pre-configured application.
 
-    This server type is intended for development and testing of a single
-    application's tools. It does not manage integrations or stores internally
-    beyond initializing the ToolManager and exposing the provided application's tools.
-    The application instance passed to the constructor should already be
-    configured with its appropriate integration (if required).
+    This server is designed for scenarios where you need to quickly expose
+    the tools of a single, already instantiated and configured
+    `BaseApplication` object. It does not handle complex app loading or
+    integration setups itself; these are expected to be done on the
+    `app_instance` before it's passed to this server.
 
-    Args:
-        config: Server configuration (used for name, description, etc. but ignores 'apps')
-        app_instance: The single BaseApplication instance to host and expose its tools.
-                      Can be None, in which case no tools will be registered.
-        **kwargs: Additional keyword arguments passed to FastMCP parent class.
+    It's useful for testing, simple demos, or embedding a specific set of
+    tools without the overhead of more complex server configurations.
+    If no `ServerConfig` is provided, a default one is generated based
+    on the application's name.
     """
 
     def __init__(
@@ -305,13 +400,26 @@ class SingleMCPServer(BaseServer):
         config: ServerConfig | None = None,
         **kwargs,
     ):
+        """Initializes the SingleMCPServer.
+
+        Args:
+            app_instance (BaseApplication): The fully configured application
+                instance whose tools will be exposed by this server.
+            config (ServerConfig | None, optional): A server configuration.
+                If None, a default configuration is generated using the
+                name of the `app_instance`. Defaults to None.
+            **kwargs: Additional keyword arguments passed to `BaseServer`.
+
+        Raises:
+            ValueError: If `app_instance` is None.
+        """
         if not app_instance:
             raise ValueError("app_instance is required for SingleMCPServer")
 
         config = config or ServerConfig(
-            type="local",
-            name=f"{app_instance.name.title()} MCP Server for Local Development",
-            description=f"Minimal MCP server for the local {app_instance.name} application.",
+            type="local", # type: ignore
+            name=f"{app_instance.name.title()} MCP Server for Local Development", # type: ignore
+            description=f"Minimal MCP server for the local {app_instance.name} application.", # type: ignore
         )
         super().__init__(config, **kwargs)
         self._tool_manager.register_tools_from_app(app_instance, tags="all")

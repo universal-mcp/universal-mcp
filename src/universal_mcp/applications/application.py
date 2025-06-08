@@ -14,25 +14,26 @@ from universal_mcp.integrations import Integration
 
 
 class BaseApplication(ABC):
-    """
-    Base class for all applications in the Universal MCP system.
+    """Defines the foundational structure for applications in Universal MCP.
 
-    This abstract base class defines the common interface and functionality
-    that all applications must implement. It provides basic initialization
-    and credential management capabilities.
+    This abstract base class (ABC) outlines the common interface and core
+    functionality that all concrete application classes must implement.
+    It handles basic initialization, such as setting the application name,
+    and mandates the implementation of a method to list available tools.
+    Analytics for application loading are also tracked here.
 
     Attributes:
-        name (str): The name of the application
-        _credentials (Optional[Dict[str, Any]]): Cached credentials for the application
+        name (str): The unique name identifying the application.
     """
 
     def __init__(self, name: str, **kwargs: Any) -> None:
-        """
-        Initialize the base application.
+        """Initializes the BaseApplication.
 
         Args:
-            name: The name of the application
-            **kwargs: Additional keyword arguments passed to the application
+            name (str): The unique name for this application instance.
+            **kwargs (Any): Additional keyword arguments that might be specific
+                             to the concrete application implementation. These are
+                             logged but not directly used by BaseApplication.
         """
         self.name = name
         logger.debug(f"Initializing Application '{name}' with kwargs: {kwargs}")
@@ -40,28 +41,35 @@ class BaseApplication(ABC):
 
     @abstractmethod
     def list_tools(self) -> list[Callable]:
-        """
-        List all available tools for the application.
+        """Lists all tools provided by this application.
+
+        This method must be implemented by concrete subclasses to return
+        a list of callable tool objects that the application exposes.
 
         Returns:
-            List[Any]: A list of tools available in the application
+            list[Callable]: A list of callable objects, where each callable
+                            represents a tool offered by the application.
         """
         pass
 
 
 class APIApplication(BaseApplication):
-    """
-    Application that uses HTTP APIs to interact with external services.
+    """Base class for applications interacting with RESTful HTTP APIs.
 
-    This class provides a base implementation for applications that communicate
-    with external services via HTTP APIs. It handles authentication, request
-    management, and response processing.
+    Extends `BaseApplication` to provide functionalities specific to
+    API-based integrations. This includes managing an `httpx.Client`
+    for making HTTP requests, handling authentication headers, processing
+    responses, and offering convenient methods for common HTTP verbs
+    (GET, POST, PUT, DELETE, PATCH).
 
     Attributes:
-        name (str): The name of the application
-        integration (Optional[Integration]): The integration configuration
-        default_timeout (int): Default timeout for HTTP requests in seconds
-        base_url (str): Base URL for API requests
+        name (str): The name of the application.
+        integration (Integration | None): An optional Integration object
+            responsible for managing authentication and credentials.
+        default_timeout (int): The default timeout in seconds for HTTP requests.
+        base_url (str): The base URL for the API endpoint. This should be
+                        set by the subclass.
+        _client (httpx.Client | None): The internal httpx client instance.
     """
 
     def __init__(
@@ -71,13 +79,17 @@ class APIApplication(BaseApplication):
         client: httpx.Client | None = None,
         **kwargs: Any,
     ) -> None:
-        """
-        Initialize the API application.
+        """Initializes the APIApplication.
 
         Args:
-            name: The name of the application
-            integration: Optional integration configuration
-            **kwargs: Additional keyword arguments
+            name (str): The unique name for this application instance.
+            integration (Integration | None, optional): An Integration object
+                to handle authentication. Defaults to None.
+            client (httpx.Client | None, optional): An existing httpx.Client
+                instance. If None, a new client will be created on demand.
+                Defaults to None.
+            **kwargs (Any): Additional keyword arguments passed to the
+                             BaseApplication.
         """
         super().__init__(name, **kwargs)
         self.default_timeout: int = 180
@@ -87,15 +99,17 @@ class APIApplication(BaseApplication):
         self.base_url: str = ""
 
     def _get_headers(self) -> dict[str, str]:
-        """
-        Get the headers for API requests.
+        """Constructs HTTP headers for API requests based on the integration.
 
-        This method constructs the appropriate headers based on the available
-        credentials. It supports various authentication methods including
-        direct headers, API keys, and access tokens.
+        Retrieves credentials from the configured `integration` and attempts
+        to create appropriate authentication headers. It supports direct header
+        injection, API keys (as Bearer tokens), and access tokens (as Bearer
+        tokens).
 
         Returns:
-            Dict[str, str]: Headers to be used in API requests
+            dict[str, str]: A dictionary of HTTP headers. Returns an empty
+                            dictionary if no integration is configured or if
+                            no suitable credentials are found.
         """
         if not self.integration:
             logger.debug("No integration configured, returning empty headers")
@@ -131,14 +145,15 @@ class APIApplication(BaseApplication):
 
     @property
     def client(self) -> httpx.Client:
-        """
-        Get the HTTP client instance.
+        """Provides an initialized `httpx.Client` instance.
 
-        This property ensures that the HTTP client is properly initialized
-        with the correct base URL and headers.
+        If a client was not provided during initialization or has not been
+        created yet, this property will instantiate a new `httpx.Client`.
+        The client is configured with the `base_url` and headers derived
+        from the `_get_headers` method.
 
         Returns:
-            httpx.Client: The initialized HTTP client
+            httpx.Client: The active `httpx.Client` instance.
         """
         if not self._client:
             headers = self._get_headers()
@@ -150,22 +165,25 @@ class APIApplication(BaseApplication):
         return self._client
 
     def _handle_response(self, response: httpx.Response) -> dict[str, Any]:
-        """
-        Handle API responses by checking for errors and parsing the response appropriately.
+        """Processes an HTTP response, checking for errors and parsing JSON.
 
-        This method:
-        1. Checks for API errors and provides detailed error context including status code and response body
-        2. For successful responses, automatically parses JSON or returns success message
+        This method first calls `response.raise_for_status()` to raise an
+        `httpx.HTTPStatusError` if the HTTP request failed. If successful,
+        it attempts to parse the response body as JSON. If JSON parsing
+        fails, it returns a dictionary containing the success status,
+        status code, and raw text of the response.
 
         Args:
-            response: The HTTP response to process
+            response (httpx.Response): The HTTP response object from `httpx`.
 
         Returns:
-            dict[str, Any] | str: Parsed JSON data if response contains JSON,
-                                 otherwise a success message with status code
+            dict[str, Any]: The parsed JSON response as a dictionary, or
+                            a status dictionary if JSON parsing is not possible
+                            for a successful response.
 
         Raises:
-            httpx.HTTPStatusError: If the response indicates an error status, with full error details
+            httpx.HTTPStatusError: If the HTTP response status code indicates
+                                 an error (4xx or 5xx).
         """
         response.raise_for_status()
         try:
@@ -174,18 +192,19 @@ class APIApplication(BaseApplication):
             return {"status": "success", "status_code": response.status_code, "text": response.text}
 
     def _get(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
-        """
-        Make a GET request to the specified URL.
+        """Makes a GET request to the specified URL.
 
         Args:
-            url: The URL to send the request to
-            params: Optional query parameters
+            url (str): The URL endpoint for the request (relative to `base_url`).
+            params (dict[str, Any] | None, optional): Optional URL query parameters.
+                Defaults to None.
 
         Returns:
-            httpx.Response: The raw HTTP response object
+            httpx.Response: The raw HTTP response object. The `_handle_response`
+                            method should typically be used to process this.
 
         Raises:
-            httpx.HTTPStatusError: If the request fails (when raise_for_status() is called)
+            httpx.HTTPStatusError: Propagated if the underlying client request fails.
         """
         logger.debug(f"Making GET request to {url} with params: {params}")
         response = self.client.get(url, params=params)
@@ -200,26 +219,34 @@ class APIApplication(BaseApplication):
         content_type: str = "application/json",
         files: dict[str, Any] | None = None,
     ) -> httpx.Response:
-        """
-        Make a POST request to the specified URL.
+        """Makes a POST request to the specified URL.
+
+        Handles different `content_type` values for sending data,
+        including 'application/json', 'application/x-www-form-urlencoded',
+        and 'multipart/form-data' (for file uploads).
 
         Args:
-            url: The URL to send the request to
-            data: The data to send. For 'application/json', this is JSON-serializable.
-                  For 'application/x-www-form-urlencoded' or 'multipart/form-data', this is a dict of form fields.
-                  For other content types, this is raw bytes or string.
-            params: Optional query parameters
-            content_type: The Content-Type of the request body.
-                         Examples: 'application/json', 'application/x-www-form-urlencoded',
-                                   'multipart/form-data', 'application/octet-stream', 'text/plain'.
-            files: Optional dictionary of files to upload for 'multipart/form-data'.
-                   Example: {'file_field_name': ('filename.txt', open('file.txt', 'rb'), 'text/plain')}
+            url (str): The URL endpoint for the request (relative to `base_url`).
+            data (Any): The data to send in the request body.
+                For 'application/json', this should be a JSON-serializable object.
+                For 'application/x-www-form-urlencoded' or 'multipart/form-data' (if `files` is None),
+                this should be a dictionary of form fields.
+                For other content types (e.g., 'application/octet-stream'), this should be bytes or a string.
+            params (dict[str, Any] | None, optional): Optional URL query parameters.
+                Defaults to None.
+            content_type (str, optional): The Content-Type of the request body.
+                Defaults to "application/json".
+            files (dict[str, Any] | None, optional): A dictionary for file uploads
+                when `content_type` is 'multipart/form-data'.
+                Example: `{'file_field': ('filename.txt', open('file.txt', 'rb'), 'text/plain')}`.
+                Defaults to None.
 
         Returns:
-            httpx.Response: The raw HTTP response object
+            httpx.Response: The raw HTTP response object. The `_handle_response`
+                            method should typically be used to process this.
 
         Raises:
-            httpx.HTTPStatusError: If the request fails (when raise_for_status() is called)
+            httpx.HTTPStatusError: Propagated if the underlying client request fails.
         """
         logger.debug(
             f"Making POST request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
@@ -269,26 +296,34 @@ class APIApplication(BaseApplication):
         content_type: str = "application/json",
         files: dict[str, Any] | None = None,
     ) -> httpx.Response:
-        """
-        Make a PUT request to the specified URL.
+        """Makes a PUT request to the specified URL.
+
+        Handles different `content_type` values for sending data,
+        including 'application/json', 'application/x-www-form-urlencoded',
+        and 'multipart/form-data' (for file uploads).
 
         Args:
-            url: The URL to send the request to
-            data: The data to send. For 'application/json', this is JSON-serializable.
-                  For 'application/x-www-form-urlencoded' or 'multipart/form-data', this is a dict of form fields.
-                  For other content types, this is raw bytes or string.
-            params: Optional query parameters
-            content_type: The Content-Type of the request body.
-                         Examples: 'application/json', 'application/x-www-form-urlencoded',
-                                   'multipart/form-data', 'application/octet-stream', 'text/plain'.
-            files: Optional dictionary of files to upload for 'multipart/form-data'.
-                   Example: {'file_field_name': ('filename.txt', open('file.txt', 'rb'), 'text/plain')}
+            url (str): The URL endpoint for the request (relative to `base_url`).
+            data (Any): The data to send in the request body.
+                For 'application/json', this should be a JSON-serializable object.
+                For 'application/x-www-form-urlencoded' or 'multipart/form-data' (if `files` is None),
+                this should be a dictionary of form fields.
+                For other content types (e.g., 'application/octet-stream'), this should be bytes or a string.
+            params (dict[str, Any] | None, optional): Optional URL query parameters.
+                Defaults to None.
+            content_type (str, optional): The Content-Type of the request body.
+                Defaults to "application/json".
+            files (dict[str, Any] | None, optional): A dictionary for file uploads
+                when `content_type` is 'multipart/form-data'.
+                Example: `{'file_field': ('filename.txt', open('file.txt', 'rb'), 'text/plain')}`.
+                Defaults to None.
 
         Returns:
-            httpx.Response: The raw HTTP response object
+            httpx.Response: The raw HTTP response object. The `_handle_response`
+                            method should typically be used to process this.
 
         Raises:
-            httpx.HTTPStatusError: If the request fails (when raise_for_status() is called)
+            httpx.HTTPStatusError: Propagated if the underlying client request fails.
         """
         logger.debug(
             f"Making PUT request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
@@ -332,18 +367,19 @@ class APIApplication(BaseApplication):
         return response
 
     def _delete(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
-        """
-        Make a DELETE request to the specified URL.
+        """Makes a DELETE request to the specified URL.
 
         Args:
-            url: The URL to send the request to
-            params: Optional query parameters
+            url (str): The URL endpoint for the request (relative to `base_url`).
+            params (dict[str, Any] | None, optional): Optional URL query parameters.
+                Defaults to None.
 
         Returns:
-            httpx.Response: The raw HTTP response object
+            httpx.Response: The raw HTTP response object. The `_handle_response`
+                            method should typically be used to process this.
 
         Raises:
-            httpx.HTTPStatusError: If the request fails (when raise_for_status() is called)
+            httpx.HTTPStatusError: Propagated if the underlying client request fails.
         """
         logger.debug(f"Making DELETE request to {url} with params: {params}")
         response = self.client.delete(url, params=params, timeout=self.default_timeout)
@@ -351,19 +387,21 @@ class APIApplication(BaseApplication):
         return response
 
     def _patch(self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None) -> httpx.Response:
-        """
-        Make a PATCH request to the specified URL.
+        """Makes a PATCH request to the specified URL.
 
         Args:
-            url: The URL to send the request to
-            data: The data to send in the request body
-            params: Optional query parameters
+            url (str): The URL endpoint for the request (relative to `base_url`).
+            data (dict[str, Any]): The JSON-serializable data to send in the
+                request body.
+            params (dict[str, Any] | None, optional): Optional URL query parameters.
+                Defaults to None.
 
         Returns:
-            httpx.Response: The raw HTTP response object
+            httpx.Response: The raw HTTP response object. The `_handle_response`
+                            method should typically be used to process this.
 
         Raises:
-            httpx.HTTPStatusError: If the request fails (when raise_for_status() is called)
+            httpx.HTTPStatusError: Propagated if the underlying client request fails.
         """
         logger.debug(f"Making PATCH request to {url} with params: {params} and data: {data}")
         response = self.client.patch(
@@ -376,17 +414,20 @@ class APIApplication(BaseApplication):
 
 
 class GraphQLApplication(BaseApplication):
-    """
-    Application that uses GraphQL to interact with external services.
+    """Base class for applications interacting with GraphQL APIs.
 
-    This class provides a base implementation for applications that communicate
-    with external services via GraphQL. It handles authentication, query execution,
-    and response processing.
+    Extends `BaseApplication` to facilitate interactions with services
+    that provide a GraphQL endpoint. It manages a `gql.Client` for
+    executing queries and mutations, handles authentication headers
+    similarly to `APIApplication`, and provides dedicated methods for
+    GraphQL operations.
 
     Attributes:
-        name (str): The name of the application
-        base_url (str): Base URL for GraphQL endpoint
-        integration (Optional[Integration]): The integration configuration
+        name (str): The name of the application.
+        base_url (str): The complete URL of the GraphQL endpoint.
+        integration (Integration | None): An optional Integration object
+            for managing authentication.
+        _client (GraphQLClient | None): The internal `gql.Client` instance.
     """
 
     def __init__(
@@ -397,14 +438,18 @@ class GraphQLApplication(BaseApplication):
         client: GraphQLClient | None = None,
         **kwargs: Any,
     ) -> None:
-        """
-        Initialize the GraphQL application.
+        """Initializes the GraphQLApplication.
 
         Args:
-            name: The name of the application
-            base_url: The base URL for the GraphQL endpoint
-            integration: Optional integration configuration
-            **kwargs: Additional keyword arguments
+            name (str): The unique name for this application instance.
+            base_url (str): The full URL of the GraphQL endpoint.
+            integration (Integration | None, optional): An Integration object
+                to handle authentication. Defaults to None.
+            client (GraphQLClient | None, optional): An existing `gql.Client`
+                instance. If None, a new client will be created on demand.
+                Defaults to None.
+            **kwargs (Any): Additional keyword arguments passed to the
+                             BaseApplication.
         """
         super().__init__(name, **kwargs)
         self.base_url = base_url
@@ -413,15 +458,16 @@ class GraphQLApplication(BaseApplication):
         self._client: GraphQLClient | None = client
 
     def _get_headers(self) -> dict[str, str]:
-        """
-        Get the headers for GraphQL requests.
+        """Constructs HTTP headers for GraphQL requests based on the integration.
 
-        This method constructs the appropriate headers based on the available
-        credentials. It supports various authentication methods including
-        direct headers, API keys, and access tokens.
+        Retrieves credentials from the configured `integration` and attempts
+        to create appropriate authentication headers. Primarily supports
+        API keys or access tokens as Bearer tokens in the Authorization header.
 
         Returns:
-            Dict[str, str]: Headers to be used in GraphQL requests
+            dict[str, str]: A dictionary of HTTP headers. Returns an empty
+                            dictionary if no integration is configured or if
+                            no suitable credentials are found.
         """
         if not self.integration:
             logger.debug("No integration configured, returning empty headers")
@@ -455,14 +501,16 @@ class GraphQLApplication(BaseApplication):
 
     @property
     def client(self) -> GraphQLClient:
-        """
-        Get the GraphQL client instance.
+        """Provides an initialized `gql.Client` instance.
 
-        This property ensures that the GraphQL client is properly initialized
-        with the correct transport and headers.
+        If a client was not provided during initialization or has not been
+        created yet, this property instantiates a new `gql.Client`.
+        The client is configured with a `RequestsHTTPTransport` using the
+        `base_url` and headers from `_get_headers`. It's also set to
+        fetch the schema from the transport.
 
         Returns:
-            Client: The initialized GraphQL client
+            GraphQLClient: The active `gql.Client` instance.
         """
         if not self._client:
             headers = self._get_headers()
@@ -475,18 +523,21 @@ class GraphQLApplication(BaseApplication):
         mutation: str | DocumentNode,
         variables: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """
-        Execute a GraphQL mutation.
+        """Executes a GraphQL mutation.
 
         Args:
-            mutation: The GraphQL mutation string or DocumentNode
-            variables: Optional variables for the mutation
+            mutation (str | DocumentNode): The GraphQL mutation string or a
+                pre-parsed `gql.DocumentNode` object. If a string is provided,
+                it will be parsed using `gql()`.
+            variables (dict[str, Any] | None, optional): A dictionary of variables
+                to pass with the mutation. Defaults to None.
 
         Returns:
-            Dict[str, Any]: The result of the mutation
+            dict[str, Any]: The JSON response from the GraphQL server as a dictionary.
 
         Raises:
-            Exception: If the mutation execution fails
+            Exception: If the GraphQL client encounters an error during execution
+                       (e.g., network issue, GraphQL server error).
         """
         if isinstance(mutation, str):
             mutation = gql(mutation)
@@ -497,18 +548,21 @@ class GraphQLApplication(BaseApplication):
         query: str | DocumentNode,
         variables: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """
-        Execute a GraphQL query.
+        """Executes a GraphQL query.
 
         Args:
-            query: The GraphQL query string or DocumentNode
-            variables: Optional variables for the query
+            query (str | DocumentNode): The GraphQL query string or a
+                pre-parsed `gql.DocumentNode` object. If a string is provided,
+                it will be parsed using `gql()`.
+            variables (dict[str, Any] | None, optional): A dictionary of variables
+                to pass with the query. Defaults to None.
 
         Returns:
-            Dict[str, Any]: The result of the query
+            dict[str, Any]: The JSON response from the GraphQL server as a dictionary.
 
         Raises:
-            Exception: If the query execution fails
+            Exception: If the GraphQL client encounters an error during execution
+                               (e.g., network issue, GraphQL server error).
         """
         if isinstance(query, str):
             query = gql(query)
