@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "universal-mcp"
-version = "0.1.23-rc2"
+version = "0.1.23"
 description = "Universal MCP acts as a middle ware for your API applications. It can store your credentials, authorize, enable disable apps on the fly and much more."
 readme = "README.md"
 authors = [
@@ -29,6 +29,9 @@ dependencies = [
     "pyyaml>=6.0.2",
     "rich>=14.0.0",
     "typer>=0.15.2",
+    "opentelemetry-api",
+    "opentelemetry-sdk",
+    "opentelemetry-exporter-otlp",
 ]
 
 [project.optional-dependencies]

@@ -61,6 +61,9 @@ class ServerConfig(BaseSettings):
     store: StoreConfig | None = Field(default=None, description="Default store configuration")
     debug: bool = Field(default=False, description="Enable debug mode")
     log_level: str = Field(default="INFO", description="Logging level")
+    otel_exporter_otlp_endpoint: str | None = Field(
+        default=None, description="OpenTelemetry OTLP exporter endpoint", alias="OTEL_EXPORTER_OTLP_ENDPOINT"
+    )
 
     @field_validator("log_level", mode="before")
     def validate_log_level(cls, v: str) -> str:

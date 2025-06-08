@@ -2,6 +2,7 @@ from collections.abc import Callable
 from typing import Any
 
 from loguru import logger
+from opentelemetry import trace
 
 from universal_mcp.analytics import analytics
 from universal_mcp.applications.application import BaseApplication
@@ -13,6 +14,9 @@ from universal_mcp.tools.adapters import (
     convert_tool_to_openai_tool,
 )
 from universal_mcp.tools.tools import Tool
+
+# OpenTelemetry Tracer
+tracer = trace.get_tracer(__name__)
 
 # Constants
 DEFAULT_IMPORTANT_TAG = "important"
@@ -318,10 +322,15 @@ class ToolManager:
         tool = self.get_tool(name)
         if not tool:
             raise ToolError(f"Unknown tool: {name}")
-        try:
-            result = await tool.run(arguments, context)
-            analytics.track_tool_called(name, app_name, "success")
-            return result
-        except Exception as e:
-            analytics.track_tool_called(name, app_name, "error", str(e))
-            raise ToolError(f"Tool execution failed: {str(e)}") from e
+
+        with tracer.start_as_current_span("tool.run", attributes={"tool.name": name}) as span:
+            try:
+                result = await tool.run(arguments, context)
+                analytics.track_tool_called(name, app_name, "success")
+                span.set_attribute("tool.status", "success")
+                return result
+            except Exception as e:
+                analytics.track_tool_called(name, app_name, "error", str(e))
+                span.set_attribute("tool.status", "error")
+                span.record_exception(e)
+                raise ToolError(f"Tool execution failed: {str(e)}") from e
