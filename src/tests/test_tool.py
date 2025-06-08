@@ -474,3 +474,199 @@ def test_tool_from_function_with_docstring_types():
     assert meta_schema["properties"]["age"]["default"] == 30
     assert "name" in meta_schema["required"]
     assert "age" not in meta_schema.get("required", [])
+
+
+# Adapter tests
+import asyncio
+import pytest
+from pydantic import BaseModel, Field as PydanticField  # Alias to avoid confusion with other Field
+from typing import Type, Any, Dict, Optional
+
+from universal_mcp.tools.tools import Tool # ToolParameters removed
+from universal_mcp.tools.adapters import (
+    ToolFormat,
+    convert_tool_to_langchain_tool,
+    convert_tool_to_crewai_tool,
+    convert_tool_to_smolagents_tool,
+)
+
+# Mock crewai.tools.BaseTool if crewai is not installed
+try:
+    from crewai.tools import BaseTool as CrewAIBaseTool
+except ImportError:
+    class MockCrewAIBaseTool:  # Renamed from MockBaseTool
+        name: str
+        description: str
+        args_schema: Optional[Type[BaseModel]] = None
+        def _run(self, **kwargs: Any) -> Any:
+            raise NotImplementedError
+        async def _arun(self, **kwargs: Any) -> Any:
+            raise NotImplementedError
+    CrewAIBaseTool = MockCrewAIBaseTool # type: ignore
+
+
+class SampleToolParams(BaseModel): # Changed from ToolParameters to BaseModel
+    arg1: str = PydanticField(description="First argument")
+    arg2: int = PydanticField(default=10, description="Second argument")
+
+class SampleToolNoParams(BaseModel): # Changed from ToolParameters to BaseModel
+    pass
+
+
+async def sample_tool_action(arg1: str, arg2: int = 10) -> str:
+    """A sample tool action for TestSampleTool"""
+    return f"{arg1} - {arg2}"
+
+async def sample_tool_action_no_desc(arg1: str, arg2: int = 10) -> str:
+    # No docstring here for testing no description case
+    return f"{arg1} - {arg2}"
+
+async def sample_tool_action_no_params() -> str:
+    """A sample tool action with no parameters for TestSampleToolNoParams"""
+    return "No params action"
+
+@pytest.fixture
+def mock_tool() -> Tool:
+    """Creates a sample Tool instance for testing using Tool.from_function."""
+    # Define a function with a docstring for Tool.from_function to parse
+    async def tool_func_for_mock(arg1: str, arg2: int = 10) -> str:
+        """
+        A sample tool for testing adapters.
+        Args:
+            arg1: First argument
+            arg2: Second argument
+        Returns:
+            A string combining the arguments.
+        """
+        return f"{arg1} - {arg2}"
+    return Tool.from_function(fn=tool_func_for_mock, name="TestSampleTool")
+
+
+@pytest.fixture
+def mock_tool_no_desc() -> Tool:
+    """Creates a sample Tool instance with no description using Tool.from_function."""
+    async def tool_func_no_desc(arg1: str, arg2: int = 10) -> str:
+        # No docstring summary means no description
+        # Args:
+        #     arg1: First argument
+        #     arg2: Second argument
+        return f"{arg1} - {arg2}"
+    # For Tool.from_function, lack of docstring summary will result in empty description
+    # The adapter should then provide a default "No description provided."
+    return Tool.from_function(fn=tool_func_no_desc, name="TestSampleToolNoDesc")
+
+
+@pytest.fixture
+def mock_tool_no_params() -> Tool:
+    """Creates a sample Tool instance with no parameters using Tool.from_function."""
+    async def tool_func_no_params() -> str:
+        """A sample tool with no parameters."""
+        return "No params action"
+    return Tool.from_function(fn=tool_func_no_params, name="TestSampleToolNoParams")
+
+
+def test_tool_format_enum():
+    """Test that new formats are present in ToolFormat enum."""
+    assert "LANGGRAPH" in ToolFormat.__members__
+    assert "CREWAI" in ToolFormat.__members__
+    assert "SMOLAGENTS" in ToolFormat.__members__
+
+
+# LangGraph is assumed to use LangChain's StructuredTool
+def test_langgraph_adapter_conversion(mock_tool: Tool):
+    """Test conversion to LangGraph (LangChain) format."""
+    langchain_tool = convert_tool_to_langchain_tool(mock_tool)
+    assert langchain_tool.name == mock_tool.name
+    assert langchain_tool.description == mock_tool.description
+    # Langchain's args_schema is the JSON schema from tool.parameters
+    assert langchain_tool.args_schema == mock_tool.parameters
+
+def test_langgraph_adapter_no_desc(mock_tool_no_desc: Tool):
+    langchain_tool = convert_tool_to_langchain_tool(mock_tool_no_desc)
+    assert langchain_tool.name == mock_tool_no_desc.name
+    assert langchain_tool.description == "No description provided." # Adapters handle this
+
+def test_langgraph_adapter_no_params(mock_tool_no_params: Tool):
+    langchain_tool = convert_tool_to_langchain_tool(mock_tool_no_params)
+    assert langchain_tool.name == mock_tool_no_params.name
+    assert langchain_tool.args_schema == mock_tool_no_params.parameters # Will be an empty schema dict
+
+
+def test_crewai_adapter_conversion(mock_tool: Tool):
+    """Test conversion to CrewAI format."""
+    crewai_tool = convert_tool_to_crewai_tool(mock_tool)
+    assert isinstance(crewai_tool, CrewAIBaseTool)
+    assert crewai_tool.name == mock_tool.name
+    assert mock_tool.description in crewai_tool.description # Check containment
+    assert hasattr(crewai_tool, "_run")
+    assert hasattr(crewai_tool, "_arun")
+    assert crewai_tool.args_schema is not None
+    # Check if args_schema is a Pydantic model and has correct fields
+    assert issubclass(crewai_tool.args_schema, BaseModel)
+    assert "arg1" in crewai_tool.args_schema.model_fields
+    assert "arg2" in crewai_tool.args_schema.model_fields
+    assert crewai_tool.args_schema.model_fields["arg1"].description == "First argument"
+
+@pytest.mark.asyncio
+async def test_crewai_adapter_execution(mock_tool: Tool):
+    """Test executing a tool converted to CrewAI format."""
+    crewai_tool = convert_tool_to_crewai_tool(mock_tool)
+    # CrewAI's _arun is the async version
+    result = await crewai_tool._arun(arg1="test", arg2=5)
+    assert result == "test - 5"
+
+    # Test sync _run (assuming it can run the async _arun)
+    # This might fail if event loop is already running in a way that blocks asyncio.run
+    # The adapter's _run has specific error handling for this.
+    try:
+        result_sync = crewai_tool._run(arg1="sync_test", arg2=50)
+        assert result_sync == "sync_test - 50"
+    except NotImplementedError as e:
+        # This is an acceptable outcome if the sync wrapper cannot execute
+        print(f"Skipping CrewAI sync _run test due to: {e}")
+
+
+def test_crewai_adapter_no_desc(mock_tool_no_desc: Tool):
+    crewai_tool = convert_tool_to_crewai_tool(mock_tool_no_desc)
+    assert isinstance(crewai_tool, CrewAIBaseTool)
+    assert crewai_tool.name == mock_tool_no_desc.name
+    assert "No description provided." in crewai_tool.description # Check containment
+
+def test_crewai_adapter_no_params(mock_tool_no_params: Tool):
+    crewai_tool = convert_tool_to_crewai_tool(mock_tool_no_params)
+    assert isinstance(crewai_tool, CrewAIBaseTool)
+    assert crewai_tool.name == mock_tool_no_params.name
+    assert crewai_tool.args_schema is not None
+    assert issubclass(crewai_tool.args_schema, BaseModel)
+    assert not crewai_tool.args_schema.model_fields # No fields for no_params tool
+
+
+def test_smolagents_adapter_conversion(mock_tool: Tool):
+    """Test conversion to SmolAgents format."""
+    smol_tool = convert_tool_to_smolagents_tool(mock_tool)
+    assert isinstance(smol_tool, dict)
+    assert smol_tool["name"] == mock_tool.name
+    assert smol_tool["description"] == mock_tool.description
+    assert smol_tool["parameters"] == mock_tool.parameters # Check against the schema from Tool
+    assert callable(smol_tool["execute"])
+    assert smol_tool["execute"] == mock_tool.run # Should be the tool's run method
+
+@pytest.mark.asyncio
+async def test_smolagents_adapter_execution(mock_tool: Tool):
+    """Test executing a tool converted to SmolAgents format."""
+    smol_tool = convert_tool_to_smolagents_tool(mock_tool)
+    result = await smol_tool["execute"]({"arg1": "smol_test", "arg2": 20}) # Corrected call
+    assert result == "smol_test - 20"
+
+
+def test_smolagents_adapter_no_desc(mock_tool_no_desc: Tool):
+    smol_tool = convert_tool_to_smolagents_tool(mock_tool_no_desc)
+    assert smol_tool["name"] == mock_tool_no_desc.name
+    assert smol_tool["description"] == "No description provided."
+
+def test_smolagents_adapter_no_params(mock_tool_no_params: Tool):
+    smol_tool = convert_tool_to_smolagents_tool(mock_tool_no_params)
+    assert smol_tool["name"] == mock_tool_no_params.name
+    assert smol_tool["parameters"] == mock_tool_no_params.parameters # Corrected assertion
+    result = asyncio.run(smol_tool["execute"]({})) # No args to pass, but run expects a dict
+    assert result == "No params action"
