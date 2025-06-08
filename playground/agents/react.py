@@ -10,7 +10,7 @@ from langgraph.prebuilt import create_react_agent
 
 @asynccontextmanager
 async def load_tools():
-    url = "http://0.0.0.0:8000/sse"
+    url = "http://0.0.0.0:8005/sse"
     client = MultiServerMCPClient(
         {
             "agentr": {
@@ -30,7 +30,7 @@ async def create_agent():
     #     model="gpt-4o",
     #     api_version="2024-12-01-preview",
     # )
-    llm = ChatOpenAI()
+    llm = ChatOpenAI(model="google/gemini-2.5-flash-preview-05-20")
     async with load_tools() as tools:
         yield create_react_agent(
             model=llm,

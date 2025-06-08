@@ -206,8 +206,8 @@ class AgentRServer(BaseServer):
         self.api_key = config.api_key.get_secret_value() if config.api_key else None
         if not self.api_key:
             raise ValueError("API key is required for AgentR server")
-        logger.info(f"Initializing AgentR server with API key: {self.api_key}")
-        self.client = AgentrClient(api_key=self.api_key)
+        logger.info(f"Initializing AgentR server with API key: {self.api_key} and base URL: {config.base_url}")
+        self.client = AgentrClient(api_key=self.api_key, base_url=config.base_url)
         self._load_apps()
 
     def _fetch_apps(self) -> list[AppConfig]:
@@ -245,7 +245,7 @@ class AgentRServer(BaseServer):
         """
         try:
             integration = (
-                AgentRIntegration(name=app_config.integration.name, api_key=self.api_key)
+                AgentRIntegration(name=app_config.integration.name, api_key=self.api_key, base_url=self.config.base_url)
                 if app_config.integration
                 else None
             )
@@ -276,10 +276,10 @@ class AgentRServer(BaseServer):
             else:
                 logger.info(f"Successfully loaded {loaded_apps}/{len(app_configs)} apps from AgentR")
 
-        except Exception:
+        except Exception as e:
             logger.error("Failed to load apps", exc_info=True)
             # Don't raise the exception to allow server to start with partial functionality
-            logger.warning("Server will start with limited functionality due to app loading failures")
+            logger.warning(f"Server will start with limited functionality due to app loading failures: {e}")
 
 
 class SingleMCPServer(BaseServer):

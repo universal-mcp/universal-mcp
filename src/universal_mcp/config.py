@@ -20,7 +20,7 @@ class IntegrationConfig(BaseModel):
     """Configuration for API integrations."""
 
     name: str = Field(..., description="Name of the integration")
-    type: Literal["api_key", "oauth", "agentr", "oauth2"] = Field(
+    type: Literal["api_key", "oauth", "agentr", "oauth2", "basic_auth"] = Field(
         default="api_key", description="Type of authentication to use"
     )
     credentials: dict[str, Any] | None = Field(default=None, description="Integration-specific credentials")
@@ -47,6 +47,9 @@ class ServerConfig(BaseSettings):
 
     name: str = Field(default="Universal MCP", description="Name of the MCP server")
     description: str = Field(default="Universal MCP", description="Description of the MCP server")
+    base_url: str = Field(
+        default="https://api.agentr.dev", description="Base URL for AgentR API", alias="AGENTR_BASE_URL"
+    )
     api_key: SecretStr | None = Field(default=None, description="API key for authentication", alias="AGENTR_API_KEY")
     type: Literal["local", "agentr"] = Field(default="agentr", description="Type of server deployment")
     transport: Literal["stdio", "sse", "streamable-http"] = Field(

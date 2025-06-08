@@ -6,6 +6,7 @@ from universal_mcp.utils.testing import check_application_instance
 ALL_APPS = [
     "ahrefs",
     "airtable",
+    "aws-s3",
     "apollo",
     "asana",
     "box",
@@ -39,6 +40,7 @@ ALL_APPS = [
     "mailchimp",
     "markitdown",
     "miro",
+    "ms-teams",
     "neon",
     "notion",
     "perplexity",
@@ -50,6 +52,7 @@ ALL_APPS = [
     "retell",
     "rocketlane",
     "serpapi",
+    "sharepoint",
     "shopify",
     "shortcut",
     "spotify",
