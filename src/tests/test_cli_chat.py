@@ -1,17 +1,18 @@
+# src/tests/test_cli_chat.py
 import asyncio
 import json
 from pathlib import Path
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import patch, AsyncMock, MagicMock, ANY
 
 import pytest
 from typer.testing import CliRunner
 
-# Make sure 'app' can be imported. This might require adjusting PYTHONPATH or how 'app' is exposed.
-# If src.universal_mcp.cli directly runs app(), we might need to import 'app' carefully.
-# For now, assume 'app' is importable from 'universal_mcp.cli'.
 from universal_mcp.cli import app as typer_app
 from universal_mcp.client.chat_client import RichCLIClient
-from mcp.client.session import ClientSession # For spec in mock
+from universal_mcp.agents.base import Agent # For type hinting mock agent
+from universal_mcp.agents.cli_agent import CLIAgent # For spec in mock
+from universal_mcp.client.client import MultiClientServer # For spec in mock
+from universal_mcp.config import ClientTransportConfig # For spec in mock
 
 runner = CliRunner()
 
@@ -20,164 +21,171 @@ def mock_loop():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     yield loop
-    loop.close()
+    # loop.close() # Closing the loop can cause issues with other async tests if not managed carefully.
+                  # pytest-asyncio normally handles loop cleanup.
 
-@pytest.fixture
-def mock_rich_cli_client_chat_methods(mock_loop):
-    """
-    Mocks chat_loop, connect, and disconnect for RichCLIClient.
-    Used for testing the CLI command's interaction with the client instance,
-    not the client's internal logic.
-    """
-    with patch('universal_mcp.client.chat_client.RichCLIClient.chat_loop', new_callable=AsyncMock) as mock_chat_loop, \
-         patch('universal_mcp.client.chat_client.RichCLIClient.connect', new_callable=AsyncMock, return_value=True) as mock_connect, \
-         patch('universal_mcp.client.chat_client.RichCLIClient.disconnect', new_callable=AsyncMock) as mock_disconnect:
+# Updated tests for the CLI command
+@patch('universal_mcp.cli.RichCLIClient', autospec=True)
+@patch('universal_mcp.cli.CLIAgent', autospec=True)
+@patch('universal_mcp.cli.MultiClientServer', autospec=True)
+def test_chat_command_default_url(
+    mock_multi_client_server_constructor: MagicMock,
+    mock_cli_agent_constructor: MagicMock,
+    mock_rich_cli_client_constructor: MagicMock,
+    mock_loop: asyncio.AbstractEventLoop # Ensure loop fixture is used if tests involve async aspects implicitly
+    ):
+    mock_agent_instance = MagicMock(spec=CLIAgent)
+    mock_cli_agent_constructor.return_value = mock_agent_instance
 
-        # This fixture is primarily for when the CLI calls methods on an instance of RichCLIClient.
-        # The patches are on the class's methods.
-        yield {
-            "mock_chat_loop": mock_chat_loop,
-            "mock_connect": mock_connect,
-            "mock_disconnect": mock_disconnect
+    mock_ui_instance = MagicMock(spec=RichCLIClient)
+    mock_ui_instance.chat_loop = AsyncMock() # chat_loop is called by cli
+    mock_rich_cli_client_constructor.return_value = mock_ui_instance
+
+    result = runner.invoke(typer_app, ["chat"])
+
+    assert result.exit_code == 0, f"CLI Error: {result.stdout}"
+    mock_cli_agent_constructor.assert_called_once_with(
+        agent_sse_url="http://localhost:8005/sse",
+        mcp_multiclient=None # No tool_servers by default
+    )
+    mock_rich_cli_client_constructor.assert_called_once_with(agent=mock_agent_instance)
+    mock_ui_instance.chat_loop.assert_awaited_once()
+    mock_multi_client_server_constructor.assert_not_called()
+
+
+@patch('universal_mcp.cli.RichCLIClient', autospec=True)
+@patch('universal_mcp.cli.CLIAgent', autospec=True)
+@patch('universal_mcp.cli.MultiClientServer', autospec=True)
+def test_chat_command_custom_agent_url(
+    mock_multi_client_server_constructor: MagicMock,
+    mock_cli_agent_constructor: MagicMock,
+    mock_rich_cli_client_constructor: MagicMock,
+    mock_loop: asyncio.AbstractEventLoop
+    ):
+    custom_url = "http://customagent:1234/sse"
+    mock_agent_instance = MagicMock(spec=CLIAgent)
+    mock_cli_agent_constructor.return_value = mock_agent_instance
+    mock_ui_instance = MagicMock(spec=RichCLIClient)
+    mock_ui_instance.chat_loop = AsyncMock()
+    mock_rich_cli_client_constructor.return_value = mock_ui_instance
+
+    result = runner.invoke(typer_app, ["chat", "--url", custom_url])
+
+    assert result.exit_code == 0, f"CLI Error: {result.stdout}"
+    mock_cli_agent_constructor.assert_called_once_with(
+        agent_sse_url=custom_url,
+        mcp_multiclient=None
+    )
+    mock_rich_cli_client_constructor.assert_called_once_with(agent=mock_agent_instance)
+    mock_ui_instance.chat_loop.assert_awaited_once()
+    mock_multi_client_server_constructor.assert_not_called()
+
+
+@patch('universal_mcp.cli.RichCLIClient', autospec=True)
+@patch('universal_mcp.cli.CLIAgent', autospec=True)
+@patch('universal_mcp.cli.MultiClientServer', autospec=True)
+@patch('universal_mcp.cli.ClientTransportConfig', autospec=True) # Mock the config class itself
+def test_chat_command_servers_json_with_agent_and_tools(
+    mock_client_transport_config_constructor: MagicMock,
+    mock_multi_client_server_constructor: MagicMock,
+    mock_cli_agent_constructor: MagicMock,
+    mock_rich_cli_client_constructor: MagicMock,
+    tmp_path: Path,
+    mock_loop: asyncio.AbstractEventLoop
+):
+    agent_json_url = "http://jsonagent:5678/sse"
+    tool_server_url = "http://toolserver1:8006/mcp"
+    tool_server_config_dict = {"url": tool_server_url, "transport": "sse", "name": "server1"}
+    servers_content = {
+        "agent_sse_url": agent_json_url,
+        "tool_servers": {
+            "server1": tool_server_config_dict
         }
-
-
-def test_chat_command_default_url(mock_rich_cli_client_chat_methods):
-    """Test that the chat command calls RichCLIClient with the default URL."""
-    # Patch the RichCLIClient constructor within the cli module's scope
-    with patch('universal_mcp.cli.RichCLIClient', autospec=True) as mock_client_constructor:
-        # Configure the mock instance that the constructor will return
-        mock_instance = MagicMock(spec=RichCLIClient)
-        mock_instance.chat_loop = AsyncMock()
-        mock_instance.disconnect = AsyncMock()
-        mock_instance.session = True # Simulate an active session for the finally block's disconnect call
-        mock_client_constructor.return_value = mock_instance
-
-        result = runner.invoke(typer_app, ["chat"])
-
-        assert result.exit_code == 0, f"CLI exited with {result.exit_code}: {result.stdout}"
-
-        mock_client_constructor.assert_called_once()
-        _args, kwargs = mock_client_constructor.call_args
-        assert kwargs['server_url'] == "http://localhost:8005/sse"
-        mock_instance.chat_loop.assert_awaited_once()
-
-
-def test_chat_command_custom_url(mock_rich_cli_client_chat_methods):
-    """Test that the chat command calls RichCLIClient with a custom URL."""
-    custom_url = "http://customserver:1234/sse"
-    with patch('universal_mcp.cli.RichCLIClient', autospec=True) as mock_client_constructor:
-        mock_instance = MagicMock(spec=RichCLIClient)
-        mock_instance.chat_loop = AsyncMock()
-        mock_instance.disconnect = AsyncMock()
-        mock_instance.session = True
-        mock_client_constructor.return_value = mock_instance
-
-        result = runner.invoke(typer_app, ["chat", "--url", custom_url])
-
-        assert result.exit_code == 0, f"CLI exited with {result.exit_code}: {result.stdout}"
-        mock_client_constructor.assert_called_once()
-        _args, kwargs = mock_client_constructor.call_args
-        assert kwargs['server_url'] == custom_url
-        mock_instance.chat_loop.assert_awaited_once()
-
-
-def test_chat_command_servers_json(tmp_path, mock_rich_cli_client_chat_methods):
-    """Test that the chat command uses URL from servers.json."""
-    servers_content = {"chat_server_url": "http://jsonurl:5678/sse"}
+    }
     servers_file = tmp_path / "servers.json"
     with open(servers_file, 'w') as f:
         json.dump(servers_content, f)
 
-    with patch('universal_mcp.cli.RichCLIClient', autospec=True) as mock_client_constructor:
-        mock_instance = MagicMock(spec=RichCLIClient)
-        mock_instance.chat_loop = AsyncMock()
-        mock_instance.disconnect = AsyncMock()
-        mock_instance.session = True
-        mock_client_constructor.return_value = mock_instance
+    mock_agent_instance = MagicMock(spec=CLIAgent)
+    mock_cli_agent_constructor.return_value = mock_agent_instance
+    mock_ui_instance = MagicMock(spec=RichCLIClient)
+    mock_ui_instance.chat_loop = AsyncMock()
+    mock_rich_cli_client_constructor.return_value = mock_ui_instance
 
-        result = runner.invoke(typer_app, ["chat", "--servers-json", str(servers_file)])
+    # This mock represents an instance of ClientTransportConfig
+    mock_transport_config_instance = MagicMock(spec=ClientTransportConfig)
+    # Make the constructor return this mock instance
+    mock_client_transport_config_constructor.return_value = mock_transport_config_instance
 
-        assert result.exit_code == 0, f"CLI exited with {result.exit_code}: {result.stdout}"
-        mock_client_constructor.assert_called_once()
-        _args, kwargs = mock_client_constructor.call_args
-        assert kwargs['server_url'] == "http://jsonurl:5678/sse"
-        mock_instance.chat_loop.assert_awaited_once()
-
-
-def test_chat_command_servers_json_fallback(tmp_path, mock_rich_cli_client_chat_methods):
-    """Test fallback to default URL if servers.json is invalid or missing key."""
-    servers_content = {"wrong_key": "http://jsonurl:5678/sse"} # Missing 'chat_server_url'
-    servers_file = tmp_path / "servers.json"
-    with open(servers_file, 'w') as f:
-        json.dump(servers_content, f)
-
-    default_url = "http://defaultfallback:8005/sse"
-
-    with patch('universal_mcp.cli.RichCLIClient', autospec=True) as mock_client_constructor:
-        mock_instance = MagicMock(spec=RichCLIClient)
-        mock_instance.chat_loop = AsyncMock()
-        mock_instance.disconnect = AsyncMock()
-        mock_instance.session = True
-        mock_client_constructor.return_value = mock_instance
-
-        result = runner.invoke(typer_app, ["chat", "--servers-json", str(servers_file), "--url", default_url])
-
-        assert result.exit_code == 0, f"CLI exited with {result.exit_code}: {result.stdout}"
-        mock_client_constructor.assert_called_once()
-        _args, kwargs = mock_client_constructor.call_args
-        assert kwargs['server_url'] == default_url
-        mock_instance.chat_loop.assert_awaited_once()
+    mock_mcp_multiclient_instance = MagicMock(spec=MultiClientServer)
+    mock_multi_client_server_constructor.return_value = mock_mcp_multiclient_instance
 
 
+    result = runner.invoke(typer_app, ["chat", "--servers-json", str(servers_file)])
+
+    assert result.exit_code == 0, f"CLI Error: {result.stdout}"
+
+    # Check ClientTransportConfig instantiation
+    # Pydantic models take kwargs, so use that for assertion
+    mock_client_transport_config_constructor.assert_called_once_with(**tool_server_config_dict)
+
+    # Check MultiClientServer instantiation
+    mock_multi_client_server_constructor.assert_called_once_with(
+        clients={"server1": mock_transport_config_instance}
+    )
+
+    # Check CLIAgent instantiation
+    mock_cli_agent_constructor.assert_called_once_with(
+        agent_sse_url=agent_json_url,
+        mcp_multiclient=mock_mcp_multiclient_instance
+    )
+    mock_rich_cli_client_constructor.assert_called_once_with(agent=mock_agent_instance)
+    mock_ui_instance.chat_loop.assert_awaited_once()
+
+
+# Updated RichCLIClient unit tests
 @pytest.mark.asyncio
-async def test_rich_cli_client_init(mock_loop):
-    """Test RichCLIClient initialization."""
-    server_url = "http://testurl:1234/sse"
-    client = RichCLIClient(server_url=server_url, loop=mock_loop)
-    assert client.server_url == server_url
-    assert client.loop == mock_loop
-    assert client.session is None
+async def test_rich_cli_client_init(mock_loop: asyncio.AbstractEventLoop):
+    mock_agent = MagicMock(spec=Agent) # Use the base Agent for spec
+    client = RichCLIClient(agent=mock_agent, loop=mock_loop)
+    assert client.agent is mock_agent
+    assert client.loop is mock_loop
     assert client.console is not None
-    assert client.exit_stack is not None
-
 
 @pytest.mark.asyncio
-async def test_rich_cli_client_connect_disconnect(mock_loop):
-    """Test connect and disconnect methods (mocking actual SSE calls)."""
-    server_url = "http://testurl:1234/sse"
-    client = RichCLIClient(server_url=server_url, loop=mock_loop)
+async def test_rich_cli_client_chat_loop_calls_agent(mock_loop: asyncio.AbstractEventLoop):
+    mock_agent = MagicMock(spec=Agent)
 
-    mock_read_stream = AsyncMock()
-    mock_write_stream = AsyncMock()
+    # Make stream_response an async generator mock
+    async def mock_stream_response_gen(*args, **kwargs):
+        yield "Hello "
+        yield {"type": "info", "data": {"status": "Processing..."}}
+        yield "World"
+        yield {"type": "info", "data": {"status": "Stream ended"}}
 
-    # sse_client itself is an async context manager
-    mock_sse_client_acm = AsyncMock()
-    # __aenter__ of sse_client's returned object should yield (read, write)
-    mock_sse_client_acm.__aenter__.return_value = (mock_read_stream, mock_write_stream)
+    # Assign the generator function to be the side_effect of the mock method
+    mock_agent.stream_response = MagicMock(side_effect=mock_stream_response_gen)
 
-    # ClientSession is also an async context manager
-    mock_client_session_acm = AsyncMock()
-    mock_session_instance = AsyncMock(spec=ClientSession) # Mock the instance returned by ClientSession's __aenter__
-    mock_session_instance.initialize = AsyncMock()
-    mock_client_session_acm.__aenter__.return_value = mock_session_instance
+    client = RichCLIClient(agent=mock_agent, loop=mock_loop)
 
-    # Patch the call that returns the async context manager
-    with patch('mcp.client.sse.sse_client', return_value=mock_sse_client_acm) as mock_sse_lib_call, \
-         patch('universal_mcp.client.chat_client.ClientSession', return_value=mock_client_session_acm) as mock_session_lib_constructor:
+    # Mock console.input_async to return a value and then raise EOFError to stop the loop
+    with patch.object(client.console, 'input_async', new_callable=AsyncMock) as mock_input:
+        mock_input.side_effect = ["Test message", EOFError("Simulate Ctrl+D")]
 
-        connected = await client.connect()
-        assert connected is True
-        assert client.session is mock_session_instance # Ensure the instance from ClientSession's context is assigned
+        # Mock rich.live.Live context manager and its update method
+        # The Live instance itself is the context manager
+        mock_live_cm = MagicMock() # This will be returned by Live()
+        mock_live_cm.update = MagicMock() # Method on the context manager instance
+        mock_live_cm.__enter__.return_value = mock_live_cm # __enter__ returns the context manager itself
+        mock_live_cm.__aenter__.return_value = mock_live_cm # For async with, though Live is sync
 
-        mock_sse_lib_call.assert_called_once_with(url=server_url, headers={})
-        # Ensure ClientSession constructor was called with the streams from sse_client
-        mock_session_lib_constructor.assert_called_once_with(mock_read_stream, mock_write_stream)
-        mock_session_instance.initialize.assert_awaited_once()
+        with patch('universal_mcp.client.chat_client.Live', return_value=mock_live_cm) as mock_live_constructor:
+            await client.chat_loop()
 
-        await client.disconnect()
-        # exit_stack.aclose() calls __aexit__ on registered context managers
-        mock_sse_client_acm.__aexit__.assert_awaited_once()
-        mock_client_session_acm.__aexit__.assert_awaited_once()
-        # If client.session was reset or other cleanup, test that too
-        # For now, just testing that the contexts were exited.
+    mock_input.assert_called_once_with(ANY) # Check that input was called at least once
+    mock_agent.stream_response.assert_called_once_with(user_message="Test message", thread_id=ANY)
+
+    # Check that Live was constructed and updated
+    mock_live_constructor.assert_called_once()
+    # Expected updates: initial panel, then for each of the 4 yields.
+    assert mock_live_cm.update.call_count >= 4

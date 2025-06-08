@@ -1,7 +1,7 @@
 import re
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
 import asyncio
 
 import typer
@@ -12,7 +12,13 @@ from universal_mcp.utils.installation import (
     get_supported_apps,
     install_app,
 )
+# New imports for agent and refactored client
+from universal_mcp.agents.cli_agent import CLIAgent
 from universal_mcp.client.chat_client import RichCLIClient
+# Import MultiClientServer if it's to be instantiated here
+from universal_mcp.client.client import MultiClientServer
+from universal_mcp.config import ClientTransportConfig # For MultiClientServer
+
 
 # Setup rich console and logging
 console = Console()
@@ -305,65 +311,137 @@ def chat(
         None,
         "--servers-json",
         "-j",
-        help="Path to a JSON file containing server configurations. Expected format: {\"chat_server_url\": \"http://<host>:<port>/<path>\"}"
+        help=(
+            "Path to a JSON configuration file. "
+            "Expected structure: \n"
+            "{ \n"
+            "  \"agent_sse_url\": \"http://<agent_host>:<port>/sse\", \n"
+            "  \"tool_servers\": { \n"
+            "    \"<server_name>\": { \"url\": \"...\", \"transport\": \"sse\", ... } \n"
+            "  } \n"
+            "}\n"
+            "If 'agent_sse_url' is present, it overrides the --url option for the agent's connection. "
+            "'tool_servers' configures the MultiClientServer for external tools."
+        ),
+        rich_help_panel="Configuration",
     ),
-    server_url: str = typer.Option(
+    url: str = typer.Option(
         "http://localhost:8005/sse",
         "--url",
-        "-u",
-        help="URL of the MCP server for chat. Used if --servers-json is not provided or is invalid."
+        help="URL of the primary Agent's SSE endpoint. This is overridden if 'agent_sse_url' is specified in the --servers-json file.",
+        rich_help_panel="Configuration",
     ),
+    # Consider adding a log level option here if useful for debugging client/agent later
 ):
-    """Initiates an interactive chat session with an MCP server."""
+    """
+    Initiates an interactive chat session with an AI agent.
 
-    effective_server_url = server_url  # Default to the command line argument or its default
+    The client connects to an agent's Server-Sent Events (SSE) endpoint for
+    streaming responses. You can specify the agent's SSE URL using the --url
+    option or through a configuration file with --servers-json.
+
+    The --servers-json file can also define connection details for external
+    tool servers, which the agent might use.
+    """
+
+    console.print("[info]Initializing chat environment...[/info]")
+
+    agent_sse_url = url  # Default to the command line --url argument
+    tool_server_configs: Dict[str, ClientTransportConfig] = {}
 
     if servers_json_path:
-        console.print(f"Attempting to load server configuration from: {servers_json_path}")
+        console.print(f"[info]Attempting to load server configurations from: {servers_json_path}[/info]")
         if servers_json_path.exists() and servers_json_path.is_file():
             try:
                 with open(servers_json_path, 'r') as f:
-                    data = json.load(f)
+                    config_data = json.load(f)
 
-                # Try to find a suitable URL in the JSON data
-                if isinstance(data, dict):
-                    if "chat_server_url" in data and isinstance(data["chat_server_url"], str):
-                        effective_server_url = data["chat_server_url"]
-                        console.print(f"[green]Using server URL from JSON file (key 'chat_server_url'): {effective_server_url}[/green]")
-                    elif "sse_url" in data and isinstance(data["sse_url"], str):
-                        effective_server_url = data["sse_url"]
-                        console.print(f"[green]Using server URL from JSON file (key 'sse_url'): {effective_server_url}[/green]")
-                    elif "url" in data and isinstance(data["url"], str):
-                        effective_server_url = data["url"]
-                        console.print(f"[green]Using server URL from JSON file (key 'url'): {effective_server_url}[/green]")
+                if isinstance(config_data, dict):
+                    # Determine Agent SSE URL: servers_json_path["agent_sse_url"] > servers_json_path["url"] > --url CLI > default
+                    if "agent_sse_url" in config_data and isinstance(config_data["agent_sse_url"], str):
+                        agent_sse_url = config_data["agent_sse_url"]
+                        console.print(f"[info]Using Agent SSE URL from JSON (key 'agent_sse_url'): {agent_sse_url}[/info]")
+                    elif "url" in config_data and isinstance(config_data["url"], str):
+                        # Fallback to 'url' key in JSON if 'agent_sse_url' is not present
+                        agent_sse_url = config_data["url"]
+                        console.print(f"[info]Using Agent SSE URL from JSON (key 'url'): {agent_sse_url}[/info]")
                     else:
-                        console.print(f"[yellow]Warning: No 'chat_server_url', 'sse_url', or 'url' key found in {servers_json_path}. Using default/command-line URL: {server_url}[/yellow]")
-                else:
-                    console.print(f"[yellow]Warning: Invalid format in {servers_json_path}. Expected a JSON object. Using default/command-line URL: {server_url}[/yellow]")
+                        console.print(f"[info]No 'agent_sse_url' or 'url' key for agent in {servers_json_path}. Using --url value: {agent_sse_url}[/info]")
+
+                    # Parse tool_servers
+                    raw_tool_servers = config_data.get("tool_servers", {})
+                    if isinstance(raw_tool_servers, dict):
+                        for name, conf_dict in raw_tool_servers.items():
+                            if isinstance(conf_dict, dict):
+                                try:
+                                    # Ensure essential keys for ClientTransportConfig are present
+                                    # url and transport are typically required.
+                                    # ClientTransportConfig will validate further.
+                                    cfg = ClientTransportConfig(**conf_dict)
+                                    tool_server_configs[name] = cfg
+                                    console.print(f"[info]Loaded tool server config: '{name}'[/info]")
+                                except TypeError as te: # Catches missing required args for ClientTransportConfig
+                                     console.print(f"[red]Error parsing tool server '{name}' from {servers_json_path}: Missing required fields for ClientTransportConfig ({te}). Skipping.[/red]")
+                                except Exception as e:
+                                    console.print(f"[red]Error parsing tool server '{name}' from {servers_json_path}: {e}. Skipping.[/red]")
+                            else:
+                                console.print(f"[yellow]Warning: Tool server entry '{name}' in {servers_json_path} is not a valid dictionary. Skipping.[/yellow]")
+                        if not tool_server_configs and raw_tool_servers: # check if raw_tool_servers was not empty
+                             console.print(f"[info]'tool_servers' in {servers_json_path} was present but all entries were invalid or empty.[/info]")
+                    elif raw_tool_servers: # If it exists but is not a dict
+                        console.print(f"[yellow]Warning: 'tool_servers' in {servers_json_path} is not a dictionary. Skipping tool server configuration.[/yellow]")
+                    else: # 'tool_servers' key is missing
+                        console.print(f"[info]No 'tool_servers' key found in {servers_json_path}. No external tool servers will be configured.[/info]")
+
+                else: # config_data is not a dict
+                    console.print(f"[yellow]Warning: Invalid format in {servers_json_path}. Expected a JSON object. Using --url for agent: {agent_sse_url}[/yellow]")
 
             except json.JSONDecodeError:
-                console.print(f"[red]Error: Could not decode JSON from {servers_json_path}. Using default/command-line URL: {server_url}[/red]")
+                console.print(f"[red]Error: Could not decode JSON from {servers_json_path}. Using --url for agent: {agent_sse_url}[/red]")
             except Exception as e:
-                console.print(f"[red]Error reading {servers_json_path}: {e}. Using default/command-line URL: {server_url}[/red]")
-        else:
-            console.print(f"[yellow]Warning: File not found or is not a file: {servers_json_path}. Using default/command-line URL: {server_url}[/yellow]")
-    else:
-        console.print(f"Using server URL from command line or default: {effective_server_url}")
+                console.print(f"[red]Error reading {servers_json_path}: {e}. Using --url for agent: {agent_sse_url}[/red]")
+        else: # path doesn't exist or not a file
+            console.print(f"[yellow]Warning: Config file not found or is not a regular file: {servers_json_path}. Using --url for agent: {agent_sse_url}[/yellow]")
+    else: # servers_json_path not provided
+        console.print(f"[info]No --servers-json provided. Using --url for Agent SSE: {agent_sse_url}[/info]")
+        console.print(f"[info]No external tool servers will be configured.[/info]")
 
-    console.print(f"Attempting to start chat client for server: {effective_server_url}")
+
+    mcp_multiclient = None
+    if tool_server_configs:
+        try:
+            mcp_multiclient = MultiClientServer(clients=tool_server_configs)
+            console.print(f"[info]MultiClientServer instantiated with {len(tool_server_configs)} tool server(s).[/info]")
+        except Exception as e:
+            console.print(f"[red]Failed to instantiate MultiClientServer: {e}. Proceeding without it.[/red]")
+            mcp_multiclient = None # Ensure it's None if instantiation fails
+    else:
+        console.print("[info]MultiClientServer not instantiated as no valid tool server configurations were loaded.[/info]")
+
+    # Instantiate Agent and UI Client
+    try:
+        cli_agent = CLIAgent(agent_sse_url=agent_sse_url, mcp_multiclient=mcp_multiclient)
+        console.print(f"[info]CLIAgent instantiated for SSE endpoint: {agent_sse_url}[/info]")
+
+        chat_ui = RichCLIClient(agent=cli_agent) # Loop is handled by RichCLIClient's default
+        console.print("[info]RichCLIClient UI instantiated.[/info]")
+    except Exception as e:
+        console.print(f"[red]Fatal Error: Could not initialize agent or UI: {e}[/red]")
+        # console.print_exception(show_locals=True) # For more detailed debugging
+        raise typer.Exit(code=1)
 
     loop = asyncio.get_event_loop()
-    # Pass the determined URL to RichCLIClient
-    chat_client = RichCLIClient(server_url=effective_server_url, loop=loop)
-
     try:
-        loop.run_until_complete(chat_client.chat_loop())
+        console.print("[info]Starting chat session... Type 'exit' or Ctrl+D to quit.[/info]")
+        loop.run_until_complete(chat_ui.chat_loop())
     except KeyboardInterrupt:
-        console.print("\nCLI chat terminated by user.")
+        console.print("\n[bold red]CLI chat session terminated by user.[/bold red]")
+    except Exception as e:
+        console.print(f"\n[bold red]An unexpected error occurred during the chat session: {e}[/bold red]")
+        # console.print_exception(show_locals=True) # For more detailed debugging
     finally:
-        # Ensure graceful cleanup if loop was interrupted during client operations
-        if chat_client.session: # Check if connection was established
-             loop.run_until_complete(chat_client.disconnect())
+        # Perform any explicit cleanup if necessary, though most is handled by context managers or GC
+        console.print("[info]Chat session finished.[/info]")
 
 
 if __name__ == "__main__":
