@@ -4,7 +4,7 @@ Universal MCP acts as a middleware layer for your API applications, enabling sea
 
 ## Documentation
 
-The primary documentation for Universal MCP has been moved to the `/docs` folder in this repository.
+The primary documentation for Universal MCP is available in `/docs` folder in this repository.
 
 Please refer to the following for more detailed information:
 
@@ -15,7 +15,7 @@ Please refer to the following for more detailed information:
 *   **[Server Implementations](docs/servers.md)**: For details on server types.
 *   **[Credential Stores](docs/stores.md)**: For information on credential stores.
 *   **[Tools Framework](docs/tools_framework.md)**: For details on the tool management system.
-*   **[Contributing Guidelines](docs/CONTRIBUTING.md)**: For information on how to contribute to the project.
+*   **[Contributing Guidelines](CONTRIBUTING.md)**: For information on how to contribute to the project.
 
 ## License
 
