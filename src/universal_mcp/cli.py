@@ -1,5 +1,8 @@
 import re
+import json
 from pathlib import Path
+from typing import Optional
+import asyncio
 
 import typer
 from rich.console import Console
@@ -9,6 +12,7 @@ from universal_mcp.utils.installation import (
     get_supported_apps,
     install_app,
 )
+from universal_mcp.client.chat_client import RichCLIClient
 
 # Setup rich console and logging
 console = Console()
@@ -293,6 +297,73 @@ def split_api(
         console.print(f"[red]Error splitting API client: {e}[/red]")
 
         raise typer.Exit(1) from e
+
+# New chat command
+@app.command()
+def chat(
+    servers_json_path: Optional[Path] = typer.Option(
+        None,
+        "--servers-json",
+        "-j",
+        help="Path to a JSON file containing server configurations. Expected format: {\"chat_server_url\": \"http://<host>:<port>/<path>\"}"
+    ),
+    server_url: str = typer.Option(
+        "http://localhost:8005/sse",
+        "--url",
+        "-u",
+        help="URL of the MCP server for chat. Used if --servers-json is not provided or is invalid."
+    ),
+):
+    """Initiates an interactive chat session with an MCP server."""
+
+    effective_server_url = server_url  # Default to the command line argument or its default
+
+    if servers_json_path:
+        console.print(f"Attempting to load server configuration from: {servers_json_path}")
+        if servers_json_path.exists() and servers_json_path.is_file():
+            try:
+                with open(servers_json_path, 'r') as f:
+                    data = json.load(f)
+
+                # Try to find a suitable URL in the JSON data
+                if isinstance(data, dict):
+                    if "chat_server_url" in data and isinstance(data["chat_server_url"], str):
+                        effective_server_url = data["chat_server_url"]
+                        console.print(f"[green]Using server URL from JSON file (key 'chat_server_url'): {effective_server_url}[/green]")
+                    elif "sse_url" in data and isinstance(data["sse_url"], str):
+                        effective_server_url = data["sse_url"]
+                        console.print(f"[green]Using server URL from JSON file (key 'sse_url'): {effective_server_url}[/green]")
+                    elif "url" in data and isinstance(data["url"], str):
+                        effective_server_url = data["url"]
+                        console.print(f"[green]Using server URL from JSON file (key 'url'): {effective_server_url}[/green]")
+                    else:
+                        console.print(f"[yellow]Warning: No 'chat_server_url', 'sse_url', or 'url' key found in {servers_json_path}. Using default/command-line URL: {server_url}[/yellow]")
+                else:
+                    console.print(f"[yellow]Warning: Invalid format in {servers_json_path}. Expected a JSON object. Using default/command-line URL: {server_url}[/yellow]")
+
+            except json.JSONDecodeError:
+                console.print(f"[red]Error: Could not decode JSON from {servers_json_path}. Using default/command-line URL: {server_url}[/red]")
+            except Exception as e:
+                console.print(f"[red]Error reading {servers_json_path}: {e}. Using default/command-line URL: {server_url}[/red]")
+        else:
+            console.print(f"[yellow]Warning: File not found or is not a file: {servers_json_path}. Using default/command-line URL: {server_url}[/yellow]")
+    else:
+        console.print(f"Using server URL from command line or default: {effective_server_url}")
+
+    console.print(f"Attempting to start chat client for server: {effective_server_url}")
+
+    loop = asyncio.get_event_loop()
+    # Pass the determined URL to RichCLIClient
+    chat_client = RichCLIClient(server_url=effective_server_url, loop=loop)
+
+    try:
+        loop.run_until_complete(chat_client.chat_loop())
+    except KeyboardInterrupt:
+        console.print("\nCLI chat terminated by user.")
+    finally:
+        # Ensure graceful cleanup if loop was interrupted during client operations
+        if chat_client.session: # Check if connection was established
+             loop.run_until_complete(chat_client.disconnect())
 
 
 if __name__ == "__main__":
