@@ -18,7 +18,8 @@ class AgentrClient:
         base_url (str, optional): Base URL for AgentR API. Defaults to https://api.agentr.dev
     """
 
-    def __init__(self, api_key: str, base_url: str = "https://api.agentr.dev"):
+    def __init__(self, api_key: str | None = None, base_url: str | None = None):
+        base_url = base_url or os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key or os.getenv("AGENTR_API_KEY")
         if not self.api_key:

@@ -12,10 +12,7 @@ def integration_from_config(config: IntegrationConfig, store: BaseStore | None =
     if config.type == "api_key":
         return ApiKeyIntegration(config.name, store=store, **kwargs)
     elif config.type == "agentr":
-        api_key = kwargs.get("api_key")
-        if not api_key:
-            raise ValueError("api_key is required for AgentR integration")
-        return AgentRIntegration(config.name, api_key=api_key)
+        return AgentRIntegration(config.name, **kwargs)
     else:
         raise ValueError(f"Unsupported integration type: {config.type}")
 

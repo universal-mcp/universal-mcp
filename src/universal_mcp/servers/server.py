@@ -48,15 +48,27 @@ class BaseServer(FastMCP):
                                 configuration or other issues.
         """
         try:
-            super().__init__(config.name, config.description, port=config.port, **kwargs) # type: ignore
+            super().__init__(config.name, config.description, port=config.port, **kwargs)  # type: ignore
             logger.info(f"Initializing server: {config.name} ({config.type}) with store: {config.store}")
             self.config = config
-            self._tool_manager = tool_manager or ToolManager(warn_on_duplicate_tools=True)
+            self._tool_manager = None
             # Validate config after setting attributes to ensure proper initialization
             ServerConfig.model_validate(config)
         except Exception as e:
             logger.error(f"Failed to initialize server: {e}", exc_info=True)
             raise ConfigurationError(f"Server initialization failed: {str(e)}") from e
+
+    @property
+    def tool_manager(self) -> ToolManager:
+        """The tool manager for the server."""
+        if self._tool_manager is None:
+            self._tool_manager = ToolManager(warn_on_duplicate_tools=True)
+        return self._tool_manager
+
+    @tool_manager.setter
+    def tool_manager(self, tool_manager: ToolManager) -> None:
+        """Sets the tool manager for the server."""
+        self._tool_manager = tool_manager
 
     def add_tool(self, tool: Callable) -> None:
         """Adds a new tool to the server's tool manager.
@@ -69,16 +81,16 @@ class BaseServer(FastMCP):
         Raises:
             ValueError: If the provided tool is invalid or cannot be registered.
         """
-        self._tool_manager.add_tool(tool)
+        self.tool_manager.add_tool(tool)
 
-    async def list_tools(self) -> list: # type: ignore
+    async def list_tools(self) -> list:  # type: ignore
         """Lists all tools registered with the server in MCP format.
 
         Returns:
             list: A list of tool definitions, formatted according to the
                   MCP specification.
         """
-        return self._tool_manager.list_tools(format=ToolFormat.MCP)
+        return self.tool_manager.list_tools(format=ToolFormat.MCP)
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
         """Calls a registered tool by name with the provided arguments.
@@ -107,7 +119,7 @@ class BaseServer(FastMCP):
 
         logger.info(f"Calling tool: {name} with arguments: {arguments}")
         try:
-            result = await self._tool_manager.call_tool(name, arguments)
+            result = await self.tool_manager.call_tool(name, arguments)
             logger.info(f"Tool '{name}' completed successfully")
             return format_to_mcp_result(result)
         except Exception as e:
@@ -138,8 +150,15 @@ class LocalServer(BaseServer):
             **kwargs: Additional keyword arguments passed to the `BaseServer`.
         """
         super().__init__(config, **kwargs)
-        self.store = self._setup_store(config.store)
-        self._load_apps()
+
+    @property
+    def tool_manager(self) -> ToolManager:
+        """The tool manager for the server."""
+        if self._tool_manager is None:
+            self._tool_manager = ToolManager(warn_on_duplicate_tools=True)
+            self._setup_store(self.config.store)
+            self._load_apps(self.config.apps)
+        return self._tool_manager
 
     def _setup_store(self, store_config: StoreConfig | None) -> BaseStore | None:
         """Initializes the credential store based on the server configuration.
@@ -209,7 +228,7 @@ class LocalServer(BaseServer):
             logger.error(f"Failed to load app {app_config.name}: {e}", exc_info=True)
             return None
 
-    def _load_apps(self) -> None:
+    def _load_apps(self, config: list[AppConfig]) -> None:
         """Loads all applications defined in the server's configuration.
 
         Iterates through the `AppConfig` entries in `self.config.apps`.
@@ -220,15 +239,15 @@ class LocalServer(BaseServer):
         This method handles errors gracefully for individual app loading,
         allowing the server to start even if some applications fail to load.
         """
-        if not self.config.apps:
+        if not config:
             logger.warning("No applications configured")
             return
 
-        logger.info(f"Loading {len(self.config.apps)} apps")
+        logger.info(f"Loading {len(config)} apps")
         loaded_apps = 0
         failed_apps = []
 
-        for app_config in self.config.apps:
+        for app_config in config:
             app = self._load_app(app_config)
             if app:
                 try:
@@ -278,12 +297,17 @@ class AgentRServer(BaseServer):
             ValueError: If the `api_key` is not provided in the configuration.
         """
         super().__init__(config, **kwargs)
-        self.api_key = config.api_key.get_secret_value() if config.api_key else None
-        if not self.api_key:
-            raise ValueError("API key is required for AgentR server")
-        logger.info(f"Initializing AgentR server with API key: {self.api_key} and base URL: {config.base_url}") # type: ignore
-        self.client = AgentrClient(api_key=self.api_key, base_url=config.base_url) # type: ignore
-        self._load_apps()
+        api_key = config.api_key.get_secret_value() if config.api_key else None
+        base_url = config.base_url
+        self.client = AgentrClient(api_key=api_key, base_url=base_url)  # type: ignore
+
+    @property
+    def tool_manager(self) -> ToolManager:
+        """The tool manager for the server."""
+        if self._tool_manager is None:
+            self._tool_manager = ToolManager(warn_on_duplicate_tools=True)
+            self._load_apps()
+        return self._tool_manager
 
     def _fetch_apps(self) -> list[AppConfig]:
         """Fetches available application configurations from the AgentR API.
@@ -333,11 +357,11 @@ class AgentRServer(BaseServer):
         """
         try:
             integration = (
-                AgentRIntegration(name=app_config.integration.name, api_key=self.api_key, base_url=self.config.base_url) # type: ignore
+                AgentRIntegration(name=app_config.integration.name, client=self.client)  # type: ignore
                 if app_config.integration
                 else None
             )
-            app = app_from_slug(app_config.name)(integration=integration) # type: ignore
+            app = app_from_slug(app_config.name)(integration=integration)  # type: ignore
             logger.info(f"Successfully loaded app: {app_config.name}")
             return app
         except Exception as e:
@@ -413,13 +437,19 @@ class SingleMCPServer(BaseServer):
         Raises:
             ValueError: If `app_instance` is None.
         """
-        if not app_instance:
-            raise ValueError("app_instance is required for SingleMCPServer")
 
         config = config or ServerConfig(
-            type="local", # type: ignore
-            name=f"{app_instance.name.title()} MCP Server for Local Development", # type: ignore
-            description=f"Minimal MCP server for the local {app_instance.name} application.", # type: ignore
+            type="local",  # type: ignore
+            name=f"{app_instance.name.title()} MCP Server for Local Development",  # type: ignore
+            description=f"Minimal MCP server for the local {app_instance.name} application.",  # type: ignore
         )
         super().__init__(config, **kwargs)
-        self._tool_manager.register_tools_from_app(app_instance, tags="all")
+        self.app_instance = app_instance
+
+    @property
+    def tool_manager(self) -> ToolManager:
+        """The tool manager for the server."""
+        if self._tool_manager is None:
+            self._tool_manager = ToolManager(warn_on_duplicate_tools=True)
+            self._tool_manager.register_tools_from_app(self.app_instance, tags="all")
+        return self._tool_manager

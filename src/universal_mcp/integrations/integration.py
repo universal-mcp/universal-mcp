@@ -81,7 +81,7 @@ class Integration:
         """
         try:
             credentials = self.store.get(self.name)
-            if credentials is None: # Explicitly check for None if store can return it
+            if credentials is None:  # Explicitly check for None if store can return it
                 raise NotAuthorizedError(f"No credentials found for {self.name}")
             return credentials
         except KeyNotFoundError as e:
@@ -137,7 +137,7 @@ class ApiKeyIntegration(Integration):
         self._api_key: str | None = None
 
     @property
-    def api_key(self) -> str: # Changed to str, as it raises if None effectively
+    def api_key(self) -> str:  # Changed to str, as it raises if None effectively
         """Retrieves the API key, loading it from the store if necessary.
 
         If the API key is not already cached in `_api_key`, it attempts
@@ -152,12 +152,12 @@ class ApiKeyIntegration(Integration):
         """
         if not self._api_key:
             try:
-                credentials = self.store.get(self.name) # type: ignore
+                credentials = self.store.get(self.name)  # type: ignore
                 self._api_key = credentials
             except KeyNotFoundError as e:
                 action = self.authorize()
                 raise NotAuthorizedError(action) from e
-        return self._api_key # type: ignore
+        return self._api_key  # type: ignore
 
     @api_key.setter
     def api_key(self, value: str | None) -> None:
@@ -279,7 +279,7 @@ class OAuthIntegration(Integration):
         credentials = self.store.get(self.name)
         if not credentials:
             return None
-        return credentials # type: ignore
+        return credentials  # type: ignore
 
     def set_credentials(self, credentials: dict[str, Any]) -> None:
         """Stores OAuth tokens for this integration.
@@ -349,7 +349,7 @@ class OAuthIntegration(Integration):
             ValueError: If essential OAuth configuration is missing.
             httpx.HTTPStatusError: If the token exchange request to `token_url` fails.
         """
-        if not all([self.client_id, self.client_secret, self.token_url]): # type: ignore
+        if not all([self.client_id, self.client_secret, self.token_url]):  # type: ignore
             raise ValueError("Missing required OAuth configuration")
 
         token_params = {
@@ -359,7 +359,7 @@ class OAuthIntegration(Integration):
             "grant_type": "authorization_code",
         }
 
-        response = httpx.post(self.token_url, data=token_params) # type: ignore
+        response = httpx.post(self.token_url, data=token_params)  # type: ignore
         response.raise_for_status()
         credentials = response.json()
         self.store.set(self.name, credentials)
@@ -378,7 +378,7 @@ class OAuthIntegration(Integration):
             KeyError: If a refresh token is not found in the stored credentials.
             httpx.HTTPStatusError: If the token refresh request fails.
         """
-        if not all([self.client_id, self.client_secret, self.token_url]): # type: ignore
+        if not all([self.client_id, self.client_secret, self.token_url]):  # type: ignore
             raise ValueError("Missing required OAuth configuration")
 
         credentials = self.get_credentials()
@@ -392,7 +392,7 @@ class OAuthIntegration(Integration):
             "refresh_token": credentials["refresh_token"],
         }
 
-        response = httpx.post(self.token_url, data=token_params) # type: ignore
+        response = httpx.post(self.token_url, data=token_params)  # type: ignore
         response.raise_for_status()
         credentials = response.json()
         self.store.set(self.name, credentials)
@@ -414,21 +414,18 @@ class AgentRIntegration(Integration):
         _credentials (dict | None): Cached credentials.
     """
 
-    def __init__(self, name: str, api_key: str | None = None, base_url: str | None = None, **kwargs):
+    def __init__(self, name: str, client: AgentrClient | None = None, **kwargs):
         """Initializes the AgentRIntegration.
 
         Args:
             name (str): The name of the service integration as configured on
                         the AgentR platform (e.g., "github").
-            api_key (str | None, optional): The AgentR API key. If not provided,
-                                          the `AgentrClient` may attempt to load
-                                          it from environment variables.
-            base_url (str | None, optional): The base URL for the AgentR API.
-                                           Defaults to AgentrClient's default.
+            client (AgentrClient | None, optional): The AgentR client. If not provided,
+                                                   a new `AgentrClient` will be created.
             **kwargs: Additional arguments passed to the parent `Integration`.
         """
         super().__init__(name, **kwargs)
-        self.client = AgentrClient(api_key=api_key, base_url=base_url)
+        self.client = client or AgentrClient()
         self._credentials = None
 
     def set_credentials(self, credentials: dict | None = None) -> str:
