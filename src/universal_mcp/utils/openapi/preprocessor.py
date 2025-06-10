@@ -480,7 +480,7 @@ def load_filter_config(config_path: str) -> dict[str, str | list[str]]:
         with open(config_path, encoding='utf-8') as f:
             config = json.load(f)
     except json.JSONDecodeError as e:
-        raise json.JSONDecodeError(f"Invalid JSON in filter config file {config_path}: {e}")
+        raise json.JSONDecodeError(f"Invalid JSON in filter config file {config_path}: {e}") from e
     
     if not isinstance(config, dict):
         raise ValueError(f"Filter configuration must be a JSON object/dictionary, got {type(config)}")
@@ -1201,7 +1201,7 @@ def run_preprocessing(
             console.print()
         except (FileNotFoundError, json.JSONDecodeError, ValueError) as e:
             console.print(f"[red]Error loading filter configuration: {e}[/red]")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from e
 
     if schema_path is None:
         path_str = typer.prompt(

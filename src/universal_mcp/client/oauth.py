@@ -1,6 +1,7 @@
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from universal_mcp.utils.singleton import Singleton
