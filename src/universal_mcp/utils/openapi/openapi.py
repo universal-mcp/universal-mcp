@@ -1,9 +1,10 @@
 import json
 import re
 import textwrap
+import os
 from keyword import iskeyword
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Optional, Dict, Union, List
 
 import yaml
 from jsonref import replace_refs
@@ -1012,18 +1013,28 @@ def load_schema(path: Path):
     return _load_and_resolve_references(path)
 
 
-def generate_api_client(schema, class_name: str | None = None):
+def generate_api_client(schema, class_name: str | None = None, filter_config_path: Optional[str] = None):
     """
     Generate a Python API client class from an OpenAPI schema.
 
     Args:
         schema (dict): The OpenAPI schema as a dictionary.
+        class_name (str | None): Optional class name override.
+        filter_config_path (str | None): Optional path to JSON filter configuration file.
 
     Returns:
         str: A string containing the Python code for the API client class.
     """
+    # Load filter configuration if provided
+    filter_config = None
+    if filter_config_path:
+        filter_config = load_filter_config(filter_config_path)
+        print(f"Loaded filter configuration from {filter_config_path} with {len(filter_config)} path specifications")
+    
     methods = []
     method_names = []
+    processed_count = 0
+    skipped_count = 0
 
     # Extract API info for naming and base URL
     info = schema.get("info", {})
@@ -1073,10 +1084,21 @@ def generate_api_client(schema, class_name: str | None = None):
     for path, path_info in schema.get("paths", {}).items():
         for method in path_info:
             if method in ["get", "post", "put", "delete", "patch", "options", "head"]:
+                # Apply filter configuration
+                if not should_process_operation(path, method, filter_config):
+                    print(f"Skipping method generation for '{method.upper()} {path}' due to filter configuration.")
+                    skipped_count += 1
+                    continue
+
                 operation = path_info[method]
+                print(f"Generating method for: {method.upper()} {path}")
                 method_code, func_name = _generate_method_code(path, method, operation)
                 methods.append(method_code)
                 method_names.append(func_name)
+                processed_count += 1
+
+    if filter_config is not None:
+        print(f"Selective generation complete: {processed_count} methods generated, {skipped_count} methods skipped.")
 
     # Generate list_tools method with all the function names
     tools_list = ",\n            ".join([f"self.{name}" for name in method_names])
@@ -1101,6 +1123,89 @@ def generate_api_client(schema, class_name: str | None = None):
         f'        self.base_url = "{base_url}"\n\n' + "\n\n".join(methods) + "\n\n" + list_tools_method + "\n"
     )
     return class_code
+
+
+def load_filter_config(config_path: str) -> Dict[str, Union[str, List[str]]]:
+    """
+    Load the JSON filter configuration file for selective API client generation.
+    
+    Expected format:
+    {
+        "/users/{user-id}/profile": "get",
+        "/users/{user-id}/settings": "all", 
+        "/orders/{order-id}": ["get", "put", "delete"]
+    }
+    
+    Args:
+        config_path: Path to the JSON configuration file
+        
+    Returns:
+        Dictionary mapping paths to methods
+        
+    Raises:
+        FileNotFoundError: If config file doesn't exist
+        json.JSONDecodeError: If config file is invalid JSON
+        ValueError: If config format is invalid
+    """
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Filter configuration file not found: {config_path}")
+    
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+    except json.JSONDecodeError as e:
+        raise json.JSONDecodeError(f"Invalid JSON in filter config file {config_path}: {e}")
+    
+    if not isinstance(config, dict):
+        raise ValueError(f"Filter configuration must be a JSON object/dictionary, got {type(config)}")
+    
+    # Validate the configuration format
+    for path, methods in config.items():
+        if not isinstance(path, str):
+            raise ValueError(f"Path keys must be strings, got {type(path)} for key: {path}")
+        
+        if isinstance(methods, str):
+            if methods != "all" and methods.lower() not in ["get", "post", "put", "delete", "patch", "head", "options", "trace"]:
+                raise ValueError(f"Invalid method '{methods}' for path '{path}'. Use 'all' or valid HTTP methods.")
+        elif isinstance(methods, list):
+            for method in methods:
+                if not isinstance(method, str) or method.lower() not in ["get", "post", "put", "delete", "patch", "head", "options", "trace"]:
+                    raise ValueError(f"Invalid method '{method}' for path '{path}'. Use valid HTTP methods.")
+        else:
+            raise ValueError(f"Methods must be string or list of strings for path '{path}', got {type(methods)}")
+    
+    return config
+
+
+def should_process_operation(path: str, method: str, filter_config: Optional[Dict[str, Union[str, List[str]]]] = None) -> bool:
+    """
+    Check if a specific path+method combination should be processed based on filter config.
+    
+    Args:
+        path: The API path (e.g., "/users/{user-id}/profile")
+        method: The HTTP method (e.g., "get")
+        filter_config: Optional filter configuration dict
+        
+    Returns:
+        True if the operation should be processed, False otherwise
+    """
+    if filter_config is None:
+        return True  # No filter means process everything
+    
+    if path not in filter_config:
+        return False  # Path not in config means skip
+    
+    allowed_methods = filter_config[path]
+    method_lower = method.lower()
+    
+    if allowed_methods == "all":
+        return True
+    elif isinstance(allowed_methods, str):
+        return method_lower == allowed_methods.lower()
+    elif isinstance(allowed_methods, list):
+        return method_lower in [m.lower() for m in allowed_methods]
+    
+    return False
 
 
 # Example usage

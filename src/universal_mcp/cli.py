@@ -31,6 +31,12 @@ def generate(
         "-c",
         help="Class name to use for the API client",
     ),
+    filter_config: Path = typer.Option(
+        None,
+        "--filter-config",
+        "-f",
+        help="Path to JSON filter configuration file for selective API client generation.",
+    ),
 ):
     """Generates Python client code from an OpenAPI (Swagger) schema.
 
@@ -42,6 +48,15 @@ def generate(
     the API's service name (e.g., 'twitter.py' for a Twitter API client)
     as this convention is used for organizing applications within U-MCP.
     If no output path is provided, the generated code will be printed to the console.
+
+    Selective Generation:
+    Use --filter-config to specify which API operations to generate methods for.
+    The JSON configuration format is:
+    {
+        "/users/{user-id}/profile": "get",
+        "/users/{user-id}/settings": "all", 
+        "/orders": ["get", "post"]
+    }
     """
     # Import here to avoid circular imports
     from universal_mcp.utils.openapi.api_generator import generate_api_from_schema
@@ -50,11 +65,33 @@ def generate(
         console.print(f"[red]Error: Schema file {schema_path} does not exist[/red]")
         raise typer.Exit(1)
 
+    # Validate filter config file if provided
+    if filter_config is not None:
+        # Handle edge case of empty string or invalid path
+        if str(filter_config).strip() == "":
+            console.print("[red]Error: Filter configuration path cannot be empty[/red]")
+            raise typer.Exit(1)
+        
+        if not filter_config.exists():
+            console.print(f"[red]Error: Filter configuration file '{filter_config}' does not exist[/red]")
+            raise typer.Exit(1)
+        
+        if not filter_config.is_file():
+            console.print(f"[red]Error: Filter configuration path '{filter_config}' is not a file[/red]")
+            raise typer.Exit(1)
+    
+    # Display selective generation info if filter config is provided
+    if filter_config:
+        console.print("[bold cyan]Selective API Client Generation Mode Enabled[/bold cyan]")
+        console.print(f"[cyan]Filter configuration: {filter_config}[/cyan]")
+        console.print()
+
     try:
         app_file_data = generate_api_from_schema(
             schema_path=schema_path,
             output_path=output_path,
             class_name=class_name,
+            filter_config_path=str(filter_config) if filter_config else None,
         )
         if isinstance(app_file_data, dict) and "code" in app_file_data:
             console.print("[yellow]No output path specified, printing generated code to console:[/yellow]")

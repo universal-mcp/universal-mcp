@@ -59,6 +59,7 @@ def generate_api_from_schema(
     schema_path: Path,
     output_path: Path | None = None,
     class_name: str | None = None,
+    filter_config_path: str | None = None,
 ) -> tuple[Path, Path]:
     """
     Generate API client from OpenAPI schema and write to app.py with a README.
@@ -85,7 +86,7 @@ def generate_api_from_schema(
 
     # 2. Generate client code
     try:
-        code = generate_api_client(schema, class_name)
+        code = generate_api_client(schema, class_name, filter_config_path)
         logger.info("API client code generated.")
     except Exception as e:
         logger.error("Code generation failed: %s", e)
