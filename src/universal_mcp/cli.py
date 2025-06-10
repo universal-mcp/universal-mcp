@@ -322,7 +322,6 @@ def preprocess(
     """
     from universal_mcp.utils.openapi.preprocessor import run_preprocessing
     
-    # Validate filter config file if provided
     if filter_config is not None:
         # Handle edge case of empty string or invalid path
         if str(filter_config).strip() == "":
