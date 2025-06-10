@@ -301,6 +301,7 @@ def init(
 def preprocess(
     schema_path: Path = typer.Option(None, "--schema", "-s", help="Path to the input OpenAPI schema file (JSON or YAML)."),
     output_path: Path = typer.Option(None, "--output", "-o", help="Path to save the processed (enhanced) OpenAPI schema file."),
+    filter_config: Path = typer.Option(None, "--filter-config", "-f", help="Path to JSON filter configuration file for selective processing."),
 ):
     """Enhances an OpenAPI schema's descriptions using an LLM.
 
@@ -310,9 +311,42 @@ def preprocess(
     helpful for schemas that are auto-generated or lack comprehensive
     human-written documentation, making the schema more understandable and
     usable for client generation or manual review.
+    
+    Use --filter-config to process only specific paths and methods defined
+    in a JSON configuration file. Format:
+    {
+      "/users/{user-id}/profile": "get",
+      "/users/{user-id}/settings": "all",
+      "/orders/{order-id}": ["get", "put", "delete"]
+    }
     """
     from universal_mcp.utils.openapi.preprocessor import run_preprocessing
-    run_preprocessing(schema_path, output_path)
+    
+    # Validate filter config file if provided
+    if filter_config is not None:
+        # Handle edge case of empty string or invalid path
+        if str(filter_config).strip() == "":
+            console.print("[red]Error: Filter configuration path cannot be empty[/red]")
+            raise typer.Exit(1)
+        
+        if not filter_config.exists():
+            console.print(f"[red]Error: Filter configuration file '{filter_config}' does not exist[/red]")
+            raise typer.Exit(1)
+        
+        if not filter_config.is_file():
+            console.print(f"[red]Error: Filter configuration path '{filter_config}' is not a file[/red]")
+            raise typer.Exit(1)
+    
+    # Display selective processing info if filter config is provided
+    if filter_config:
+        console.print("[bold cyan]Selective Processing Mode Enabled[/bold cyan]")
+        console.print(f"[cyan]Filter configuration: {filter_config}[/cyan]")
+    
+    run_preprocessing(
+        schema_path=schema_path, 
+        output_path=output_path, 
+        filter_config_path=str(filter_config) if filter_config else None
+    )
 
 
 @app.command()
