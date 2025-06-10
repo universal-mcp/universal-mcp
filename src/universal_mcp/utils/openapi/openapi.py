@@ -1,10 +1,10 @@
 import json
+import os
 import re
 import textwrap
-import os
 from keyword import iskeyword
 from pathlib import Path
-from typing import Any, Literal, Optional, Dict, Union, List
+from typing import Any, Literal
 
 import yaml
 from jsonref import replace_refs
@@ -1013,7 +1013,7 @@ def load_schema(path: Path):
     return _load_and_resolve_references(path)
 
 
-def generate_api_client(schema, class_name: str | None = None, filter_config_path: Optional[str] = None):
+def generate_api_client(schema, class_name: str | None = None, filter_config_path: str | None = None):
     """
     Generate a Python API client class from an OpenAPI schema.
 
@@ -1125,7 +1125,7 @@ def generate_api_client(schema, class_name: str | None = None, filter_config_pat
     return class_code
 
 
-def load_filter_config(config_path: str) -> Dict[str, Union[str, List[str]]]:
+def load_filter_config(config_path: str) -> dict[str, str | list[str]]:
     """
     Load the JSON filter configuration file for selective API client generation.
     
@@ -1151,7 +1151,7 @@ def load_filter_config(config_path: str) -> Dict[str, Union[str, List[str]]]:
         raise FileNotFoundError(f"Filter configuration file not found: {config_path}")
     
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with open(config_path, encoding='utf-8') as f:
             config = json.load(f)
     except json.JSONDecodeError as e:
         raise json.JSONDecodeError(f"Invalid JSON in filter config file {config_path}: {e}")
@@ -1177,7 +1177,7 @@ def load_filter_config(config_path: str) -> Dict[str, Union[str, List[str]]]:
     return config
 
 
-def should_process_operation(path: str, method: str, filter_config: Optional[Dict[str, Union[str, List[str]]]] = None) -> bool:
+def should_process_operation(path: str, method: str, filter_config: dict[str, str | list[str]] | None = None) -> bool:
     """
     Check if a specific path+method combination should be processed based on filter config.
     

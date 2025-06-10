@@ -6,7 +6,6 @@ import sys
 import time
 import traceback
 from pathlib import Path
-from typing import List, Optional, Dict, Union
 
 import litellm
 import typer
@@ -452,7 +451,7 @@ def simplify_parameter_context(parameter: dict) -> dict:
     return simplified_context
 
 
-def load_filter_config(config_path: str) -> Dict[str, Union[str, List[str]]]:
+def load_filter_config(config_path: str) -> dict[str, str | list[str]]:
     """
     Load the JSON filter configuration file.
     
@@ -478,7 +477,7 @@ def load_filter_config(config_path: str) -> Dict[str, Union[str, List[str]]]:
         raise FileNotFoundError(f"Filter configuration file not found: {config_path}")
     
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with open(config_path, encoding='utf-8') as f:
             config = json.load(f)
     except json.JSONDecodeError as e:
         raise json.JSONDecodeError(f"Invalid JSON in filter config file {config_path}: {e}")
@@ -505,7 +504,7 @@ def load_filter_config(config_path: str) -> Dict[str, Union[str, List[str]]]:
     return config
 
 
-def should_process_operation(path: str, method: str, filter_config: Optional[Dict[str, Union[str, List[str]]]] = None) -> bool:
+def should_process_operation(path: str, method: str, filter_config: dict[str, str | list[str]] | None = None) -> bool:
     """
     Check if a specific path+method combination should be processed based on filter config.
     
@@ -536,7 +535,7 @@ def should_process_operation(path: str, method: str, filter_config: Optional[Dic
     return False
 
 
-def scan_schema_for_status(schema_data: dict, filter_config: Optional[Dict[str, Union[str, List[str]]]] = None):
+def scan_schema_for_status(schema_data: dict, filter_config: dict[str, str | list[str]] | None = None):
     """
     Scans the schema to report the status of descriptions/summaries
     and identify critical issues like missing parameter 'name'/'in'.
@@ -983,7 +982,7 @@ def process_paths(
     enhance_all: bool, 
     summaries_only: bool = False, 
     operation_ids_only: bool = False,
-    filter_config: Optional[Dict[str, Union[str, List[str]]]] = None
+    filter_config: dict[str, str | list[str]] | None = None
 ):
     if not isinstance(paths, dict):
         logger.warning("'paths' field is not a dictionary. Skipping path processing.")
@@ -1152,7 +1151,7 @@ def preprocess_schema_with_llm(
     enhance_all: bool, 
     summaries_only: bool = False, 
     operation_ids_only: bool = False,
-    filter_config: Optional[Dict[str, Union[str, List[str]]]] = None
+    filter_config: dict[str, str | list[str]] | None = None
 ):
     """
     Processes the schema to add/enhance descriptions/summaries using an LLM.
@@ -1186,7 +1185,7 @@ def run_preprocessing(
     output_path: Path | None = None,
     model: str = "perplexity/sonar",
     debug: bool = False,
-    filter_config_path: Optional[str] = None,
+    filter_config_path: str | None = None,
 ):
     set_logging_level("DEBUG" if debug else "INFO")
     console.print("[bold blue]--- Starting OpenAPI Schema Preprocessor ---[/bold blue]")
@@ -1196,7 +1195,7 @@ def run_preprocessing(
     if filter_config_path:
         try:
             filter_config = load_filter_config(filter_config_path)
-            console.print(f"[bold cyan]Selective Processing Mode Enabled[/bold cyan]")
+            console.print("[bold cyan]Selective Processing Mode Enabled[/bold cyan]")
             console.print(f"[cyan]Filter configuration loaded from: {filter_config_path}[/cyan]")
             console.print(f"[cyan]Will process {len(filter_config)} path specifications[/cyan]")
             console.print()
