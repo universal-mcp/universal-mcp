@@ -16,6 +16,41 @@ console = Console()
 app = typer.Typer()
 
 
+def _validate_filter_config(filter_config: Path | None) -> None:
+    """
+    Validate filter configuration file if provided.
+    
+    Args:
+        filter_config: Path to filter config file or None
+        
+    Raises:
+        typer.Exit: If validation fails
+    """
+    if filter_config is None:
+        return
+    
+    # Handle edge case of empty string or invalid path
+    if str(filter_config).strip() == "":
+        console.print("[red]Error: Filter configuration path cannot be empty[/red]")
+        raise typer.Exit(1)
+    
+    if not filter_config.exists():
+        console.print(f"[red]Error: Filter configuration file '{filter_config}' does not exist[/red]")
+        raise typer.Exit(1)
+    
+    if not filter_config.is_file():
+        console.print(f"[red]Error: Filter configuration path '{filter_config}' is not a file[/red]")
+        raise typer.Exit(1)
+
+
+def _display_selective_mode_info(filter_config: Path | None, mode_name: str) -> None:
+    """Display selective processing mode information if filter config is provided."""
+    if filter_config:
+        console.print(f"[bold cyan]Selective {mode_name} Mode Enabled[/bold cyan]")
+        console.print(f"[cyan]Filter configuration: {filter_config}[/cyan]")
+        console.print()
+
+
 @app.command()
 def generate(
     schema_path: Path = typer.Option(..., "--schema", "-s"),
@@ -65,26 +100,9 @@ def generate(
         console.print(f"[red]Error: Schema file {schema_path} does not exist[/red]")
         raise typer.Exit(1)
 
-    # Validate filter config file if provided
-    if filter_config is not None:
-        # Handle edge case of empty string or invalid path
-        if str(filter_config).strip() == "":
-            console.print("[red]Error: Filter configuration path cannot be empty[/red]")
-            raise typer.Exit(1)
-        
-        if not filter_config.exists():
-            console.print(f"[red]Error: Filter configuration file '{filter_config}' does not exist[/red]")
-            raise typer.Exit(1)
-        
-        if not filter_config.is_file():
-            console.print(f"[red]Error: Filter configuration path '{filter_config}' is not a file[/red]")
-            raise typer.Exit(1)
-    
-    # Display selective generation info if filter config is provided
-    if filter_config:
-        console.print("[bold cyan]Selective API Client Generation Mode Enabled[/bold cyan]")
-        console.print(f"[cyan]Filter configuration: {filter_config}[/cyan]")
-        console.print()
+    # Validate filter config and display info
+    _validate_filter_config(filter_config)
+    _display_selective_mode_info(filter_config, "API Client Generation")
 
     try:
         app_file_data = generate_api_from_schema(
@@ -359,24 +377,9 @@ def preprocess(
     """
     from universal_mcp.utils.openapi.preprocessor import run_preprocessing
     
-    if filter_config is not None:
-        # Handle edge case of empty string or invalid path
-        if str(filter_config).strip() == "":
-            console.print("[red]Error: Filter configuration path cannot be empty[/red]")
-            raise typer.Exit(1)
-        
-        if not filter_config.exists():
-            console.print(f"[red]Error: Filter configuration file '{filter_config}' does not exist[/red]")
-            raise typer.Exit(1)
-        
-        if not filter_config.is_file():
-            console.print(f"[red]Error: Filter configuration path '{filter_config}' is not a file[/red]")
-            raise typer.Exit(1)
-    
-    # Display selective processing info if filter config is provided
-    if filter_config:
-        console.print("[bold cyan]Selective Processing Mode Enabled[/bold cyan]")
-        console.print(f"[cyan]Filter configuration: {filter_config}[/cyan]")
+    # Validate filter config and display info
+    _validate_filter_config(filter_config)
+    _display_selective_mode_info(filter_config, "Processing")
     
     run_preprocessing(
         schema_path=schema_path, 
