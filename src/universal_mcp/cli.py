@@ -355,19 +355,8 @@ def split_api(
 
         raise typer.Exit(1) from e
 
-# In cli.py, replace the existing llm_generate command with this one.
-# Make sure these imports are at the top of your cli.py file:
-# import os
-# import re
-# from pathlib import Path
-# import typer
-# from rich.console import Console
-# from rich.status import Status
-# import litellm
-
 @app.command()
 def llm_generate(
-    # 1. Prompted first. Default is the current working directory.
     output_dir: Path = typer.Option(
         Path.cwd(),  # Default to the current directory
         "--output-dir",
@@ -376,7 +365,6 @@ def llm_generate(
         prompt="Enter the output directory",
         resolve_path=True,  # Ensures we get a clean, absolute path
     ),
-    # 2. Prompted second.
     model: str = typer.Option(
         "perplexity/sonar",
         "--model",
@@ -384,9 +372,8 @@ def llm_generate(
         help="The LLM model to use for generation (via LiteLLM).",
         prompt="Enter the LLM model to use",
     ),
-    # 3. Prompted third. Now an option, but still required.
     prompt: str = typer.Option(
-        ...,  # '...' makes this option required if not passed on the command line.
+        ..., 
         "--prompt",
         "-p",
         help="A natural language description of the application and its tools.",
@@ -402,7 +389,6 @@ def llm_generate(
     from universal_mcp.utils.prompts import APP_GENERATOR_SYSTEM_PROMPT
     console.print(f"[bold blue]🚀 Starting App Generation using model: '{model}'[/bold blue]")
 
-    # --- API Key Check ---
     api_key_env_var = None
     if "claude" in model:
         api_key_env_var = "ANTHROPIC_API_KEY"
@@ -411,7 +397,6 @@ def llm_generate(
     elif "gemini" in model:
         api_key_env_var = "GEMINI_API_KEY"
     elif "perplexity" in model:
-        # Corrected based on LiteLLM's documentation
         api_key_env_var = "PERPLEXITYAI_API_KEY"
 
     if api_key_env_var and not os.getenv(api_key_env_var):
@@ -422,8 +407,6 @@ def llm_generate(
         console.print(f"[yellow]Warning: Could not determine the required API key for model '{model}'.[/yellow]")
         console.print("Please ensure the correct environment variable (e.g., OPENAI_API_KEY) is set for LiteLLM to use.")
 
-
-    # --- Directory and File Setup ---
     try:
         output_dir.mkdir(parents=True, exist_ok=True)
     except Exception as e:
@@ -433,8 +416,6 @@ def llm_generate(
     output_file_path = output_dir / "app.py"
     console.print(f"[green]Will save generated file to:[/green] [cyan]{output_file_path}[/cyan]")
 
-
-    # --- LLM Interaction ---
     messages = [
         {"role": "system", "content": APP_GENERATOR_SYSTEM_PROMPT},
         {"role": "user", "content": prompt},
@@ -453,7 +434,6 @@ def llm_generate(
             console.print(f"\n[bold red]❌ An error occurred during LLM API call: {e}[/bold red]")
             raise typer.Exit(code=1)
 
-    # --- Process Response and Write File ---
     if not response or not response.choices:
         console.print("[bold red]❌ Failed to get a valid response from the LLM.[/bold red]")
         raise typer.Exit(code=1)
