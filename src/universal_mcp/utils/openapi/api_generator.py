@@ -55,6 +55,31 @@ def test_correct_output(gen_file: Path):
     return True
 
 
+def format_with_black(file_path: Path) -> bool:
+    """Format the given Python file with Black. Returns True if successful, False otherwise."""
+    try:
+        import black
+        
+        content = file_path.read_text(encoding='utf-8')
+        
+        formatted_content = black.format_file_contents(
+            content, 
+            fast=False, 
+            mode=black.FileMode()
+        )
+        
+        file_path.write_text(formatted_content, encoding='utf-8')
+        
+        logger.info("Black formatting applied successfully to: %s", file_path)
+        return True
+    except ImportError:
+        logger.warning("Black not installed. Skipping formatting for: %s", file_path)
+        return False
+    except Exception as e:
+        logger.warning("Black formatting failed for %s: %s", file_path, e)
+        return False
+
+
 def generate_api_from_schema(
     schema_path: Path,
     output_path: Path | None = None,
@@ -70,7 +95,8 @@ def generate_api_from_schema(
     3. Ensure output directory exists.
     4. Write code to an intermediate app_generated.py and perform basic import checks.
     5. Copy/overwrite intermediate file to app.py.
-    6. Collect tools and generate README.md.
+    6. Format the final app.py file with Black.
+    7. Collect tools and generate README.md.
     """
     # Local imports for logging and file operations
 
@@ -128,6 +154,9 @@ def generate_api_from_schema(
         logger.info("Creating new file: %s", app_file)
     shutil.copy(gen_file, app_file)
     logger.info("App file written to: %s", app_file)
+
+    # 6. Format the final app.py file with Black
+    format_with_black(app_file)
 
     # Cleanup intermediate file
     try:
