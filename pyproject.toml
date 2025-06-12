@@ -37,15 +37,7 @@ dev = [
     "pytest>=8.3.5",
     "pytest-asyncio>=0.26.0",
     "ruff>=0.11.4",
-]
-playground = [
-    "langchain-openai>=0.3.12",
-    "langgraph>=0.3.24",
-    "langgraph-checkpoint-sqlite>=2.0.6",
-    "python-dotenv>=1.0.1",
-    "streamlit>=1.44.1",
-    "watchdog>=6.0.0",
-    "litellm>=1.30.7",
+    "pyrefly>=0.19.0",
 ]
 
 [project.scripts]
@@ -125,3 +117,8 @@ docstring-code-line-length = "dynamic"
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
+
+
+[tool.pyrefly]
+project-includes = ["**/*"]
+project-excludes = ["**/*venv/**/*"]

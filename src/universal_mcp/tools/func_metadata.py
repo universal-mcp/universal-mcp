@@ -227,7 +227,7 @@ if __name__ == "__main__":
         sys.path.insert(0, str(package_source_parent_dir))
         print(f"DEBUG: Added to sys.path: {package_source_parent_dir}")
 
-    from universal_mcp.utils.docstring_parser import parse_docstring
+    from universal_mcp.tools.docstring_parser import parse_docstring
 
     def post_crm_v_objects_emails_create(self, associations, properties) -> dict[str, Any]:
         """

@@ -6,7 +6,7 @@ import httpx
 from pydantic import BaseModel, Field
 
 from universal_mcp.exceptions import NotAuthorizedError, ToolError
-from universal_mcp.utils.docstring_parser import parse_docstring
+from universal_mcp.tools.docstring_parser import parse_docstring
 
 from .func_metadata import FuncMetadata
 
