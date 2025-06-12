@@ -1,12 +1,13 @@
+import os
 import re
 from pathlib import Path
 
+import litellm
 import typer
 from rich.console import Console
 from rich.panel import Panel
-import litellm
-import os
 from rich.status import Status
+
 from universal_mcp.utils.installation import (
     get_supported_apps,
     install_app,
@@ -355,40 +356,12 @@ def split_api(
 
         raise typer.Exit(1) from e
 
-@app.command()
-def llm_generate(
-    output_dir: Path = typer.Option(
-        Path.cwd(),  # Default to the current directory
-        "--output-dir",
-        "-o",
-        help="Directory to save 'app.py'. Defaults to the current directory.",
-        prompt="Enter the output directory",
-        resolve_path=True,  # Ensures we get a clean, absolute path
-    ),
-    model: str = typer.Option(
-        "perplexity/sonar",
-        "--model",
-        "-m",
-        help="The LLM model to use for generation (via LiteLLM).",
-        prompt="Enter the LLM model to use",
-    ),
-    prompt: str = typer.Option(
-        ..., 
-        "--prompt",
-        "-p",
-        help="A natural language description of the application and its tools.",
-        prompt="Describe the application and its tools",
-    ),
-):
-    """
-    Generates an 'app.py' file from a natural language prompt using an LLM.
 
-    This command takes your description of an application (e.g., "An app for weather.com with a tool to get the current weather for a city")
-    and uses a powerful LLM to generate the complete, ready-to-use 'app.py' file based on the Universal MCP SDK standards.
+def _model_callback(model: str) -> str:
     """
-    from universal_mcp.utils.prompts import APP_GENERATOR_SYSTEM_PROMPT
-    console.print(f"[bold blue]🚀 Starting App Generation using model: '{model}'[/bold blue]")
-
+    Validates the model and checks if the required API key is set.
+    This callback is now silent on success.
+    """
     api_key_env_var = None
     if "claude" in model:
         api_key_env_var = "ANTHROPIC_API_KEY"
@@ -400,18 +373,53 @@ def llm_generate(
         api_key_env_var = "PERPLEXITYAI_API_KEY"
 
     if api_key_env_var and not os.getenv(api_key_env_var):
-        console.print(f"[bold red]Error: Environment variable '{api_key_env_var}' is not set.[/bold red]")
-        console.print(f"Please set your API key for the '{model}' provider to proceed.")
-        raise typer.Exit(code=1)
+        error_message = f"Environment variable '{api_key_env_var}' is not set. Please set it to use the '{model}' model."
+        raise typer.BadParameter(error_message)
     elif not api_key_env_var:
         console.print(f"[yellow]Warning: Could not determine the required API key for model '{model}'.[/yellow]")
         console.print("Please ensure the correct environment variable (e.g., OPENAI_API_KEY) is set for LiteLLM to use.")
+
+    return model
+
+@app.command()
+def llm_generate(
+    output_dir: Path = typer.Option(
+        Path.cwd(),
+        "--output-dir",
+        "-o",
+        help="Directory to save 'app.py'. Defaults to the current directory.",
+        prompt="Enter the output directory",
+        resolve_path=True,
+    ),
+    model: str = typer.Option(
+        "perplexity/sonar",
+        "--model",
+        "-m",
+        help="The LLM model to use for generation (via LiteLLM).",
+        prompt="Enter the LLM model to use",
+        callback=_model_callback,
+    ),
+    prompt: str = typer.Option(
+        ...,
+        "--prompt",
+        "-p",
+        help="A natural language description of the application and its tools.",
+        prompt="Describe the application and its tools",
+    ),
+):
+    """
+    Generates an 'app.py' file from a natural language prompt using an LLM.
+    ...
+    """
+    from universal_mcp.utils.prompts import APP_GENERATOR_SYSTEM_PROMPT
+
+    console.print(f"[bold blue]🚀 Starting App Generation using model: '{model}'[/bold blue]")
 
     try:
         output_dir.mkdir(parents=True, exist_ok=True)
     except Exception as e:
         console.print(f"[red]❌ Failed to create output directory '{output_dir}': {e}[/red]")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
     output_file_path = output_dir / "app.py"
     console.print(f"[green]Will save generated file to:[/green] [cyan]{output_file_path}[/cyan]")
@@ -422,7 +430,7 @@ def llm_generate(
     ]
 
     response = None
-    with Status("[bold green]Generating app code... (this may take a moment)[/bold green]", console=console) as status:
+    with Status("[bold green]Generating app code... (this may take a moment)[/bold green]", console=console):
         try:
             response = litellm.completion(
                 model=model,
@@ -430,9 +438,10 @@ def llm_generate(
                 temperature=0.1,
                 timeout=120,
             )
+        # ... (rest of the code is unchanged) ...
         except Exception as e:
             console.print(f"\n[bold red]❌ An error occurred during LLM API call: {e}[/bold red]")
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1) from e
 
     if not response or not response.choices:
         console.print("[bold red]❌ Failed to get a valid response from the LLM.[/bold red]")
@@ -453,10 +462,10 @@ def llm_generate(
 
     try:
         output_file_path.write_text(final_code, encoding="utf-8")
-        console.print(f"\n[bold green]✅ Success! Application code saved.[/bold green]")
+        console.print("\n[bold green]✅ Success! Application code saved.[/bold green]")
     except Exception as e:
         console.print(f"\n[bold red]❌ Failed to write the generated code to file: {e}[/bold red]")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
     
     
 if __name__ == "__main__":
