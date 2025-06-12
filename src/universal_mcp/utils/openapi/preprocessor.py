@@ -12,6 +12,8 @@ import typer
 import yaml
 from rich.console import Console
 
+from .filters import load_filter_config, should_process_operation
+
 console = Console()
 
 
@@ -451,11 +453,12 @@ def simplify_parameter_context(parameter: dict) -> dict:
     return simplified_context
 
 
-def scan_schema_for_status(schema_data: dict):
+def scan_schema_for_status(schema_data: dict, filter_config: dict[str, str | list[str]] | None = None):
     """
     Scans the schema to report the status of descriptions/summaries
     and identify critical issues like missing parameter 'name'/'in'.
     Does NOT modify the schema or call the LLM.
+    Respects filter configuration if provided.
     """
     logger.info("\n--- Scanning Schema for Status ---")
 
@@ -526,6 +529,12 @@ def scan_schema_for_status(schema_data: dict):
                 "trace",
             ]:
                 operation_location_base = f"paths.{path_key}.{method.lower()}"
+                
+                # Apply filter configuration
+                if not should_process_operation(path_key, method, filter_config):
+                    logger.debug(f"Skipping operation '{method.upper()} {path_key}' due to filter configuration.")
+                    continue
+
                 if not isinstance(operation_value, dict):
                     logger.warning(f"Operation value for '{operation_location_base}' is not a dictionary. Skipping.")
                     continue
@@ -886,11 +895,19 @@ def process_operation(
 
 
 def process_paths(
-    paths: dict, llm_model: str, enhance_all: bool, summaries_only: bool = False, operation_ids_only: bool = False
+    paths: dict, 
+    llm_model: str, 
+    enhance_all: bool, 
+    summaries_only: bool = False, 
+    operation_ids_only: bool = False,
+    filter_config: dict[str, str | list[str]] | None = None
 ):
     if not isinstance(paths, dict):
         logger.warning("'paths' field is not a dictionary. Skipping path processing.")
         return
+
+    processed_count = 0
+    skipped_count = 0
 
     for path_key, path_value in paths.items():
         if path_key.lower().startswith("x-"):
@@ -909,9 +926,17 @@ def process_paths(
                     "patch",
                     "trace",
                 ]:
+                    # Apply filter configuration
+                    if not should_process_operation(path_key, method, filter_config):
+                        logger.debug(f"Skipping operation '{method.upper()} {path_key}' due to filter configuration.")
+                        skipped_count += 1
+                        continue
+
+                    logger.info(f"Processing operation: {method.upper()} {path_key}")
                     process_operation(
                         operation_value, path_key, method, llm_model, enhance_all, summaries_only, operation_ids_only
                     )
+                    processed_count += 1
                 elif method.lower().startswith("x-"):
                     logger.debug(f"Skipping processing of method extension '{method.lower()}' in path '{path_key}'.")
                     continue
@@ -927,6 +952,9 @@ def process_paths(
 
         elif path_value is not None:
             logger.warning(f"Path value for '{path_key}' is not a dictionary. Skipping processing.")
+
+    if filter_config is not None:
+        logger.info(f"Selective processing complete: {processed_count} operations processed, {skipped_count} operations skipped.")
 
 
 def process_info_section(schema_data: dict, llm_model: str, enhance_all: bool):  # New flag
@@ -1036,7 +1064,12 @@ def regenerate_duplicate_operation_ids(schema_data: dict, llm_model: str):
 
 
 def preprocess_schema_with_llm(
-    schema_data: dict, llm_model: str, enhance_all: bool, summaries_only: bool = False, operation_ids_only: bool = False
+    schema_data: dict, 
+    llm_model: str, 
+    enhance_all: bool, 
+    summaries_only: bool = False, 
+    operation_ids_only: bool = False,
+    filter_config: dict[str, str | list[str]] | None = None
 ):
     """
     Processes the schema to add/enhance descriptions/summaries using an LLM.
@@ -1045,8 +1078,12 @@ def preprocess_schema_with_llm(
     If operation_ids_only is True, only missing operationIds are generated (never overwritten).
     Assumes basic schema structure validation (info, title) has already passed.
     """
+    filter_info = ""
+    if filter_config is not None:
+        filter_info = f" | Selective processing: {len(filter_config)} path specifications"
+    
     logger.info(
-        f"\n--- Starting LLM Generation (enhance_all={enhance_all}, summaries_only={summaries_only}, operation_ids_only={operation_ids_only}) ---"
+        f"\n--- Starting LLM Generation (enhance_all={enhance_all}, summaries_only={summaries_only}, operation_ids_only={operation_ids_only}){filter_info} ---"
     )
 
     # Only process info section if not operation_ids_only
@@ -1054,7 +1091,7 @@ def preprocess_schema_with_llm(
         process_info_section(schema_data, llm_model, enhance_all)
 
     paths = schema_data.get("paths")
-    process_paths(paths, llm_model, enhance_all, summaries_only, operation_ids_only)
+    process_paths(paths, llm_model, enhance_all, summaries_only, operation_ids_only, filter_config)
 
     # After process_paths, regenerate_duplicate_operation_ids(schema_data, llm_model)
 
@@ -1066,9 +1103,23 @@ def run_preprocessing(
     output_path: Path | None = None,
     model: str = "perplexity/sonar",
     debug: bool = False,
+    filter_config_path: str | None = None,
 ):
     set_logging_level("DEBUG" if debug else "INFO")
     console.print("[bold blue]--- Starting OpenAPI Schema Preprocessor ---[/bold blue]")
+
+    # Load filter configuration if provided
+    filter_config = None
+    if filter_config_path:
+        try:
+            filter_config = load_filter_config(filter_config_path)
+            console.print("[bold cyan]Selective Processing Mode Enabled[/bold cyan]")
+            console.print(f"[cyan]Filter configuration loaded from: {filter_config_path}[/cyan]")
+            console.print(f"[cyan]Will process {len(filter_config)} path specifications[/cyan]")
+            console.print()
+        except (FileNotFoundError, json.JSONDecodeError, ValueError) as e:
+            console.print(f"[red]Error loading filter configuration: {e}[/red]")
+            raise typer.Exit(1) from e
 
     if schema_path is None:
         path_str = typer.prompt(
@@ -1090,7 +1141,7 @@ def run_preprocessing(
 
     # --- Step 2: Scan and Report Status ---
     try:
-        scan_report = scan_schema_for_status(schema_data)
+        scan_report = scan_schema_for_status(schema_data, filter_config)
         report_scan_results(scan_report)
     except Exception as e:
         console.print(f"[red]An unexpected error occurred during schema scanning: {e}[/red]")
@@ -1224,7 +1275,7 @@ def run_preprocessing(
             f"[blue]Starting LLM generation with Enhance All: {enhance_all}, Summaries Only: {summaries_only}, OperationIds Only: {operation_ids_only}[/blue]"
         )
         try:
-            preprocess_schema_with_llm(schema_data, model, enhance_all, summaries_only, operation_ids_only)
+            preprocess_schema_with_llm(schema_data, model, enhance_all, summaries_only, operation_ids_only, filter_config)
             console.print("[green]LLM generation complete.[/green]")
         except Exception as e:
             console.print(f"[red]Error during LLM generation: {e}[/red]")
