@@ -97,10 +97,8 @@ For logic-specific errors or when you need to provide more context, raise custom
 
 2. SDK Reference Code
 
-To ensure you generate correct code, here is the full source code for application.py and integration.py. 
+To ensure you generate correct code, here is the full source code for application.py. 
 You must write code that is compatible with these base classes.
-
-(The content of application.py and integration.py that you provided would be inserted here, exactly as they are.)
 
 --- START OF FILE application.py ---
 from abc import ABC, abstractmethod
@@ -517,161 +515,6 @@ class APIApplication(BaseApplication):
         logger.debug(f"PATCH request successful with status code: {response.status_code}")
         return response
 
-
-class GraphQLApplication(BaseApplication):
-    """Base class for applications interacting with GraphQL APIs.
-
-    Extends `BaseApplication` to facilitate interactions with services
-    that provide a GraphQL endpoint. It manages a `gql.Client` for
-    executing queries and mutations, handles authentication headers
-    similarly to `APIApplication`, and provides dedicated methods for
-    GraphQL operations.
-
-    Attributes:
-        name (str): The name of the application.
-        base_url (str): The complete URL of the GraphQL endpoint.
-        integration (Integration | None): An optional Integration object
-            for managing authentication.
-        _client (GraphQLClient | None): The internal `gql.Client` instance.
-    """
-
-    def __init__(
-        self,
-        name: str,
-        base_url: str,
-        integration: Integration | None = None,
-        client: GraphQLClient | None = None,
-        **kwargs: Any,
-    ) -> None:
-        """Initializes the GraphQLApplication.
-
-        Args:
-            name (str): The unique name for this application instance.
-            base_url (str): The full URL of the GraphQL endpoint.
-            integration (Integration | None, optional): An Integration object
-                to handle authentication. Defaults to None.
-            client (GraphQLClient | None, optional): An existing `gql.Client`
-                instance. If None, a new client will be created on demand.
-                Defaults to None.
-            **kwargs (Any): Additional keyword arguments passed to the
-                             BaseApplication.
-        """
-        super().__init__(name, **kwargs)
-        self.base_url = base_url
-        self.integration = integration
-        logger.debug(f"Initializing Application '{name}' with kwargs: {kwargs}")
-        self._client: GraphQLClient | None = client
-
-    def _get_headers(self) -> dict[str, str]:
-        """Constructs HTTP headers for GraphQL requests based on the integration.
-
-        Retrieves credentials from the configured `integration` and attempts
-        to create appropriate authentication headers. Primarily supports
-        API keys or access tokens as Bearer tokens in the Authorization header.
-
-        Returns:
-            dict[str, str]: A dictionary of HTTP headers. Returns an empty
-                            dictionary if no integration is configured or if
-                            no suitable credentials are found.
-        """
-        if not self.integration:
-            logger.debug("No integration configured, returning empty headers")
-            return {}
-        credentials = self.integration.get_credentials()
-        logger.debug(f"Got credentials for integration: {credentials.keys()}")
-
-        # Check if direct headers are provided
-        headers = credentials.get("headers")
-        if headers:
-            logger.debug("Using direct headers from credentials")
-            return headers
-
-        # Check if api key is provided
-        api_key = credentials.get("api_key") or credentials.get("API_KEY") or credentials.get("apiKey")
-        if api_key:
-            logger.debug("Using API key from credentials")
-            return {
-                "Authorization": f"Bearer {api_key}",
-            }
-
-        # Check if access token is provided
-        access_token = credentials.get("access_token")
-        if access_token:
-            logger.debug("Using access token from credentials")
-            return {
-                "Authorization": f"Bearer {access_token}",
-            }
-        logger.debug("No authentication found in credentials, returning empty headers")
-        return {}
-
-    @property
-    def client(self) -> GraphQLClient:
-        """Provides an initialized `gql.Client` instance.
-
-        If a client was not provided during initialization or has not been
-        created yet, this property instantiates a new `gql.Client`.
-        The client is configured with a `RequestsHTTPTransport` using the
-        `base_url` and headers from `_get_headers`. It's also set to
-        fetch the schema from the transport.
-
-        Returns:
-            GraphQLClient: The active `gql.Client` instance.
-        """
-        if not self._client:
-            headers = self._get_headers()
-            transport = RequestsHTTPTransport(url=self.base_url, headers=headers)
-            self._client = GraphQLClient(transport=transport, fetch_schema_from_transport=True)
-        return self._client
-
-    def mutate(
-        self,
-        mutation: str | DocumentNode,
-        variables: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Executes a GraphQL mutation.
-
-        Args:
-            mutation (str | DocumentNode): The GraphQL mutation string or a
-                pre-parsed `gql.DocumentNode` object. If a string is provided,
-                it will be parsed using `gql()`.
-            variables (dict[str, Any] | None, optional): A dictionary of variables
-                to pass with the mutation. Defaults to None.
-
-        Returns:
-            dict[str, Any]: The JSON response from the GraphQL server as a dictionary.
-
-        Raises:
-            Exception: If the GraphQL client encounters an error during execution
-                       (e.g., network issue, GraphQL server error).
-        """
-        if isinstance(mutation, str):
-            mutation = gql(mutation)
-        return self.client.execute(mutation, variable_values=variables)
-
-    def query(
-        self,
-        query: str | DocumentNode,
-        variables: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Executes a GraphQL query.
-
-        Args:
-            query (str | DocumentNode): The GraphQL query string or a
-                pre-parsed `gql.DocumentNode` object. If a string is provided,
-                it will be parsed using `gql()`.
-            variables (dict[str, Any] | None, optional): A dictionary of variables
-                to pass with the query. Defaults to None.
-
-        Returns:
-            dict[str, Any]: The JSON response from the GraphQL server as a dictionary.
-
-        Raises:
-            Exception: If the GraphQL client encounters an error during execution
-                               (e.g., network issue, GraphQL server error).
-        """
-        if isinstance(query, str):
-            query = gql(query)
-        return self.client.execute(query, variable_values=variables)
 --- END OF FILE application.py ---
 
 3. Examples of Correct app.py Implementations
@@ -720,6 +563,7 @@ class ZenquotesApp(APIApplication):
 
     def list_tools(self):
         return [self.get_quote]
+        
 --- END OF FILE app.py ---
 
 Example 2: GoogleDocsApp - Standard Authenticated API
@@ -797,7 +641,142 @@ different SDK (e2b_code_interpreter). It also shows robust, specific error handl
 This pattern should only be used when an external library must be initialized with the credential, otherwise, the standard pattern from GoogleDocsApp is preferred.
 
 --- START OF FILE app.py ---
-... (full content of your E2bApp app.py) ...
+class E2bApp(APIApplication):
+    """
+    Application for interacting with the E2B (Code Interpreter Sandbox) platform.
+    Provides tools to execute Python code in a sandboxed environment.
+    Authentication is handled by the configured Integration, fetching the API key.
+    """
+
+    def __init__(self, integration: Integration | None = None, **kwargs: Any) -> None:
+        super().__init__(name="e2b", integration=integration, **kwargs)
+        self._e2b_api_key: str | None = None # Cache for the API key
+        if Sandbox is None:
+            logger.warning("E2B Sandbox SDK is not available. E2B tools will not function.")
+
+    @property
+    def e2b_api_key(self) -> str:
+        """
+        Retrieves and caches the E2B API key from the integration.
+        Raises NotAuthorizedError if the key cannot be obtained.
+        """
+        if self._e2b_api_key is None:
+            if not self.integration:
+                logger.error("E2B App: Integration not configured.")
+                raise NotAuthorizedError(
+                    "Integration not configured for E2B App. Cannot retrieve API key."
+                )
+
+            try:
+                credentials = self.integration.get_credentials()
+            except NotAuthorizedError as e:
+                logger.error(f"E2B App: Authorization error when fetching credentials: {e.message}")
+                raise # Re-raise the original NotAuthorizedError
+            except Exception as e:
+                logger.error(f"E2B App: Unexpected error when fetching credentials: {e}", exc_info=True)
+                raise NotAuthorizedError(f"Failed to get E2B credentials: {e}")
+
+
+            api_key = (
+                credentials.get("api_key")
+                or credentials.get("API_KEY") # Check common variations
+                or credentials.get("apiKey")
+            )
+
+            if not api_key:
+                logger.error("E2B App: API key not found in credentials.")
+                action_message = "API key for E2B is missing. Please ensure it's set in the store via MCP frontend or configuration."
+                if hasattr(self.integration, 'authorize') and callable(self.integration.authorize):
+                    try:
+                        auth_details = self.integration.authorize()
+                        if isinstance(auth_details, str):
+                            action_message = auth_details
+                        elif isinstance(auth_details, dict) and 'url' in auth_details:
+                            action_message = f"Please authorize via: {auth_details['url']}"
+                        elif isinstance(auth_details, dict) and 'message' in auth_details:
+                            action_message = auth_details['message']
+                    except Exception as auth_e:
+                        logger.warning(f"Could not retrieve specific authorization action for E2B: {auth_e}")
+                raise NotAuthorizedError(action_message)
+
+            self._e2b_api_key = api_key
+            logger.info("E2B API Key successfully retrieved and cached.")
+        return self._e2b_api_key
+
+    def _format_execution_output(self, logs: Any) -> str:
+        """Helper function to format the E2B execution logs nicely."""
+        output_parts = []
+
+        # Safely access stdout and stderr
+        stdout_log = getattr(logs, 'stdout', [])
+        stderr_log = getattr(logs, 'stderr', [])
+
+        if stdout_log:
+            stdout_content = "".join(stdout_log).strip()
+            if stdout_content:
+                output_parts.append(f"{stdout_content}")
+
+        if stderr_log:
+            stderr_content = "".join(stderr_log).strip()
+            if stderr_content:
+                output_parts.append(f"--- ERROR ---\n{stderr_content}")
+
+        if not output_parts:
+            return "Execution finished with no output (stdout/stderr)."
+        return "\n\n".join(output_parts)
+
+    def execute_python_code(
+        self, code: Annotated[str, "The Python code to execute."]
+    ) -> str:
+        """
+        Executes Python code in a sandbox environment and returns the formatted output.
+
+        Args:
+            code: String containing the Python code to be executed in the sandbox.
+
+        Returns:
+            A string containing the formatted execution output/logs from running the code.
+
+        Raises:
+            ToolError: When there are issues with sandbox initialization or code execution,
+                       or if the E2B SDK is not installed.
+            NotAuthorizedError: When API key authentication fails during sandbox setup.
+            ValueError: When provided code string is empty or invalid.
+
+        Tags:
+            execute, sandbox, code-execution, security, important
+        """
+        if Sandbox is None:
+            logger.error("E2B Sandbox SDK is not available. Cannot execute_python_code.")
+            raise ToolError("E2B Sandbox SDK (e2b_code_interpreter) is not installed or failed to import.")
+
+        if not code or not isinstance(code, str):
+            raise ValueError("Provided code must be a non-empty string.")
+
+        logger.info("Attempting to execute Python code in E2B Sandbox.")
+        try:
+            current_api_key = self.e2b_api_key
+
+            with Sandbox(api_key=current_api_key) as sandbox:
+                logger.info(f"E2B Sandbox (ID: {sandbox.sandbox_id}) initialized. Running code.")
+                execution = sandbox.run_code(code=code) # run_python is the method in e2b-code-interpreter
+                result = self._format_execution_output(execution.logs) # execution_result directly has logs
+                logger.info("E2B code execution successful.")
+                return result
+        except NotAuthorizedError: # Re-raise if caught from self.e2b_api_key
+            raise
+        except Exception as e:
+            if "authentication" in str(e).lower() or "api key" in str(e).lower() or "401" in str(e) or "unauthorized" in str(e).lower():
+                logger.error(f"E2B authentication/authorization error: {e}", exc_info=True)
+                raise NotAuthorizedError(f"E2B authentication failed or access denied: {e}")
+            logger.error(f"Error during E2B code execution: {e}", exc_info=True)
+            raise ToolError(f"E2B code execution failed: {e}")
+
+    def list_tools(self) -> list[callable]:
+        """Lists the tools available from the E2bApp."""
+        return [
+            self.execute_python_code,
+        ]
 --- END OF FILE app.py ---
 
 4. Your Task
