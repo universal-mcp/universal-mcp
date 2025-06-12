@@ -13,11 +13,18 @@ class StoreConfig(BaseModel):
     should be stored and retrieved.
     """
 
-    name: str = Field(default="universal_mcp", description="Name of the store service or context (e.g., 'my_app_tokens', 'global_api_keys').")
-    type: Literal["memory", "environment", "keyring", "agentr"] = Field(
-        default="memory", description="The type of storage backend to use. 'memory' is transient, 'environment' uses environment variables, 'keyring' uses the system's secure credential manager, 'agentr' delegates to AgentR platform storage."
+    name: str = Field(
+        default="universal_mcp",
+        description="Name of the store service or context (e.g., 'my_app_tokens', 'global_api_keys').",
     )
-    path: Path | None = Field(default=None, description="Filesystem path for store types that require it (e.g., a future 'file' store type). Currently not used by memory, environment, or keyring.")
+    type: Literal["memory", "environment", "keyring", "agentr"] = Field(
+        default="memory",
+        description="The type of storage backend to use. 'memory' is transient, 'environment' uses environment variables, 'keyring' uses the system's secure credential manager, 'agentr' delegates to AgentR platform storage.",
+    )
+    path: Path | None = Field(
+        default=None,
+        description="Filesystem path for store types that require it (e.g., a future 'file' store type). Currently not used by memory, environment, or keyring.",
+    )
 
 
 class IntegrationConfig(BaseModel):
@@ -28,12 +35,21 @@ class IntegrationConfig(BaseModel):
     OAuth) and where to find the necessary credentials.
     """
 
-    name: str = Field(..., description="A unique name for this integration instance (e.g., 'my_github_oauth', 'tavily_api_key').")
-    type: Literal["api_key", "oauth", "agentr", "oauth2", "basic_auth"] = Field(
-        default="api_key", description="The authentication mechanism to be used. 'oauth2' is often synonymous with 'oauth'. 'agentr' implies AgentR platform managed authentication."
+    name: str = Field(
+        ..., description="A unique name for this integration instance (e.g., 'my_github_oauth', 'tavily_api_key')."
     )
-    credentials: dict[str, Any] | None = Field(default=None, description="Directly provided credentials, if not using a store. Structure depends on the integration type (e.g., {'api_key': 'value'} or {'client_id': 'id', 'client_secret': 'secret'}). Use with caution for sensitive data; prefer using a 'store'.")
-    store: StoreConfig | None = Field(default=None, description="Configuration for the credential store to be used for this integration, overriding any default server-level store.")
+    type: Literal["api_key", "oauth", "agentr", "oauth2", "basic_auth"] = Field(
+        default="api_key",
+        description="The authentication mechanism to be used. 'oauth2' is often synonymous with 'oauth'. 'agentr' implies AgentR platform managed authentication.",
+    )
+    credentials: dict[str, Any] | None = Field(
+        default=None,
+        description="Directly provided credentials, if not using a store. Structure depends on the integration type (e.g., {'api_key': 'value'} or {'client_id': 'id', 'client_secret': 'secret'}). Use with caution for sensitive data; prefer using a 'store'.",
+    )
+    store: StoreConfig | None = Field(
+        default=None,
+        description="Configuration for the credential store to be used for this integration, overriding any default server-level store.",
+    )
 
 
 class AppConfig(BaseModel):
@@ -44,9 +60,18 @@ class AppConfig(BaseModel):
     it provides.
     """
 
-    name: str = Field(..., description="The unique name or slug of the application (e.g., 'github', 'google-calendar'). This is often used to dynamically load the application module.")
-    integration: IntegrationConfig | None = Field(default=None, description="Authentication and credential configuration for this application. If None, the application is assumed not to require authentication or uses a global/default mechanism.")
-    actions: list[str] | None = Field(default=None, description="A list of specific actions or tools provided by this application that should be exposed. If None or empty, all tools from the application might be exposed by default, depending on the application's implementation.")
+    name: str = Field(
+        ...,
+        description="The unique name or slug of the application (e.g., 'github', 'google-calendar'). This is often used to dynamically load the application module.",
+    )
+    integration: IntegrationConfig | None = Field(
+        default=None,
+        description="Authentication and credential configuration for this application. If None, the application is assumed not to require authentication or uses a global/default mechanism.",
+    )
+    actions: list[str] | None = Field(
+        default=None,
+        description="A list of specific actions or tools provided by this application that should be exposed. If None or empty, all tools from the application might be exposed by default, depending on the application's implementation.",
+    )
 
 
 class ServerConfig(BaseSettings):
@@ -66,21 +91,51 @@ class ServerConfig(BaseSettings):
     )
 
     name: str = Field(default="Universal MCP", description="Name of the MCP server")
-    description: str = Field(default="Universal MCP", description="A brief description of this MCP server's purpose or deployment.")
+    description: str = Field(
+        default="Universal MCP", description="A brief description of this MCP server's purpose or deployment."
+    )
     base_url: str = Field(
-        default="https://api.agentr.dev", description="The base URL for the AgentR API, used when type is 'agentr' or for AgentR-mediated integrations.", alias="AGENTR_BASE_URL"
+        default="https://api.agentr.dev",
+        description="The base URL for the AgentR API, used when type is 'agentr' or for AgentR-mediated integrations.",
+        alias="AGENTR_BASE_URL",
     )
-    api_key: SecretStr | None = Field(default=None, description="The API key for authenticating with the AgentR platform. Stored as a SecretStr for security.", alias="AGENTR_API_KEY")
-    type: Literal["local", "agentr"] = Field(default="agentr", description="Deployment type of the server. 'local' runs apps defined in 'apps' list; 'agentr' dynamically loads apps from the AgentR platform.")
+    api_key: SecretStr | None = Field(
+        default=None,
+        description="The API key for authenticating with the AgentR platform. Stored as a SecretStr for security.",
+        alias="AGENTR_API_KEY",
+    )
+    type: Literal["local", "agentr"] = Field(
+        default="agentr",
+        description="Deployment type of the server. 'local' runs apps defined in 'apps' list; 'agentr' dynamically loads apps from the AgentR platform.",
+    )
     transport: Literal["stdio", "sse", "streamable-http"] = Field(
-        default="stdio", description="The communication protocol the server will use to interact with clients (e.g., an AI agent)."
+        default="stdio",
+        description="The communication protocol the server will use to interact with clients (e.g., an AI agent).",
     )
-    port: int = Field(default=8005, description="Network port for 'sse' or 'streamable-http' transports. Must be between 1 and 65535.", ge=1, le=65535) # Corrected ge based on validator
-    host: str = Field(default="localhost", description="Network host to bind to for 'sse' or 'streamable-http' transports.")
-    apps: list[AppConfig] | None = Field(default=None, description="A list of application configurations to load when server 'type' is 'local'. Ignored if 'type' is 'agentr'.")
-    store: StoreConfig | None = Field(default=None, description="Default credential store configuration for applications that do not define their own specific store.")
-    debug: bool = Field(default=False, description="Enable debug mode, which may increase log verbosity or enable other debugging features.")
-    log_level: str = Field(default="INFO", description="Logging level for the server (e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL).")
+    port: int = Field(
+        default=8005,
+        description="Network port for 'sse' or 'streamable-http' transports. Must be between 1 and 65535.",
+        ge=1,
+        le=65535,
+    )  # Corrected ge based on validator
+    host: str = Field(
+        default="localhost", description="Network host to bind to for 'sse' or 'streamable-http' transports."
+    )
+    apps: list[AppConfig] | None = Field(
+        default=None,
+        description="A list of application configurations to load when server 'type' is 'local'. Ignored if 'type' is 'agentr'.",
+    )
+    store: StoreConfig | None = Field(
+        default=None,
+        description="Default credential store configuration for applications that do not define their own specific store.",
+    )
+    debug: bool = Field(
+        default=False,
+        description="Enable debug mode, which may increase log verbosity or enable other debugging features.",
+    )
+    log_level: str = Field(
+        default="INFO", description="Logging level for the server (e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL)."
+    )
 
     @field_validator("log_level", mode="before")
     def validate_log_level(cls, v: str) -> str:
@@ -121,15 +176,23 @@ class ClientTransportConfig(BaseModel):
     the command for stdio, URL for HTTP-based transports (SSE, streamable_http),
     and any necessary headers or environment variables.
     """
-    transport: str | None = Field(default=None, description="The transport protocol (e.g., 'stdio', 'sse', 'streamable_http'). Auto-detected in model_validate if not set.")
-    command: str | None = Field(default=None, description="The command to execute for 'stdio' transport (e.g., 'python -m mcp_server.run').")
+
+    transport: str | None = Field(
+        default=None,
+        description="The transport protocol (e.g., 'stdio', 'sse', 'streamable_http'). Auto-detected in model_validate if not set.",
+    )
+    command: str | None = Field(
+        default=None, description="The command to execute for 'stdio' transport (e.g., 'python -m mcp_server.run')."
+    )
     args: list[str] = Field(default=[], description="List of arguments for the 'stdio' command.")
     env: dict[str, str] = Field(default={}, description="Environment variables to set for the 'stdio' command.")
     url: str | None = Field(default=None, description="The URL for 'sse' or 'streamable_http' transport.")
-    headers: dict[str, str] = Field(default={}, description="HTTP headers to include for 'sse' or 'streamable_http' transport.")
+    headers: dict[str, str] = Field(
+        default={}, description="HTTP headers to include for 'sse' or 'streamable_http' transport."
+    )
 
     @model_validator(mode="after")
-    def determine_transport_if_not_set(self) -> Self: # Renamed for clarity
+    def determine_transport_if_not_set(self) -> Self:
         """Determines and sets the transport type if not explicitly provided.
 
         - If `command` is present, transport is set to 'stdio'.
@@ -154,25 +217,17 @@ class ClientTransportConfig(BaseModel):
         return self
 
 
-class LLMConfig(BaseModel):
-    """Configuration for connecting to a Large Language Model (LLM).
-
-    Specifies the API key, base URL (if not using a standard provider like OpenAI),
-    and the model name for an LLM service.
-    """
-    api_key: str = Field(..., description="API key for the LLM service.")
-    base_url: str = Field(..., description="Base URL for the LLM API endpoint (e.g., for self-hosted or non-OpenAI compatible services).")
-    model: str = Field(..., description="The specific model identifier to use (e.g., 'gpt-4-turbo', 'claude-3-opus-20240229').")
-
-
 class ClientConfig(BaseSettings):
     """Configuration for a client application that interacts with MCP servers and an LLM.
 
     Defines connections to one or more MCP servers (via `mcpServers`) and
     optionally, settings for an LLM to be used by the client (e.g., by an agent).
     """
-    mcpServers: dict[str, ClientTransportConfig] = Field(..., description="A dictionary where keys are descriptive names for MCP server connections and values are `ClientTransportConfig` objects defining how to connect to each server.")
-    llm: LLMConfig | None = Field(default=None, description="Optional configuration for a Large Language Model to be used by the client.")
+
+    mcpServers: dict[str, ClientTransportConfig] = Field(
+        ...,
+        description="A dictionary where keys are descriptive names for MCP server connections and values are `ClientTransportConfig` objects defining how to connect to each server.",
+    )
 
     @classmethod
     def load_json_config(cls, path: str = "servers.json") -> Self:
@@ -189,3 +244,7 @@ class ClientConfig(BaseSettings):
         with open(path) as f:
             data = json.load(f)
         return cls.model_validate(data)
+
+    def save_json_config(self, path: str) -> None:
+        with open(path, "w") as f:
+            json.dump(self.model_dump(), f, indent=4)

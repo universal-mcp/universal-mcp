@@ -1,6 +1,7 @@
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from universal_mcp.utils.singleton import Singleton
@@ -122,6 +123,10 @@ class CallbackServer(metaclass=Singleton):
         self.thread = None
         self.callback_data = {"authorization_code": None, "state": None, "error": None}
         self._running = False
+
+    @property
+    def is_running(self) -> bool:
+        return self._running
 
     def _create_handler_with_data(self):
         """Creates a `CallbackHandler` subclass with shared `callback_data`.
