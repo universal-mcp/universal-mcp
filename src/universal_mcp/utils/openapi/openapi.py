@@ -9,6 +9,8 @@ import yaml
 from jsonref import replace_refs
 from pydantic import BaseModel
 
+from .filters import load_filter_config, should_process_operation
+
 
 class Parameters(BaseModel):
     name: str
@@ -1012,18 +1014,28 @@ def load_schema(path: Path):
     return _load_and_resolve_references(path)
 
 
-def generate_api_client(schema, class_name: str | None = None):
+def generate_api_client(schema, class_name: str | None = None, filter_config_path: str | None = None):
     """
     Generate a Python API client class from an OpenAPI schema.
 
     Args:
         schema (dict): The OpenAPI schema as a dictionary.
+        class_name (str | None): Optional class name override.
+        filter_config_path (str | None): Optional path to JSON filter configuration file.
 
     Returns:
         str: A string containing the Python code for the API client class.
     """
+    # Load filter configuration if provided
+    filter_config = None
+    if filter_config_path:
+        filter_config = load_filter_config(filter_config_path)
+        print(f"Loaded filter configuration from {filter_config_path} with {len(filter_config)} path specifications")
+    
     methods = []
     method_names = []
+    processed_count = 0
+    skipped_count = 0
 
     # Extract API info for naming and base URL
     info = schema.get("info", {})
@@ -1073,10 +1085,21 @@ def generate_api_client(schema, class_name: str | None = None):
     for path, path_info in schema.get("paths", {}).items():
         for method in path_info:
             if method in ["get", "post", "put", "delete", "patch", "options", "head"]:
+                # Apply filter configuration
+                if not should_process_operation(path, method, filter_config):
+                    print(f"Skipping method generation for '{method.upper()} {path}' due to filter configuration.")
+                    skipped_count += 1
+                    continue
+
                 operation = path_info[method]
+                print(f"Generating method for: {method.upper()} {path}")
                 method_code, func_name = _generate_method_code(path, method, operation)
                 methods.append(method_code)
                 method_names.append(func_name)
+                processed_count += 1
+
+    if filter_config is not None:
+        print(f"Selective generation complete: {processed_count} methods generated, {skipped_count} methods skipped.")
 
     # Generate list_tools method with all the function names
     tools_list = ",\n            ".join([f"self.{name}" for name in method_names])
