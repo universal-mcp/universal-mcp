@@ -12,4 +12,4 @@ def server_from_config(config: ServerConfig):
         raise ValueError(f"Unsupported server type: {config.type}")
 
 
-__all__ = [AgentRServer, LocalServer, SingleMCPServer, BaseServer, server_from_config]
+__all__ = ["AgentRServer", "LocalServer", "SingleMCPServer", "BaseServer", "server_from_config"]

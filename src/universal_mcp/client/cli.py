@@ -5,11 +5,14 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.table import Table
+from typer import Typer
 
-from universal_mcp.applications.sample_tool_app import SampleToolApp
 from universal_mcp.client.agents import AgentType, ReActAgent
+from universal_mcp.logger import setup_logger
 from universal_mcp.tools.adapters import ToolFormat
 from universal_mcp.tools.manager import ToolManager
+
+app = Typer(name="client")
 
 
 class RichCLI:
@@ -71,7 +74,7 @@ class AgentCLI:
         self.tool_manager = ToolManager(default_format=ToolFormat.OPENAI)
         self.current_agent = None
         self.agent_type = AgentType.REACT
-        self.tool_manager.register_tools_from_app(SampleToolApp(), tags=["all"])
+        # self.tool_manager.register_tools_from_app(SampleToolApp(), tags=["all"])
 
     def create_agent(self, agent_type: AgentType, model: str = "gpt-4o") -> Any:
         """Create an agent based on type"""
@@ -92,7 +95,7 @@ class AgentCLI:
         except ValueError:
             self.cli.display_error(f"Unknown agent type: {agent_type}")
 
-    async def process_command(self, user_input: str) -> bool:
+    async def process_command(self, user_input: str) -> bool | None:
         """Process special commands, return True if command was processed"""
         if user_input.startswith("/"):
             command_parts = user_input[1:].split()
@@ -107,7 +110,7 @@ class AgentCLI:
             elif command == "switch" and len(command_parts) > 1:
                 self.switch_agent(command_parts[1])
                 return True
-            elif command == "exit":
+            elif command == "exit" or command == "quit" or command == "q":
                 self.cli.display_info("Goodbye! 👋")
                 return False
             else:
@@ -123,24 +126,12 @@ class AgentCLI:
 
 - `/help` - Show this help message
 - `/tools` - List all available tools
-- `/switch <type>` - Switch agent types:
-  - `react` - ReAct reasoning agent
-  - `codeact` - Code execution agent
 - `/exit` - Exit the application
-
-# Agent Types
-
-**ReAct Agent**: Uses reasoning, action, observation loops
-
-# Example Usage
-
-- "What time is it?"
-- "Calculate 15 * 7 + 23"
-- "Search for information about Python"
+"
         """
         self.cli.console.print(help_text)
 
-    async def run(self, model: str = "gpt-4o-mini"):
+    async def run(self, model):
         """Main application loop"""
 
         # Initialize agent
@@ -174,3 +165,17 @@ class AgentCLI:
                 break
             except Exception as e:
                 self.cli.display_error(f"An error occurred: {str(e)}")
+
+
+@app.command()
+def run(model: str = "openrouter/auto"):
+    """Run the agent CLI"""
+    import asyncio
+
+    setup_logger(log_file=None, level="WARNING")
+    agent_cli = AgentCLI()
+    asyncio.run(agent_cli.run(model=model))
+
+
+if __name__ == "__main__":
+    app()

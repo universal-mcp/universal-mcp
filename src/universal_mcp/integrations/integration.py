@@ -428,7 +428,7 @@ class AgentRIntegration(Integration):
         self.client = client or AgentrClient()
         self._credentials = None
 
-    def set_credentials(self, credentials: dict | None = None) -> str:
+    def set_credentials(self, credentials: dict[str, Any] | None = None) -> str:
         """Not used for direct credential setting; initiates authorization instead.
 
         For AgentR integrations, credentials are set via the AgentR platform's

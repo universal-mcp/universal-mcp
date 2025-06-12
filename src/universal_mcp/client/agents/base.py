@@ -5,6 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from universal_mcp.tools.manager import ToolManager
+
 
 class AgentType(Enum):
     REACT = "react"
@@ -26,10 +28,10 @@ class BaseAgent(ABC):
         self.name = name
         self.instructions = instructions
         self.model = model
-        self.conversation_history = []
+        self.conversation_history: list[dict[str, Any]] = []
 
     @abstractmethod
-    def process_step(self, user_input: str, tool_manager) -> AgentResponse:
+    def process_step(self, user_input: str, tool_manager: ToolManager):
         pass
 
     def reset_conversation(self):

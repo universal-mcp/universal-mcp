@@ -2,6 +2,7 @@ import json
 import shutil
 import sys
 from pathlib import Path
+from typing import Any
 
 from loguru import logger
 from rich import print
@@ -27,7 +28,7 @@ def get_uvx_path() -> Path:
     logger.error(
         "uvx executable not found in PATH, falling back to 'uvx'. Please ensure uvx is installed and in your PATH"
     )
-    return None  # Fall back to just "uvx" if not found
+    return Path("uvx")
 
 
 def _create_file_if_not_exists(path: Path) -> None:
@@ -38,10 +39,8 @@ def _create_file_if_not_exists(path: Path) -> None:
             json.dump({}, f)
 
 
-def _generate_mcp_config(api_key: str) -> None:
+def _generate_mcp_config(api_key: str) -> dict[str, Any]:
     uvx_path = get_uvx_path()
-    if not uvx_path:
-        raise ValueError("uvx executable not found in PATH")
     return {
         "command": str(uvx_path),
         "args": ["universal_mcp@latest", "run"],
