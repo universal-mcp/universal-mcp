@@ -87,7 +87,7 @@ class Tool(BaseModel):
             return message
         except httpx.HTTPStatusError as e:
             error_body = e.response.text or "<empty response>"
-            message = f"HTTP {e.response.status_code}: {error_body}"
+            message = f"HTTP Error, status code: {e.response.status_code}, error body: {error_body}"
             raise ToolError(message) from e
         except ValueError as e:
             message = f"Invalid arguments for tool {self.name}: {e}"

@@ -336,4 +336,4 @@ class ToolManager:
             return result
         except Exception as e:
             analytics.track_tool_called(name, app_name, "error", str(e))
-            raise ToolError(f"Tool execution failed: {str(e)}") from e
+            raise e

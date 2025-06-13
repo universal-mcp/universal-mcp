@@ -179,7 +179,7 @@ class SingleMCPServer(BaseServer):
     def tool_manager(self) -> ToolManager:
         if self._tool_manager is None:
             self._tool_manager = ToolManager(warn_on_duplicate_tools=True)
-        if not getattr(self, "_tools_loaded", False):
+        if not self._tools_loaded:
             load_from_application(self.app_instance, self._tool_manager)
             self._tools_loaded = True
         return self._tool_manager
