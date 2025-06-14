@@ -155,7 +155,6 @@ class MethodTransformer(ast.NodeTransformer):
 
 
 def split_generated_app_file(input_app_file: Path, output_dir: Path, package_name: str = None):
-
     content = input_app_file.read_text()
     tree = ast.parse(content)
 

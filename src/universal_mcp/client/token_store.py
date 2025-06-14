@@ -73,9 +73,7 @@ class TokenStore(MCPTokenStorage):
                                               and successfully parsed, otherwise None.
         """
         try:
-            return OAuthClientInformationFull.model_validate_json(
-                self.store.get("client_info")
-            )
+            return OAuthClientInformationFull.model_validate_json(self.store.get("client_info"))
         except KeyNotFoundError:
             return None
 

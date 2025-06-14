@@ -94,17 +94,7 @@ class ServerConfig(BaseSettings):
     description: str = Field(
         default="Universal MCP", description="A brief description of this MCP server's purpose or deployment."
     )
-    base_url: str = Field(
-        default="https://api.agentr.dev",
-        description="The base URL for the AgentR API, used when type is 'agentr' or for AgentR-mediated integrations.",
-        alias="AGENTR_BASE_URL",
-    )
-    api_key: SecretStr | None = Field(
-        default=None,
-        description="The API key for authenticating with the AgentR platform. Stored as a SecretStr for security.",
-        alias="AGENTR_API_KEY",
-    )
-    type: Literal["local", "agentr"] = Field(
+    type: Literal["local", "agentr", "other"] = Field(
         default="agentr",
         description="Deployment type of the server. 'local' runs apps defined in 'apps' list; 'agentr' dynamically loads apps from the AgentR platform.",
     )
@@ -117,10 +107,22 @@ class ServerConfig(BaseSettings):
         description="Network port for 'sse' or 'streamable-http' transports. Must be between 1 and 65535.",
         ge=1,
         le=65535,
-    )  # Corrected ge based on validator
-    host: str = Field(
-        default="localhost", description="Network host to bind to for 'sse' or 'streamable-http' transports."
     )
+    log_level: str = Field(
+        default="INFO", description="Logging level for the server (e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL)."
+    )
+    # AgentR specific settings
+    base_url: str = Field(
+        default="https://api.agentr.dev",
+        description="The base URL for the AgentR API, used when type is 'agentr' or for AgentR-mediated integrations.",
+        alias="AGENTR_BASE_URL",
+    )
+    api_key: SecretStr | None = Field(
+        default=None,
+        description="The API key for authenticating with the AgentR platform. Stored as a SecretStr for security.",
+        alias="AGENTR_API_KEY",
+    )
+    # Local specific settings
     apps: list[AppConfig] | None = Field(
         default=None,
         description="A list of application configurations to load when server 'type' is 'local'. Ignored if 'type' is 'agentr'.",
@@ -128,13 +130,6 @@ class ServerConfig(BaseSettings):
     store: StoreConfig | None = Field(
         default=None,
         description="Default credential store configuration for applications that do not define their own specific store.",
-    )
-    debug: bool = Field(
-        default=False,
-        description="Enable debug mode, which may increase log verbosity or enable other debugging features.",
-    )
-    log_level: str = Field(
-        default="INFO", description="Logging level for the server (e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL)."
     )
 
     @field_validator("log_level", mode="before")

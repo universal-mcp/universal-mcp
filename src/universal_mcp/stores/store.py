@@ -112,7 +112,7 @@ class MemoryStore(BaseStore):
             key (str): The key to set or update.
             value (Any): The value to associate with the key.
         """
-        self.data[key] = value # type: ignore
+        self.data[key] = value  # type: ignore
 
     def delete(self, key: str) -> None:
         """Deletes a key-value pair from the in-memory store.
@@ -222,15 +222,13 @@ class KeyringStore(BaseStore):
             logger.info(f"Getting password for {key} from keyring for app {self.app_name}")
             value = keyring.get_password(self.app_name, key)
             if value is None:
-                raise KeyNotFoundError(
-                    f"Key '{key}' not found in keyring for app '{self.app_name}'"
-                )
+                raise KeyNotFoundError(f"Key '{key}' not found in keyring for app '{self.app_name}'")
             return value
-        except Exception as e: # Catches keyring specific errors too
+        except Exception as e:  # Catches keyring specific errors too
             # Log the original exception e if needed
             raise KeyNotFoundError(
                 f"Failed to retrieve key '{key}' from keyring for app '{self.app_name}'. Original error: {type(e).__name__}"
-            ) from e # Keep original exception context
+            ) from e  # Keep original exception context
 
     def set(self, key: str, value: Any) -> None:
         """Stores a secret (password) in the system keyring.
@@ -269,7 +267,7 @@ class KeyringStore(BaseStore):
             if existing_value is None:
                 raise KeyNotFoundError(f"Key '{key}' not found in keyring for app '{self.app_name}', cannot delete.")
             keyring.delete_password(self.app_name, key)
-        except KeyNotFoundError: # Re-raise if found by the get_password check
+        except KeyNotFoundError:  # Re-raise if found by the get_password check
             raise
-        except Exception as e: # Catch other keyring errors
+        except Exception as e:  # Catch other keyring errors
             raise StoreError(f"Error deleting key '{key}' from keyring for app '{self.app_name}': {str(e)}") from e

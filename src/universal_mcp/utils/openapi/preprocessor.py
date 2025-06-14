@@ -529,7 +529,7 @@ def scan_schema_for_status(schema_data: dict, filter_config: dict[str, str | lis
                 "trace",
             ]:
                 operation_location_base = f"paths.{path_key}.{method.lower()}"
-                
+
                 # Apply filter configuration
                 if not should_process_operation(path_key, method, filter_config):
                     logger.debug(f"Skipping operation '{method.upper()} {path_key}' due to filter configuration.")
@@ -895,12 +895,12 @@ def process_operation(
 
 
 def process_paths(
-    paths: dict, 
-    llm_model: str, 
-    enhance_all: bool, 
-    summaries_only: bool = False, 
+    paths: dict,
+    llm_model: str,
+    enhance_all: bool,
+    summaries_only: bool = False,
     operation_ids_only: bool = False,
-    filter_config: dict[str, str | list[str]] | None = None
+    filter_config: dict[str, str | list[str]] | None = None,
 ):
     if not isinstance(paths, dict):
         logger.warning("'paths' field is not a dictionary. Skipping path processing.")
@@ -954,7 +954,9 @@ def process_paths(
             logger.warning(f"Path value for '{path_key}' is not a dictionary. Skipping processing.")
 
     if filter_config is not None:
-        logger.info(f"Selective processing complete: {processed_count} operations processed, {skipped_count} operations skipped.")
+        logger.info(
+            f"Selective processing complete: {processed_count} operations processed, {skipped_count} operations skipped."
+        )
 
 
 def process_info_section(schema_data: dict, llm_model: str, enhance_all: bool):  # New flag
@@ -1064,12 +1066,12 @@ def regenerate_duplicate_operation_ids(schema_data: dict, llm_model: str):
 
 
 def preprocess_schema_with_llm(
-    schema_data: dict, 
-    llm_model: str, 
-    enhance_all: bool, 
-    summaries_only: bool = False, 
+    schema_data: dict,
+    llm_model: str,
+    enhance_all: bool,
+    summaries_only: bool = False,
     operation_ids_only: bool = False,
-    filter_config: dict[str, str | list[str]] | None = None
+    filter_config: dict[str, str | list[str]] | None = None,
 ):
     """
     Processes the schema to add/enhance descriptions/summaries using an LLM.
@@ -1081,7 +1083,7 @@ def preprocess_schema_with_llm(
     filter_info = ""
     if filter_config is not None:
         filter_info = f" | Selective processing: {len(filter_config)} path specifications"
-    
+
     logger.info(
         f"\n--- Starting LLM Generation (enhance_all={enhance_all}, summaries_only={summaries_only}, operation_ids_only={operation_ids_only}){filter_info} ---"
     )
@@ -1275,7 +1277,9 @@ def run_preprocessing(
             f"[blue]Starting LLM generation with Enhance All: {enhance_all}, Summaries Only: {summaries_only}, OperationIds Only: {operation_ids_only}[/blue]"
         )
         try:
-            preprocess_schema_with_llm(schema_data, model, enhance_all, summaries_only, operation_ids_only, filter_config)
+            preprocess_schema_with_llm(
+                schema_data, model, enhance_all, summaries_only, operation_ids_only, filter_config
+            )
             console.print("[green]LLM generation complete.[/green]")
         except Exception as e:
             console.print(f"[red]Error during LLM generation: {e}[/red]")

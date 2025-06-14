@@ -152,7 +152,13 @@ def _sanitize_identifier(name: str | None) -> str:
 
     # Initial replacements for common non-alphanumeric characters
     sanitized = (
-        name.replace("-", "_").replace(".", "_").replace("[", "_").replace("]", "").replace("$", "_").replace("/", "_").replace("@", "at")
+        name.replace("-", "_")
+        .replace(".", "_")
+        .replace("[", "_")
+        .replace("]", "")
+        .replace("$", "_")
+        .replace("/", "_")
+        .replace("@", "at")
     )
 
     # Remove leading underscores, but preserve a single underscore if the name (after initial replace)
@@ -1031,7 +1037,7 @@ def generate_api_client(schema, class_name: str | None = None, filter_config_pat
     if filter_config_path:
         filter_config = load_filter_config(filter_config_path)
         print(f"Loaded filter configuration from {filter_config_path} with {len(filter_config)} path specifications")
-    
+
     methods = []
     method_names = []
     processed_count = 0

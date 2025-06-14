@@ -15,6 +15,7 @@ class Analytics:
     Telemetry can be disabled by setting the TELEMETRY_DISABLED environment
     variable to "true".
     """
+
     _instance = None
 
     def __new__(cls):
@@ -49,7 +50,7 @@ class Analytics:
         """
         try:
             return version("universal_mcp")
-        except ImportError: # Should be PackageNotFoundError, but matching existing code
+        except ImportError:  # Should be PackageNotFoundError, but matching existing code
             return "unknown"
 
     def track_app_loaded(self, app_name: str):
@@ -77,7 +78,7 @@ class Analytics:
         app_name: str,
         status: str,
         error: str = None,
-        user_id=None, # Note: user_id is captured in PostHog but not used from this param
+        user_id=None,  # Note: user_id is captured in PostHog but not used from this param
     ):
         """Tracks an event when a tool is called within an application.
 

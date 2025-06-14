@@ -13,7 +13,7 @@ class NotAuthorizedError(Exception):
             message (str): A descriptive message explaining the authorization failure.
         """
         self.message = message
-        super().__init__(message) # Ensure message is passed to base Exception
+        super().__init__(message)  # Ensure message is passed to base Exception
 
 
 class ToolError(Exception):
@@ -22,6 +22,7 @@ class ToolError(Exception):
     This could be due to a tool not being found, failing during its
     operation, or having invalid configuration or arguments.
     """
+
     pass
 
 
@@ -32,6 +33,7 @@ class InvalidSignature(Exception):
     relies on verifying the authenticity and integrity of a message
     using a digital signature.
     """
+
     pass
 
 
@@ -42,6 +44,7 @@ class StoreError(Exception):
     on any storage backend (e.g., KeyringStore, EnvironmentStore).
     Specific store errors should ideally subclass this.
     """
+
     pass
 
 
@@ -52,6 +55,7 @@ class KeyNotFoundError(StoreError):
     (e.g., an API key, token, or client information) that does not exist
     under the given identifier.
     """
+
     pass
 
 
@@ -61,4 +65,5 @@ class ConfigurationError(Exception):
     This can be due to missing required settings, invalid values for
     configuration parameters, or inconsistencies in the provided setup.
     """
+
     pass

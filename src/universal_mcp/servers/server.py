@@ -50,12 +50,8 @@ def load_from_local_config(config: ServerConfig, tool_manager: ToolManager) -> N
             logger.error(f"Failed to load app {app_config.name}: {e}", exc_info=True)
 
 
-def load_from_agentr_server(config: ServerConfig, tool_manager: ToolManager) -> None:
+def load_from_agentr_server(client: AgentrClient, tool_manager: ToolManager) -> None:
     """Load apps from AgentR server and register their tools."""
-    api_key = config.api_key.get_secret_value() if config.api_key else None
-    base_url = config.base_url
-    client = AgentrClient(api_key=api_key, base_url=base_url)  # type: ignore
-
     try:
         apps = client.fetch_apps()
         for app in apps:
@@ -146,13 +142,14 @@ class AgentRServer(BaseServer):
     def __init__(self, config: ServerConfig, **kwargs):
         super().__init__(config, **kwargs)
         self._tools_loaded = False
+        self.client = AgentrClient(api_key=config.api_key.get_secret_value(), base_url=config.base_url)
 
     @property
     def tool_manager(self) -> ToolManager:
         if self._tool_manager is None:
             self._tool_manager = ToolManager(warn_on_duplicate_tools=True)
-        if not getattr(self, "_tools_loaded", False):
-            load_from_agentr_server(self.config, self._tool_manager)
+        if not self._tools_loaded:
+            load_from_agentr_server(self.client, self._tool_manager)
             self._tools_loaded = True
         return self._tool_manager
 

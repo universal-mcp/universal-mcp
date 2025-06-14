@@ -59,17 +59,13 @@ def format_with_black(file_path: Path) -> bool:
     """Format the given Python file with Black. Returns True if successful, False otherwise."""
     try:
         import black
-        
-        content = file_path.read_text(encoding='utf-8')
-        
-        formatted_content = black.format_file_contents(
-            content, 
-            fast=False, 
-            mode=black.FileMode()
-        )
-        
-        file_path.write_text(formatted_content, encoding='utf-8')
-        
+
+        content = file_path.read_text(encoding="utf-8")
+
+        formatted_content = black.format_file_contents(content, fast=False, mode=black.FileMode())
+
+        file_path.write_text(formatted_content, encoding="utf-8")
+
         logger.info("Black formatting applied successfully to: %s", file_path)
         return True
     except ImportError:
