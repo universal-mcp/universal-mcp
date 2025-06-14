@@ -6,7 +6,7 @@ import litellm
 import typer
 from rich.console import Console
 from rich.status import Status
-# Setup rich console and logging
+
 console = Console()
 
 app = typer.Typer(name="codegen")
@@ -30,7 +30,6 @@ def _model_callback(model: str) -> str:
         error_message = f"Environment variable '{api_key_env_var}' is not set. Please set it to use the '{model}' model."
         raise typer.BadParameter(error_message)
     elif not api_key_env_var:
-        # This warning is now handled by the command using this callback
         pass
 
     return model
@@ -144,7 +143,7 @@ def generate_from_llm(
         "-m",
         help="The LLM model to use for generation (via LiteLLM).",
         prompt="Enter the LLM model to use",
-        callback=_model_callback, # Now uses the module-level callback
+        callback=_model_callback,
     ),
     prompt: str = typer.Option(
         ...,
@@ -162,8 +161,6 @@ def generate_from_llm(
     console.print(f"[bold blue]🚀 Starting App Generation using model: '{model}'[/bold blue]")
 
     try:
-        # Ensure output directory exists - handled by typer.Option resolve_path and prompt
-        # and also checked explicitly below if not prompted/resolved
         if not output_dir.exists():
              output_dir.mkdir(parents=True, exist_ok=True)
     except Exception as e:
@@ -179,10 +176,8 @@ def generate_from_llm(
     ]
 
     response = None
-    # Use the Status context manager directly
     with Status("[bold green]Generating app code... (this may take a moment)[/bold green]", console=console) as status:
         try:
-            # Using LiteLLM directly as in the original function
             response = litellm.completion(
                 model=model,
                 messages=messages,
@@ -243,8 +238,9 @@ def init(
 ):
     """Initialize a new MCP project using the cookiecutter template."""
     from cookiecutter.main import cookiecutter
-    from .cli import generate, generate_from_llm
     from typer import confirm, prompt
+
+    from .cli import generate, generate_from_llm
     
     NAME_PATTERN = r"^[a-zA-Z0-9-]+$"
         
@@ -319,7 +315,7 @@ def init(
         console.print("[yellow]Skipping API client generation.[/yellow]")
         return
 
-    has_openapi_spec = confirm(f"Do you have openapi spec for the application just created ?")
+    has_openapi_spec = confirm("Do you have openapi spec for the application just created ?")
 
     app_dir = app_name.lower().replace("-", "_")
     target_app_dir = project_dir / "src" / f"universal_mcp_{app_dir}"
