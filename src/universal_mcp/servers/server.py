@@ -142,7 +142,9 @@ class AgentRServer(BaseServer):
     def __init__(self, config: ServerConfig, **kwargs):
         super().__init__(config, **kwargs)
         self._tools_loaded = False
-        self.client = AgentrClient(api_key=config.api_key.get_secret_value(), base_url=config.base_url)
+        self.api_key = config.api_key.get_secret_value() if config.api_key else None
+        self.base_url = config.base_url
+        self.client = AgentrClient(api_key=self.api_key, base_url=self.base_url)
 
     @property
     def tool_manager(self) -> ToolManager:
