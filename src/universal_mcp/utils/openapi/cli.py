@@ -5,11 +5,14 @@ from pathlib import Path
 import litellm
 import typer
 from rich.console import Console
+from rich.panel import Panel
+from rich.prompt import Confirm, Prompt
 from rich.status import Status
+from rich.syntax import Syntax
 
 console = Console()
-
 app = typer.Typer(name="codegen")
+
 
 def _validate_filter_config(filter_config: Path | None) -> None:
     """
@@ -51,23 +54,25 @@ def _model_callback(model: str) -> str:
     Validates the model and checks if the required API key is set.
     This callback is now silent on success.
     """
-    api_key_env_var = None
-    if "claude" in model:
-        api_key_env_var = "ANTHROPIC_API_KEY"
-    elif "gpt" in model:
-        api_key_env_var = "OPENAI_API_KEY"
-    elif "gemini" in model:
-        api_key_env_var = "GEMINI_API_KEY"
-    elif "perplexity" in model:
-        api_key_env_var = "PERPLEXITYAI_API_KEY"
+    if model is not None:
+        api_key_env_var = None
+        if "claude" in model:
+            api_key_env_var = "ANTHROPIC_API_KEY"
+        elif "gpt" in model:
+            api_key_env_var = "OPENAI_API_KEY"
+        elif "gemini" in model:
+            api_key_env_var = "GEMINI_API_KEY"
+        elif "perplexity" in model:
+            api_key_env_var = "PERPLEXITYAI_API_KEY"
 
-    if api_key_env_var and not os.getenv(api_key_env_var):
-        error_message = f"Environment variable '{api_key_env_var}' is not set. Please set it to use the '{model}' model."
-        raise typer.BadParameter(error_message)
-    elif not api_key_env_var:
-        pass
+        if api_key_env_var and not os.getenv(api_key_env_var):
+            error_message = f"Environment variable '{api_key_env_var}' is not set. Please set it to use the '{model}' model."
+            raise typer.BadParameter(error_message)
+        elif not api_key_env_var:
+            pass
 
-    return model
+        return model
+
 
 @app.command()
 def generate(
@@ -188,30 +193,22 @@ def docgen(
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from e
 
+
 @app.command()
 def generate_from_llm(
     output_dir: Path = typer.Option(
-        Path.cwd(),
+        None,
         "--output-dir",
         "-o",
-        help="Directory to save 'app.py'. Defaults to the current directory.",
-        prompt="Enter the output directory",
+        help="Directory to save 'app.py'. If omitted, you will be prompted.",
         resolve_path=True,
     ),
     model: str = typer.Option(
-        "perplexity/sonar",
+        None,
         "--model",
         "-m",
-        help="The LLM model to use for generation (via LiteLLM).",
-        prompt="Enter the LLM model to use",
+        help="The LLM model to use for generation. If omitted, you will be prompted.",
         callback=_model_callback,
-    ),
-    prompt: str = typer.Option(
-        ...,
-        "--prompt",
-        "-p",
-        help="A natural language description of the application and its tools.",
-        prompt="Describe the application and its tools",
     ),
 ):
     """
@@ -219,7 +216,95 @@ def generate_from_llm(
     """
     from universal_mcp.utils.prompts import APP_GENERATOR_SYSTEM_PROMPT
 
-    console.print(f"[bold blue]🚀 Starting App Generation using model: '{model}'[/bold blue]")
+    console.print(
+        Panel(
+            "🚀 [bold]Welcome to the Universal App Generator[/bold] 🚀",
+            title="[bold blue]MCP[/bold blue]", border_style="blue", expand=False
+        )
+    )
+
+    if output_dir is None:
+        dir_str = Prompt.ask(
+            "[cyan]Enter the directory to save 'app.py'[/cyan]",
+            default=str(Path.cwd())
+        )
+        output_dir = Path(dir_str).resolve()
+
+    if model is None:
+        model_str = Prompt.ask(
+            "[cyan]Enter the LLM model to use[/cyan]",
+            default="perplexity/sonar"
+        )
+        model = _model_callback(model_str)
+
+    prompt_guidance = (
+        "You can provide the application description (the prompt) in two ways:\n\n"
+        "1. [bold green]From a Text File (Recommended)[/bold green]\n"
+        "   - Ideal for longer, detailed, or multi-line prompts.\n"
+        "   - Allows you to easily copy, paste, and edit your prompt in a text editor.\n\n"
+        "2. [bold yellow]Directly in the Terminal[/bold yellow]\n"
+        "   - Suitable for short, simple, single-line test prompts.\n"
+        "   - Not recommended for complex applications as multi-line input is difficult."
+    )
+    console.print(
+        Panel(
+            prompt_guidance,
+            title="[bold]How to Provide Your Prompt[/bold]",
+            border_style="blue",
+            padding=(1, 2)
+        )
+    )
+
+    use_file = Confirm.ask(
+        "\n[bold]Would you like to provide the prompt from a text file?[/bold]",
+        default=True
+    )
+
+    prompt = ""
+    if use_file:
+        prompt_file = Prompt.ask("[cyan]Please enter the path to your prompt .txt file[/cyan]")
+        try:
+            prompt_path = Path(prompt_file).resolve()
+            if not prompt_path.exists() or not prompt_path.is_file():
+                console.print(f"[bold red]❌ File not found at: {prompt_path}[/bold red]")
+                raise typer.Exit(code=1) from None
+            prompt = prompt_path.read_text(encoding="utf-8")
+        except Exception as e:
+            console.print(f"[bold red]❌ Failed to read prompt file: {e}[/bold red]")
+            raise typer.Exit(code=1) from e
+    else:
+        prompt = Prompt.ask("[cyan]Please describe the application you want to build[/cyan]")
+        if not prompt.strip():
+            console.print("[bold red]❌ Prompt cannot be empty. Aborting.[/bold red]")
+            raise typer.Exit(code=1)
+        
+    PROMPT_DISPLAY_LIMIT = 400
+    prompt_for_display = prompt
+
+    if len(prompt) > PROMPT_DISPLAY_LIMIT:
+        total_lines = len(prompt.splitlines())
+        total_chars = len(prompt)
+        
+        prompt_for_display = (
+            f"{prompt[:PROMPT_DISPLAY_LIMIT]}...\n\n"
+            f"[italic grey50](Prompt truncated for display. "
+            f"Full prompt is {total_lines} lines, {total_chars} characters)"
+            f"[/italic]"
+        )
+
+    config_summary = (
+        f"[bold blue]📝 Using Prompt:[/bold blue]\n[grey70]{prompt_for_display}[/grey70]\n\n"
+        f"[bold blue]🤖 Using Model:[/bold blue] [cyan]{model}[/cyan]\n"
+        f"[bold blue]💾 Output Directory:[/bold blue] [cyan]{output_dir}[/cyan]"
+    )
+    console.print(
+        Panel(
+            config_summary,
+            title="[bold green]Configuration[/bold green]",
+            border_style="green",
+            padding=(1, 2)
+        )
+    )
 
     try:
         if not output_dir.exists():
@@ -229,7 +314,7 @@ def generate_from_llm(
         raise typer.Exit(code=1) from e
 
     output_file_path = output_dir / "app.py"
-    console.print(f"[green]Will save generated file to:[/green] [cyan]{output_file_path}[/cyan]")
+    console.print(f"\n[green]Will save generated file to:[/green] [cyan]{output_file_path}[/cyan]\n")
 
     messages = [
         {"role": "system", "content": APP_GENERATOR_SYSTEM_PROMPT},
@@ -240,14 +325,11 @@ def generate_from_llm(
     with Status("[bold green]Generating app code... (this may take a moment)[/bold green]", console=console) as status:
         try:
             response = litellm.completion(
-                model=model,
-                messages=messages,
-                temperature=0.1,
-                timeout=120,
+                model=model, messages=messages, temperature=0.1, timeout=120,
             )
         except Exception as e:
             status.update("[bold red]❌ An error occurred during LLM API call.[/bold red]")
-            console.print(f"[red]Error: {e}[/red]")
+            console.print(Panel(f"Error: {e}", title="[bold red]API Error[/bold red]", border_style="red"))
             raise typer.Exit(code=1) from e
 
     if not response or not response.choices:
@@ -255,7 +337,6 @@ def generate_from_llm(
         raise typer.Exit(code=1)
 
     generated_content = response.choices[0].message.content
-
     code_match = re.search(r"```python\n(.*?)\n```", generated_content, re.DOTALL)
     if code_match:
         final_code = code_match.group(1).strip()
@@ -267,12 +348,44 @@ def generate_from_llm(
         console.print("[bold red]❌ The LLM returned an empty code block. Aborting.[/bold red]")
         raise typer.Exit(code=1)
 
+    CODE_DISPLAY_LINE_LIMIT = 200
+    code_for_display = final_code
+    is_truncated = False
+
+    code_lines = final_code.splitlines()
+    num_lines = len(code_lines)
+
+    if num_lines > CODE_DISPLAY_LINE_LIMIT:
+        is_truncated = True
+        code_for_display = "\n".join(code_lines[:CODE_DISPLAY_LINE_LIMIT])
+
+    console.print(
+        Panel(
+            Syntax(code_for_display, "python", theme="monokai", line_numbers=True),
+            title="[bold magenta]Generated Code Preview: app.py[/bold magenta]",
+            border_style="magenta",
+            subtitle=f"Total lines: {num_lines}"
+        )
+    )
+
+    if is_truncated:
+        console.print(
+            f"[italic yellow]... Output truncated. Showing the first {CODE_DISPLAY_LINE_LIMIT} of {num_lines} lines. "
+            f"The full code has been saved to the {output_file_path}.[/italic yellow]\n"
+        )
+
     try:
         output_file_path.write_text(final_code, encoding="utf-8")
-        console.print("\n[bold green]✅ Success! Application code saved.[/bold green]")
+        console.print(
+            Panel(
+                f"✅ [bold green]Success![/bold green]\nApplication code saved to [cyan]{output_file_path}[/cyan]",
+                title="[bold green]Complete[/bold green]", border_style="green"
+            )
+        )
     except Exception as e:
-        console.print(f"\n[bold red]❌ Failed to write the generated code to file: {e}[/bold red]")
+        console.print(Panel(f"Failed to write the generated code to file: {e}", title="[bold red]File Error[/bold red]", border_style="red"))
         raise typer.Exit(code=1) from e
+
 
 @app.command()
 def init(
@@ -429,6 +542,7 @@ def init(
         except Exception as e:
             console.print(f"[red]An unexpected error occurred during API client generation from LLM: {e}[/red]")
             raise typer.Exit(code=1) from e
+
 
 @app.command()
 def preprocess(
