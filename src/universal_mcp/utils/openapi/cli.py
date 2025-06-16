@@ -11,6 +11,41 @@ console = Console()
 
 app = typer.Typer(name="codegen")
 
+def _validate_filter_config(filter_config: Path | None) -> None:
+    """
+    Validate filter configuration file if provided.
+    
+    Args:
+        filter_config: Path to filter config file or None
+        
+    Raises:
+        typer.Exit: If validation fails
+    """
+    if filter_config is None:
+        return
+    
+    # Handle edge case of empty string or invalid path
+    if str(filter_config).strip() == "":
+        console.print("[red]Error: Filter configuration path cannot be empty[/red]")
+        raise typer.Exit(1)
+    
+    if not filter_config.exists():
+        console.print(f"[red]Error: Filter configuration file '{filter_config}' does not exist[/red]")
+        raise typer.Exit(1)
+    
+    if not filter_config.is_file():
+        console.print(f"[red]Error: Filter configuration path '{filter_config}' is not a file[/red]")
+        raise typer.Exit(1)
+
+
+def _display_selective_mode_info(filter_config: Path | None, mode_name: str) -> None:
+    """Display selective processing mode information if filter config is provided."""
+    if filter_config:
+        console.print(f"[bold cyan]Selective {mode_name} Mode Enabled[/bold cyan]")
+        console.print(f"[cyan]Filter configuration: {filter_config}[/cyan]")
+        console.print()
+
+
 def _model_callback(model: str) -> str:
     """
     Validates the model and checks if the required API key is set.
@@ -49,11 +84,32 @@ def generate(
         "-c",
         help="Class name to use for the API client",
     ),
+    filter_config: Path = typer.Option(
+        None,
+        "--filter-config",
+        "-f",
+        help="Path to JSON filter configuration file for selective API client generation.",
+    ),
 ):
-    """Generate API client from OpenAPI schema with optional docstring generation.
+    """Generates Python client code from an OpenAPI (Swagger) schema.
 
-    The output filename should match the name of the API in the schema (e.g., 'twitter.py' for Twitter API).
-    This name will be used for the folder in applications/.
+    This command automates the creation of an API client class, including
+    methods for each API operation defined in the schema. The generated
+    code is designed to integrate with the Universal MCP application framework.
+
+    It's recommended that the output filename (if specified via -o) matches
+    the API's service name (e.g., 'twitter.py' for a Twitter API client)
+    as this convention is used for organizing applications within U-MCP.
+    If no output path is provided, the generated code will be printed to the console.
+
+    Selective Generation:
+    Use --filter-config to specify which API operations to generate methods for.
+    The JSON configuration format is:
+    {
+        "/users/{user-id}/profile": "get",
+        "/users/{user-id}/settings": "all", 
+        "/orders": ["get", "post"]
+    }
     """
     # Import here to avoid circular imports
     from universal_mcp.utils.openapi.api_generator import generate_api_from_schema
@@ -62,11 +118,16 @@ def generate(
         console.print(f"[red]Error: Schema file {schema_path} does not exist[/red]")
         raise typer.Exit(1)
 
+    # Validate filter config and display info
+    _validate_filter_config(filter_config)
+    _display_selective_mode_info(filter_config, "API Client Generation")
+
     try:
         app_file_data = generate_api_from_schema(
             schema_path=schema_path,
             output_path=output_path,
             class_name=class_name,
+            filter_config_path=str(filter_config) if filter_config else None,
         )
         if isinstance(app_file_data, dict) and "code" in app_file_data:
             console.print("[yellow]No output path specified, printing generated code to console:[/yellow]")
@@ -371,13 +432,38 @@ def init(
 
 @app.command()
 def preprocess(
-    schema_path: Path = typer.Option(None, "--schema", "-s", help="Path to the OpenAPI schema file."),
-    output_path: Path = typer.Option(None, "--output", "-o", help="Path to save the processed schema."),
+    schema_path: Path = typer.Option(None, "--schema", "-s", help="Path to the input OpenAPI schema file (JSON or YAML)."),
+    output_path: Path = typer.Option(None, "--output", "-o", help="Path to save the processed (enhanced) OpenAPI schema file."),
+    filter_config: Path = typer.Option(None, "--filter-config", "-f", help="Path to JSON filter configuration file for selective processing."),
 ):
-    from universal_mcp.utils.openapi.preprocessor import run_preprocessing
+    """Enhances an OpenAPI schema's descriptions using an LLM.
 
-    """Preprocess an OpenAPI schema using LLM to fill or enhance descriptions."""
-    run_preprocessing(schema_path, output_path)
+    This command takes an existing OpenAPI schema and uses a Large Language
+    Model (LLM) to automatically generate or improve the descriptions for
+    API paths, operations, parameters, and schemas. This is particularly
+    helpful for schemas that are auto-generated or lack comprehensive
+    human-written documentation, making the schema more understandable and
+    usable for client generation or manual review.
+    
+    Use --filter-config to process only specific paths and methods defined
+    in a JSON configuration file. Format:
+    {
+      "/users/{user-id}/profile": "get",
+      "/users/{user-id}/settings": "all",
+      "/orders/{order-id}": ["get", "put", "delete"]
+    }
+    """
+    from universal_mcp.utils.openapi.preprocessor import run_preprocessing
+    
+    # Validate filter config and display info
+    _validate_filter_config(filter_config)
+    _display_selective_mode_info(filter_config, "Processing")
+    
+    run_preprocessing(
+        schema_path=schema_path, 
+        output_path=output_path, 
+        filter_config_path=str(filter_config) if filter_config else None
+    )
 
 
 @app.command()
