@@ -1,5 +1,9 @@
+import json
+from typing import Any
+
 from loguru import logger
 
+from universal_mcp.tools.adapters import ToolFormat
 from universal_mcp.tools.manager import ToolManager
 
 from .base import BaseAgent
@@ -7,10 +11,13 @@ from .llm import LLMClient
 
 
 class ReActAgent(BaseAgent):
-    def __init__(self, name: str, instructions: str, model: str):
+    def __init__(
+        self, name: str, instructions: str, model: str, max_iterations: int = 10, tool_manager: ToolManager = None
+    ):
         super().__init__(name, instructions, model)
         self.llm_client = LLMClient(model)
-        self.max_iterations = 10
+        self.max_iterations = max_iterations
+        self.tool_manager = tool_manager
         logger.debug(f"Initialized ReActAgent: name={name}, model={model}")
 
     def _build_system_message(self) -> str:
@@ -26,42 +33,76 @@ Always explain your reasoning and be thorough in your responses. If you need to 
         logger.debug(f"System message built: {system_message}")
         return system_message
 
-    def _build_messages(self, user_input: str) -> list[dict[str, str]]:
-        """Build message history for the conversation"""
-        messages = [{"role": "system", "content": self._build_system_message()}]
-
-        # Add conversation history
-        for entry in self.conversation_history:
-            messages.append({"role": "user", "content": entry["human"]})
-            messages.append({"role": "assistant", "content": entry["assistant"]})
-
-        # Add current user input
-        messages.append({"role": "user", "content": user_input})
-
-        logger.debug(f"Built messages for user_input='{user_input}': {messages}")
-        return messages
-
-    async def process_step(self, user_input: str, tool_manager: ToolManager) -> str:
-        """Process user input using native tool calling"""
+    async def execute(self, user_input: str) -> str:
+        """Process user input using native tool calling with ReAct logic"""
 
         logger.info(f"Processing user input: {user_input}")
 
-        # Build conversation messages
-        messages = self._build_messages(user_input)
+        # Build messages for current request only
+        messages = [
+            {"role": "system", "content": self._build_system_message()},
+            {"role": "user", "content": user_input},
+        ]
 
-        # Use native tool calling with conversation loop
-        try:
-            response = await self.llm_client.generate_response_with_tool_results(
-                messages, tool_manager, self.max_iterations
+        # Handle complete tool calling conversation loop
+        tools = self.tool_manager.list_tools(format=ToolFormat.OPENAI) if self.tool_manager else None
+
+        for iteration in range(self.max_iterations):
+            logger.debug(f"Tool calling iteration {iteration + 1}/{self.max_iterations}")
+
+            # Generate response with tools
+            response = await self.llm_client.generate_response(messages, tools)
+
+            # Return if no tool calls needed
+            if not response.tool_calls:
+                logger.info(f"LLM response received: {response.content}")
+                return response.content
+
+            # Add assistant message with tool calls
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": response.content,
+                    "tool_calls": response.tool_calls,
+                }
             )
-            final_answer = response.content
-            logger.info(f"LLM response received: {final_answer}")
+
+            # Execute tool calls and add results
+            for tool_call in response.tool_calls:
+                self.cli.display_tool_call(tool_call.function.model_dump())
+                tool_result = await self._execute_tool_call(tool_call)
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "content": str(tool_result),
+                    }
+                )
+                self.cli.display_tool_result(tool_result)
+
+        # Generate final response after max iterations
+        logger.warning(f"Max iterations ({self.max_iterations}) reached, generating final response")
+        final_response = await self.llm_client.generate_response(messages)
+        logger.info(f"Final LLM response received: {final_response.content}")
+        return final_response.content
+
+    async def _execute_tool_call(self, tool_call) -> Any:
+        """Execute a single tool call with error handling."""
+        function = tool_call.function
+        tool_name = function.name
+
+        try:
+            # Parse arguments
+            try:
+                tool_args = json.loads(function.arguments)
+            except json.JSONDecodeError:
+                logger.warning(f"Invalid JSON arguments for {tool_name}, using as query")
+                tool_args = {"query": function.arguments}
+
+            # Execute tool
+            return await self.tool_manager.call_tool(tool_name, tool_args)
+
         except Exception as e:
-            logger.error(f"Error during LLM response generation: {e}")
-            raise
-
-        # Store in conversation history
-        self.conversation_history.append({"human": user_input, "assistant": final_answer})
-        logger.debug(f"Updated conversation history: {self.conversation_history[-1]}")
-
-        return final_answer
+            error_msg = f"Error executing tool {tool_name}: {e}"
+            logger.error(error_msg)
+            return error_msg

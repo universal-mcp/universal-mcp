@@ -23,7 +23,7 @@ class StoreConfig(BaseModel):
     )
     path: Path | None = Field(
         default=None,
-        description="Filesystem path for store types that require it (e.g., a future 'file' store type). Currently not used by memory, environment, or keyring.",
+        description="Filesystem path for store types that require it (e.g., a future 'file' store type)",
     )
 
 
@@ -89,14 +89,13 @@ class ServerConfig(BaseSettings):
         case_sensitive=True,
         extra="allow",
     )
-
     name: str = Field(default="Universal MCP", description="Name of the MCP server")
     description: str = Field(
         default="Universal MCP", description="A brief description of this MCP server's purpose or deployment."
     )
     type: Literal["local", "agentr", "other"] = Field(
         default="agentr",
-        description="Deployment type of the server. 'local' runs apps defined in 'apps' list; 'agentr' dynamically loads apps from the AgentR platform.",
+        description="Source of apps to load. Local apps are defined in 'apps' list; AgentR apps are dynamically loaded from the AgentR platform.",
     )
     transport: Literal["stdio", "sse", "streamable-http"] = Field(
         default="stdio",
@@ -148,7 +147,7 @@ class ServerConfig(BaseSettings):
         return v
 
     @classmethod
-    def load_json_config(cls, path: str = "local_config.json") -> Self:
+    def load_json_config(cls, path: str = "server_config.json") -> Self:
         """Loads server configuration from a JSON file.
 
         Args:
@@ -221,16 +220,28 @@ class ClientConfig(BaseSettings):
 
     mcpServers: dict[str, ClientTransportConfig] = Field(
         ...,
-        description="A dictionary where keys are descriptive names for MCP server connections and values are `ClientTransportConfig` objects defining how to connect to each server.",
+        description="Dictionary of MCP server connections. Keys are descriptive names for the server, values are `ClientTransportConfig` objects defining how to connect to each server.",
+    )
+    apps: list[AppConfig] = Field(
+        default=[],
+        description="List of application configurations to load",
+    )
+    store: StoreConfig | None = Field(
+        default=None,
+        description="Default credential store configuration for applications that do not define their own specific store.",
+    )
+    model: str = Field(
+        default="openrouter/auto",
+        description="The model to use for the LLM.",
     )
 
     @classmethod
-    def load_json_config(cls, path: str = "servers.json") -> Self:
+    def load_json_config(cls, path: str = "client_config.json") -> Self:
         """Loads client configuration from a JSON file.
 
         Args:
             path (str, optional): The path to the JSON configuration file.
-                Defaults to "servers.json".
+                Defaults to "client_config.json".
 
         Returns:
             ClientConfig: An instance of ClientConfig populated with data

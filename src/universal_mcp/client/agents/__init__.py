@@ -1,4 +1,5 @@
-from .base import AgentType, BaseAgent
+from .base import BaseAgent
 from .react import ReActAgent
+from .simple import SimpleAgent
 
-__all__ = ["AgentType", "BaseAgent", "ReActAgent"]
+__all__ = ["BaseAgent", "ReActAgent", "SimpleAgent"]
