@@ -1,12 +1,13 @@
 import hashlib
 import importlib
+import importlib.util
+import inspect
 import io
 import os
 import subprocess
 import sys
 import zipfile
 from pathlib import Path
-
 import httpx
 from loguru import logger
 
@@ -176,7 +177,82 @@ def app_from_config(config: AppConfig):
                     logger.info(f"Extracted remote project to {project_path}")
 
                 app_class = _load_app_from_local_path(project_path, config)
+            
+            case "remote_file":
+                logger.debug(f"Loading '{config.name}' as a remote file from {config.source_path}")
+                # Create a unique filename based on the URL hash to use for caching
+                url_hash = hashlib.sha256(config.source_path.encode()).hexdigest()[:16]
+                cached_file_path = REMOTE_CACHE_DIR / f"{config.name}-{url_hash}.py"
 
+                if not cached_file_path.exists():
+                    logger.info(f"Downloading remote file for '{config.name}' from {config.source_path}")
+                    try:
+                        response = httpx.get(config.source_path, follow_redirects=True, timeout=60)
+                        response.raise_for_status()
+                        cached_file_path.write_text(response.text, encoding="utf-8")
+                        logger.info(f"Cached remote file to {cached_file_path}")
+                    except httpx.HTTPStatusError as e:
+                        logger.error(f"Failed to download remote file: {e.response.status_code} {e.response.reason_phrase}")
+                        raise
+                    except Exception as e:
+                        logger.error(f"An unexpected error occurred during download: {e}")
+                        raise
+
+                if not cached_file_path.stat().st_size > 0:
+                    raise ImportError(f"Remote file at {cached_file_path} is empty.")
+
+                module_name = f"remote_app_{config.name}_{url_hash}"
+                spec = importlib.util.spec_from_file_location(module_name, cached_file_path)
+                if spec is None or spec.loader is None:
+                    raise ImportError(f"Could not create module spec for {cached_file_path}")
+                
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = module
+                spec.loader.exec_module(module)
+
+                for name, obj in inspect.getmembers(module, inspect.isclass):
+                    if obj.__module__ == module_name:
+                        if issubclass(obj, BaseApplication) and obj is not BaseApplication:
+                            app_class = obj
+                            logger.debug(f"Found application class '{name}' defined in remote file for '{config.name}'.")
+                            break
+                
+                if not app_class:
+                    raise ImportError(f"No class inheriting from BaseApplication found in remote file {config.source_path}")
+            
+            case "local_file":
+                logger.debug(f"Loading '{config.name}' as a local file from {config.source_path}")
+                local_file_path = Path(config.source_path).resolve()
+
+                if not local_file_path.is_file():
+                    raise FileNotFoundError(f"Local file not found at: {local_file_path}")
+                
+                if not local_file_path.stat().st_size > 0:
+                    raise ImportError(f"Local file at {local_file_path} is empty.")
+
+                # Create a unique module name from the file path to avoid collisions
+                path_hash = hashlib.sha256(str(local_file_path).encode()).hexdigest()[:16]
+                module_name = f"local_app_{config.name}_{path_hash}"
+                
+                spec = importlib.util.spec_from_file_location(module_name, local_file_path)
+                if spec is None or spec.loader is None:
+                    raise ImportError(f"Could not create module spec for {local_file_path}")
+                
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = module
+                spec.loader.exec_module(module)
+
+                # Find the BaseApplication subclass defined within this specific module
+                for name, obj in inspect.getmembers(module, inspect.isclass):
+                    if obj.__module__ == module_name:
+                        if issubclass(obj, BaseApplication) and obj is not BaseApplication:
+                            app_class = obj
+                            logger.debug(f"Found application class '{name}' in local file for '{config.name}'.")
+                            break
+                
+                if not app_class:
+                    raise ImportError(f"No class inheriting from BaseApplication found in local file {config.source_path}")    
+            
             case _:
                 raise ValueError(f"Unsupported source_type: {config.source_type}")
 

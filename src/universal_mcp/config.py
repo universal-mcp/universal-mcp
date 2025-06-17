@@ -73,18 +73,18 @@ class AppConfig(BaseModel):
         description="A list of specific actions or tools provided by this application that should be exposed. If None or empty, all tools from the application might be exposed by default, depending on the application's implementation.",
     )
     
-    source_type: Literal["package", "local_folder", "remote_zip"] = Field(
+    source_type: Literal["package", "local_folder", "remote_zip", "remote_file", "local_file"] = Field(
         default="package",
-        description="The source of the application. 'package' (default) installs from a repository, 'local_folder' loads from a local path, 'remote_zip' downloads and extracts a project zip."
+        description="The source of the application. 'package' (default) installs from a repository, 'local_folder' loads from a local path, 'remote_zip' downloads and extracts a project zip, 'remote_file' downloads a single Python file from a URL, 'local_file' loads a single Python file from the local filesystem."
     )
     source_path: str | None = Field(
         default=None,
-        description="The path or URL for 'local_folder' or 'remote_zip' source types."
+        description="The path or URL for 'local_folder', 'remote_zip', 'remote_file', or 'local_file' source types."
     )
 
     @model_validator(mode="after")
     def check_path_for_non_package_sources(self) -> Self:
-        if self.source_type in ["local_folder", "remote_zip"] and not self.source_path:
+        if self.source_type in ["local_folder", "remote_zip", "remote_file"] and not self.source_path:
             raise ValueError(f"'source_path' is required for source_type '{self.source_type}'")
         return self
 
