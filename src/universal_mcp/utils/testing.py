@@ -1,7 +1,7 @@
 from loguru import logger
 
-from universal_mcp.tools import ToolManager
 from universal_mcp.applications import BaseApplication
+from universal_mcp.tools import ToolManager
 
 
 def check_application_instance(app_instance: BaseApplication, app_name: str):

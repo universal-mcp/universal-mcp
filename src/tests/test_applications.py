@@ -1,8 +1,8 @@
 import pytest
 
 from universal_mcp.applications import app_from_config
-from universal_mcp.utils.testing import check_application_instance
 from universal_mcp.config import AppConfig  # <-- Import AppConfig
+from universal_mcp.utils.testing import check_application_instance
 
 ALL_APPS = [
     "ahrefs",
