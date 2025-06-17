@@ -73,42 +73,10 @@ class MyApp(APIApplication):
 from universal_mcp.applications import app_from_config
 from universal_mcp.config import AppConfig
 
-# To load an application, you first need an AppConfig object.
-# This object defines the name of the app and where to load it from.
-
-# --- Example 1: Loading from a standard package (the default) ---
-# This will find the 'my-app' package, installing it from its repository if needed.
 app_config_pkg = AppConfig(name="my-app")
 MyAppFromPackage = app_from_config(app_config_pkg)
 app_pkg_instance = MyAppFromPackage()
 
-
-# --- Example 2: Loading from a local folder for development ---
-# This is ideal for testing your app without publishing it.
-# The path should point to the root of your project directory.
-app_config_local = AppConfig(
-    name="my-local-dev-app",
-    source_type="local_folder",
-    source_path="/path/to/your/local/project/my-local-dev-app"
-)
-MyAppFromLocal = app_from_config(app_config_local)
-app_local_instance = MyAppFromLocal()
-
-
-# --- Example 3: Loading from a remote .zip archive ---
-# Useful for sharing work-in-progress apps without a full repository setup.
-app_config_remote = AppConfig(
-    name="my-shared-app",
-    source_type="remote_zip",
-    source_path="https://example.com/path/to/my-shared-app.zip"
-)
-MyAppFromRemote = app_from_config(app_config_remote)
-app_remote_instance = MyAppFromRemote()
-
-
-# You can then use the instance to access its tools.
-# For example, if MyAppFromLocal has a tool named 'do_something':
-# tools = app_local_instance.list_tools()
 ```
 
 ## Authentication
