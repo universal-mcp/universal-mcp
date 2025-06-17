@@ -84,9 +84,8 @@ class AppConfig(BaseModel):
 
     @model_validator(mode="after")
     def check_path_for_non_package_sources(self) -> Self:
-        if self.source_type in ["local_folder", "remote_zip"]:
-            if not self.source_path:
-                raise ValueError(f"'source_path' is required for source_type '{self.source_type}'")
+        if self.source_type in ["local_folder", "remote_zip"] and not self.source_path:
+            raise ValueError(f"'source_path' is required for source_type '{self.source_type}'")
         return self
 
 
