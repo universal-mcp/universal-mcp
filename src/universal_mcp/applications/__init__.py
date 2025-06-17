@@ -1,9 +1,13 @@
+import hashlib
 import importlib
+import io
 import os
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
+import httpx
 from loguru import logger
 
 from universal_mcp.applications.application import (
@@ -11,6 +15,7 @@ from universal_mcp.applications.application import (
     BaseApplication,
     GraphQLApplication,
 )
+from universal_mcp.config import AppConfig
 from universal_mcp.utils.common import (
     get_default_class_name,
     get_default_module_path,
@@ -19,16 +24,17 @@ from universal_mcp.utils.common import (
 )
 
 UNIVERSAL_MCP_HOME = Path.home() / ".universal-mcp" / "packages"
+REMOTE_CACHE_DIR = UNIVERSAL_MCP_HOME / "remote_cache"
 
 if not UNIVERSAL_MCP_HOME.exists():
     UNIVERSAL_MCP_HOME.mkdir(parents=True, exist_ok=True)
+if not REMOTE_CACHE_DIR.exists():
+    REMOTE_CACHE_DIR.mkdir(exist_ok=True)
 
 # set python path to include the universal-mcp home directory
-sys.path.append(str(UNIVERSAL_MCP_HOME))
+if str(UNIVERSAL_MCP_HOME) not in sys.path:
+    sys.path.append(str(UNIVERSAL_MCP_HOME))
 
-
-# Name are in the format of "app-name", eg, google-calendar
-# Class name is NameApp, eg, GoogleCalendarApp
 
 app_cache: dict[str, type[BaseApplication]] = {}
 
@@ -51,52 +57,143 @@ def _install_or_upgrade_package(package_name: str, repository_path: str):
     ]
     logger.debug(f"Installing package '{package_name}' with command: {' '.join(cmd)}")
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         if result.stdout:
             logger.info(f"Command stdout: {result.stdout}")
         if result.stderr:
-            logger.info(f"Command stderr: {result.stderr}")
-        result.check_returncode()
+            logger.warning(f"Command stderr: {result.stderr}")
     except subprocess.CalledProcessError as e:
         logger.error(f"Installation failed for '{package_name}': {e}")
-        if e.stdout:
-            logger.error(f"Command stdout: {e.stdout}")
-        if e.stderr:
-            logger.error(f"Command stderr: {e.stderr}")
+        logger.error(f"Command stdout:\n{e.stdout}")
+        logger.error(f"Command stderr:\n{e.stderr}")
         raise ModuleNotFoundError(f"Installation failed for package '{package_name}'") from e
     else:
         logger.debug(f"Package {package_name} installed successfully")
 
 
-def app_from_slug(slug: str):
+def _install_dependencies_from_path(project_root: Path, target_install_dir: Path):
     """
-    Dynamically resolve and return the application class for the given slug.
-    Attempts installation from GitHub if the package is not found locally.
+    Installs dependencies from pyproject.toml or requirements.txt found in project_root.
     """
-    if slug in app_cache:
-        return app_cache[slug]
-    class_name = get_default_class_name(slug)
-    module_path = get_default_module_path(slug)
-    package_name = get_default_package_name(slug)
-    repository_path = get_default_repository_path(slug)
-    logger.debug(f"Resolving app for slug '{slug}' → module '{module_path}', class '{class_name}'")
+    uv_path = os.getenv("UV_PATH")
+    uv_executable = str(Path(uv_path) / "uv") if uv_path else "uv"
+    cmd = []
+
+    if (project_root / "pyproject.toml").exists():
+        logger.info(f"Found pyproject.toml in {project_root}, installing dependencies.")
+        cmd = [uv_executable, "pip", "install", ".", "--target", str(target_install_dir)]
+    elif (project_root / "requirements.txt").exists():
+        logger.info(f"Found requirements.txt in {project_root}, installing dependencies.")
+        cmd = [
+            uv_executable,
+            "pip",
+            "install",
+            "-r",
+            "requirements.txt",
+            "--target",
+            str(target_install_dir),
+        ]
+    else:
+        logger.debug(f"No dependency file found in {project_root}. Skipping dependency installation.")
+        return
+
     try:
-        _install_or_upgrade_package(package_name, repository_path)
-        module = importlib.import_module(module_path)
-        class_ = getattr(module, class_name)
-        logger.debug(f"Loaded class '{class_}' from module '{module_path}'")
-        app_cache[slug] = class_
-        return class_
-    except ModuleNotFoundError as e:
-        raise ModuleNotFoundError(f"Package '{module_path}' not found locally. Please install it first.") from e
-    except AttributeError as e:
-        raise AttributeError(f"Class '{class_name}' not found in module '{module_path}'") from e
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=project_root)
+        if result.stdout:
+            logger.info(f"Dependency installation stdout:\n{result.stdout}")
+        if result.stderr:
+            logger.warning(f"Dependency installation stderr:\n{result.stderr}")
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Dependency installation failed for project at '{project_root}': {e}")
+        logger.error(f"Command stdout:\n{e.stdout}")
+        logger.error(f"Command stderr:\n{e.stderr}")
+        raise RuntimeError(f"Failed to install dependencies for {project_root}") from e
+
+
+def _load_app_from_local_path(project_root: Path, config: AppConfig):
+    """Loads an application class from a local project directory."""
+    logger.debug(f"Attempting to load '{config.name}' from local path: {project_root}")
+    src_path = project_root / "src"
+    if not src_path.is_dir():
+        raise FileNotFoundError(f"Required 'src' directory not found in project at {project_root}")
+
+    _install_dependencies_from_path(project_root, UNIVERSAL_MCP_HOME)
+
+    if str(src_path) not in sys.path:
+        sys.path.insert(0, str(src_path))
+        logger.debug(f"Added to sys.path: {src_path}")
+
+    module_path_str = get_default_module_path(config.name)
+    class_name_str = get_default_class_name(config.name)
+
+    try:
+        module = importlib.import_module(module_path_str)
+        importlib.reload(module)
+        app_class = getattr(module, class_name_str)
+        return app_class
+    except (ModuleNotFoundError, AttributeError) as e:
+        logger.error(f"Failed to load module/class '{module_path_str}.{class_name_str}': {e}")
+        raise
+
+
+def app_from_config(config: AppConfig):
+    """
+    Dynamically resolve and return the application class based on AppConfig.
+    """
+    if config.name in app_cache:
+        return app_cache[config.name]
+
+    app_class = None
+    try:
+        match config.source_type:
+            case "package":
+                logger.debug(f"Loading '{config.name}' as a package.")
+                slug = config.name
+                repository_path = get_default_repository_path(slug)
+                package_name = get_default_package_name(slug)
+                _install_or_upgrade_package(package_name, repository_path)
+
+                module_path_str = get_default_module_path(slug)
+                class_name_str = get_default_class_name(slug)
+                module = importlib.import_module(module_path_str)
+                app_class = getattr(module, class_name_str)
+
+            case "local_folder":
+                project_path = Path(config.source_path).resolve()
+                app_class = _load_app_from_local_path(project_path, config)
+
+            case "remote_zip":
+                url_hash = hashlib.sha256(config.source_path.encode()).hexdigest()[:16]
+                project_path = REMOTE_CACHE_DIR / f"{config.name}-{url_hash}"
+
+                if not project_path.exists():
+                    logger.info(f"Downloading remote project for '{config.name}' from {config.source_path}")
+                    project_path.mkdir(parents=True, exist_ok=True)
+                    response = httpx.get(config.source_path, follow_redirects=True, timeout=120)
+                    response.raise_for_status()
+                    with zipfile.ZipFile(io.BytesIO(response.content)) as z:
+                        z.extractall(project_path)
+                    logger.info(f"Extracted remote project to {project_path}")
+
+                app_class = _load_app_from_local_path(project_path, config)
+
+            case _:
+                raise ValueError(f"Unsupported source_type: {config.source_type}")
+
     except Exception as e:
-        raise Exception(f"Error importing module '{module_path}': {e}") from e
+        logger.error(f"Failed to load application '{config.name}' from source '{config.source_type}': {e}", exc_info=True)
+        raise
+
+    if not app_class:
+        raise ImportError(f"Could not load application class for '{config.name}'")
+
+    logger.debug(f"Loaded class '{app_class.__name__}' for app '{config.name}'")
+    app_cache[config.name] = app_class
+    return app_class
 
 
 __all__ = [
-    "app_from_slug",
+    "app_from_config",
     "BaseApplication",
     "APIApplication",
     "GraphQLApplication",
