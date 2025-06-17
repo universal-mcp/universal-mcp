@@ -1,14 +1,3 @@
-import hashlib
-import importlib
-import importlib.util
-import inspect
-import io
-import os
-import subprocess
-import sys
-import zipfile
-from pathlib import Path
-import httpx
 from loguru import logger
 
 from universal_mcp.applications.application import (
@@ -18,126 +7,17 @@ from universal_mcp.applications.application import (
 )
 from universal_mcp.config import AppConfig
 from universal_mcp.utils.common import (
-    get_default_class_name,
-    get_default_module_path,
-    get_default_package_name,
-    get_default_repository_path,
+    load_app_from_local_file,
+    load_app_from_local_folder,
+    load_app_from_package,
+    load_app_from_remote_file,
+    load_app_from_remote_zip,
 )
-
-UNIVERSAL_MCP_HOME = Path.home() / ".universal-mcp" / "packages"
-REMOTE_CACHE_DIR = UNIVERSAL_MCP_HOME / "remote_cache"
-
-if not UNIVERSAL_MCP_HOME.exists():
-    UNIVERSAL_MCP_HOME.mkdir(parents=True, exist_ok=True)
-if not REMOTE_CACHE_DIR.exists():
-    REMOTE_CACHE_DIR.mkdir(exist_ok=True)
-
-# set python path to include the universal-mcp home directory
-if str(UNIVERSAL_MCP_HOME) not in sys.path:
-    sys.path.append(str(UNIVERSAL_MCP_HOME))
-
 
 app_cache: dict[str, type[BaseApplication]] = {}
 
 
-def _install_or_upgrade_package(package_name: str, repository_path: str):
-    """
-    Helper to install a package via pip from the universal-mcp GitHub repository.
-    """
-    uv_path = os.getenv("UV_PATH")
-    uv_executable = str(Path(uv_path) / "uv") if uv_path else "uv"
-    logger.info(f"Using uv executable: {uv_executable}")
-    cmd = [
-        uv_executable,
-        "pip",
-        "install",
-        "--upgrade",
-        repository_path,
-        "--target",
-        str(UNIVERSAL_MCP_HOME),
-    ]
-    logger.debug(f"Installing package '{package_name}' with command: {' '.join(cmd)}")
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        if result.stdout:
-            logger.info(f"Command stdout: {result.stdout}")
-        if result.stderr:
-            logger.warning(f"Command stderr: {result.stderr}")
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Installation failed for '{package_name}': {e}")
-        logger.error(f"Command stdout:\n{e.stdout}")
-        logger.error(f"Command stderr:\n{e.stderr}")
-        raise ModuleNotFoundError(f"Installation failed for package '{package_name}'") from e
-    else:
-        logger.debug(f"Package {package_name} installed successfully")
-
-
-def _install_dependencies_from_path(project_root: Path, target_install_dir: Path):
-    """
-    Installs dependencies from pyproject.toml or requirements.txt found in project_root.
-    """
-    uv_path = os.getenv("UV_PATH")
-    uv_executable = str(Path(uv_path) / "uv") if uv_path else "uv"
-    cmd = []
-
-    if (project_root / "pyproject.toml").exists():
-        logger.info(f"Found pyproject.toml in {project_root}, installing dependencies.")
-        cmd = [uv_executable, "pip", "install", ".", "--target", str(target_install_dir)]
-    elif (project_root / "requirements.txt").exists():
-        logger.info(f"Found requirements.txt in {project_root}, installing dependencies.")
-        cmd = [
-            uv_executable,
-            "pip",
-            "install",
-            "-r",
-            "requirements.txt",
-            "--target",
-            str(target_install_dir),
-        ]
-    else:
-        logger.debug(f"No dependency file found in {project_root}. Skipping dependency installation.")
-        return
-
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=project_root)
-        if result.stdout:
-            logger.info(f"Dependency installation stdout:\n{result.stdout}")
-        if result.stderr:
-            logger.warning(f"Dependency installation stderr:\n{result.stderr}")
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Dependency installation failed for project at '{project_root}': {e}")
-        logger.error(f"Command stdout:\n{e.stdout}")
-        logger.error(f"Command stderr:\n{e.stderr}")
-        raise RuntimeError(f"Failed to install dependencies for {project_root}") from e
-
-
-def _load_app_from_local_path(project_root: Path, config: AppConfig):
-    """Loads an application class from a local project directory."""
-    logger.debug(f"Attempting to load '{config.name}' from local path: {project_root}")
-    src_path = project_root / "src"
-    if not src_path.is_dir():
-        raise FileNotFoundError(f"Required 'src' directory not found in project at {project_root}")
-
-    _install_dependencies_from_path(project_root, UNIVERSAL_MCP_HOME)
-
-    if str(src_path) not in sys.path:
-        sys.path.insert(0, str(src_path))
-        logger.debug(f"Added to sys.path: {src_path}")
-
-    module_path_str = get_default_module_path(config.name)
-    class_name_str = get_default_class_name(config.name)
-
-    try:
-        module = importlib.import_module(module_path_str)
-        importlib.reload(module)
-        app_class = getattr(module, class_name_str)
-        return app_class
-    except (ModuleNotFoundError, AttributeError) as e:
-        logger.error(f"Failed to load module/class '{module_path_str}.{class_name_str}': {e}")
-        raise
-
-
-def app_from_config(config: AppConfig):
+def app_from_config(config: AppConfig) -> type[BaseApplication]:
     """
     Dynamically resolve and return the application class based on AppConfig.
     """
@@ -148,116 +28,23 @@ def app_from_config(config: AppConfig):
     try:
         match config.source_type:
             case "package":
-                logger.debug(f"Loading '{config.name}' as a package.")
-                slug = config.name
-                repository_path = get_default_repository_path(slug)
-                package_name = get_default_package_name(slug)
-                _install_or_upgrade_package(package_name, repository_path)
-
-                module_path_str = get_default_module_path(slug)
-                class_name_str = get_default_class_name(slug)
-                module = importlib.import_module(module_path_str)
-                app_class = getattr(module, class_name_str)
-
+                app_class = load_app_from_package(config)
             case "local_folder":
-                project_path = Path(config.source_path).resolve()
-                app_class = _load_app_from_local_path(project_path, config)
-
+                app_class = load_app_from_local_folder(config)
             case "remote_zip":
-                url_hash = hashlib.sha256(config.source_path.encode()).hexdigest()[:16]
-                project_path = REMOTE_CACHE_DIR / f"{config.name}-{url_hash}"
-
-                if not project_path.exists():
-                    logger.info(f"Downloading remote project for '{config.name}' from {config.source_path}")
-                    project_path.mkdir(parents=True, exist_ok=True)
-                    response = httpx.get(config.source_path, follow_redirects=True, timeout=120)
-                    response.raise_for_status()
-                    with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-                        z.extractall(project_path)
-                    logger.info(f"Extracted remote project to {project_path}")
-
-                app_class = _load_app_from_local_path(project_path, config)
-            
+                app_class = load_app_from_remote_zip(config)
             case "remote_file":
-                logger.debug(f"Loading '{config.name}' as a remote file from {config.source_path}")
-                # Create a unique filename based on the URL hash to use for caching
-                url_hash = hashlib.sha256(config.source_path.encode()).hexdigest()[:16]
-                cached_file_path = REMOTE_CACHE_DIR / f"{config.name}-{url_hash}.py"
-
-                if not cached_file_path.exists():
-                    logger.info(f"Downloading remote file for '{config.name}' from {config.source_path}")
-                    try:
-                        response = httpx.get(config.source_path, follow_redirects=True, timeout=60)
-                        response.raise_for_status()
-                        cached_file_path.write_text(response.text, encoding="utf-8")
-                        logger.info(f"Cached remote file to {cached_file_path}")
-                    except httpx.HTTPStatusError as e:
-                        logger.error(f"Failed to download remote file: {e.response.status_code} {e.response.reason_phrase}")
-                        raise
-                    except Exception as e:
-                        logger.error(f"An unexpected error occurred during download: {e}")
-                        raise
-
-                if not cached_file_path.stat().st_size > 0:
-                    raise ImportError(f"Remote file at {cached_file_path} is empty.")
-
-                module_name = f"remote_app_{config.name}_{url_hash}"
-                spec = importlib.util.spec_from_file_location(module_name, cached_file_path)
-                if spec is None or spec.loader is None:
-                    raise ImportError(f"Could not create module spec for {cached_file_path}")
-                
-                module = importlib.util.module_from_spec(spec)
-                sys.modules[module_name] = module
-                spec.loader.exec_module(module)
-
-                for name, obj in inspect.getmembers(module, inspect.isclass):
-                    if obj.__module__ == module_name:
-                        if issubclass(obj, BaseApplication) and obj is not BaseApplication:
-                            app_class = obj
-                            logger.debug(f"Found application class '{name}' defined in remote file for '{config.name}'.")
-                            break
-                
-                if not app_class:
-                    raise ImportError(f"No class inheriting from BaseApplication found in remote file {config.source_path}")
-            
+                app_class = load_app_from_remote_file(config)
             case "local_file":
-                logger.debug(f"Loading '{config.name}' as a local file from {config.source_path}")
-                local_file_path = Path(config.source_path).resolve()
-
-                if not local_file_path.is_file():
-                    raise FileNotFoundError(f"Local file not found at: {local_file_path}")
-                
-                if not local_file_path.stat().st_size > 0:
-                    raise ImportError(f"Local file at {local_file_path} is empty.")
-
-                # Create a unique module name from the file path to avoid collisions
-                path_hash = hashlib.sha256(str(local_file_path).encode()).hexdigest()[:16]
-                module_name = f"local_app_{config.name}_{path_hash}"
-                
-                spec = importlib.util.spec_from_file_location(module_name, local_file_path)
-                if spec is None or spec.loader is None:
-                    raise ImportError(f"Could not create module spec for {local_file_path}")
-                
-                module = importlib.util.module_from_spec(spec)
-                sys.modules[module_name] = module
-                spec.loader.exec_module(module)
-
-                # Find the BaseApplication subclass defined within this specific module
-                for name, obj in inspect.getmembers(module, inspect.isclass):
-                    if obj.__module__ == module_name:
-                        if issubclass(obj, BaseApplication) and obj is not BaseApplication:
-                            app_class = obj
-                            logger.debug(f"Found application class '{name}' in local file for '{config.name}'.")
-                            break
-                
-                if not app_class:
-                    raise ImportError(f"No class inheriting from BaseApplication found in local file {config.source_path}")    
-            
+                app_class = load_app_from_local_file(config)
             case _:
                 raise ValueError(f"Unsupported source_type: {config.source_type}")
 
     except Exception as e:
-        logger.error(f"Failed to load application '{config.name}' from source '{config.source_type}': {e}", exc_info=True)
+        logger.error(
+            f"Failed to load application '{config.name}' from source '{config.source_type}': {e}",
+            exc_info=True,
+        )
         raise
 
     if not app_class:
