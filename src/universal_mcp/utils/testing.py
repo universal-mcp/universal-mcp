@@ -6,14 +6,25 @@ from universal_mcp.tools import Tool
 
 def check_application_instance(app_instance: BaseApplication, app_name: str):
     """
-    Validates a BaseApplication instance and its tools by simulating
-    the registration process with a ToolManager. This version is designed
-    to work with parametrized tests.
+    Performs a series of assertions to validate an application instance and its tools.
+
+    This function checks for the following:
+    - The application instance is not None.
+    - The application instance's name matches the expected application name.
+    - The application has at least one tool.
+    - Each tool has a non-None name with a valid length (1-47 characters).
+    - Each tool has a non-None description.
+    - All tool names are unique within the application.
+    - The application has at least one tool tagged as "important".
 
     Args:
-        app_instance: An instantiated object of a class that inherits from BaseApplication.
-        app_name: The expected name of the application, used for assertions.
+        app_instance: The application instance to check. Must be an instance of BaseApplication.
+        app_name: The expected name of the application.
+
+    Raises:
+        AssertionError: If any of the validation checks fail.
     """
+    
     assert app_instance is not None, f"Application object is None for {app_name}"
     assert app_instance.name == app_name, (
         f"Application instance name '{app_instance.name}' does not match expected name '{app_name}'"
