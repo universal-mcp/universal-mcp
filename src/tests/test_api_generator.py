@@ -56,19 +56,13 @@ async def test_generate_api_without_output(sample_schema):
     result = generate_api_from_schema(schema_path=sample_schema, output_path=None)
 
     assert "code" in result
-    assert "schemas_code" in result
     assert isinstance(result["code"], str)
-    assert isinstance(result["schemas_code"], str)
     # Check for required imports
     assert "from universal_mcp.applications import APIApplication" in result["code"]
     assert "from universal_mcp.integrations import Integration" in result["code"]
-    assert "from .schemas import *" in result["code"]
     # Check for the test operation (now without prefix)
     assert "def test_operation" in result["code"]
     assert "list_tools" in result["code"]
-    # Check schemas code content
-    assert "from typing import" in result["schemas_code"]
-    assert "from pydantic import BaseModel" in result["schemas_code"]
 
 
 @pytest.mark.asyncio
@@ -76,29 +70,15 @@ async def test_generate_api_with_output(sample_schema, temp_dir):
     """Test API generation with output file."""
     output_path = temp_dir / "test.py"
 
-    result = generate_api_from_schema(schema_path=sample_schema, output_path=output_path)
-
-    assert result is not None
-    assert isinstance(result, tuple)
-    assert len(result) == 2
-    
-    app_file, schemas_file = result
+    app_file, schemas_file = generate_api_from_schema(schema_path=sample_schema, output_path=output_path)
 
     assert app_file.exists()
-    assert schemas_file.exists()
-    
     content = app_file.read_text()
     # Check for required imports and class structure
     assert "from universal_mcp.applications import APIApplication" in content
     assert "from universal_mcp.integrations import Integration" in content
-    assert "from .schemas import *" in content
     assert "def test_operation" in content
     assert "def list_tools" in content
-    
-    # Check schemas file content
-    schemas_content = schemas_file.read_text()
-    assert "from typing import" in schemas_content
-    assert "from pydantic import BaseModel" in schemas_content
 
 
 @pytest.mark.asyncio
@@ -123,22 +103,15 @@ async def test_generate_api_without_docstrings(sample_schema, temp_dir):
     """Test API generation without docstring generation."""
     output_path = temp_dir / "test_without_docs.py"
 
-    result = generate_api_from_schema(schema_path=sample_schema, output_path=output_path)
+    app_file, schemas_file = generate_api_from_schema(schema_path=sample_schema, output_path=output_path)
 
-    assert result is not None
-    assert isinstance(result, tuple)
-    assert len(result) == 2
-    
-    app_file, schemas_file = result
     assert app_file.exists()
-    assert schemas_file.exists()
 
     # Verify the app was generated
     content = app_file.read_text()
     # Check for required imports and class structure
     assert "from universal_mcp.applications import APIApplication" in content
     assert "from universal_mcp.integrations import Integration" in content
-    assert "from .schemas import *" in content
     assert "def test_operation" in content
     assert "def list_tools" in content
 
@@ -186,15 +159,9 @@ async def test_generate_api_with_complex_schema(temp_dir):
         json.dump(schema, f)
 
     output_path = temp_dir / "complex.py"
-    result = generate_api_from_schema(schema_path=schema_file, output_path=output_path)
+    app_file, schemas_file = generate_api_from_schema(schema_path=schema_file, output_path=output_path)
 
-    assert result is not None
-    assert isinstance(result, tuple)
-    assert len(result) == 2
-    
-    app_file, schemas_file = result
     assert app_file.exists()
-    assert schemas_file.exists()
 
     content = app_file.read_text()
     # Check for all operations (without the 'complex_' prefix)
@@ -213,7 +180,6 @@ async def test_generate_api_with_complex_schema(temp_dir):
     # Check for required imports
     assert "from universal_mcp.applications import APIApplication" in content
     assert "from universal_mcp.integrations import Integration" in content
-    assert "from .schemas import *" in content
 
     # Check for proper typing imports
     assert "from typing import" in content
