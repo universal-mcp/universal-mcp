@@ -1204,9 +1204,69 @@ def load_schema(path: Path):
     return _load_and_resolve_references(path)
 
 
+def generate_schemas_file(schema, class_name: str | None = None, filter_config_path: str | None = None):
+    """
+    Generate a Python file containing only the response schema classes from an OpenAPI schema.
+    
+    Args:
+        schema (dict): The OpenAPI schema as a dictionary.
+        class_name (str | None): Optional class name for context.
+        filter_config_path (str | None): Optional path to JSON filter configuration file.
+    
+    Returns:
+        str: A string containing the Python code for the response schema classes.
+    """
+    global _schema_registry, _generated_models
+    _schema_registry.clear()
+    _generated_models.clear()
+    
+    # Load filter configuration if provided
+    filter_config = None
+    if filter_config_path:
+        filter_config = load_filter_config(filter_config_path)
+    
+    # Generate response models by processing all operations
+    for path, path_info in schema.get("paths", {}).items():
+        for method in path_info:
+            if method in ["get", "post", "put", "delete", "patch", "options", "head"]:
+                # Apply filter configuration
+                if not should_process_operation(path, method, filter_config):
+                    continue
+                
+                operation = path_info[method]
+                # Generate response model for this operation
+                _determine_return_type(operation, path, method)
+    
+    # Generate the schemas file content
+    imports = [
+        "from typing import Any, Optional, List",
+        "from pydantic import BaseModel, Field",
+    ]
+    
+    imports_section = "\n".join(imports)
+    models_section = "\n".join(_generated_models.values()) if _generated_models else ""
+    
+    if not models_section:
+        # If no models were generated, create a minimal file
+        schemas_code = f"""{imports_section}
+
+# No response models were generated for this OpenAPI schema
+"""
+    else:
+        schemas_code = f"""{imports_section}
+
+# Generated Response Models
+
+{models_section}
+"""
+    
+    return schemas_code
+
+
 def generate_api_client(schema, class_name: str | None = None, filter_config_path: str | None = None):
     """
     Generate a Python API client class from an OpenAPI schema.
+    Models are not included - they should be generated separately using generate_schemas_file.
 
     Args:
         schema (dict): The OpenAPI schema as a dictionary.
@@ -1302,35 +1362,19 @@ def generate_api_client(schema, class_name: str | None = None, filter_config_pat
             {tools_list}
         ]"""
 
-    # Generate class imports
+    # Generate class imports - import from separate schemas file
     imports = [
         "from typing import Any, Optional, List",
         "from universal_mcp.applications import APIApplication",
         "from universal_mcp.integrations import Integration",
+        "from .schemas import *"
     ]
-    
-    # Add Pydantic imports 
-    if _generated_models:
-        imports.extend([
-            "from pydantic import BaseModel, Field",
-        ])
 
-    # Generate the response model classes
-    model_classes = []
-    if _generated_models:
-        print(f"Generated {len(_generated_models)} response model classes")
-        model_classes = list(_generated_models.values())
-
-    # Construct the class code
+    # Construct the class code (no model classes since they're in separate file)
     imports_section = "\n".join(imports)
-    models_section = "\n".join(model_classes) if model_classes else ""
     
-    class_code_parts = [imports_section]
-    
-    if models_section:
-        class_code_parts.extend(["", "# Generated Response Models", models_section])
-    
-    class_code_parts.extend([
+    class_code_parts = [
+        imports_section,
         "",
         f"class {class_name}(APIApplication):",
         "    def __init__(self, integration: Integration = None, **kwargs) -> None:",
@@ -1341,7 +1385,7 @@ def generate_api_client(schema, class_name: str | None = None, filter_config_pat
         "",
         list_tools_method,
         ""
-    ])
+    ]
     
     class_code = "\n".join(class_code_parts)
     return class_code
