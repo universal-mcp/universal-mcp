@@ -1,3 +1,4 @@
+import asyncio
 import json
 from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager
@@ -9,6 +10,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
 
 from playground.agents.react import create_agent
+from playground.agents.auto_agent import create_auto_agent
 from playground.schema import (
     ChatHistory,
     ChatMessage,
@@ -21,11 +23,17 @@ from playground.utils import (
 
 
 @asynccontextmanager
-async def create_agent_client():
-    async with create_agent() as react_agent:
-        agent = react_agent
-        client = AgentClient(agent=agent)
-        yield client
+async def create_agent_client(agent_type: str = "auto"):
+    """Create an agent client with the specified agent type."""
+    if agent_type == "auto":
+        async with create_auto_agent() as auto_agent:
+            client = AutoAgentClient(auto_agent=auto_agent)
+            yield client
+    else:
+        async with create_agent() as react_agent:
+            agent = react_agent
+            client = AgentClient(agent=agent)
+            yield client
 
 
 class AgentClientError(Exception):
@@ -365,3 +373,200 @@ class AgentClient:
             return ChatHistory(messages=chat_messages)
         except Exception as e:
             raise AgentClientError(f"Error getting history: {e}") from e
+
+
+class AutoAgentClient:
+    """Client for interacting with the AutoAgent directly."""
+
+    def __init__(self, auto_agent) -> None:
+        """
+        Initialize the client.
+
+        Args:
+            auto_agent (AutoAgent): The auto agent to use.
+        """
+        self.auto_agent = auto_agent
+
+    def retrieve_info(self) -> None:
+        """Get information about the agent."""
+        # This is a placeholder method that doesn't need to do anything
+        # since we're directly using the agent
+        pass
+
+    async def ainvoke(
+        self,
+        message: str,
+        thread_id: str | None = None,
+        agent_config: dict[str, Any] | None = None,
+    ) -> ChatMessage:
+        """
+        Invoke the auto agent asynchronously. Only the final message is returned.
+
+        Args:
+            message (str): The message to send to the agent
+            thread_id (str, optional): Thread ID for continuing a conversation
+            agent_config (dict[str, Any], optional): Additional configuration to pass through to the agent
+
+        Returns:
+            ChatMessage: The response from the agent
+        """
+        run_id = uuid4()
+        thread_id = thread_id or str(uuid4())
+
+        # Extract configuration for AutoAgent
+        app_limit = agent_config.get("app_limit", 5) if agent_config else 5
+        action_limit = agent_config.get("action_limit", 10) if agent_config else 10
+        interactive = agent_config.get("interactive", False) if agent_config else False
+
+        try:
+            # Run the AutoAgent with the given task
+            result = await self.auto_agent.run(
+                task=message,
+                app_limit=app_limit,
+                action_limit=action_limit,
+                interactive=interactive
+            )
+            
+            # Create a ChatMessage from the result
+            output = ChatMessage(
+                type="ai",
+                content=result,
+                run_id=str(run_id)
+            )
+            return output
+        except Exception as e:
+            raise AgentClientError(f"Error invoking auto agent: {e}") from e
+
+    def invoke(
+        self,
+        message: str,
+        thread_id: str | None = None,
+        agent_config: dict[str, Any] | None = None,
+    ) -> ChatMessage:
+        """
+        Invoke the auto agent synchronously. Only the final message is returned.
+
+        Args:
+            message (str): The message to send to the agent
+            thread_id (str, optional): Thread ID for continuing a conversation
+            agent_config (dict[str, Any], optional): Additional configuration to pass through to the agent
+
+        Returns:
+            ChatMessage: The response from the agent
+        """
+        # For AutoAgent, we'll use the async version since it's designed for async operations
+        return asyncio.run(self.ainvoke(message, thread_id, agent_config))
+
+    def stream(
+        self,
+        message: str,
+        thread_id: str | None = None,
+        agent_config: dict[str, Any] | None = None,
+        stream_tokens: bool = True,
+    ) -> Generator[ChatMessage | str, None, None]:
+        """
+        Stream the auto agent's response synchronously.
+
+        Note: AutoAgent doesn't support streaming in the same way as the react agent.
+        This method yields the final result as a single message.
+
+        Args:
+            message (str): The message to send to the agent
+            thread_id (str, optional): Thread ID for continuing a conversation
+            agent_config (dict[str, Any], optional): Additional configuration to pass through to the agent
+            stream_tokens (bool, optional): Not used for AutoAgent
+
+        Returns:
+            Generator[ChatMessage | str, None, None]: The response from the agent
+        """
+        run_id = uuid4()
+        thread_id = thread_id or str(uuid4())
+
+        # Extract configuration for AutoAgent
+        app_limit = agent_config.get("app_limit", 5) if agent_config else 5
+        action_limit = agent_config.get("action_limit", 10) if agent_config else 10
+        interactive = agent_config.get("interactive", False) if agent_config else False
+
+        try:
+            # For AutoAgent, we'll run it synchronously and yield the result
+            result = asyncio.run(self.auto_agent.run(
+                task=message,
+                app_limit=app_limit,
+                action_limit=action_limit,
+                interactive=interactive
+            ))
+            
+            # Create a ChatMessage from the result
+            output = ChatMessage(
+                type="ai",
+                content=result,
+                run_id=str(run_id)
+            )
+            yield output
+        except Exception as e:
+            raise AgentClientError(f"Error streaming from auto agent: {e}") from e
+
+    async def astream(
+        self,
+        message: str,
+        thread_id: str | None = None,
+        agent_config: dict[str, Any] | None = None,
+        stream_tokens: bool = True,
+    ) -> AsyncGenerator[ChatMessage | str, None]:
+        """
+        Stream the auto agent's response asynchronously.
+
+        Note: AutoAgent doesn't support streaming in the same way as the react agent.
+        This method yields the final result as a single message.
+
+        Args:
+            message (str): The message to send to the agent
+            thread_id (str, optional): Thread ID for continuing a conversation
+            agent_config (dict[str, Any], optional): Additional configuration to pass through to the agent
+            stream_tokens (bool, optional): Not used for AutoAgent
+
+        Returns:
+            AsyncGenerator[ChatMessage | str, None]: The response from the agent
+        """
+        run_id = uuid4()
+        thread_id = thread_id or str(uuid4())
+
+        # Extract configuration for AutoAgent
+        app_limit = agent_config.get("app_limit", 5) if agent_config else 5
+        action_limit = agent_config.get("action_limit", 10) if agent_config else 10
+        interactive = agent_config.get("interactive", False) if agent_config else False
+
+        try:
+            # Run the AutoAgent with the given task
+            result = await self.auto_agent.run(
+                task=message,
+                app_limit=app_limit,
+                action_limit=action_limit,
+                interactive=interactive
+            )
+            
+            # Create a ChatMessage from the result
+            output = ChatMessage(
+                type="ai",
+                content=result,
+                run_id=str(run_id)
+            )
+            yield output
+        except Exception as e:
+            raise AgentClientError(f"Error streaming from auto agent: {e}") from e
+
+    def get_history(
+        self,
+        thread_id: str,
+    ) -> ChatHistory:
+        """
+        Get chat history.
+
+        Note: AutoAgent doesn't maintain conversation history in the same way.
+        This method returns an empty history.
+
+        Args:
+            thread_id (str): Thread ID for identifying a conversation
+        """
+        # AutoAgent doesn't maintain conversation history
+        return ChatHistory(messages=[])

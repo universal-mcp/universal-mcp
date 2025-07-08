@@ -175,8 +175,43 @@ async def main() -> None:
     with col1:
         st.title(f"{APP_ICON} {APP_TITLE}")
 
+    # Agent type selection
+    if "agent_type" not in st.session_state:
+        st.session_state.agent_type = "react"
+    
+    agent_type = st.selectbox(
+        "Select Agent Type",
+        ["react", "auto"],
+        index=0 if st.session_state.agent_type == "react" else 1,
+        help="React Agent: Traditional MCP-based agent. Auto Agent: Task decomposition and app selection agent."
+    )
+    
+    if agent_type != st.session_state.agent_type:
+        st.session_state.agent_type = agent_type
+        st.session_state.messages = []  # Clear messages when switching agents
+        st.rerun()
+
+    # Agent configuration
+    if agent_type == "auto":
+        with st.expander("⚙️ Auto Agent Configuration", expanded=False):
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                app_limit = st.number_input("App Limit", min_value=1, max_value=20, value=5, help="Maximum number of apps to consider")
+            with col2:
+                action_limit = st.number_input("Action Limit", min_value=1, max_value=50, value=10, help="Maximum number of actions to consider per app")
+            with col3:
+                interactive = st.checkbox("Interactive Mode", value=False, help="Allow user to choose between multiple apps")
+            
+            st.session_state.agent_config = {
+                "app_limit": app_limit,
+                "action_limit": action_limit,
+                "interactive": interactive
+            }
+    else:
+        st.session_state.agent_config = {}
+
     # --- Initialize Agent Client ---
-    async with create_agent_client() as agent_client:
+    async with create_agent_client(agent_type=agent_type) as agent_client:
         st.session_state.agent_client = agent_client
 
         # --- Ensure Upload Directory Exists ---
@@ -245,11 +280,18 @@ async def main() -> None:
         messages: list[ChatMessage] = st.session_state.messages
 
         if not messages:
-            WELCOME = (
-                "Hello. I am your AI assistant with access to "
-                "a wide variety of tools. You can enable/disable "
-                "desired tools at agentr.dev/apps."
-            )
+            if agent_type == "auto":
+                WELCOME = (
+                    "Hello! I am your Auto Agent that can decompose complex tasks and automatically "
+                    "select the best apps and actions to complete them. Just describe what you want to do, "
+                    "and I'll break it down into steps and execute them for you."
+                )
+            else:
+                WELCOME = (
+                    "Hello. I am your AI assistant with access to "
+                    "a wide variety of tools. You can enable/disable "
+                    "desired tools at agentr.dev/apps."
+                )
             with st.chat_message("ai", avatar="🤖"):
                 st.write(WELCOME)
         else:
@@ -301,12 +343,14 @@ async def main() -> None:
                     stream = agent_client.astream(
                         message=final_message_content,
                         thread_id=st.session_state.thread_id,
+                        agent_config=st.session_state.agent_config,
                     )
                     await draw_messages(stream, is_new=True)
                 else:
                     response = await agent_client.ainvoke(
                         message=final_message_content,
                         thread_id=st.session_state.thread_id,
+                        agent_config=st.session_state.agent_config,
                     )
                     messages.append(response)
                     st.chat_message("ai", avatar="🤖").write(response.content)

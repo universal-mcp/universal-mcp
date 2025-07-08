@@ -22,7 +22,12 @@ Before running the playground, ensure you have the following:
     - `AZURE_OPENAI_ENDPOINT`: Your Azure OpenAI endpoint URL.
       _If you wish to use a different LLM, you'll need to modify `playground/agents/react.py`._
 
-4.  **`local_config.json` in Project Root**:
+4.  **AgentR API Key (for Auto Agent)**:
+    If you want to use the Auto Agent, you'll need to set the following environment variable:
+
+    - `AUTO_AGENT_API_KEY`: Your AgentR API key (get it from [agentr.dev](https://agentr.dev))
+
+5.  **`local_config.json` in Project Root**:
     This file is crucial. It configures the **local Universal MCP server** that the playground's agent will connect to for tools. This file must be placed in the **root directory of the `universal-mcp` project** (i.e., one level above the `src` directory).
 
     The agent in `playground/agents/react.py` expects to connect to an MCP server at `http://localhost:8005` using Server-Sent Events (SSE). Therefore, your `local_config.json` should reflect this:
@@ -57,6 +62,22 @@ Before running the playground, ensure you have the following:
 
     - Ensure the `transport` is `"sse"` and `port` is `8005`.
     - Add any applications (tools) you want the agent to be able to use in the `apps` array. Ensure any necessary API keys for these tools are set as environment variables if their integration is configured to use `type: "environment"`.
+
+## 🤖 Agent Types
+
+The playground supports two different agent types:
+
+### React Agent (Default)
+The traditional MCP-based agent that connects to MCP servers and uses tools via the Model Control Protocol. This agent works with the local MCP server configuration.
+
+### Auto Agent
+An intelligent agent that can:
+- Decompose complex tasks into individual steps
+- Automatically search for and select relevant apps for each task
+- Choose appropriate actions from those apps
+- Execute tasks in sequence with context passing between steps
+
+To use the Auto Agent, you'll need to set the `AUTO_AGENT_API_KEY` environment variable.
 
 ## ▶️ Running the Playground
 

@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     BASE_DIR: Path = Path(__file__).parent.parent
     DATA_DIR: Path = BASE_DIR / "data"
 
+    # AutoAgent settings
+    AUTO_AGENT_API_KEY: str = ""
+    AUTO_AGENT_API_BASE_URL: str = "http://localhost:8000"
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
