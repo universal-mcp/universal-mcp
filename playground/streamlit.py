@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 
 from playground.client import AgentClient, AgentClientError, create_agent_client
-from playground.schema import ChatHistory, ChatMessage, TaskData, TaskDataStatus
+from playground.schema import ChatHistory, ChatMessage, TaskData, TaskDataStatus, AppChoiceData
 from playground.settings import settings
 
 # A Streamlit app for interacting with the langgraph agent via a simple chat interface.
@@ -306,59 +306,154 @@ async def main() -> None:
 
         # Chat input area
         st.markdown('<div class="chat-input-area">', unsafe_allow_html=True)
-        if user_input := st.chat_input("Enter message or upload a file and describe task...", key="chat_input"):
-            final_message_content = user_input
-            display_content = user_input
-
-            # --- Handle File Upload Integration ---
-            if st.session_state.uploaded_file_obj and not st.session_state.file_processed:
-                uploaded_file_obj = st.session_state.uploaded_file_obj
-                original_filename = uploaded_file_obj.name
+        
+        # Check if we're waiting for app choices
+        if "waiting_for_app_choice" in st.session_state and st.session_state.waiting_for_app_choice:
+            # Show app choice UI
+            choice_data = st.session_state.app_choice_data
+            user_choices = await handle_app_choice_ui(choice_data)
+            
+            if user_choices is not None:
+                # User has made their choices, execute the task
+                st.session_state.waiting_for_app_choice = False
+                del st.session_state.app_choice_data
+                
+                # Execute task with choices
                 try:
-                    save_filepath = get_unique_filepath(uploads_dir, original_filename)
-                    file_bytes = uploaded_file_obj.getvalue()
-                    save_filepath.write_bytes(file_bytes)
-                    absolute_filepath_str = str(save_filepath.resolve())
-                    file_metadata_prefix = (
-                        f"[User uploaded file named '{original_filename}'. "
-                        f"It has been saved at the following absolute path: "
-                        f"{absolute_filepath_str}]\n\n"
-                    )
-                    final_message_content = file_metadata_prefix + user_input
-                    display_content = f"[Using uploaded file: {original_filename}]\n\n{user_input}"
-                    st.session_state.last_processed_file = original_filename
-                    st.session_state.file_processed = True
-                except OSError as e:
-                    st.error(f"Error saving uploaded file '{original_filename}': {e}")
-                    st.stop()
-                except Exception as e:
-                    st.error(f"An unexpected error occurred during file handling: {e}")
-                    st.stop()
-            # --- End File Upload Integration ---
-
-            messages.append(ChatMessage(type="human", content=final_message_content))
-            st.chat_message("human", avatar="👤").write(display_content)
-            try:
-                if use_streaming:
-                    stream = agent_client.astream(
-                        message=final_message_content,
+                    result = await agent_client.run_with_choices(
+                        message=st.session_state.pending_task,
+                        frontend_choices=user_choices,
                         thread_id=st.session_state.thread_id,
                         agent_config=st.session_state.agent_config,
                     )
-                    await draw_messages(stream, is_new=True)
-                else:
-                    response = await agent_client.ainvoke(
-                        message=final_message_content,
-                        thread_id=st.session_state.thread_id,
-                        agent_config=st.session_state.agent_config,
-                    )
+                    
+                    # Add the result as an AI message
+                    response = ChatMessage(type="ai", content=result)
                     messages.append(response)
-                    st.chat_message("ai", avatar="🤖").write(response.content)
-                st.rerun()
-            except AgentClientError as e:
-                st.error(f"Error generating response: {e}")
-            except Exception as e:
-                st.error(f"An unexpected error occurred during agent communication: {e}")
+                    st.chat_message("ai", avatar="🤖").write(result)
+                    
+                    # Clear pending task
+                    del st.session_state.pending_task
+                    st.rerun()
+                except AgentClientError as e:
+                    st.error(f"Error executing task: {e}")
+                except Exception as e:
+                    st.error(f"An unexpected error occurred: {e}")
+        else:
+            # Normal chat input
+            if user_input := st.chat_input("Enter message or upload a file and describe task...", key="chat_input"):
+                final_message_content = user_input
+                display_content = user_input
+
+                # --- Handle File Upload Integration ---
+                if st.session_state.uploaded_file_obj and not st.session_state.file_processed:
+                    uploaded_file_obj = st.session_state.uploaded_file_obj
+                    original_filename = uploaded_file_obj.name
+                    try:
+                        save_filepath = get_unique_filepath(uploads_dir, original_filename)
+                        file_bytes = uploaded_file_obj.getvalue()
+                        save_filepath.write_bytes(file_bytes)
+                        absolute_filepath_str = str(save_filepath.resolve())
+                        file_metadata_prefix = (
+                            f"[User uploaded file named '{original_filename}'. "
+                            f"It has been saved at the following absolute path: "
+                            f"{absolute_filepath_str}]\n\n"
+                        )
+                        final_message_content = file_metadata_prefix + user_input
+                        display_content = f"[Using uploaded file: {original_filename}]\n\n{user_input}"
+                        st.session_state.last_processed_file = original_filename
+                        st.session_state.file_processed = True
+                    except OSError as e:
+                        st.error(f"Error saving uploaded file '{original_filename}': {e}")
+                        st.stop()
+                    except Exception as e:
+                        st.error(f"An unexpected error occurred during file handling: {e}")
+                        st.stop()
+                # --- End File Upload Integration ---
+
+                messages.append(ChatMessage(type="human", content=final_message_content))
+                st.chat_message("human", avatar="👤").write(display_content)
+                
+                # For auto agent, check if we need app choices
+                if agent_type == "auto":
+                    try:
+                        # Get choice data
+                        choice_data = await agent_client.get_choice_data(
+                            message=final_message_content,
+                            thread_id=st.session_state.thread_id,
+                            agent_config=st.session_state.agent_config,
+                        )
+                        
+                        if choice_data['requires_app'] and choice_data['app_sets']:
+                            # User choice needed, show choice UI
+                            st.session_state.waiting_for_app_choice = True
+                            st.session_state.app_choice_data = choice_data
+                            st.session_state.pending_task = final_message_content
+                            st.rerun()
+                        elif choice_data['requires_app'] and choice_data['auto_selected']:
+                            # All apps auto-selected, execute directly
+                            try:
+                                result = await agent_client.run_with_choices(
+                                    message=final_message_content,
+                                    frontend_choices={"auto_selected": choice_data['auto_selected'], "user_choices": {}},
+                                    thread_id=st.session_state.thread_id,
+                                    agent_config=st.session_state.agent_config,
+                                )
+                                
+                                # Add the result as an AI message
+                                response = ChatMessage(type="ai", content=result)
+                                messages.append(response)
+                                st.chat_message("ai", avatar="🤖").write(result)
+                                st.rerun()
+                            except AgentClientError as e:
+                                st.error(f"Error executing task: {e}")
+                            except Exception as e:
+                                st.error(f"An unexpected error occurred: {e}")
+                        else:
+                            # No app choice needed, proceed with normal execution
+                            if use_streaming:
+                                stream = agent_client.astream(
+                                    message=final_message_content,
+                                    thread_id=st.session_state.thread_id,
+                                    agent_config=st.session_state.agent_config,
+                                )
+                                await draw_messages(stream, is_new=True)
+                            else:
+                                response = await agent_client.ainvoke(
+                                    message=final_message_content,
+                                    thread_id=st.session_state.thread_id,
+                                    agent_config=st.session_state.agent_config,
+                                )
+                                messages.append(response)
+                                st.chat_message("ai", avatar="🤖").write(response.content)
+                            st.rerun()
+                    except AgentClientError as e:
+                        st.error(f"Error getting choice data: {e}")
+                    except Exception as e:
+                        st.error(f"An unexpected error occurred: {e}")
+                else:
+                    # For react agent, proceed with normal execution
+                    try:
+                        if use_streaming:
+                            stream = agent_client.astream(
+                                message=final_message_content,
+                                thread_id=st.session_state.thread_id,
+                                agent_config=st.session_state.agent_config,
+                            )
+                            await draw_messages(stream, is_new=True)
+                        else:
+                            response = await agent_client.ainvoke(
+                                message=final_message_content,
+                                thread_id=st.session_state.thread_id,
+                                agent_config=st.session_state.agent_config,
+                            )
+                            messages.append(response)
+                            st.chat_message("ai", avatar="🤖").write(response.content)
+                        st.rerun()
+                    except AgentClientError as e:
+                        st.error(f"Error generating response: {e}")
+                    except Exception as e:
+                        st.error(f"An unexpected error occurred during agent communication: {e}")
         st.markdown("</div>", unsafe_allow_html=True)
 
         # End chat app wrapper
@@ -448,11 +543,82 @@ async def draw_messages(
                     with st.session_state.last_message:
                         status = TaskDataStatus()
                 status.add_and_draw_task_data(task_data)
+            case "app_choice":
+                if is_new:
+                    st.session_state.messages.append(msg)
+                if last_message_type != "app_choice":
+                    last_message_type = "app_choice"
+                    st.session_state.last_message = st.chat_message(name="app_choice", avatar="🤖")
+                with st.session_state.last_message:
+                    st.write("App selection required")
+                    st.write(msg.content)
             case _:
                 st.error(f"Unexpected ChatMessage type: {msg.type}")
                 st.write(msg)
                 st.stop()
 
+
+async def handle_app_choice_ui(choice_data: dict) -> dict | None:
+    """Handle app choice UI and return user selections."""
+    st.markdown("### 🤖 App Selection Required")
+    st.markdown(f"**Task:** {choice_data['task']}")
+    st.markdown(f"**Reasoning:** {choice_data['reasoning']}")
+    
+    if not choice_data['requires_app']:
+        st.info("This task doesn't require any external apps and can be completed with general reasoning.")
+        return None
+    
+    if not choice_data['app_sets'] and not choice_data['auto_selected']:
+        st.warning("No suitable apps found for this task.")
+        return None
+    
+    # Show auto-selected apps
+    if choice_data['auto_selected']:
+        st.markdown("**Automatically Selected Apps:**")
+        for app_id in choice_data['auto_selected']:
+            st.markdown(f"- ✅ {app_id}")
+    
+    # Handle user choices for app sets
+    user_choices = {}
+    
+    for app_set in choice_data['app_sets']:
+        set_index = app_set['set_index']
+        apps = app_set['apps']
+        
+        st.markdown(f"**App Set {set_index}:**")
+        
+        # Create checkboxes for each app
+        selected_apps = []
+        for app in apps:
+            app_id = app['id']
+            app_name = app['name']
+            app_category = app.get('category', 'Unknown')
+            app_description = app.get('description', 'No description available')
+            
+            # Create a unique key for each checkbox
+            checkbox_key = f"app_{set_index}_{app_id}"
+            
+            if st.checkbox(
+                f"**{app_name}** ({app_category})",
+                key=checkbox_key,
+                help=app_description
+            ):
+                selected_apps.append(app_id)
+        
+        if selected_apps:
+            user_choices[str(set_index)] = selected_apps
+    
+    # Create the final choice data
+    final_choices = {
+        "auto_selected": choice_data['auto_selected'],
+        "user_choices": user_choices
+    }
+    
+    # Add a submit button
+    if st.button("🚀 Execute Task with Selected Apps", type="primary"):
+        return final_choices
+    
+    return None
 
 async def handle_feedback() -> None:
     """Draws a feedback widget and records feedback from the user."""

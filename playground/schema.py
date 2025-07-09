@@ -46,9 +46,9 @@ class ToolCall(TypedDict):
 class ChatMessage(BaseModel):
     """Message in a chat."""
 
-    type: Literal["human", "ai", "tool", "custom"] = Field(
+    type: Literal["human", "ai", "tool", "custom", "app_choice"] = Field(
         description="Role of the message.",
-        examples=["human", "ai", "tool", "custom"],
+        examples=["human", "ai", "tool", "custom", "app_choice"],
     )
     content: str = Field(
         description="Content of the message.",
@@ -167,6 +167,16 @@ class ChatHistoryInput(BaseModel):
         description="Thread ID to persist and continue a multi-turn conversation.",
         examples=["847c6285-8fc9-4560-a83f-4e6285809254"],
     )
+
+
+class AppChoiceData(BaseModel):
+    """Data for app choice UI."""
+    
+    task: str = Field(description="The task description")
+    requires_app: bool = Field(description="Whether the task requires an app")
+    reasoning: str = Field(description="Reasoning for app selection")
+    app_sets: list[dict] = Field(description="Sets of apps for user choice", default=[])
+    auto_selected: list[str] = Field(description="Automatically selected apps", default=[])
 
 
 class ChatHistory(BaseModel):

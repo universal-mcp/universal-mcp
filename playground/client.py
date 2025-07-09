@@ -506,6 +506,75 @@ class AutoAgentClient:
         except Exception as e:
             raise AgentClientError(f"Error streaming from auto agent: {e}") from e
 
+    async def get_choice_data(
+        self,
+        message: str,
+        thread_id: str | None = None,
+        agent_config: dict[str, Any] | None = None,
+    ) -> dict:
+        """
+        Get app choice data for frontend display.
+
+        Args:
+            message (str): The task message
+            thread_id (str, optional): Thread ID for continuing a conversation
+            agent_config (dict[str, Any], optional): Additional configuration to pass through to the agent
+
+        Returns:
+            dict: Choice data for frontend display
+        """
+        # Extract configuration for AutoAgent
+        app_limit = agent_config.get("app_limit", 5) if agent_config else 5
+        interactive = agent_config.get("interactive", False) if agent_config else False
+
+        try:
+            # Get choice data from AutoAgent
+            choice_data = await self.auto_agent.get_choice_data(
+                task=message,
+                app_limit=app_limit,
+                interactive=interactive
+            )
+            return choice_data
+        except Exception as e:
+            raise AgentClientError(f"Error getting choice data: {e}") from e
+
+    async def run_with_choices(
+        self,
+        message: str,
+        frontend_choices: dict,
+        thread_id: str | None = None,
+        agent_config: dict[str, Any] | None = None,
+    ) -> str:
+        """
+        Run the auto agent with frontend choices.
+
+        Args:
+            message (str): The task message
+            frontend_choices (dict): User choices from frontend
+            thread_id (str, optional): Thread ID for continuing a conversation
+            agent_config (dict[str, Any], optional): Additional configuration to pass through to the agent
+
+        Returns:
+            str: The result from the agent
+        """
+        # Extract configuration for AutoAgent
+        app_limit = agent_config.get("app_limit", 5) if agent_config else 5
+        action_limit = agent_config.get("action_limit", 10) if agent_config else 10
+        interactive = agent_config.get("interactive", False) if agent_config else False
+
+        try:
+            # Run the AutoAgent with frontend choices
+            result = await self.auto_agent.run(
+                task=message,
+                app_limit=app_limit,
+                action_limit=action_limit,
+                interactive=interactive,
+                frontend_choices=frontend_choices
+            )
+            return result
+        except Exception as e:
+            raise AgentClientError(f"Error running with choices: {e}") from e
+
     async def astream(
         self,
         message: str,
