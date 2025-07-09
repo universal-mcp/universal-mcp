@@ -211,229 +211,215 @@ async def main() -> None:
         st.session_state.agent_config = {}
 
     # --- Initialize Agent Client ---
-    async with create_agent_client(agent_type=agent_type) as agent_client:
+    # Initialize agent client only once per session
+    if "agent_client" not in st.session_state or st.session_state.get("agent_type") != agent_type:
+        st.session_state.agent_type = agent_type
+        # Create agent client and store it in session state
+        agent_client = await create_agent_client(agent_type=agent_type).__aenter__()
         st.session_state.agent_client = agent_client
+        st.session_state.agent_client_context = create_agent_client(agent_type=agent_type)
+    
+    agent_client = st.session_state.agent_client
 
-        # --- Ensure Upload Directory Exists ---
-        uploads_dir = settings.DATA_DIR / "uploads"
-        try:
-            uploads_dir.mkdir(parents=True, exist_ok=True)
-            dummy_path = uploads_dir / f".streamlit_write_test_{uuid.uuid4()}"
-            dummy_path.touch()
-            dummy_path.unlink()
-        except OSError as e:
-            st.error(
-                f"Error creating or accessing upload directory ({uploads_dir}): {e}\n"
-                "Please ensure the application has write permissions to this directory."
-            )
-            st.stop()
-        # --- End Directory Check ---
+    # --- Ensure Upload Directory Exists ---
+    uploads_dir = settings.DATA_DIR / "uploads"
+    try:
+        uploads_dir.mkdir(parents=True, exist_ok=True)
+        dummy_path = uploads_dir / f".streamlit_write_test_{uuid.uuid4()}"
+        dummy_path.touch()
+        dummy_path.unlink()
+    except OSError as e:
+        st.error(
+            f"Error creating or accessing upload directory ({uploads_dir}): {e}\n"
+            "Please ensure the application has write permissions to this directory."
+        )
+        st.stop()
+    # --- End Directory Check ---
 
-        # Initialize session state
-        if "thread_id" not in st.session_state:
-            thread_id = st.query_params.get("thread_id")
-            if not thread_id:
-                thread_id = get_script_run_ctx().session_id
-                messages = []
-            else:
-                try:
-                    messages: ChatHistory = agent_client.get_history(thread_id=thread_id).messages
-                except AgentClientError:
-                    st.error("No message history found for this Thread ID.")
-                    messages = []
-            st.session_state.thread_id = thread_id
-            st.session_state.messages = messages
-            st.session_state.uploaded_file_obj = None
-            st.session_state.file_processed = False
-
-        # Start chat app layout
-        st.markdown('<div class="chat-app">', unsafe_allow_html=True)
-
-        # File uploader expander
-        with st.expander("📎 Upload File", expanded=False):
-            uploaded_file = st.file_uploader(
-                "Upload a file to process",
-                type=None,
-                key="file_uploader",
-                help="Upload any file to process with the AI assistant",
-            )
-
-        # Handle file upload state
-        if uploaded_file is not None:
-            if (
-                "last_processed_file" not in st.session_state
-                or st.session_state.get("last_processed_file") != uploaded_file.name
-            ):
-                st.session_state.file_processed = False
-                st.session_state.uploaded_file_obj = uploaded_file
-                st.info(
-                    f"File '{uploaded_file.name}' ready for processing with your next message.",
-                    icon="📄",
-                )
-        elif uploaded_file is None and st.session_state.get("uploaded_file_obj") is not None:
-            st.session_state.uploaded_file_obj = None
-            st.session_state.file_processed = False
-            if "last_processed_file" in st.session_state:
-                del st.session_state["last_processed_file"]
-
-        # Message display area: only render container if there are past messages
-        messages: list[ChatMessage] = st.session_state.messages
-
-        if not messages:
-            if agent_type == "auto":
-                WELCOME = (
-                    "Hello! I am your Auto Agent that can decompose complex tasks and automatically "
-                    "select the best apps and actions to complete them. Just describe what you want to do, "
-                    "and I'll break it down into steps and execute them for you."
-                )
-            else:
-                WELCOME = (
-                    "Hello. I am your AI assistant with access to "
-                    "a wide variety of tools. You can enable/disable "
-                    "desired tools at agentr.dev/apps."
-                )
-            with st.chat_message("ai", avatar="🤖"):
-                st.write(WELCOME)
+    # Initialize session state
+    if "thread_id" not in st.session_state:
+        thread_id = st.query_params.get("thread_id")
+        if not thread_id:
+            thread_id = get_script_run_ctx().session_id
+            messages = []
         else:
-            st.markdown('<div class="message-area">', unsafe_allow_html=True)
+            try:
+                messages: ChatHistory = agent_client.get_history(thread_id=thread_id).messages
+            except AgentClientError:
+                st.error("No message history found for this Thread ID.")
+                messages = []
+        st.session_state.thread_id = thread_id
+        st.session_state.messages = messages
+        st.session_state.uploaded_file_obj = None
+        st.session_state.file_processed = False
 
-            async def amessage_iter() -> AsyncGenerator[ChatMessage, None]:
-                for m in messages:
-                    yield m
+    # Start chat app layout
+    st.markdown('<div class="chat-app">', unsafe_allow_html=True)
 
-            await draw_messages(amessage_iter())
-            st.markdown("</div>", unsafe_allow_html=True)
+    # File uploader expander
+    with st.expander("📎 Upload File", expanded=False):
+        uploaded_file = st.file_uploader(
+            "Upload a file to process",
+            type=None,
+            key="file_uploader",
+            help="Upload any file to process with the AI assistant",
+        )
 
-        # Chat input area
-        st.markdown('<div class="chat-input-area">', unsafe_allow_html=True)
+    # Handle file upload state
+    if uploaded_file is not None:
+        if (
+            "last_processed_file" not in st.session_state
+            or st.session_state.get("last_processed_file") != uploaded_file.name
+        ):
+            st.session_state.file_processed = False
+            st.session_state.uploaded_file_obj = uploaded_file
+            st.info(
+                f"File '{uploaded_file.name}' ready for processing with your next message.",
+                icon="📄",
+            )
+    elif uploaded_file is None and st.session_state.get("uploaded_file_obj") is not None:
+        st.session_state.uploaded_file_obj = None
+        st.session_state.file_processed = False
+        if "last_processed_file" in st.session_state:
+            del st.session_state["last_processed_file"]
+
+    # Message display area: only render container if there are past messages
+    messages: list[ChatMessage] = st.session_state.messages
+
+    if not messages:
+        if agent_type == "auto":
+            WELCOME = (
+                "Hello! I am your Auto Agent that can decompose complex tasks and automatically "
+                "select the best apps and actions to complete them. Just describe what you want to do, "
+                "and I'll break it down into steps and execute them for you."
+            )
+        else:
+            WELCOME = (
+                "Hello. I am your AI assistant with access to "
+                "a wide variety of tools. You can enable/disable "
+                "desired tools at agentr.dev/apps."
+            )
+        with st.chat_message("ai", avatar="🤖"):
+            st.write(WELCOME)
+    else:
+        st.markdown('<div class="message-area">', unsafe_allow_html=True)
+
+        async def amessage_iter() -> AsyncGenerator[ChatMessage, None]:
+            for m in messages:
+                yield m
+
+        await draw_messages(amessage_iter())
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # Chat input area
+    st.markdown('<div class="chat-input-area">', unsafe_allow_html=True)
+    
+    # Check if we're waiting for app choices
+    if "waiting_for_app_choice" in st.session_state and st.session_state.waiting_for_app_choice:
+        # Show app choice UI
+        choice_data = st.session_state.app_choice_data
+        user_choices = await handle_app_choice_ui(choice_data)
         
-        # Check if we're waiting for app choices
-        if "waiting_for_app_choice" in st.session_state and st.session_state.waiting_for_app_choice:
-            # Show app choice UI
-            choice_data = st.session_state.app_choice_data
-            user_choices = await handle_app_choice_ui(choice_data)
+        if user_choices is not None:
+            # User has made their choices, execute the task
+            st.session_state.waiting_for_app_choice = False
+            del st.session_state.app_choice_data
             
-            if user_choices is not None:
-                # User has made their choices, execute the task
-                st.session_state.waiting_for_app_choice = False
-                del st.session_state.app_choice_data
+            # Execute task with choices
+            try:
+                result = await agent_client.run_with_choices(
+                    message=st.session_state.pending_task,
+                    frontend_choices=user_choices,
+                    thread_id=st.session_state.thread_id,
+                    agent_config=st.session_state.agent_config,
+                )
                 
-                # Execute task with choices
+                # Add the result as an AI message
+                response = ChatMessage(type="ai", content=result)
+                messages.append(response)
+                st.chat_message("ai", avatar="🤖").write(result)
+                
+                # Clear pending task
+                del st.session_state.pending_task
+                # Ensure chat input reappears after task completion
+                st.rerun()
+            except AgentClientError as e:
+                st.error(f"Error executing task: {e}")
+            except Exception as e:
+                st.error(f"An unexpected error occurred: {e}")
+    else:
+        # Normal chat input
+        if user_input := st.chat_input("Enter message or upload a file and describe task...", key="chat_input"):
+            final_message_content = user_input
+            display_content = user_input
+
+            # --- Handle File Upload Integration ---
+            if st.session_state.uploaded_file_obj and not st.session_state.file_processed:
+                uploaded_file_obj = st.session_state.uploaded_file_obj
+                original_filename = uploaded_file_obj.name
                 try:
-                    result = await agent_client.run_with_choices(
-                        message=st.session_state.pending_task,
-                        frontend_choices=user_choices,
+                    save_filepath = get_unique_filepath(uploads_dir, original_filename)
+                    file_bytes = uploaded_file_obj.getvalue()
+                    save_filepath.write_bytes(file_bytes)
+                    absolute_filepath_str = str(save_filepath.resolve())
+                    file_metadata_prefix = (
+                        f"[User uploaded file named '{original_filename}'. "
+                        f"It has been saved at the following absolute path: "
+                        f"{absolute_filepath_str}]\n\n"
+                    )
+                    final_message_content = file_metadata_prefix + user_input
+                    display_content = f"[Using uploaded file: {original_filename}]\n\n{user_input}"
+                    st.session_state.last_processed_file = original_filename
+                    st.session_state.file_processed = True
+                except OSError as e:
+                    st.error(f"Error saving uploaded file '{original_filename}': {e}")
+                    st.stop()
+                except Exception as e:
+                    st.error(f"An unexpected error occurred during file handling: {e}")
+                    st.stop()
+            # --- End File Upload Integration ---
+
+            messages.append(ChatMessage(type="human", content=final_message_content))
+            st.chat_message("human", avatar="👤").write(display_content)
+            
+            # For auto agent, check if we need app choices
+            if agent_type == "auto":
+                try:
+                    # Get choice data
+                    choice_data = await agent_client.get_choice_data(
+                        message=final_message_content,
                         thread_id=st.session_state.thread_id,
                         agent_config=st.session_state.agent_config,
                     )
                     
-                    # Add the result as an AI message
-                    response = ChatMessage(type="ai", content=result)
-                    messages.append(response)
-                    st.chat_message("ai", avatar="🤖").write(result)
-                    
-                    # Clear pending task
-                    del st.session_state.pending_task
-                    st.rerun()
-                except AgentClientError as e:
-                    st.error(f"Error executing task: {e}")
-                except Exception as e:
-                    st.error(f"An unexpected error occurred: {e}")
-        else:
-            # Normal chat input
-            if user_input := st.chat_input("Enter message or upload a file and describe task...", key="chat_input"):
-                final_message_content = user_input
-                display_content = user_input
-
-                # --- Handle File Upload Integration ---
-                if st.session_state.uploaded_file_obj and not st.session_state.file_processed:
-                    uploaded_file_obj = st.session_state.uploaded_file_obj
-                    original_filename = uploaded_file_obj.name
-                    try:
-                        save_filepath = get_unique_filepath(uploads_dir, original_filename)
-                        file_bytes = uploaded_file_obj.getvalue()
-                        save_filepath.write_bytes(file_bytes)
-                        absolute_filepath_str = str(save_filepath.resolve())
-                        file_metadata_prefix = (
-                            f"[User uploaded file named '{original_filename}'. "
-                            f"It has been saved at the following absolute path: "
-                            f"{absolute_filepath_str}]\n\n"
-                        )
-                        final_message_content = file_metadata_prefix + user_input
-                        display_content = f"[Using uploaded file: {original_filename}]\n\n{user_input}"
-                        st.session_state.last_processed_file = original_filename
-                        st.session_state.file_processed = True
-                    except OSError as e:
-                        st.error(f"Error saving uploaded file '{original_filename}': {e}")
-                        st.stop()
-                    except Exception as e:
-                        st.error(f"An unexpected error occurred during file handling: {e}")
-                        st.stop()
-                # --- End File Upload Integration ---
-
-                messages.append(ChatMessage(type="human", content=final_message_content))
-                st.chat_message("human", avatar="👤").write(display_content)
-                
-                # For auto agent, check if we need app choices
-                if agent_type == "auto":
-                    try:
-                        # Get choice data
-                        choice_data = await agent_client.get_choice_data(
-                            message=final_message_content,
-                            thread_id=st.session_state.thread_id,
-                            agent_config=st.session_state.agent_config,
-                        )
-                        
-                        if choice_data['requires_app'] and choice_data['app_sets']:
-                            # User choice needed, show choice UI
-                            st.session_state.waiting_for_app_choice = True
-                            st.session_state.app_choice_data = choice_data
-                            st.session_state.pending_task = final_message_content
+                    if choice_data['requires_app'] and choice_data['app_sets']:
+                        # User choice needed, show choice UI
+                        st.session_state.waiting_for_app_choice = True
+                        st.session_state.app_choice_data = choice_data
+                        st.session_state.pending_task = final_message_content
+                        st.rerun()
+                    elif choice_data['requires_app'] and choice_data['auto_selected']:
+                        # All apps auto-selected, execute directly
+                        try:
+                            result = await agent_client.run_with_choices(
+                                message=final_message_content,
+                                frontend_choices={"auto_selected": choice_data['auto_selected'], "user_choices": {}},
+                                thread_id=st.session_state.thread_id,
+                                agent_config=st.session_state.agent_config,
+                            )
+                            
+                            # Add the result as an AI message
+                            response = ChatMessage(type="ai", content=result)
+                            messages.append(response)
+                            st.chat_message("ai", avatar="🤖").write(result)
+                            # Ensure chat input reappears after task completion
                             st.rerun()
-                        elif choice_data['requires_app'] and choice_data['auto_selected']:
-                            # All apps auto-selected, execute directly
-                            try:
-                                result = await agent_client.run_with_choices(
-                                    message=final_message_content,
-                                    frontend_choices={"auto_selected": choice_data['auto_selected'], "user_choices": {}},
-                                    thread_id=st.session_state.thread_id,
-                                    agent_config=st.session_state.agent_config,
-                                )
-                                
-                                # Add the result as an AI message
-                                response = ChatMessage(type="ai", content=result)
-                                messages.append(response)
-                                st.chat_message("ai", avatar="🤖").write(result)
-                                st.rerun()
-                            except AgentClientError as e:
-                                st.error(f"Error executing task: {e}")
-                            except Exception as e:
-                                st.error(f"An unexpected error occurred: {e}")
-                        else:
-                            # No app choice needed, proceed with normal execution
-                            if use_streaming:
-                                stream = agent_client.astream(
-                                    message=final_message_content,
-                                    thread_id=st.session_state.thread_id,
-                                    agent_config=st.session_state.agent_config,
-                                )
-                                await draw_messages(stream, is_new=True)
-                            else:
-                                response = await agent_client.ainvoke(
-                                    message=final_message_content,
-                                    thread_id=st.session_state.thread_id,
-                                    agent_config=st.session_state.agent_config,
-                                )
-                                messages.append(response)
-                                st.chat_message("ai", avatar="🤖").write(response.content)
-                            st.rerun()
-                    except AgentClientError as e:
-                        st.error(f"Error getting choice data: {e}")
-                    except Exception as e:
-                        st.error(f"An unexpected error occurred: {e}")
-                else:
-                    # For react agent, proceed with normal execution
-                    try:
+                        except AgentClientError as e:
+                            st.error(f"Error executing task: {e}")
+                        except Exception as e:
+                            st.error(f"An unexpected error occurred: {e}")
+                    else:
+                        # No app choice needed, proceed with normal execution
                         if use_streaming:
                             stream = agent_client.astream(
                                 message=final_message_content,
@@ -449,15 +435,40 @@ async def main() -> None:
                             )
                             messages.append(response)
                             st.chat_message("ai", avatar="🤖").write(response.content)
+                            # Ensure chat input reappears after task completion
+                            st.rerun()
+                except AgentClientError as e:
+                    st.error(f"Error getting choice data: {e}")
+                except Exception as e:
+                    st.error(f"An unexpected error occurred: {e}")
+            else:
+                # For react agent, proceed with normal execution
+                try:
+                    if use_streaming:
+                        stream = agent_client.astream(
+                            message=final_message_content,
+                            thread_id=st.session_state.thread_id,
+                            agent_config=st.session_state.agent_config,
+                        )
+                        await draw_messages(stream, is_new=True)
+                    else:
+                        response = await agent_client.ainvoke(
+                            message=final_message_content,
+                            thread_id=st.session_state.thread_id,
+                            agent_config=st.session_state.agent_config,
+                        )
+                        messages.append(response)
+                        st.chat_message("ai", avatar="🤖").write(response.content)
+                        # Ensure chat input reappears after task completion
                         st.rerun()
-                    except AgentClientError as e:
-                        st.error(f"Error generating response: {e}")
-                    except Exception as e:
-                        st.error(f"An unexpected error occurred during agent communication: {e}")
-        st.markdown("</div>", unsafe_allow_html=True)
+                except AgentClientError as e:
+                    st.error(f"Error generating response: {e}")
+                except Exception as e:
+                    st.error(f"An unexpected error occurred during agent communication: {e}")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-        # End chat app wrapper
-        st.markdown("</div>", unsafe_allow_html=True)
+    # End chat app wrapper
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 async def draw_messages(

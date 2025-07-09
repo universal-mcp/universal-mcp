@@ -2,9 +2,9 @@ import json
 import asyncio
 import aiohttp
 from contextlib import asynccontextmanager
-from typing import Any, List
+from typing import Any, List, Optional
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from loguru import logger
@@ -39,6 +39,12 @@ class AutoAgent:
         self.client = AgentrClient(api_key=self.api_key)
         self.llm = ChatOpenAI(model="gpt-4.1")
         self.tool_manager = ToolManager()
+        
+        # Agent and conversation persistence
+        self._agent: Optional[Any] = None
+        self._loaded_apps: List[str] = []
+        self._conversation_history: List[BaseMessage] = []
+        self._current_tools_hash: Optional[str] = None
 
 
         self.task_analysis_prompt = """You are a task analysis expert. Given a task description and available apps, determine:
@@ -269,6 +275,11 @@ class AutoAgent:
     async def load_action_for_app(self, app_name, task, action_limit: int = 10):
         logger.info(f"Loading all actions for app: {app_name}")
         
+        # Check if app is already loaded
+        if app_name in self._loaded_apps:
+            logger.debug(f"App {app_name} is already loaded, skipping")
+            return
+        
         # Get all actions for the app
         app_actions = self.client.list_actions(app_name)
         
@@ -284,6 +295,9 @@ class AutoAgent:
         app_instance = app(integration=integration)
         logger.debug(f"Registering all tools for app: {app_name}")
         self.tool_manager.register_tools_from_app(app_instance)
+        
+        # Track the loaded app
+        self._loaded_apps.append(app_name)
         logger.info(f"Successfully loaded all {len(app_actions)} actions for app: {app_name}")
 
 
@@ -292,15 +306,39 @@ class AutoAgent:
         """Combined task analysis and app selection to reduce LLM calls"""
         logger.info(f"Analyzing task and selecting apps: {task}")
         
+        # Get conversation context
+        conversation_history = self.get_conversation_history()
+        context_summary = ""
+        
+        if len(conversation_history) > 1:  # More than just the current task
+            # Create a summary of previous conversation context
+            previous_messages = conversation_history[:-1]  # Exclude current task
+            context_messages = []
+            
+            for msg in previous_messages[-5:]:  # Last 5 messages for context
+                if isinstance(msg, HumanMessage):
+                    context_messages.append(f"User: {msg.content}")
+                elif isinstance(msg, AIMessage):
+                    context_messages.append(f"Assistant: {msg.content[:200]}...")  # Truncate long responses
+            
+            if context_messages:
+                context_summary = "\n\nPrevious conversation context:\n" + "\n".join(context_messages)
+                logger.debug(f"Adding conversation context: {len(context_messages)} previous messages")
+        
         prompt = f"""
         {self.task_analysis_prompt}
         
         Task: {task}
-        Available apps: {available_apps}
+        Available apps: {available_apps}{context_summary}
         
         Determine if this task requires an external application or can be completed through general reasoning and knowledge.
         If it requires an app, select the most relevant apps from the available list.
         If the task requires multiple different types of functionality, organize apps into logical sets using the app_sets field.
+        
+        Consider the conversation context when making your decision. For example:
+        - If the user previously mentioned specific apps or tools, prefer those
+        - If the conversation is about a specific topic, choose apps relevant to that topic
+        - If the user is continuing a previous task, maintain consistency in app selection
         """
         
         # Use structured output with Pydantic model
@@ -316,7 +354,6 @@ class AutoAgent:
         
         return response
         
-        return response
 
     async def execute_task_without_app(self, task: str) -> str:
         """Execute a task that doesn't require an external app using general reasoning"""
@@ -329,25 +366,116 @@ class AutoAgent:
             prompt="You are a helpful assistant that can handle general reasoning, analysis, and knowledge-based tasks. Provide thoughtful, accurate, and helpful responses."
         )
         
-        # Execute the task
+        # Execute the task with conversation history
         logger.info(f"Invoking general reasoning agent for task: {task}")
-        results = await agent.ainvoke({"messages": [HumanMessage(content=task)]})
+        messages = self.get_conversation_history()
+        results = await agent.ainvoke({"messages": messages})
         ai_message = results["messages"][-1]
+        
+        # Add the AI response to conversation history
+        self.add_to_conversation_history(ai_message)
         
         logger.info("Task completed with general reasoning")
         return ai_message.content
 
 
 
-    def get_agent(self):
-        logger.info("Creating agent with tools")
+    def _get_tools_hash(self) -> str:
+        """Generate a hash of the current tools to detect changes"""
         tools = self.tool_manager.list_tools(format=ToolFormat.LANGCHAIN)
-        logger.debug(f"Created agent with {len(tools)} tools")
-        agent = create_react_agent(self.llm, tools=tools, prompt="You are a helpful assistant that is given a list of actions for an app. You are also given a task. Use the tools to complete the task. ")
-        return agent
+        tools_info = [(tool.name, tool.description) for tool in tools]
+        return str(hash(str(tools_info)))
+    
+    def get_agent(self, force_recreate: bool = False):
+        """Get or create an agent with tools. Reuses existing agent if tools haven't changed."""
+        current_tools_hash = self._get_tools_hash()
+        
+        # Check if we need to recreate the agent
+        if (force_recreate or 
+            self._agent is None or 
+            self._current_tools_hash != current_tools_hash):
+            
+            logger.info("Creating new agent with tools")
+            tools = self.tool_manager.list_tools(format=ToolFormat.LANGCHAIN)
+            logger.debug(f"Created agent with {len(tools)} tools")
+            
+            self._agent = create_react_agent(
+                self.llm, 
+                tools=tools, 
+                prompt="You are a helpful assistant that is given a list of actions for an app. You are also given a task. Use the tools to complete the task. "
+            )
+            self._current_tools_hash = current_tools_hash
+            logger.info("Agent created successfully")
+        else:
+            logger.debug("Reusing existing agent")
+        
+        return self._agent
+    
+    def add_to_conversation_history(self, message: BaseMessage):
+        """Add a message to the conversation history"""
+        self._conversation_history.append(message)
+        logger.debug(f"Added message to history. Total messages: {len(self._conversation_history)}")
+    
+    def get_conversation_history(self) -> List[BaseMessage]:
+        """Get the current conversation history"""
+        return self._conversation_history.copy()
+    
+    def clear_conversation_history(self):
+        """Clear the conversation history"""
+        self._conversation_history.clear()
+        logger.info("Conversation history cleared")
+    
+    def reset_agent(self):
+        """Reset the agent and clear conversation history"""
+        self._agent = None
+        self._current_tools_hash = None
+        self._loaded_apps.clear()
+        self.clear_conversation_history()
+        logger.info("Agent reset successfully")
+    
+    def get_loaded_apps(self) -> List[str]:
+        """Get the list of currently loaded apps"""
+        return self._loaded_apps.copy()
+    
+    def get_conversation_stats(self) -> dict:
+        """Get statistics about the current conversation"""
+        human_messages = [msg for msg in self._conversation_history if isinstance(msg, HumanMessage)]
+        ai_messages = [msg for msg in self._conversation_history if isinstance(msg, AIMessage)]
+        
+        return {
+            "total_messages": len(self._conversation_history),
+            "human_messages": len(human_messages),
+            "ai_messages": len(ai_messages),
+            "loaded_apps": len(self._loaded_apps),
+            "loaded_app_names": self._loaded_apps.copy(),
+            "has_agent": self._agent is not None
+        }
+    
+    def is_conversation_empty(self) -> bool:
+        """Check if the conversation history is empty"""
+        return len(self._conversation_history) == 0
+    
+    async def continue_conversation(self, task: str) -> str:
+        """Continue the conversation with a new task, maintaining all previous context"""
+        logger.info(f"Continuing conversation with task: {task}")
+        return await self.run(task, reset_conversation=False)
+    
+    async def start_new_conversation(self, task: str, app_limit: int = 20, action_limit: int = 10, interactive: bool = False, frontend_choices: dict = None) -> str:
+        """Start a new conversation, clearing all previous context"""
+        logger.info(f"Starting new conversation with task: {task}")
+        return await self.run(task, app_limit, action_limit, interactive, frontend_choices, reset_conversation=True)
 
-    async def run(self, task, app_limit: int = 20, action_limit: int = 10, interactive: bool = False, frontend_choices: dict = None):
+    async def run(self, task, app_limit: int = 20, action_limit: int = 10, interactive: bool = False, frontend_choices: dict = None, reset_conversation: bool = False):
         logger.info(f"Starting task execution: {task}")
+        
+        # Reset conversation if requested
+        if reset_conversation:
+            self.clear_conversation_history()
+            logger.info("Conversation history reset")
+        
+        # Add the new task to conversation history
+        human_message = HumanMessage(content=task)
+        self.add_to_conversation_history(human_message)
         
         # Get all available apps
         all_apps = self.client.list_all_apps()
@@ -401,13 +529,17 @@ class AutoAgent:
         
         logger.info(f"Successfully loaded actions for {len(loaded_apps)} apps: {', '.join(loaded_apps)}")
         
-        # Create agent with the loaded tools
+        # Get or create agent with the loaded tools
         agent = self.get_agent()
         
-        # Execute the task
+        # Execute the task with conversation history
         logger.info(f"Invoking agent for task: {task}")
-        results = await agent.ainvoke({"messages": [HumanMessage(content=task)]})
+        messages = self.get_conversation_history()
+        results = await agent.ainvoke({"messages": messages})
         ai_message = results["messages"][-1]
+        
+        # Add the AI response to conversation history
+        self.add_to_conversation_history(ai_message)
         
         logger.info("Task completed successfully")
         return ai_message.content
@@ -415,6 +547,10 @@ class AutoAgent:
     async def get_choice_data(self, task, app_limit: int = 20, interactive: bool = False) -> dict:
         """Get app choice data for frontend display"""
         logger.info(f"Getting choice data for task: {task}")
+        
+        # Add the task to conversation history for context-aware analysis
+        human_message = HumanMessage(content=task)
+        self.add_to_conversation_history(human_message)
         
         # Get all available apps
         all_apps = self.client.list_all_apps()
@@ -426,7 +562,7 @@ class AutoAgent:
         
         logger.info(f"Found {len(available_apps)} available apps")
         
-        # Analyze task and select apps
+        # Analyze task and select apps (now with conversation context)
         task_analysis = await self.analyze_task_and_select_apps(task, available_apps, interactive)
         
         if not task_analysis.requires_app:

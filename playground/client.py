@@ -2,7 +2,7 @@ import asyncio
 import json
 from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, List
 from uuid import uuid4
 
 from langchain_core.messages import HumanMessage
@@ -417,6 +417,7 @@ class AutoAgentClient:
         app_limit = agent_config.get("app_limit", 5) if agent_config else 5
         action_limit = agent_config.get("action_limit", 10) if agent_config else 10
         interactive = agent_config.get("interactive", False) if agent_config else False
+        reset_conversation = agent_config.get("reset_conversation", False) if agent_config else False
 
         try:
             # Run the AutoAgent with the given task
@@ -424,7 +425,8 @@ class AutoAgentClient:
                 task=message,
                 app_limit=app_limit,
                 action_limit=action_limit,
-                interactive=interactive
+                interactive=interactive,
+                reset_conversation=reset_conversation
             )
             
             # Create a ChatMessage from the result
@@ -486,6 +488,7 @@ class AutoAgentClient:
         app_limit = agent_config.get("app_limit", 5) if agent_config else 5
         action_limit = agent_config.get("action_limit", 10) if agent_config else 10
         interactive = agent_config.get("interactive", False) if agent_config else False
+        reset_conversation = agent_config.get("reset_conversation", False) if agent_config else False
 
         try:
             # For AutoAgent, we'll run it synchronously and yield the result
@@ -493,7 +496,8 @@ class AutoAgentClient:
                 task=message,
                 app_limit=app_limit,
                 action_limit=action_limit,
-                interactive=interactive
+                interactive=interactive,
+                reset_conversation=reset_conversation
             ))
             
             # Create a ChatMessage from the result
@@ -561,6 +565,7 @@ class AutoAgentClient:
         app_limit = agent_config.get("app_limit", 5) if agent_config else 5
         action_limit = agent_config.get("action_limit", 10) if agent_config else 10
         interactive = agent_config.get("interactive", False) if agent_config else False
+        reset_conversation = agent_config.get("reset_conversation", False) if agent_config else False
 
         try:
             # Run the AutoAgent with frontend choices
@@ -569,11 +574,32 @@ class AutoAgentClient:
                 app_limit=app_limit,
                 action_limit=action_limit,
                 interactive=interactive,
-                frontend_choices=frontend_choices
+                frontend_choices=frontend_choices,
+                reset_conversation=reset_conversation
             )
             return result
         except Exception as e:
             raise AgentClientError(f"Error running with choices: {e}") from e
+    
+    def get_conversation_stats(self) -> dict:
+        """Get statistics about the current conversation."""
+        return self.auto_agent.get_conversation_stats()
+    
+    def clear_conversation(self):
+        """Clear the conversation history."""
+        self.auto_agent.clear_conversation_history()
+    
+    def reset_agent(self):
+        """Reset the agent and clear all state."""
+        self.auto_agent.reset_agent()
+    
+    def get_loaded_apps(self) -> List[str]:
+        """Get the list of currently loaded apps."""
+        return self.auto_agent.get_loaded_apps()
+    
+    def is_conversation_empty(self) -> bool:
+        """Check if the conversation history is empty."""
+        return self.auto_agent.is_conversation_empty()
 
     async def astream(
         self,
