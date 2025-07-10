@@ -137,7 +137,16 @@ def generate(
         if isinstance(app_file_data, dict) and "code" in app_file_data:
             console.print("[yellow]No output path specified, printing generated code to console:[/yellow]")
             console.print(app_file_data["code"])
+            if "schemas_code" in app_file_data:
+                console.print("[yellow]Generated schemas code:[/yellow]")
+                console.print(app_file_data["schemas_code"])
+        elif isinstance(app_file_data, tuple) and len(app_file_data) == 2:
+            app_file, schemas_file = app_file_data
+            console.print("[green]API client successfully generated and installed.[/green]")
+            console.print(f"[blue]Application file: {app_file}[/blue]")
+            console.print(f"[blue]Schemas file: {schemas_file}[/blue]")
         elif isinstance(app_file_data, Path):
+            # Legacy support for single path return
             console.print("[green]API client successfully generated and installed.[/green]")
             console.print(f"[blue]Application file: {app_file_data}[/blue]")
         else:

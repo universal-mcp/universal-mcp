@@ -1,3 +1,4 @@
+import hashlib
 import json
 import re
 import textwrap
@@ -10,6 +11,173 @@ from jsonref import replace_refs
 from pydantic import BaseModel
 
 from .filters import load_filter_config, should_process_operation
+
+# Schema registry for tracking unique response schemas to avoid duplicates
+_schema_registry: dict[str, str] = {}  # schema_hash -> model_class_name
+_generated_models: dict[str, str] = {}  # model_class_name -> model_source_code
+
+
+def _get_schema_hash(schema: dict[str, Any]) -> str:
+    """Generate a hash for a schema to identify unique schemas."""
+    try:
+        schema_str = json.dumps(schema, sort_keys=True, default=str)
+        return hashlib.md5(schema_str.encode()).hexdigest()[:8]
+    except (TypeError, ValueError):
+        # Fallback to string representation if JSON serialization fails
+        schema_str = str(sorted(schema.items())) if isinstance(schema, dict) else str(schema)
+        return hashlib.md5(schema_str.encode()).hexdigest()[:8]
+
+
+def _generate_model_name(operation: dict[str, Any], path: str, method: str, schema: dict[str, Any]) -> str:
+    """Generate a meaningful model name for a response schema."""
+    if "title" in schema:
+        name = schema["title"]
+    else:
+        # Generate name from operation info
+        if "operationId" in operation:
+            name = operation["operationId"] + "Response"
+        else:
+            # Generate from path and method
+            path_parts = [part for part in path.strip("/").split("/") if not (part.startswith("{") and part.endswith("}"))]
+            if path_parts:
+                name = f"{method.capitalize()}{path_parts[-1].capitalize()}Response"
+            else:
+                name = f"{method.capitalize()}Response"
+    
+    name = "".join(word.capitalize() for word in re.split(r"[^a-zA-Z0-9]", name) if word)
+    
+    if name and name[0].isdigit():
+        name = "Response" + name
+    
+    return name or "Response"
+
+
+def _generate_response_model_class(schema: dict[str, Any], model_name: str) -> str:
+    """Generate Pydantic model source code from OpenAPI response schema."""
+    if not schema:
+        return ""
+    
+    # Handle array responses
+    if schema.get("type") == "array":
+        items_schema = schema.get("items", {})
+        if items_schema and (items_schema.get("properties") or items_schema.get("type") == "object"):
+            # Generate model for array items if it's an object
+            item_model_name = f"{model_name}Item"
+            item_model_code = _generate_response_model_class(items_schema, item_model_name)
+            
+            # Create collection model
+            collection_model = f"""
+class {model_name}(BaseModel):
+    value: List[{item_model_name}]
+"""
+            return item_model_code + collection_model
+        else:
+            # Fallback for arrays with simple items or no schema
+            item_type = "Any"
+            if items_schema:
+                if items_schema.get("type") == "string":
+                    item_type = "str"
+                elif items_schema.get("type") == "integer":
+                    item_type = "int"
+                elif items_schema.get("type") == "number":
+                    item_type = "float"
+                elif items_schema.get("type") == "boolean":
+                    item_type = "bool"
+            
+            return f"""
+class {model_name}(BaseModel):
+    value: List[{item_type}]
+"""
+    
+    # Handle object responses
+    if schema.get("type") == "object" or "properties" in schema:
+        properties, required_fields = _extract_properties_from_schema(schema)
+        
+        if not properties:
+            return f"""
+class {model_name}(BaseModel):
+    pass
+"""
+        
+        field_definitions = []
+        for prop_name, prop_schema in properties.items():
+            field_name = _sanitize_identifier(prop_name)
+            is_required = prop_name in required_fields
+            
+            # Handle arrays with object items specially
+            if prop_schema.get("type") == "array" and prop_schema.get("items", {}).get("properties"):
+                # Generate a model for the array items
+                item_model_name = f"{model_name}{field_name.capitalize()}Item"
+                items_schema = prop_schema.get("items", {})
+                
+                # Generate the item model and store it globally
+                item_model_code = _generate_response_model_class(items_schema, item_model_name)
+                if item_model_code and item_model_name not in _generated_models:
+                    _generated_models[item_model_name] = item_model_code
+                
+                python_type = f"List[{item_model_name}]" if is_required else f"Optional[List[{item_model_name}]]"
+            else:
+                python_type = _openapi_type_to_python_type(prop_schema, required=is_required)
+            
+            # Handle field aliases for special characters like @odata.context
+            if prop_name != field_name or prop_name.startswith('@'):
+                if is_required:
+                    field_definitions.append(f"    {field_name}: {python_type} = Field(alias='{prop_name}')")
+                else:
+                    field_definitions.append(f"    {field_name}: {python_type} = Field(None, alias='{prop_name}')")
+            else:
+                if is_required:
+                    field_definitions.append(f"    {field_name}: {python_type}")
+                else:
+                    field_definitions.append(f"    {field_name}: {python_type} = None")
+        
+        model_code = f"""
+class {model_name}(BaseModel):
+{chr(10).join(field_definitions)}
+"""
+        return model_code
+    
+    # Fallback for other schema types
+    return ""
+
+
+def _get_or_create_response_model(operation: dict[str, Any], path: str, method: str, schema: dict[str, Any]) -> str | None:
+    """Get or create a response model for a given schema, avoiding duplicates."""
+    if not schema:
+        return None
+    
+    try:
+        # Generate hash for this schema
+        schema_hash = _get_schema_hash(schema)
+        
+        # Check if we already have a model for this schema
+        if schema_hash in _schema_registry:
+            return _schema_registry[schema_hash]
+        
+        # Generate new model
+        model_name = _generate_model_name(operation, path, method, schema)
+        
+        # Ensure unique model name
+        base_name = model_name
+        counter = 1
+        while model_name in _generated_models:
+            model_name = f"{base_name}{counter}"
+            counter += 1
+        
+        # Generate model source code
+        model_code = _generate_response_model_class(schema, model_name)
+        
+        if model_code:
+            # Register the model
+            _schema_registry[schema_hash] = model_name
+            _generated_models[model_name] = model_code
+            return model_name
+    
+    except Exception as e:
+        # If model generation fails, log and continue with fallback
+        print(f"Warning: Could not generate model for {method.upper()} {path}: {e}")
+    
+    return None
 
 
 class Parameters(BaseModel):
@@ -220,15 +388,20 @@ def _load_and_resolve_references(path: Path):
     return replace_refs(schema)
 
 
-def _determine_return_type(operation: dict[str, Any]) -> str:
+def _determine_return_type(operation: dict[str, Any], path: str, method: str) -> str:
     """
     Determine the return type from the response schema.
+    
+    Now generates specific Pydantic model classes for response schemas where possible,
+    falling back to generic types for complex or missing schemas.
 
     Args:
         operation (dict): The operation details from the schema.
+        path (str): The API path (e.g., '/users/{user_id}').
+        method (str): The HTTP method (e.g., 'get').
 
     Returns:
-        str: The appropriate return type annotation (list[Any], dict[str, Any], or Any)
+        str: The appropriate return type annotation (specific model class name or generic type)
     """
     responses = operation.get("responses", {})
     # Find successful response (2XX)
@@ -246,8 +419,13 @@ def _determine_return_type(operation: dict[str, Any]) -> str:
         for content_type, content_info in success_response["content"].items():
             if content_type.startswith("application/json") and "schema" in content_info:
                 schema = content_info["schema"]
-
-                # Only determine if it's a list, dict, or unknown (Any)
+                
+                # generate a specific model class for this schema
+                model_name = _get_or_create_response_model(operation, path, method, schema)
+                
+                if model_name:
+                    return model_name
+                
                 if schema.get("type") == "array":
                     return "list[Any]"
                 elif schema.get("type") == "object" or "$ref" in schema:
@@ -536,7 +714,7 @@ def _generate_method_code(path, method, operation):
     # --- End Alias duplicate parameter names ---
 
     # --- Determine Return Type and Body Characteristics ---
-    return_type = _determine_return_type(operation)
+    return_type = _determine_return_type(operation, path, method)
 
     body_required = has_body and operation["requestBody"].get("required", False)  # Remains useful
 
@@ -751,7 +929,7 @@ def _generate_method_code(path, method, operation):
     # openapi_path_comment_for_docstring = f"# openapi_path: {path}"
     # docstring_parts.append(openapi_path_comment_for_docstring)
 
-    return_type = _determine_return_type(operation)
+    return_type = _determine_return_type(operation, path, method)
 
     # Summary
     summary = operation.get("summary", "").strip()
@@ -978,9 +1156,15 @@ def _generate_method_code(path, method, operation):
     # using the prepared URL, query parameters, request body data, files, and content type.
     # Use convenience methods that automatically handle responses and errors
 
+    # Determine the appropriate return statement based on return type
+    if return_type in ["Any", "dict[str, Any]", "list[Any]"]:
+        return_statement = "        return self._handle_response(response)"
+    else:
+        return_statement = f"        return {return_type}.model_validate(self._handle_response(response))"
+
     if method_lower == "get":
         body_lines.append("        response = self._get(url, params=query_params)")
-        body_lines.append("        return self._handle_response(response)")
+        body_lines.append(return_statement)
     elif method_lower == "post":
         if selected_content_type == "multipart/form-data":
             body_lines.append(
@@ -990,7 +1174,7 @@ def _generate_method_code(path, method, operation):
             body_lines.append(
                 f"        response = self._post(url, data=request_body_data, params=query_params, content_type='{final_content_type_for_api_call}')"
             )
-        body_lines.append("        return self._handle_response(response)")
+        body_lines.append(return_statement)
     elif method_lower == "put":
         if selected_content_type == "multipart/form-data":
             body_lines.append(
@@ -1000,16 +1184,16 @@ def _generate_method_code(path, method, operation):
             body_lines.append(
                 f"        response = self._put(url, data=request_body_data, params=query_params, content_type='{final_content_type_for_api_call}')"
             )
-        body_lines.append("        return self._handle_response(response)")
+        body_lines.append(return_statement)
     elif method_lower == "patch":
         body_lines.append("        response = self._patch(url, data=request_body_data, params=query_params)")
-        body_lines.append("        return self._handle_response(response)")
+        body_lines.append(return_statement)
     elif method_lower == "delete":
         body_lines.append("        response = self._delete(url, params=query_params)")
-        body_lines.append("        return self._handle_response(response)")
+        body_lines.append(return_statement)
     else:
         body_lines.append(f"        response = self._{method_lower}(url, data=request_body_data, params=query_params)")
-        body_lines.append("        return self._handle_response(response)")
+        body_lines.append(return_statement)
 
     # --- Combine Signature, Docstring, and Body for Final Method Code ---
     method_code = signature + formatted_docstring + "\n" + "\n".join(body_lines)
@@ -1020,9 +1204,69 @@ def load_schema(path: Path):
     return _load_and_resolve_references(path)
 
 
+def generate_schemas_file(schema, class_name: str | None = None, filter_config_path: str | None = None):
+    """
+    Generate a Python file containing only the response schema classes from an OpenAPI schema.
+    
+    Args:
+        schema (dict): The OpenAPI schema as a dictionary.
+        class_name (str | None): Optional class name for context.
+        filter_config_path (str | None): Optional path to JSON filter configuration file.
+    
+    Returns:
+        str: A string containing the Python code for the response schema classes.
+    """
+    global _schema_registry, _generated_models
+    _schema_registry.clear()
+    _generated_models.clear()
+    
+    # Load filter configuration if provided
+    filter_config = None
+    if filter_config_path:
+        filter_config = load_filter_config(filter_config_path)
+    
+    # Generate response models by processing all operations
+    for path, path_info in schema.get("paths", {}).items():
+        for method in path_info:
+            if method in ["get", "post", "put", "delete", "patch", "options", "head"]:
+                # Apply filter configuration
+                if not should_process_operation(path, method, filter_config):
+                    continue
+                
+                operation = path_info[method]
+                # Generate response model for this operation
+                _determine_return_type(operation, path, method)
+    
+    # Generate the schemas file content
+    imports = [
+        "from typing import Any, Optional, List",
+        "from pydantic import BaseModel, Field",
+    ]
+    
+    imports_section = "\n".join(imports)
+    models_section = "\n".join(_generated_models.values()) if _generated_models else ""
+    
+    if not models_section:
+        # If no models were generated, create a minimal file
+        schemas_code = f"""{imports_section}
+
+# No response models were generated for this OpenAPI schema
+"""
+    else:
+        schemas_code = f"""{imports_section}
+
+# Generated Response Models
+
+{models_section}
+"""
+    
+    return schemas_code
+
+
 def generate_api_client(schema, class_name: str | None = None, filter_config_path: str | None = None):
     """
     Generate a Python API client class from an OpenAPI schema.
+    Models are not included - they should be generated separately using generate_schemas_file.
 
     Args:
         schema (dict): The OpenAPI schema as a dictionary.
@@ -1032,6 +1276,10 @@ def generate_api_client(schema, class_name: str | None = None, filter_config_pat
     Returns:
         str: A string containing the Python code for the API client class.
     """
+    global _schema_registry, _generated_models
+    _schema_registry.clear()
+    _generated_models.clear()
+    
     # Load filter configuration if provided
     filter_config = None
     if filter_config_path:
@@ -1114,21 +1362,32 @@ def generate_api_client(schema, class_name: str | None = None, filter_config_pat
             {tools_list}
         ]"""
 
-    # Generate class imports
+    # Generate class imports - import from separate schemas file
     imports = [
         "from typing import Any, Optional, List",
         "from universal_mcp.applications import APIApplication",
         "from universal_mcp.integrations import Integration",
+        "from .schemas import *"
     ]
 
-    # Construct the class code
-    class_code = (
-        "\n".join(imports) + "\n\n"
-        f"class {class_name}(APIApplication):\n"
-        f"    def __init__(self, integration: Integration = None, **kwargs) -> None:\n"
-        f"        super().__init__(name='{class_name.lower()}', integration=integration, **kwargs)\n"
-        f'        self.base_url = "{base_url}"\n\n' + "\n\n".join(methods) + "\n\n" + list_tools_method + "\n"
-    )
+    # Construct the class code (no model classes since they're in separate file)
+    imports_section = "\n".join(imports)
+    
+    class_code_parts = [
+        imports_section,
+        "",
+        f"class {class_name}(APIApplication):",
+        "    def __init__(self, integration: Integration = None, **kwargs) -> None:",
+        f"        super().__init__(name='{class_name.lower()}', integration=integration, **kwargs)",
+        f'        self.base_url = "{base_url}"',
+        "",
+        "\n\n".join(methods),
+        "",
+        list_tools_method,
+        ""
+    ]
+    
+    class_code = "\n".join(class_code_parts)
     return class_code
 
 
