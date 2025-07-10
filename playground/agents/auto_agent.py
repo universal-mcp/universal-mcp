@@ -3,6 +3,7 @@ import asyncio
 import aiohttp
 from contextlib import asynccontextmanager
 from typing import Any, List, Optional
+import datetime
 
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from langchain_openai import ChatOpenAI
@@ -360,14 +361,10 @@ class AutoAgent:
         logger.info(f"Executing task without app: {task}")
         
         # Create a simple agent without any tools for general reasoning
-        agent = create_react_agent(
-            self.llm, 
-            tools=[], 
-            prompt="You are a helpful assistant that can handle general reasoning, analysis, and knowledge-based tasks. Provide thoughtful, accurate, and helpful responses."
-        )
+        agent = self.get_agent()
         
         # Execute the task with conversation history
-        logger.info(f"Invoking general reasoning agent for task: {task}")
+        logger.info(f"Invoking agent for task: {task}")
         messages = self.get_conversation_history()
         results = await agent.ainvoke({"messages": messages})
         ai_message = results["messages"][-1]
@@ -375,7 +372,7 @@ class AutoAgent:
         # Add the AI response to conversation history
         self.add_to_conversation_history(ai_message)
         
-        logger.info("Task completed with general reasoning")
+        logger.info("Task completed without additional apps")
         return ai_message.content
 
 
@@ -399,10 +396,15 @@ class AutoAgent:
             tools = self.tool_manager.list_tools(format=ToolFormat.LANGCHAIN)
             logger.debug(f"Created agent with {len(tools)} tools")
             
+            # Get current datetime and timezone information
+            current_time = datetime.datetime.now()
+            utc_time = datetime.datetime.now(datetime.UTC)
+            timezone_info = f"Current local time: {current_time.strftime('%Y-%m-%d %H:%M:%S')} | UTC time: {utc_time.strftime('%Y-%m-%d %H:%M:%S')}"
+            
             self._agent = create_react_agent(
                 self.llm, 
                 tools=tools, 
-                prompt="You are a helpful assistant that is given a list of actions for an app. You are also given a task. Use the tools to complete the task. "
+                prompt=f"You are a helpful assistant that is given a list of actions for an app. You are also given a task. Use the tools to complete the task. Current time information: {timezone_info}"
             )
             self._current_tools_hash = current_tools_hash
             logger.info("Agent created successfully")
