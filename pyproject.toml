@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "universal-mcp"
-version = "0.1.23"
+version = "0.1.24-rc2"
 description = "Universal MCP acts as a middle ware for your API applications. It can store your credentials, authorize, enable disable apps on the fly and much more."
 readme = "README.md"
 authors = [
@@ -19,10 +19,8 @@ dependencies = [
     "gql[all]>=3.5.2",
     "jsonref>=1.1.0",
     "keyring>=25.6.0",
-    "langchain-mcp-adapters>=0.0.3",
-    "litellm>=1.30.7",
     "loguru>=0.7.3",
-    "mcp>=1.9.3",
+    "mcp>=1.10.0",
     "posthog>=3.24.0",
     "pydantic>=2.11.1",
     "pydantic-settings>=2.8.1",
@@ -33,21 +31,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "mypy>=1.16.0",
     "litellm>=1.30.7",
     "pre-commit>=4.2.0",
     "pyright>=1.1.398",
     "pytest>=8.3.5",
     "pytest-asyncio>=0.26.0",
     "ruff>=0.11.4",
-]
-playground = [
-    "langchain-openai>=0.3.12",
-    "langgraph>=0.3.24",
-    "langgraph-checkpoint-sqlite>=2.0.6",
-    "python-dotenv>=1.0.1",
-    "streamlit>=1.44.1",
-    "watchdog>=6.0.0",
-    "litellm>=1.30.7",
 ]
 
 [project.scripts]
@@ -71,34 +61,6 @@ packages = ["src/universal_mcp"]
 # Tool configurations
 # ------------------------------
 [tool.ruff]
-exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".git-rewrite",
-    ".hg",
-    ".ipynb_checkpoints",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".pyenv",
-    ".pytest_cache",
-    ".pytype",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    ".vscode",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "site-packages",
-    "venv",
-]
 line-length = 120
 indent-width = 4
 target-version = "py312"
@@ -127,3 +89,8 @@ docstring-code-line-length = "dynamic"
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
+
+[tool.mypy]
+exclude = [
+    '^src/universal_mcp/utils/openapi/\.*',
+]

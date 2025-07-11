@@ -18,7 +18,8 @@ class AgentrClient:
         base_url (str, optional): Base URL for AgentR API. Defaults to https://api.agentr.dev
     """
 
-    def __init__(self, api_key: str, base_url: str = "https://api.agentr.dev"):
+    def __init__(self, api_key: str | None = None, base_url: str | None = None):
+        base_url = base_url or os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key or os.getenv("AGENTR_API_KEY")
         if not self.api_key:
@@ -62,9 +63,7 @@ class AgentrClient:
         Raises:
             HTTPError: If API request fails
         """
-        response = self.client.get(
-            f"/api/{integration_name}/authorize/",
-        )
+        response = self.client.get(f"/api/{integration_name}/authorize/")
         response.raise_for_status()
         url = response.json()
         return f"Please ask the user to visit the following url to authorize the application: {url}. Render the url in proper markdown format with a clickable link."

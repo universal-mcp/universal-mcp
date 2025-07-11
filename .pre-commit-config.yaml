@@ -8,20 +8,29 @@ repos:
         types_or: [yaml, json5]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.1
+    rev: v0.11.13
     hooks:
+      # Run the linter.
+      - id: ruff-check
+        args: [--fix]
+      # Run the formatter.
       - id: ruff-format
-      - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
 
-  # - repo: local
+  # - repo: https://github.com/pre-commit/mirrors-mypy
+  #   rev: v1.8.0
   #   hooks:
-  #     - id: uv-lock-check
-  #       name: Check uv.lock is up to date
-  #       entry: uv lock --check
-  #       language: system
-  #       files: ^(pyproject\.toml|uv\.lock)$
-  #       pass_filenames: false
+  #     - id: mypy
+  #       additional_dependencies: []
+  #       args: ["--install-types", "--non-interactive"]
+
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.10.0
+    hooks:
+      - id: python-check-blanket-noqa
+      - id: python-no-eval
+      - id: python-no-log-warn
+      - id: python-use-type-annotations
+      - id: python-check-mock-methods
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
@@ -35,3 +44,15 @@ repos:
       - id: check-merge-conflict
       - id: detect-private-key
       - id: mixed-line-ending
+      - id: debug-statements
+      - id: name-tests-test
+      - id: requirements-txt-fixer
+
+  # - repo: local
+  #   hooks:
+  #     - id: uv-lock-check
+  #       name: Check uv.lock is up to date
+  #       entry: uv lock --check
+  #       language: system
+  #       files: ^(pyproject\.toml|uv\.lock)$
+  #       pass_filenames: false

@@ -88,7 +88,7 @@ class ToolManager:
     Tools are organized by their source application for better management.
     """
 
-    def __init__(self, warn_on_duplicate_tools: bool = True):
+    def __init__(self, warn_on_duplicate_tools: bool = True, default_format: ToolFormat = ToolFormat.MCP):
         """Initialize the ToolManager.
 
         Args:
@@ -97,6 +97,7 @@ class ToolManager:
         self._tools_by_app: dict[str, dict[str, Tool]] = {}
         self._all_tools: dict[str, Tool] = {}
         self.warn_on_duplicate_tools = warn_on_duplicate_tools
+        self.default_format = default_format
 
     def get_tool(self, name: str) -> Tool | None:
         """Get tool by name.
@@ -125,7 +126,7 @@ class ToolManager:
 
     def list_tools(
         self,
-        format: ToolFormat = ToolFormat.MCP,
+        format: ToolFormat | None = None,
         tags: list[str] | None = None,
         app_name: str | None = None,
         tool_names: list[str] | None = None,
@@ -144,6 +145,9 @@ class ToolManager:
         Raises:
             ValueError: If an invalid format is provided.
         """
+        if format is None:
+            format = self.default_format
+
         # Start with app-specific tools or all tools
         tools = self.get_tools_by_app(app_name)
         # Apply filters
@@ -207,6 +211,13 @@ class ToolManager:
             app_name: Application name to group the tools under.
         """
         for tool in tools:
+            # Add app name to tool name if not already present
+            if app_name not in tool.name:
+                tool.name = f"{app_name}{TOOL_NAME_SEPARATOR}{tool.name}"
+
+            if tool.name in self._all_tools:
+                logger.warning(f"Tool '{tool.name}' already exists. Skipping registration.")
+                continue
             self.add_tool(tool, app_name=app_name)
 
     def remove_tool(self, name: str) -> bool:
@@ -317,6 +328,7 @@ class ToolManager:
         app_name = name.split(TOOL_NAME_SEPARATOR, 1)[0] if TOOL_NAME_SEPARATOR in name else DEFAULT_APP_NAME
         tool = self.get_tool(name)
         if not tool:
+            logger.error(f"Unknown tool: {name}")
             raise ToolError(f"Unknown tool: {name}")
         try:
             result = await tool.run(arguments, context)
@@ -324,4 +336,4 @@ class ToolManager:
             return result
         except Exception as e:
             analytics.track_tool_called(name, app_name, "error", str(e))
-            raise ToolError(f"Tool execution failed: {str(e)}") from e
+            raise e

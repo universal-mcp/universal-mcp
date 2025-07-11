@@ -171,7 +171,7 @@ class ChatHistoryInput(BaseModel):
 
 class AppChoiceData(BaseModel):
     """Data for app choice UI."""
-    
+
     task: str = Field(description="The task description")
     requires_app: bool = Field(description="Whether the task requires an app")
     reasoning: str = Field(description="Reasoning for app selection")

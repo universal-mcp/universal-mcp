@@ -1,3 +1,6 @@
+from typing import Any
+
+
 class Singleton(type):
     """Metaclass that ensures only one instance of a class exists.
 
@@ -15,7 +18,7 @@ class Singleton(type):
         assert a is b  # True
     """
 
-    _instances = {}
+    _instances: dict[type, Any] = {}
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:

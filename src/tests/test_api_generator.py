@@ -70,10 +70,7 @@ async def test_generate_api_with_output(sample_schema, temp_dir):
     """Test API generation with output file."""
     output_path = temp_dir / "test.py"
 
-    app_file = generate_api_from_schema(schema_path=sample_schema, output_path=output_path)
-
-    assert "app_file" != None
-    assert "readme_file" != None
+    app_file, schemas_file = generate_api_from_schema(schema_path=sample_schema, output_path=output_path)
 
     assert app_file.exists()
     content = app_file.read_text()
@@ -106,9 +103,8 @@ async def test_generate_api_without_docstrings(sample_schema, temp_dir):
     """Test API generation without docstring generation."""
     output_path = temp_dir / "test_without_docs.py"
 
-    app_file = generate_api_from_schema(schema_path=sample_schema, output_path=output_path)
+    app_file, schemas_file = generate_api_from_schema(schema_path=sample_schema, output_path=output_path)
 
-    assert app_file is not None
     assert app_file.exists()
 
     # Verify the app was generated
@@ -163,9 +159,8 @@ async def test_generate_api_with_complex_schema(temp_dir):
         json.dump(schema, f)
 
     output_path = temp_dir / "complex.py"
-    app_file = generate_api_from_schema(schema_path=schema_file, output_path=output_path)
+    app_file, schemas_file = generate_api_from_schema(schema_path=schema_file, output_path=output_path)
 
-    assert app_file is not None
     assert app_file.exists()
 
     content = app_file.read_text()

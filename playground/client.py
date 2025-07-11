@@ -2,15 +2,15 @@ import asyncio
 import json
 from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager
-from typing import Any, List
+from typing import Any
 from uuid import uuid4
 
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
 
-from playground.agents.react import create_agent
 from playground.agents.auto_agent import create_auto_agent
+from playground.agents.react import create_agent
 from playground.schema import (
     ChatHistory,
     ChatMessage,
@@ -426,15 +426,11 @@ class AutoAgentClient:
                 app_limit=app_limit,
                 action_limit=action_limit,
                 interactive=interactive,
-                reset_conversation=reset_conversation
+                reset_conversation=reset_conversation,
             )
-            
+
             # Create a ChatMessage from the result
-            output = ChatMessage(
-                type="ai",
-                content=result,
-                run_id=str(run_id)
-            )
+            output = ChatMessage(type="ai", content=result, run_id=str(run_id))
             return output
         except Exception as e:
             raise AgentClientError(f"Error invoking auto agent: {e}") from e
@@ -492,20 +488,18 @@ class AutoAgentClient:
 
         try:
             # For AutoAgent, we'll run it synchronously and yield the result
-            result = asyncio.run(self.auto_agent.run(
-                task=message,
-                app_limit=app_limit,
-                action_limit=action_limit,
-                interactive=interactive,
-                reset_conversation=reset_conversation
-            ))
-            
-            # Create a ChatMessage from the result
-            output = ChatMessage(
-                type="ai",
-                content=result,
-                run_id=str(run_id)
+            result = asyncio.run(
+                self.auto_agent.run(
+                    task=message,
+                    app_limit=app_limit,
+                    action_limit=action_limit,
+                    interactive=interactive,
+                    reset_conversation=reset_conversation,
+                )
             )
+
+            # Create a ChatMessage from the result
+            output = ChatMessage(type="ai", content=result, run_id=str(run_id))
             yield output
         except Exception as e:
             raise AgentClientError(f"Error streaming from auto agent: {e}") from e
@@ -534,9 +528,7 @@ class AutoAgentClient:
         try:
             # Get choice data from AutoAgent
             choice_data = await self.auto_agent.get_choice_data(
-                task=message,
-                app_limit=app_limit,
-                interactive=interactive
+                task=message, app_limit=app_limit, interactive=interactive
             )
             return choice_data
         except Exception as e:
@@ -575,28 +567,28 @@ class AutoAgentClient:
                 action_limit=action_limit,
                 interactive=interactive,
                 frontend_choices=frontend_choices,
-                reset_conversation=reset_conversation
+                reset_conversation=reset_conversation,
             )
             return result
         except Exception as e:
             raise AgentClientError(f"Error running with choices: {e}") from e
-    
+
     def get_conversation_stats(self) -> dict:
         """Get statistics about the current conversation."""
         return self.auto_agent.get_conversation_stats()
-    
+
     def clear_conversation(self):
         """Clear the conversation history."""
         self.auto_agent.clear_conversation_history()
-    
+
     def reset_agent(self):
         """Reset the agent and clear all state."""
         self.auto_agent.reset_agent()
-    
-    def get_loaded_apps(self) -> List[str]:
+
+    def get_loaded_apps(self) -> list[str]:
         """Get the list of currently loaded apps."""
         return self.auto_agent.get_loaded_apps()
-    
+
     def is_conversation_empty(self) -> bool:
         """Check if the conversation history is empty."""
         return self.auto_agent.is_conversation_empty()
@@ -634,18 +626,11 @@ class AutoAgentClient:
         try:
             # Run the AutoAgent with the given task
             result = await self.auto_agent.run(
-                task=message,
-                app_limit=app_limit,
-                action_limit=action_limit,
-                interactive=interactive
+                task=message, app_limit=app_limit, action_limit=action_limit, interactive=interactive
             )
-            
+
             # Create a ChatMessage from the result
-            output = ChatMessage(
-                type="ai",
-                content=result,
-                run_id=str(run_id)
-            )
+            output = ChatMessage(type="ai", content=result, run_id=str(run_id))
             yield output
         except Exception as e:
             raise AgentClientError(f"Error streaming from auto agent: {e}") from e
