@@ -17,6 +17,13 @@ from universal_mcp.utils.common import (
 app_cache: dict[str, type[BaseApplication]] = {}
 
 
+def app_from_slug(slug: str) -> type[BaseApplication]:
+    """
+    Dynamically resolve and return the application class based on slug.
+    """
+    return app_from_config(AppConfig(name=slug, source_type="package"))
+
+
 def app_from_config(config: AppConfig) -> type[BaseApplication]:
     """
     Dynamically resolve and return the application class based on AppConfig.

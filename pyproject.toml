@@ -19,6 +19,9 @@ dependencies = [
     "gql[all]>=3.5.2",
     "jsonref>=1.1.0",
     "keyring>=25.6.0",
+    "langchain-mcp-adapters>=0.1.9",
+    "langchain-openai>=0.3.27",
+    "langgraph>=0.5.2",
     "loguru>=0.7.3",
     "mcp>=1.10.0",
     "posthog>=3.24.0",
@@ -26,6 +29,7 @@ dependencies = [
     "pydantic-settings>=2.8.1",
     "pyyaml>=6.0.2",
     "rich>=14.0.0",
+    "streamlit>=1.46.1",
     "typer>=0.15.2",
 ]
 
