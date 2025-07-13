@@ -1,0 +1,1045 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="MCP Server">
+      
+      
+      
+        <link rel="canonical" href="https://universal-mcp.github.io/universal-mcp/">
+      
+      
+      
+        <link rel="next" href="applications/">
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.15">
+    
+    
+      
+        <title>MCP Server</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.342714a4.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+      
+        <meta  property="og:type"  content="website" >
+      
+        <meta  property="og:title"  content="MCP Server" >
+      
+        <meta  property="og:description"  content="MCP Server" >
+      
+        <meta  property="og:image"  content="https://universal-mcp.github.io/universal-mcp/assets/images/social/index.png" >
+      
+        <meta  property="og:image:type"  content="image/png" >
+      
+        <meta  property="og:image:width"  content="1200" >
+      
+        <meta  property="og:image:height"  content="630" >
+      
+        <meta  property="og:url"  content="https://universal-mcp.github.io/universal-mcp/" >
+      
+        <meta  name="twitter:card"  content="summary_large_image" >
+      
+        <meta  name="twitter:title"  content="MCP Server" >
+      
+        <meta  name="twitter:description"  content="MCP Server" >
+      
+        <meta  name="twitter:image"  content="https://universal-mcp.github.io/universal-mcp/assets/images/social/index.png" >
+      
+    
+    
+   <link href="assets/stylesheets/glightbox.min.css" rel="stylesheet"/><style>
+    html.glightbox-open { overflow: initial; height: 100%; }
+    .gslide-title { margin-top: 0px; user-select: text; }
+    .gslide-desc { color: #666; user-select: text; }
+    .gslide-image img { background: white; }
+    .gscrollbar-fixer { padding-right: 15px; }
+    .gdesc-inner { font-size: 0.75rem; }
+    body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color);}
+    body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color);}
+    body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color);}</style> <script src="assets/javascripts/glightbox.min.js"></script></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="black">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#universal-mcp" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="." title="MCP Server" class="md-header__button md-logo" aria-label="MCP Server" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            MCP Server
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Home
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="black"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7M9 21a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1H9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="black"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7M9 21v-1h6v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1m3-17a5 5 0 0 0-5 5c0 2.05 1.23 3.81 3 4.58V16h4v-2.42c1.77-.77 3-2.53 3-4.58a5 5 0 0 0-5-5"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="white" data-md-color-accent="white"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9 2c3.87 0 7 3.13 7 7 0 2.38-1.19 4.47-3 5.74V17c0 .55-.45 1-1 1H6c-.55 0-1-.45-1-1v-2.26C3.19 13.47 2 11.38 2 9c0-3.87 3.13-7 7-7M6 21v-1h6v1c0 .55-.45 1-1 1H7c-.55 0-1-.45-1-1M9 4C6.24 4 4 6.24 4 9c0 2.05 1.23 3.81 3 4.58V16h4v-2.42c1.77-.77 3-2.53 3-4.58 0-2.76-2.24-5-5-5m10 9h-2l-3.2 9h1.9l.7-2h3.2l.7 2h1.9zm-2.15 5.65L18 15l1.15 3.65z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/universal-mcp/universal-mcp" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    universal-mcp/universal-mcp
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="." title="MCP Server" class="md-nav__button md-logo" aria-label="MCP Server" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    MCP Server
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/universal-mcp/universal-mcp" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81"/></svg>
+  </div>
+  <div class="md-source__repository">
+    universal-mcp/universal-mcp
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="." class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#features" class="md-nav__link">
+    <span class="md-ellipsis">
+      🌟 Features
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      🔧 Installation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      🚀 Quick Start
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-the-playground" class="md-nav__link">
+    <span class="md-ellipsis">
+      🛠️ Using the Playground
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#available-applications" class="md-nav__link">
+    <span class="md-ellipsis">
+      🧩 Available Applications
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      🔐 Integration Types
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="🔐 Integration Types">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-api-key-integration-type-api_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. API Key Integration (type: "api_key")
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-agentr-integration-type-agentr" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. AgentR Integration (type: "agentr")
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-direct-oauth-integration-type-oauth" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Direct OAuth Integration (type: "oauth")
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      🤖 CLI Usage
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      📋 Requirements
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      📚 Documentation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#license" class="md-nav__link">
+    <span class="md-ellipsis">
+      📝 License
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="applications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Applications
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tools_framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Tools Framework
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="servers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Servers
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="stores/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Stores
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Integrations
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="playground/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Playground
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#features" class="md-nav__link">
+    <span class="md-ellipsis">
+      🌟 Features
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      🔧 Installation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      🚀 Quick Start
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-the-playground" class="md-nav__link">
+    <span class="md-ellipsis">
+      🛠️ Using the Playground
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#available-applications" class="md-nav__link">
+    <span class="md-ellipsis">
+      🧩 Available Applications
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      🔐 Integration Types
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="🔐 Integration Types">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-api-key-integration-type-api_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. API Key Integration (type: "api_key")
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-agentr-integration-type-agentr" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. AgentR Integration (type: "agentr")
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-direct-oauth-integration-type-oauth" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Direct OAuth Integration (type: "oauth")
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      🤖 CLI Usage
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      📋 Requirements
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      📚 Documentation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#license" class="md-nav__link">
+    <span class="md-ellipsis">
+      📝 License
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="universal-mcp">Universal MCP</h1>
+<p>Universal MCP acts as a middleware layer for your API applications, enabling seamless integration with various services through the Model Control Protocol (MCP). It simplifies credential management, authorization, dynamic app enablement, and provides a robust framework for building and managing AI-powered tools.</p>
+<h2 id="features">🌟 Features</h2>
+<ul>
+<li><strong>MCP (Model Control Protocol) Integration</strong>: Seamlessly works with MCP server architecture for standardized agent-tool communication.</li>
+<li><strong>Simplified API Integration</strong>: Connect to services like GitHub, Google Calendar, Gmail, Reddit, Tavily, and more with minimal code. See <a href="https://agentr.dev">AgentR</a> for a list of available applications.</li>
+<li><strong>Managed Authentication</strong>: Built-in support for API keys and OAuth-based authentication flows, often managed via the AgentR platform.</li>
+<li><strong>Extensible Architecture</strong>: Easily build and add new app integrations with minimal boilerplate using provided base classes and generation tools.</li>
+<li><strong>Credential Management</strong>: Flexible and secure storage options for API credentials (memory, environment variables, system keyring).</li>
+<li><strong>Comprehensive Tool Management</strong>: Robust tool registration, Pydantic-based validation, automatic docstring parsing, and execution capabilities. Supports conversion between MCP, LangChain, and OpenAI tool formats.</li>
+<li><strong>Multiple Server Types</strong>: Configurations for local development, AgentR-connected dynamic app loading, and single-application servers.</li>
+<li><strong>Playground Environment</strong>: Includes an interactive Streamlit-based playground for testing agents and tools.</li>
+</ul>
+<h2 id="installation">🔧 Installation</h2>
+<p>Install Universal MCP using pip:</p>
+<div class="language-bash highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>universal-mcp
+</code></pre></div>
+<h2 id="quick-start">🚀 Quick Start</h2>
+<p><strong>Important Prerequisite: AgentR API Key (If Using AgentR Integration)</strong></p>
+<p>If you plan to use integrations with <code>type: "agentr"</code> (for services like GitHub, Gmail, Notion via the AgentR platform), or if you run the MCP server itself with <code>type: "agentr"</code>, you first need an AgentR API key:</p>
+<ol>
+<li>Visit <a href="https://agentr.dev">https://agentr.dev</a> to create an account and generate an API key from your dashboard.</li>
+<li>Set it as an environment variable <em>before</em> running the MCP server:
+    <div class="language-bash highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">AGENTR_API_KEY</span><span class="o">=</span><span class="s2">&quot;your_api_key_here&quot;</span>
+</code></pre></div></li>
+</ol>
+<p><strong>1. Create a Configuration File (e.g., <code>config.json</code>)</strong></p>
+<p>This file defines the server settings, credential stores, and the applications to load with their respective integrations.</p>
+<div class="language-json highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;My Local MCP Server&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;description&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;A server for testing applications locally&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;local&quot;</span><span class="p">,</span><span class="w"> </span><span class="c1">// &quot;local&quot; or &quot;agentr&quot;</span>
+<span class="w">  </span><span class="nt">&quot;transport&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sse&quot;</span><span class="p">,</span><span class="w"> </span><span class="c1">// &quot;sse&quot;, &quot;stdio&quot;, or &quot;http&quot;</span>
+<span class="w">  </span><span class="nt">&quot;port&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">8005</span><span class="p">,</span><span class="w"> </span><span class="c1">// Relevant for &quot;sse&quot; or &quot;http&quot;</span>
+<span class="w">  </span><span class="nt">&quot;store&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Default store for integrations</span>
+<span class="w">    </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;my_mcp_store&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;keyring&quot;</span><span class="w"> </span><span class="c1">// &quot;keyring&quot;, &quot;environment&quot;, or &quot;memory&quot;</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;apps&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;zenquotes&quot;</span><span class="p">,</span><span class="w"> </span><span class="c1">// App slug (e.g., from agentr.dev)</span>
+<span class="w">      </span><span class="nt">&quot;integration&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="w"> </span><span class="c1">// No authentication needed for this app</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;tavily&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;integration&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;TAVILY_API_KEY&quot;</span><span class="p">,</span><span class="w"> </span><span class="c1">// Unique name for this credential if type is &quot;api_key&quot;</span>
+<span class="w">        </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;api_key&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;store&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="c1">// Override default store for this specific app</span>
+<span class="w">          </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;environment&quot;</span><span class="w"> </span><span class="c1">// Looks for TAVILY_API_KEY env var</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;github&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;integration&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;github&quot;</span><span class="p">,</span><span class="w"> </span><span class="c1">// Matches the service name in AgentR</span>
+<span class="w">        </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;agentr&quot;</span><span class="w"> </span><span class="c1">// Uses AgentR platform for auth/creds</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><em>Notes on <code>config.json</code>:</em></p>
+<ul>
+<li><code>type: "local"</code>: Runs applications defined directly in the config's <code>apps</code> list.</li>
+<li><code>type: "agentr"</code>: Connects to the AgentR platform to dynamically load user-enabled apps (ignores the <code>apps</code> list in the config) and handle credentials. Requires <code>AGENTR_API_KEY</code> environment variable.</li>
+<li><code>store</code>: Defines credential storage.</li>
+<li><code>environment</code>: Looks for an environment variable named <code>&lt;INTEGRATION_NAME_UPPERCASE&gt;</code> (e.g., <code>TAVILY_API_KEY</code> for the example above).</li>
+<li><code>keyring</code>: Uses the system's secure credential storage.</li>
+<li><code>memory</code>: Transient storage, lost when the server stops.</li>
+<li><code>integration</code>: Configures authentication for each app.</li>
+<li><code>type: "agentr"</code>: Uses the AgentR platform for OAuth/credential management.</li>
+<li><code>type: "api_key"</code>: Uses the specified <code>store</code> to retrieve the key.</li>
+</ul>
+<p><strong>2. Run the Server via CLI</strong></p>
+<p>Ensure any required environment variables (like <code>TAVILY_API_KEY</code> for the Tavily example, or <code>AGENTR_API_KEY</code> if using <code>"agentr"</code> type server/integrations) are set.</p>
+<div class="language-bash highlight"><pre><span></span><code>universal_mcp<span class="w"> </span>run<span class="w"> </span>-c<span class="w"> </span>config.json
+</code></pre></div>
+<p>The server will start, load the configured applications (or connect to AgentR if <code>type: "agentr"</code>), and listen for connections based on the <code>transport</code> type.</p>
+<h2 id="using-the-playground">🛠️ Using the Playground</h2>
+<p>The <code>playground</code> directory provides a runnable Streamlit application for interacting with agents that can use tools from an MCP server.</p>
+<p><strong>Prerequisites:</strong></p>
+<ul>
+<li><strong><code>local_config.json</code></strong>: This file must exist in the <strong>project root directory</strong> (the same directory as this <code>README.md</code>). It configures the <em>local</em> MCP server that the playground's agent can connect to if you choose to run one. For an example, see the <code>local_config.json</code> structure in the <a href="playground/">Playground README</a>.</li>
+<li><strong>Dependencies</strong>: Install playground-specific dependencies. If you have the project cloned, you might install them via:
+  <div class="language-bash highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.<span class="o">[</span>playground<span class="o">]</span>
+<span class="c1"># or manually install fastapi, streamlit, uvicorn, langchain-openai, etc.</span>
+</code></pre></div></li>
+</ul>
+<p><strong>Running the Playground:</strong></p>
+<p>The easiest way is to use the automated startup script from the <strong>project root directory</strong>:</p>
+<div class="language-bash highlight"><pre><span></span><code>python<span class="w"> </span>playground
+</code></pre></div>
+<p>This script will:</p>
+<ol>
+<li>Optionally start a local MCP server (based on your <code>local_config.json</code>) if you confirm.</li>
+<li>Launch the Streamlit application.</li>
+</ol>
+<p>For more detailed setup, manual startup instructions, and an explanation of the <code>local_config.json</code> for the playground, please refer to the <a href="playground/">Playground README</a>.</p>
+<h2 id="available-applications">🧩 Available Applications</h2>
+<p>Universal MCP can integrate with a wide variety of applications. For a list of publicly available applications and their slugs (e.g., "github", "google-calendar"), please visit <a href="https://agentr.dev">AgentR Applications</a>.
+Applications are typically installed dynamically by Universal MCP from their respective repositories when first referenced by slug.</p>
+<p><em>Authentication Type Notes:</em></p>
+<ul>
+<li><em>OAuth (via AgentR)</em>: Usually requires configuring the app's integration with <code>type: "agentr"</code> in your <code>ServerConfig</code>. This leverages the AgentR platform for the OAuth flow and requires the <code>AGENTR_API_KEY</code> to be set.</li>
+<li><em>API Key (via Integration)</em>: Requires configuring <code>type: "api_key"</code> for the app's integration in your <code>ServerConfig</code>, along with a <code>store</code> (like <code>environment</code> or <code>keyring</code>) to specify where the API key is located.</li>
+</ul>
+<h2 id="integration-types">🔐 Integration Types</h2>
+<p>Universal MCP supports different ways to handle authentication for applications:</p>
+<h3 id="1-api-key-integration-type-api_key">1. API Key Integration (<code>type: "api_key"</code>)</h3>
+<p>For services that authenticate via simple API keys.</p>
+<div class="language-json highlight"><pre><span></span><code><span class="c1">// In your ServerConfig apps array:</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;tavily&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;integration&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;TAVILY_API_KEY&quot;</span><span class="p">,</span><span class="w"> </span><span class="c1">// Used by the store (e.g., as env var name)</span>
+<span class="w">    </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;api_key&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;store&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;environment&quot;</span><span class="w"> </span><span class="c1">// Or &quot;keyring&quot;, &quot;memory&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="2-agentr-integration-type-agentr">2. AgentR Integration (<code>type: "agentr"</code>)</h3>
+<p>Recommended for services integrated with the AgentR platform, which typically handles OAuth flows or centrally managed credentials. Requires the <code>AGENTR_API_KEY</code> environment variable to be set for the MCP server process.</p>
+<div class="language-json highlight"><pre><span></span><code><span class="c1">// In your ServerConfig apps array:</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;github&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;integration&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;github&quot;</span><span class="p">,</span><span class="w"> </span><span class="c1">// Matches the service name configured in AgentR</span>
+<span class="w">    </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;agentr&quot;</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>When an action requiring authorization is called, the <code>AgentRIntegration</code> will prompt the user (via the MCP client) to visit a URL to complete the OAuth flow managed by AgentR. This is also the default integration type for apps if the main server config is <code>type: "agentr"</code>.</p>
+<h3 id="3-direct-oauth-integration-type-oauth">3. Direct OAuth Integration (<code>type: "oauth"</code>)</h3>
+<p>While <code>AgentRIntegration</code> is generally preferred for OAuth, a direct <code>OAuthIntegration</code> class exists. However, it requires manual configuration of client IDs, secrets, and callback handling, which is more complex to set up outside the AgentR platform.</p>
+<h2 id="cli-usage">🤖 CLI Usage</h2>
+<p>Universal MCP includes a powerful command-line interface:</p>
+<div class="language-bash highlight"><pre><span></span><code><span class="c1"># Run the MCP server using a configuration file</span>
+universal_mcp<span class="w"> </span>run<span class="w"> </span>-c<span class="w"> </span>config.json
+
+<span class="c1"># Initialize a new MCP application project structure</span>
+universal_mcp<span class="w"> </span>init<span class="w"> </span>--app-name<span class="w"> </span>my-cool-app<span class="w"> </span>--o<span class="w"> </span>./my-apps<span class="w"> </span>--integration-type<span class="w"> </span>api_key
+
+<span class="c1"># Generate API client code and application structure from an OpenAPI schema</span>
+universal_mcp<span class="w"> </span>generate<span class="w"> </span>-s<span class="w"> </span>&lt;path_to_schema.json_or_yaml&gt;<span class="w"> </span>-o<span class="w"> </span>&lt;path/to/app_output_directory&gt;<span class="w"> </span>--c<span class="w"> </span>CustomAppClassName
+<span class="c1"># Example: universal_mcp generate -s notion_api.yaml -o ./custom_apps/notion --c MyNotionApp</span>
+
+<span class="c1"># Preprocess an OpenAPI schema using an LLM to fill/enhance descriptions</span>
+universal_mcp<span class="w"> </span>preprocess<span class="w"> </span>-s<span class="w"> </span>&lt;path_to_input_schema.json_or_yaml&gt;<span class="w"> </span>-o<span class="w"> </span>&lt;path_to_processed_schema.json_or_yaml&gt;
+
+<span class="c1"># Generate Google-style docstrings for functions in a Python file using an LLM</span>
+universal_mcp<span class="w"> </span>docgen<span class="w"> </span>&lt;path/to/app_file.py&gt;
+
+<span class="c1"># Generate a README.md for a generated application file</span>
+universal_mcp<span class="w"> </span>readme<span class="w"> </span>&lt;path/to/app_file.py&gt;
+
+<span class="c1"># Install MCP configuration for supported desktop apps (e.g., Claude, Cursor)</span>
+<span class="c1"># Requires an AgentR API key for configuration.</span>
+universal_mcp<span class="w"> </span>install<span class="w"> </span>claude
+universal_mcp<span class="w"> </span>install<span class="w"> </span>cursor
+
+<span class="c1"># Check installed version (standard typer command)</span>
+universal_mcp<span class="w"> </span>--version
+</code></pre></div>
+<h2 id="requirements">📋 Requirements</h2>
+<ul>
+<li>Python 3.10+</li>
+<li>Key Dependencies (installed automatically via pip, see <code>pyproject.toml</code> for full list):</li>
+<li><code>mcp-server</code></li>
+<li><code>loguru</code></li>
+<li><code>typer</code></li>
+<li><code>httpx</code></li>
+<li><code>pydantic</code></li>
+<li><code>pyyaml</code></li>
+<li><code>keyring</code> (for <code>KeyringStore</code>)</li>
+<li><code>litellm</code> (for <code>docgen</code> and <code>preprocess</code> commands)</li>
+<li><code>uv</code> (used internally for dynamic package installation)</li>
+</ul>
+<h2 id="documentation">📚 Documentation</h2>
+<p>For more detailed information about specific components:</p>
+<ul>
+<li><a href="applications/">Applications Framework</a></li>
+<li><a href="tools_framework/">Tool Management</a></li>
+<li><a href="servers/">Server Implementations</a></li>
+<li><a href="stores/">Credential Stores</a></li>
+<li><a href="integrations/">Integration &amp; Authentication</a></li>
+<li><a href="playground/">Playground Usage</a></li>
+</ul>
+<h2 id="license">📝 License</h2>
+<p>This project is licensed under the MIT License. See the <a href="https://github.com/universal-mcp/universal-mcp/blob/main/LICENSE">LICENSE</a> file for details.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": ".", "features": ["search.suggest", "search.highlight", "content.tabs.link", "content.code.annotate", "content.code.copy", "content.code.select", "navigation.path", "navigation.indexes", "navigation.sections", "navigation.tracking", "toc.follow"], "search": "assets/javascripts/workers/search.d50fe291.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.56ea9cef.min.js"></script>
+      
+    
+  <script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(() => { lightbox.reload() });
+</script></body>
+</html>
