@@ -48,3 +48,8 @@ src/universal_mcp/applications/test_without_docs/
 
 # Temporary files
 tmp/
+
+
+# Docs
+site/
+.cache/

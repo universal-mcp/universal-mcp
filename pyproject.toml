@@ -25,6 +25,8 @@ dependencies = [
     "langsmith>=0.4.5",
     "loguru>=0.7.3",
     "mcp>=1.10.0",
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.6.15",
     "posthog>=3.24.0",
     "pydantic>=2.11.1",
     "pydantic-settings>=2.8.1",
@@ -43,6 +45,12 @@ dev = [
     "pytest>=8.3.5",
     "pytest-asyncio>=0.26.0",
     "ruff>=0.11.4",
+]
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-glightbox>=0.4.0",
+    "mkdocs-material[imaging]>=9.5.45",
+    "mkdocstrings-python>=1.12.2",
 ]
 
 [project.scripts]

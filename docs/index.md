@@ -104,7 +104,7 @@ The `playground` directory provides a runnable Streamlit application for interac
 
 **Prerequisites:**
 
-- **`local_config.json`**: This file must exist in the **project root directory** (the same directory as this `README.md`). It configures the _local_ MCP server that the playground's agent can connect to if you choose to run one. For an example, see the `local_config.json` structure in the [Playground README](playground/README.md).
+- **`local_config.json`**: This file must exist in the **project root directory** (the same directory as this `README.md`). It configures the _local_ MCP server that the playground's agent can connect to if you choose to run one. For an example, see the `local_config.json` structure in the [Playground README](playground.md).
 - **Dependencies**: Install playground-specific dependencies. If you have the project cloned, you might install them via:
   ```bash
   pip install -e .[playground]
@@ -124,7 +124,7 @@ This script will:
 1. Optionally start a local MCP server (based on your `local_config.json`) if you confirm.
 2. Launch the Streamlit application.
 
-For more detailed setup, manual startup instructions, and an explanation of the `local_config.json` for the playground, please refer to the [Playground README](playground/README.md).
+For more detailed setup, manual startup instructions, and an explanation of the `local_config.json` for the playground, please refer to the [Playground README](playground.md).
 
 ## 🧩 Available Applications
 
@@ -230,13 +230,13 @@ universal_mcp --version
 
 For more detailed information about specific components:
 
-- [Applications Framework](src/universal_mcp/applications/README.md)
-- [Tool Management](src/universal_mcp/tools/README.md)
-- [Server Implementations](src/universal_mcp/servers/README.md)
-- [Credential Stores](src/universal_mcp/stores/README.md)
-- [Integration & Authentication](src/universal_mcp/integrations/README.md)
-- [Playground Usage](playground/README.md)
+- [Applications Framework](applications.md)
+- [Tool Management](tools_framework.md)
+- [Server Implementations](servers.md)
+- [Credential Stores](stores.md)
+- [Integration & Authentication](integrations.md)
+- [Playground Usage](playground.md)
 
 ## 📝 License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](https://github.com/universal-mcp/universal-mcp/blob/main/LICENSE) file for details.
