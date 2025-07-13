@@ -67,8 +67,9 @@ class Analytics:
             properties = {
                 "version": self.get_version(),
                 "app_name": app_name,
+                "user_id": self.user_id,
             }
-            posthog.capture(self.user_id, "app_loaded", properties)
+            posthog.capture("app_loaded", properties)
         except Exception as e:
             logger.error(f"Failed to track app_loaded event: {e}")
 
@@ -104,8 +105,9 @@ class Analytics:
                 "status": status,
                 "error": error,
                 "version": self.get_version(),
+                "user_id": self.user_id,
             }
-            posthog.capture(self.user_id, "tool_called", properties)
+            posthog.capture("tool_called", properties)
         except Exception as e:
             logger.error(f"Failed to track tool_called event: {e}")
 

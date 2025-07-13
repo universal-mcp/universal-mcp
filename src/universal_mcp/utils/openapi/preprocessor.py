@@ -227,7 +227,7 @@ def generate_description_llm(
         if len(param_context_str) > 1000:  # Limit context size
             param_context_str = param_context_str[:1000] + "..."
 
-        current_description = context.get("current_description", None)
+        current_description = context.get("current_description")
         if current_description and isinstance(current_description, str) and current_description.strip():
             user_prompt = f"""The current description for the API parameter named '{param_name}' located '{param_in}' for the '{method.upper()}' operation at path '{path_key}' is:\n'{current_description.strip()}'\n\nTask: Rewrite and enrich this description so it is clear, self-contained, and makes sense to a user. If the description is cut off, incomplete, or awkward, make it complete and natural. Ensure it is concise and under {MAX_DESCRIPTION_LENGTH} characters. Do not include any links, HTML, markdown, or any notes or comments about the character limit. Respond ONLY with the improved single-line description."""
             fallback_text = (

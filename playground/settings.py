@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     SQLITE_DB_PATH: str = ":memory:"
 
     # Base paths
-    BASE_DIR: Path = Path(__file__).parent.parent
+    BASE_DIR: Path = Path(__file__).parent
     DATA_DIR: Path = BASE_DIR / "data"
 
     # AutoAgent settings
