@@ -5,13 +5,18 @@ from dataclasses import dataclass
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.prebuilt import create_react_agent
 from loguru import logger
-from pydantic import SecretStr
+from pydantic import BaseModel, SecretStr
 
 from universal_mcp.applications import APIApplication, BaseApplication
 from universal_mcp.integrations import AgentRIntegration
 from universal_mcp.tools import Tool, ToolManager
 from universal_mcp.tools.adapters import ToolFormat
 from universal_mcp.utils.agentr import AgentrClient
+
+
+class ValidateResult(BaseModel):
+    success: bool
+    reasoning: str
 
 
 def check_application_instance(app_instance: BaseApplication, app_name: str):
@@ -179,23 +184,18 @@ async def execute_automation_test(test_case: AutomationTestCase, app_instance: A
             "Azure OpenAI credentials not found. Please set AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY environment variables."
         )
     
-    try:
-        from langchain_openai import AzureChatOpenAI
-        llm = AzureChatOpenAI(
-            azure_endpoint=azure_endpoint,
-            azure_deployment=azure_deployment,
-            api_key=SecretStr(azure_api_key) if azure_api_key else None,
-            api_version=api_version,
-        )
-        logger.info(f"Using Azure OpenAI with deployment: {azure_deployment}")
-    except ImportError:
-        logger.info("langchain_openai not found, falling back to default model")
-        llm = "gpt-4o-mini"
+    from langchain_openai import AzureChatOpenAI
+    llm = AzureChatOpenAI(
+        azure_endpoint=azure_endpoint,
+        azure_deployment=azure_deployment,
+        api_key=SecretStr(azure_api_key) if azure_api_key else None,
+        api_version=api_version,
+    )
+    logger.info(f"Using Azure OpenAI with deployment: {azure_deployment}")
     
     agent = create_react_agent(
         model=llm,
         tools=tools,
-        prompt="You are a helpful assistant that can use the following tools: {tools}. Always respond in natural language after using tools. Summarize what you did and what you found."
     )
     
     messages = []
@@ -214,18 +214,8 @@ async def execute_automation_test(test_case: AutomationTestCase, app_instance: A
             raise AssertionError(f"Task execution failed: {e}") from e
 
     if test_case.validate_query:
-        messages.append(HumanMessage(content=test_case.validate_query + " Answer in JSON format with only a 'success' boolean field."))
-        response = await agent.ainvoke({"messages": messages})
-        response_text = response["messages"][-1].content
-        logger.info(f"Validation query: {test_case.validate_query}")
-        logger.info(f"Response: {response_text}")
-        
-        # Try to parse JSON response
-        try:
-            result = json.loads(response_text)
-            assert isinstance(result, dict) and "success" in result and isinstance(result["success"], bool), "Response must contain a boolean 'success' field"
-            assert result["success"], "Validation failed"
-        except json.JSONDecodeError:
-            # Fallback to text-based validation if JSON parsing fails
-            response_text_lower = response_text.lower()
-            assert any(word in response_text_lower for word in ["yes", "true", "correct", "successfully"]), f"Validation failed: {response_text}"
+        messages.append(HumanMessage(content=test_case.validate_query))
+        structured_llm = llm.with_structured_output(ValidateResult)
+        result = await structured_llm.ainvoke(messages)
+        logger.info(f"Validation result: {result}")
+        assert result.success, f"Validation failed: {result.reasoning}"
