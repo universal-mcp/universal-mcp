@@ -22,7 +22,7 @@ from universal_mcp.utils.agentr import AgentrClient
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
-    apps_loaded: list[str]
+    loaded_apps: list[str]
     needs_choice: bool
 
 
@@ -36,8 +36,7 @@ class TaskAnalysis(BaseModel):
 
 class UserChoices(BaseModel):
     """Structured output for parsing user choice responses"""
-    auto_selected: List[str] = []  # Apps that were auto-selected
-    user_choices: dict[str, List[str]] = {}  # User choices by set number
+    user_choices: List[str] = []
 
 
 class AutoAgent(BaseAgent):
@@ -46,27 +45,15 @@ class AutoAgent(BaseAgent):
         name: str, 
         instructions: str, 
         model: str, 
-        api_key: str, 
-        app_limit: int = 20, 
-        action_limit: int = 10,
-        conversation_history: List[BaseMessage] = [],
-        loaded_apps: List[str] = []
+        api_key: str
     ):
         super().__init__(name, instructions, model)
         self.api_key = api_key
         self.client = AgentrClient(api_key=self.api_key)
         self.llm = get_llm(model)
         self.tool_manager = ToolManager()
-        
-        # Configuration limits
-        self.app_limit = app_limit
-        self.action_limit = action_limit
-
-        self._conversation_history = conversation_history
-        self._loaded_apps = loaded_apps
 
         self._agent: Optional[Any] = None
-        self._current_tools_hash: Optional[str] = None
         self._last_choice_data: Optional[dict] = None
 
         self.task_analysis_prompt = """You are a task analysis expert. Given a task description and available apps, determine:
@@ -112,9 +99,12 @@ class AutoAgent(BaseAgent):
     def _build_graph(self):
         graph_builder = StateGraph(State)
 
-        async def chatbot(state: State):
-            response = await self.run(state["messages"][-1].content)
-            loaded_apps = self.get_loaded_apps()
+        async def task_analyzer(state: State):
+            """Analyze the task and determine if choice is needed"""
+            response = await self.run(state["messages"])
+            
+            # Get current loaded_apps from state, defaulting to empty list if not present
+            current_loaded_apps = state.get("loaded_apps", [])
             
             # Check if the response is choice data (dict) or a direct response (str)
             if isinstance(response, dict) and "requires_app" in response:
@@ -127,52 +117,56 @@ class AutoAgent(BaseAgent):
                         choice_message += f"  - {app.get('name', app.get('id'))}: {app.get('description', 'No description')}\n"
                     choice_message += "\n"
                 
-                if response.get("auto_selected"):
-                    choice_message += f"Auto-selected apps: {', '.join(response['auto_selected'])}\n\n"
-                                
                 # Store the choice data for the choice node to use
                 self._last_choice_data = response
                 
+                # Update loaded_apps with any auto-selected apps from the choice data
+                if "auto_selected_apps" in response:
+                    current_loaded_apps.extend(response["auto_selected_apps"])
+                
                 # Return the choice message and signal to go to choice node
-                return {"messages": [AIMessage(content=choice_message)], "apps_loaded": loaded_apps, "needs_choice": True}
+                return {"messages": [AIMessage(content=choice_message)], "loaded_apps": current_loaded_apps, "needs_choice": True}
             else:
                 # This is a direct response
-                return {"messages": [AIMessage(content=str(response))], "apps_loaded": loaded_apps, "needs_choice": False}
+                return {"messages": [AIMessage(content=str(response))], "loaded_apps": current_loaded_apps, "needs_choice": False}
 
         async def choice_handler(state: State):
             """Handle user choice input and execute with selected apps"""
             user_input = state["messages"][-1].content
             
+            # Get current loaded_apps from state, defaulting to empty list if not present
+            current_loaded_apps = state.get("loaded_apps", [])
+            
             if not self._last_choice_data:
-                return {"messages": [AIMessage(content="No choice data available. Please try again.")], "apps_loaded": self.get_loaded_apps(), "needs_choice": False}
+                return {"messages": [AIMessage(content="No choice data available. Please try again.")], "loaded_apps": current_loaded_apps, "needs_choice": False}
             
             # Parse user choices using LLM
-            frontend_choices = await self.parse_user_choices_with_llm(user_input, self._last_choice_data)
+            user_choices = await self.parse_user_choices_with_llm(user_input, self._last_choice_data)
             
             # Execute with the parsed choices
-            result = await self.run(user_input, frontend_choices)
+            result = await self.run(state["messages"], user_choices=user_choices)
+            
+            # Update loaded_apps with the user-selected apps
+            current_loaded_apps.extend(user_choices)
             
             # Clear the stored choice data
             self._last_choice_data = None
             
-            return {"messages": [AIMessage(content=str(result))], "apps_loaded": self.get_loaded_apps(), "needs_choice": False}
+            return {"messages": [AIMessage(content=str(result))], "loaded_apps": current_loaded_apps, "needs_choice": False}
 
-           
-
-        graph_builder.add_node("chatbot", chatbot)
+        graph_builder.add_node("task_analyzer", task_analyzer)
         graph_builder.add_node("choice_handler", choice_handler)
         
-        # Add edges
-        graph_builder.add_edge(START, "chatbot")
-        
-        # Add conditional edge from chatbot to choice_handler or END
-        def route_after_chatbot(state: State):
-            if state.get("needs_choice", False):
+        # Add conditional edge from START to task_analyzer or choice_handler
+        def route_from_start(state: State):
+            # Check if we have stored choice data (indicating we need to handle choices)
+            if self._last_choice_data is not None:
                 return "choice_handler"
             else:
-                return END
+                return "task_analyzer"
         
-        graph_builder.add_conditional_edges("chatbot", route_after_chatbot)
+        graph_builder.add_conditional_edges(START, route_from_start)
+        graph_builder.add_edge("task_analyzer", END)
         graph_builder.add_edge("choice_handler", END)
         
         return graph_builder.compile(checkpointer=self.memory)
@@ -208,15 +202,18 @@ class AutoAgent(BaseAgent):
         
         return app_details
 
-    async def get_app_choice_data(self, app_sets: List[List[str]], choice_flags: List[bool], task: str) -> dict:
+    async def get_app_choice_data(self, app_sets: List[List[str]], choice_flags: List[bool], messages: List[BaseMessage]) -> dict:
         """Get app choice data for frontend display"""
+        task = messages[-1].content
         logger.info(f"Preparing app choice data for task: {task}")
         
         choice_data = {
             "task": task,
-            "app_sets": [],
-            "auto_selected": []
+            "app_sets": []
         }
+        
+        # Load auto-selected apps immediately
+        auto_selected_apps = []
         
         for set_index, (app_set, needs_choice) in enumerate(zip(app_sets, choice_flags), 1):
             # Get detailed information about the apps in this set
@@ -231,7 +228,7 @@ class AutoAgent(BaseAgent):
                 # Only one available app, use it
                 selected = available_apps[0]["id"]
                 logger.info(f"Only one available app in set {set_index}: {selected}")
-                choice_data["auto_selected"].append(selected)
+                auto_selected_apps.append(selected)
                 continue
             
             if not needs_choice:
@@ -239,7 +236,7 @@ class AutoAgent(BaseAgent):
                 selected_apps = [app["id"] for app in available_apps]
                 selected_names = [app["name"] for app in available_apps]
                 logger.info(f"Automatically loading all apps in set {set_index}: {', '.join(selected_names)}")
-                choice_data["auto_selected"].extend(selected_apps)
+                auto_selected_apps.extend(selected_apps)
                 continue
             
             # Add this set to choice data for frontend
@@ -250,31 +247,21 @@ class AutoAgent(BaseAgent):
             }
             choice_data["app_sets"].append(set_data)
         
-        logger.info(f"Prepared choice data with {len(choice_data['app_sets'])} sets and {len(choice_data['auto_selected'])} auto-selected apps")
+        # Load auto-selected apps immediately
+        if auto_selected_apps:
+            logger.info(f"Loading auto-selected apps: {', '.join(auto_selected_apps)}")
+            await self._load_actions_for_apps(auto_selected_apps)
+        
+        logger.info(f"Prepared choice data with {len(choice_data['app_sets'])} sets and {len(auto_selected_apps)} auto-selected apps")
+        
+        # Add auto-selected apps to the choice data for state tracking
+        choice_data["auto_selected_apps"] = auto_selected_apps
+        
         return choice_data
 
-    async def process_frontend_choices(self, frontend_choices: dict, task: str) -> List[str]:
-        """Process app choices from frontend"""
-        logger.info(f"Processing frontend choices for task: {task}")
-        
-        all_selected_apps = []
-        
-        # Add auto-selected apps
-        if "auto_selected" in frontend_choices:
-            all_selected_apps.extend(frontend_choices["auto_selected"])
-            logger.info(f"Auto-selected apps: {frontend_choices['auto_selected']}")
-        
-        # Process user choices from frontend
-        if "user_choices" in frontend_choices:
-            for set_index, selected_apps in frontend_choices["user_choices"].items():
-                logger.info(f"User selected for set {set_index}: {selected_apps}")
-                all_selected_apps.extend(selected_apps)
-        
-        logger.info(f"Total selected apps from frontend: {', '.join(all_selected_apps)}")
-        return all_selected_apps
 
-    async def parse_user_choices_with_llm(self, user_input: str, choice_data: dict) -> dict:
-        """Use LLM to parse user choice input and convert to frontend_choices format"""
+    async def parse_user_choices_with_llm(self, user_input: str, choice_data: dict) -> List[str]:
+        """Use LLM to parse user choice input and return a list of selected app IDs"""
         logger.info(f"Using LLM to parse user choices: {user_input}")
         
         # Create a prompt for the LLM to parse the user's choice
@@ -289,19 +276,17 @@ class AutoAgent(BaseAgent):
         Available apps:
         {chr(10).join(available_apps)}
 
-        Auto-selected apps: {', '.join(choice_data.get('auto_selected', []))}
-
         The user responded with: "{user_input}"
 
-        Please parse their response and extract their choices.
+        Please parse their response and extract their choices as a simple list of app IDs.
 
         Rules:
-        1. Include all auto-selected apps in the auto_selected array
-        2. For each set the user chose from, add an entry to user_choices with the set number as key
-        3. If the user says "all" or "everything", include all apps from that set
-        4. If the user says "none" or "skip", don't include that set
-        5. Match app names as closely as possible to the available apps
-        6. If the user's response is unclear, make your best guess based on context
+        1. Return only the app IDs that the user selected
+        2. If the user says "all" or "everything", include all apps from that set
+        3. If the user says "none" or "skip", don't include that set
+        4. Match app names as closely as possible to the available apps
+        5. If the user's response is unclear, make your best guess based on context
+        6. Return only the app IDs, not the full names
         """
         
         try:
@@ -310,15 +295,12 @@ class AutoAgent(BaseAgent):
             parsed_choices = await structured_llm.ainvoke(prompt)
             
             logger.info(f"LLM parsed choices: {parsed_choices}")
-            return parsed_choices.model_dump()
+            return parsed_choices.user_choices
             
         except Exception as e:
             logger.error(f"Failed to parse user choices with LLM: {e}")
-            # Fallback to auto-selected apps only
-            return {
-                "auto_selected": choice_data.get("auto_selected", []),
-                "user_choices": {}
-            }
+            # Fallback to empty list
+            return []
 
     async def load_action_for_app(self, app_name):
         logger.info(f"Loading all actions for app: {app_name}")
@@ -339,21 +321,18 @@ class AutoAgent(BaseAgent):
         logger.debug(f"Registering all tools for app: {app_name}")
         self.tool_manager.register_tools_from_app(app_instance)
         
-        # Track the loaded app
-        self._loaded_apps.append(app_name)
         logger.info(f"Successfully loaded all {len(app_actions)} actions for app: {app_name}")
 
-    async def analyze_task_and_select_apps(self, task: str, available_apps: List[dict]) -> TaskAnalysis:
+    async def analyze_task_and_select_apps(self, task: str, available_apps: List[dict], messages: List[BaseMessage] = None) -> TaskAnalysis:
         """Combined task analysis and app selection to reduce LLM calls"""
         logger.info(f"Analyzing task and selecting apps: {task}")
         
-        # Get conversation context
-        conversation_history = self.get_conversation_history()
+        # Get conversation context from messages
         context_summary = ""
         
-        if len(conversation_history) > 1:  # More than just the current task
+        if messages and len(messages) > 1:  # More than just the current task
             # Create a summary of previous conversation context
-            previous_messages = conversation_history[:-1]  # Exclude current task
+            previous_messages = messages[:-1]  # Exclude current task
             context_messages = []
             
             for msg in previous_messages[-5:]:  # Last 5 messages for context
@@ -395,59 +374,39 @@ class AutoAgent(BaseAgent):
         
         return response
         
-    async def _load_actions_for_apps(self, selected_apps: List[str]) -> List[str]:
-        """Load actions for a list of apps and return successfully loaded app names"""
-        loaded_apps = []
+    async def _load_actions_for_apps(self, selected_apps: List[str]) -> None:
+        """Load actions for a list of apps"""
         for app_name in selected_apps:
             logger.info(f"Loading actions for app: {app_name}")
             try:
                 await self.load_action_for_app(app_name)
-                loaded_apps.append(app_name)
                 logger.info(f"Successfully loaded actions for app: {app_name}")
             except Exception as e:
                 logger.error(f"Failed to load actions for app {app_name}: {e}")
                 continue
-        return loaded_apps
 
-    async def _execute_with_selected_apps(self, selected_apps: List[str]) -> str:
+    async def _execute_with_selected_apps(self, selected_apps: List[str], messages: List[BaseMessage] = None) -> str:
         """Load selected apps and execute the task, falling back to general reasoning if needed"""
         if not selected_apps:
             logger.warning("No apps selected, using general reasoning")
-            return await self._execute_task_with_agent()
+            return await self._execute_task_with_agent(messages or [])
         
-        loaded_apps = await self._load_actions_for_apps(selected_apps)
+        await self._load_actions_for_apps(selected_apps)
         
-        if not loaded_apps:
-            logger.warning("Failed to load actions for any app, using general reasoning")
-            return await self._execute_task_with_agent()
-        
-        logger.info(f"Successfully loaded actions for {len(loaded_apps)} apps: {', '.join(loaded_apps)}")
-        return await self._execute_task_with_agent()
+        logger.info(f"Successfully loaded actions for {len(selected_apps)} apps: {', '.join(selected_apps)}")
+        return await self._execute_task_with_agent(messages or [])
 
-    async def _execute_task_with_agent(self) -> str:
-        """Execute a task using the current agent with conversation history"""
+    async def _execute_task_with_agent(self, messages: List[BaseMessage]) -> str:
+        """Execute a task using the current agent with provided messages"""
         agent = self.get_agent()
-        messages = self.get_conversation_history()
         results = await agent.ainvoke({"messages": messages})
         ai_message = results["messages"][-1]
-        self.add_to_conversation_history(ai_message)
         return ai_message.content
 
-    def _get_tools_hash(self) -> str:
-        """Generate a hash of the current tools to detect changes"""
-        tools = self.tool_manager.list_tools(format=ToolFormat.LANGCHAIN)
-        tools_info = [(tool.name, tool.description) for tool in tools]
-        return str(hash(str(tools_info)))
-    
     def get_agent(self, force_recreate: bool = True):
-        """Get or create an agent with tools. Reuses existing agent if tools haven't changed."""
-        current_tools_hash = self._get_tools_hash()
-        
-        # Check if we need to recreate the agent
-        if (force_recreate or 
-            self._agent is None or 
-            self._current_tools_hash != current_tools_hash):
-            
+        """Get or create an agent with tools."""
+        # Always create a new agent when requested or if no agent exists
+        if force_recreate or self._agent is None:
             logger.info("Creating new agent with tools")
             tools = self.tool_manager.list_tools(format=ToolFormat.LANGCHAIN)
             logger.debug(f"Created agent with {len(tools)} tools")
@@ -462,71 +421,28 @@ class AutoAgent(BaseAgent):
                 tools=tools, 
                 prompt=f"You are a helpful assistant that is given a list of actions for an app. You are also given a task. Use the tools to complete the task. Current time information: {timezone_info}"
             )
-            self._current_tools_hash = current_tools_hash
             logger.info("Agent created successfully")
         else:
             logger.debug("Reusing existing agent")
         
         return self._agent
     
-    def add_to_conversation_history(self, message: BaseMessage):
-        """Add a message to the conversation history"""
-        self._conversation_history.append(message)
-        logger.debug(f"Added message to history. Total messages: {len(self._conversation_history)}")
-    
-    def get_conversation_history(self) -> List[BaseMessage]:
-        """Get the current conversation history"""
-        return self._conversation_history.copy()
-    
-    def clear_conversation_history(self):
-        """Clear the conversation history"""
-        self._conversation_history.clear()
-        logger.info("Conversation history cleared")
-    
-    def reset_agent(self):
-        """Reset the agent and clear conversation history"""
-        self._agent = None
-        self._current_tools_hash = None
-        self._loaded_apps.clear()
-        self._last_choice_data = None
-        self.clear_conversation_history()
-        logger.info("Agent reset successfully")
-    
-    def get_loaded_apps(self) -> List[str]:
-        """Get the list of currently loaded apps"""
-        return self._loaded_apps.copy()
-    
-    def get_conversation_stats(self) -> dict:
-        """Get statistics about the current conversation"""
-        human_messages = [msg for msg in self._conversation_history if isinstance(msg, HumanMessage)]
-        ai_messages = [msg for msg in self._conversation_history if isinstance(msg, AIMessage)]
-        
-        return {
-            "total_messages": len(self._conversation_history),
-            "human_messages": len(human_messages),
-            "ai_messages": len(ai_messages),
-            "loaded_apps": len(self._loaded_apps),
-            "loaded_app_names": self._loaded_apps.copy(),
-            "has_agent": self._agent is not None
-        }
-    
-    def is_conversation_empty(self) -> bool:
-        """Check if the conversation history is empty"""
-        return len(self._conversation_history) == 0
 
-    async def run(self, task, frontend_choices: dict = None):
+
+    async def run(self, messages: List[BaseMessage], user_choices: List[str] = None):
+        # Extract task from the last message
+        if not messages or len(messages) == 0:
+            raise ValueError("No messages provided")
+        
+        task = messages[-1].content
         logger.info(f"Starting task execution: {task}")
         
-        # Add the new task to conversation history
-        if not frontend_choices:
-            human_message = HumanMessage(content=task)
-            self.add_to_conversation_history(human_message)
-        
-        # If frontend_choices are provided, skip task analysis and execute directly
-        if frontend_choices:
-            logger.info("Frontend choices provided, skipping task analysis")
-            selected_apps = await self.process_frontend_choices(frontend_choices, task)
-            return await self._execute_with_selected_apps(selected_apps)
+        # If user_choices are provided, skip task analysis and execute directly
+        if user_choices:
+            logger.info("User choices provided, skipping task analysis")
+            logger.info(f"User selected apps: {', '.join(user_choices)}")
+            result = await self._execute_with_selected_apps(user_choices, messages)
+            return result
         
         # Get all available apps
         all_apps = self.client.list_all_apps()
@@ -539,28 +455,26 @@ class AutoAgent(BaseAgent):
         logger.info(f"Found {len(available_apps)} available apps")
         
         # Analyze task and select apps
-        task_analysis = await self.analyze_task_and_select_apps(task, available_apps)
+        task_analysis = await self.analyze_task_and_select_apps(task, available_apps, messages)
         
         if not task_analysis.requires_app:
             logger.info(f"Task does not require an app, using general reasoning")
-            return await self._execute_task_with_agent()
+            return await self._execute_task_with_agent(messages or [])
         
         if not task_analysis.app_sets:
             logger.warning(f"No suitable app found for task: {task}")
             logger.info(f"Falling back to general reasoning for this task")
-            return await self._execute_task_with_agent()
+            return await self._execute_task_with_agent(messages or [])
         
         # Check if choices are required
-        choice_data = await self.get_app_choice_data(task_analysis.app_sets, task_analysis.choice, task)
+        choice_data = await self.get_app_choice_data(task_analysis.app_sets, task_analysis.choice, messages)
         choice_data["requires_app"] = True
         choice_data["reasoning"] = task_analysis.reasoning
         
         # If no choices are needed (all apps auto-selected), execute directly
-        if not choice_data["app_sets"] and choice_data["auto_selected"]:
-            logger.info("No user choices required, executing with auto-selected apps")
-            selected_apps = choice_data["auto_selected"]
-            
-            return await self._execute_with_selected_apps(selected_apps)
+        if not choice_data["app_sets"]:
+            logger.info("No user choices required, auto-selected apps already loaded")
+            return await self._execute_task_with_agent(messages)
         
         logger.info("User choices required, providing choice data")
         return choice_data
@@ -578,7 +492,7 @@ if __name__ == "__main__":
     agent = AutoAgent(
         "Auto Agent", 
         "You are a helpful assistant", 
-        "openrouter/auto",
+        "gpt-4.1",
         api_key=api_key
     )
     
@@ -586,13 +500,5 @@ if __name__ == "__main__":
     print(f"Agent name: {agent.name}")
     print(f"Agent instructions: {agent.instructions}")
     print(f"Agent model: {agent.model}")
-    print(f"App limit: {agent.app_limit}")
-    print(f"Action limit: {agent.action_limit}")
-    print(f"Loaded apps: {agent.get_loaded_apps()}")
-    print(f"Conversation empty: {agent.is_conversation_empty()}")
-    
-    # Test conversation stats
-    stats = agent.get_conversation_stats()
-    print(f"Conversation stats: {stats}")
     
     asyncio.run(agent.run_interactive())
