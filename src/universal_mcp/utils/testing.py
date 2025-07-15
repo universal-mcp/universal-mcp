@@ -1,6 +1,5 @@
 import json
 import os
-from collections.abc import Callable
 from dataclasses import dataclass
 
 from langchain_core.messages import AIMessage, HumanMessage
@@ -67,6 +66,7 @@ def check_application_instance(app_instance: BaseApplication, app_name: str):
 class AutomationTestCase:
     """Generic test case for automation testing."""
     app: str
+    app_instance: APIApplication | None = None
     tools: list[str] | None = None
     tasks: list[str] | None = None
     validate_query: str | None = None
@@ -131,17 +131,21 @@ def load_app_with_integration(app_name: str, app_class: type[APIApplication]) ->
     return app_class(integration=integration)
 
 
-async def execute_automation_test(test_case: AutomationTestCase, app_provider: Callable[[str], APIApplication]) -> None:
+async def execute_automation_test(test_case: AutomationTestCase, app_instance: APIApplication | None = None) -> None:
     """
     Execute an automation test case using LangGraph ReAct agent.
     
     Args:
         test_case: Test case to execute
-        app_provider: Function that provides the application instance
+        app_instance: The application instance to test (optional if provided in test_case)
     """
     tool_manager = ToolManager()
     
-    app_instance = app_provider(test_case.app)
+
+    if app_instance is None:
+        app_instance = test_case.app_instance
+        if app_instance is None:
+            raise ValueError("No app_instance provided in test_case or as parameter")
     
     all_tools = app_instance.list_tools()
     logger.info(f"Available tools from app: {[getattr(t, '__name__', str(t)) for t in all_tools]}")
