@@ -11,13 +11,11 @@ from loguru import logger
 from pydantic import BaseModel
 from typing_extensions import TypedDict
 
-from universal_mcp.applications import app_from_slug
 from universal_mcp.client.agents.base import BaseAgent
 from universal_mcp.client.agents.llm import get_llm
-from universal_mcp.integrations import AgentRIntegration
+from universal_mcp.client.agents.platform_manager import PlatformManager, AgentRPlatformManager
 from universal_mcp.tools import ToolManager
 from universal_mcp.tools.adapters import ToolFormat
-from universal_mcp.utils.agentr import AgentrClient
 
 
 class State(TypedDict):
@@ -45,11 +43,10 @@ class AutoAgent(BaseAgent):
         name: str, 
         instructions: str, 
         model: str, 
-        api_key: str
+        platform_manager: PlatformManager
     ):
         super().__init__(name, instructions, model)
-        self.api_key = api_key
-        self.client = AgentrClient(api_key=self.api_key)
+        self.platform_manager = platform_manager
         self.llm = get_llm(model)
         self.tool_manager = ToolManager()
 
@@ -181,15 +178,9 @@ class AutoAgent(BaseAgent):
         
         for app_id in app_ids:
             try:
-                # Try to get app info from AgentR client
-                app_info = self.client.fetch_app(app_id)
-                app_details.append({
-                    "id": app_info.get("id"),
-                    "name": app_info.get("name"),
-                    "description": app_info.get("description"),
-                    "category": app_info.get("category"),
-                    "available": app_info.get("available", True)
-                })
+                # Get app info from platform manager
+                app_info = await self.platform_manager.get_app_details(app_id)
+                app_details.append(app_info)
             except Exception as e:
                 logger.error(f"Error getting details for app {app_id}: {e}")
                 app_details.append({
@@ -303,25 +294,8 @@ class AutoAgent(BaseAgent):
             return []
 
     async def load_action_for_app(self, app_name):
-        logger.info(f"Loading all actions for app: {app_name}")
-         
-        # Get all actions for the app
-        app_actions = self.client.list_actions(app_name)
-        
-        if not app_actions:
-            logger.warning(f"No actions available for app: {app_name}")
-            return
-        
-        logger.debug(f"Found {len(app_actions)} actions for {app_name}")
-        
-        # Register all actions as tools
-        app = app_from_slug(app_name)
-        integration = AgentRIntegration(name=app_name, api_key=self.api_key, base_url="https://api.agentr.dev")
-        app_instance = app(integration=integration)
-        logger.debug(f"Registering all tools for app: {app_name}")
-        self.tool_manager.register_tools_from_app(app_instance)
-        
-        logger.info(f"Successfully loaded all {len(app_actions)} actions for app: {app_name}")
+        """Load actions for an app using the platform manager"""
+        await self.platform_manager.load_actions_for_app(app_name, self.tool_manager)
 
     async def analyze_task_and_select_apps(self, task: str, available_apps: List[dict], messages: List[BaseMessage] = None) -> TaskAnalysis:
         """Combined task analysis and app selection to reduce LLM calls"""
@@ -444,13 +418,8 @@ class AutoAgent(BaseAgent):
             result = await self._execute_with_selected_apps(user_choices, messages)
             return result
         
-        # Get all available apps
-        all_apps = self.client.list_all_apps()
-        available_apps = [
-            {"id": app["id"], "name": app["name"], "description": app["description"]} 
-            for app in all_apps 
-            if app.get("available", False)
-        ]
+        # Get all available apps from platform manager
+        available_apps = await self.platform_manager.get_available_apps()
         
         logger.info(f"Found {len(available_apps)} available apps")
         
@@ -489,11 +458,14 @@ if __name__ == "__main__":
     if api_key == "test_api_key":
         api_key = input("Enter your API key: ")
     
+    # Create platform manager
+    platform_manager = AgentRPlatformManager(api_key=api_key)
+    
     agent = AutoAgent(
         "Auto Agent", 
         "You are a helpful assistant", 
         "gpt-4.1",
-        api_key=api_key
+        platform_manager=platform_manager
     )
     
     print("AutoAgent created successfully!")
