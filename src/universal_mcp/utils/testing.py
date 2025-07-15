@@ -1,22 +1,18 @@
-from loguru import logger
-
-from universal_mcp.applications import BaseApplication,APIApplication
-from universal_mcp.tools import Tool, ToolManager
-from universal_mcp.tools.adapters import ToolFormat
-import os
 import json
-from langchain_core.messages import HumanMessage, AIMessage
-from langgraph.prebuilt import create_react_agent
-from universal_mcp.integrations import AgentRIntegration
-from typing import List, Optional, Callable, Type
+import os
+from collections.abc import Callable
 from dataclasses import dataclass
-from universal_mcp.utils.agentr import AgentrClient
+
+from langchain_core.messages import AIMessage, HumanMessage
+from langgraph.prebuilt import create_react_agent
+from loguru import logger
 from pydantic import SecretStr
 
-
-
-
-
+from universal_mcp.applications import APIApplication, BaseApplication
+from universal_mcp.integrations import AgentRIntegration
+from universal_mcp.tools import Tool, ToolManager
+from universal_mcp.tools.adapters import ToolFormat
+from universal_mcp.utils.agentr import AgentrClient
 
 
 def check_application_instance(app_instance: BaseApplication, app_name: str):
@@ -71,9 +67,9 @@ def check_application_instance(app_instance: BaseApplication, app_name: str):
 class AutomationTestCase:
     """Generic test case for automation testing."""
     app: str
-    tools: Optional[List[str]] = None
-    tasks: Optional[List[str]] = None
-    validate_query: Optional[str] = None
+    tools: list[str] | None = None
+    tasks: list[str] | None = None
+    validate_query: str | None = None
 
 
 def create_agentr_client(app_name: str) -> AgentrClient:
@@ -105,7 +101,7 @@ def create_integration(app_name: str) -> AgentRIntegration:
     return AgentRIntegration(name=app_name, client=client)
 
 
-def create_app_with_integration(app_name: str, app_class: Type[APIApplication]) -> APIApplication:
+def create_app_with_integration(app_name: str, app_class: type[APIApplication]) -> APIApplication:
     """
     Create an application instance with integration.
     
@@ -120,7 +116,7 @@ def create_app_with_integration(app_name: str, app_class: Type[APIApplication]) 
     return app_class(integration=integration)
 
 
-def load_app_with_integration(app_name: str, app_class: Type[APIApplication]) -> APIApplication:
+def load_app_with_integration(app_name: str, app_class: type[APIApplication]) -> APIApplication:
     """
     Load application instance with real integration.
     
@@ -211,7 +207,7 @@ async def execute_automation_test(test_case: AutomationTestCase, app_provider: C
             logger.error(f"Error: {e}")
             import traceback
             traceback.print_exc()
-            assert False, f"Task execution failed: {e}"
+            raise AssertionError(f"Task execution failed: {e}") from e
 
     if test_case.validate_query:
         messages.append(HumanMessage(content=test_case.validate_query + " Answer in JSON format with only a 'success' boolean field."))
@@ -224,7 +220,7 @@ async def execute_automation_test(test_case: AutomationTestCase, app_provider: C
         try:
             result = json.loads(response_text)
             assert isinstance(result, dict) and "success" in result and isinstance(result["success"], bool), "Response must contain a boolean 'success' field"
-            assert result["success"], f"Validation failed"
+            assert result["success"], "Validation failed"
         except json.JSONDecodeError:
             # Fallback to text-based validation if JSON parsing fails
             response_text_lower = response_text.lower()
