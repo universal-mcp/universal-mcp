@@ -82,6 +82,22 @@ class AgentrClient:
         data = response.json()
         return [AppConfig.model_validate(app) for app in data]
 
+    def fetch_app(self, app_id: str) -> dict:
+        """Fetch a specific app from AgentR API.
+
+        Args:
+            app_id (str): ID of the app to fetch
+
+        Returns:
+            dict: App configuration data
+
+        Raises:
+            httpx.HTTPError: If API request fails
+        """
+        response = self.client.get(f"/apps/{app_id}/")
+        response.raise_for_status()
+        return response.json()
+
     def list_all_apps(self) -> list:
         """List all apps from AgentR API.
 
