@@ -21,7 +21,7 @@ from universal_mcp.tools.adapters import ToolFormat
 class State(TypedDict):
     messages: Annotated[list, add_messages]
     loaded_apps: list[str]
-    needs_choice: bool
+    choice_data: Optional[dict]
 
 
 class TaskAnalysis(BaseModel):
@@ -50,8 +50,7 @@ class AutoAgent(BaseAgent):
         self.llm = get_llm(model)
         self.tool_manager = ToolManager()
 
-        self._agent: Optional[Any] = None
-        self._last_choice_data: Optional[dict] = None
+
 
         self.task_analysis_prompt = """You are a task analysis expert. Given a task description and available apps, determine:
 
@@ -114,18 +113,15 @@ class AutoAgent(BaseAgent):
                         choice_message += f"  - {app.get('name', app.get('id'))}: {app.get('description', 'No description')}\n"
                     choice_message += "\n"
                 
-                # Store the choice data for the choice node to use
-                self._last_choice_data = response
-                
                 # Update loaded_apps with any auto-selected apps from the choice data
                 if "auto_selected_apps" in response:
                     current_loaded_apps.extend(response["auto_selected_apps"])
                 
                 # Return the choice message and signal to go to choice node
-                return {"messages": [AIMessage(content=choice_message)], "loaded_apps": current_loaded_apps, "needs_choice": True}
+                return {"messages": [AIMessage(content=choice_message)], "loaded_apps": current_loaded_apps, "choice_data": response}
             else:
                 # This is a direct response
-                return {"messages": [AIMessage(content=str(response))], "loaded_apps": current_loaded_apps, "needs_choice": False}
+                return {"messages": [AIMessage(content=str(response))], "loaded_apps": current_loaded_apps, "choice_data": None}
 
         async def choice_handler(state: State):
             """Handle user choice input and execute with selected apps"""
@@ -133,12 +129,13 @@ class AutoAgent(BaseAgent):
             
             # Get current loaded_apps from state, defaulting to empty list if not present
             current_loaded_apps = state.get("loaded_apps", [])
+            choice_data = state.get("choice_data")
             
-            if not self._last_choice_data:
-                return {"messages": [AIMessage(content="No choice data available. Please try again.")], "loaded_apps": current_loaded_apps, "needs_choice": False}
+            if not choice_data:
+                return {"messages": [AIMessage(content="No choice data available. Please try again.")], "loaded_apps": current_loaded_apps, "choice_data": None}
             
             # Parse user choices using LLM
-            user_choices = await self.parse_user_choices_with_llm(user_input, self._last_choice_data)
+            user_choices = await self.parse_user_choices_with_llm(user_input, choice_data)
             
             # Execute with the parsed choices
             result = await self.run(state["messages"], user_choices=user_choices)
@@ -146,10 +143,7 @@ class AutoAgent(BaseAgent):
             # Update loaded_apps with the user-selected apps
             current_loaded_apps.extend(user_choices)
             
-            # Clear the stored choice data
-            self._last_choice_data = None
-            
-            return {"messages": [AIMessage(content=str(result))], "loaded_apps": current_loaded_apps, "needs_choice": False}
+            return {"messages": [AIMessage(content=str(result))], "loaded_apps": current_loaded_apps, "choice_data": None}
 
         graph_builder.add_node("task_analyzer", task_analyzer)
         graph_builder.add_node("choice_handler", choice_handler)
@@ -157,7 +151,7 @@ class AutoAgent(BaseAgent):
         # Add conditional edge from START to task_analyzer or choice_handler
         def route_from_start(state: State):
             # Check if we have stored choice data (indicating we need to handle choices)
-            if self._last_choice_data is not None:
+            if state.get("choice_data") is not None:
                 return "choice_handler"
             else:
                 return "task_analyzer"
@@ -377,29 +371,28 @@ class AutoAgent(BaseAgent):
         ai_message = results["messages"][-1]
         return ai_message.content
 
-    def get_agent(self, force_recreate: bool = True):
+    def get_agent(self):
         """Get or create an agent with tools."""
         # Always create a new agent when requested or if no agent exists
-        if force_recreate or self._agent is None:
-            logger.info("Creating new agent with tools")
-            tools = self.tool_manager.list_tools(format=ToolFormat.LANGCHAIN)
-            logger.debug(f"Created agent with {len(tools)} tools")
-            
-            # Get current datetime and timezone information
-            current_time = datetime.datetime.now()
-            utc_time = datetime.datetime.now(datetime.UTC)
-            timezone_info = f"Current local time: {current_time.strftime('%Y-%m-%d %H:%M:%S')} | UTC time: {utc_time.strftime('%Y-%m-%d %H:%M:%S')}"
-            
-            self._agent = create_react_agent(
-                self.llm, 
-                tools=tools, 
-                prompt=f"You are a helpful assistant that is given a list of actions for an app. You are also given a task. Use the tools to complete the task. Current time information: {timezone_info}"
-            )
-            logger.info("Agent created successfully")
-        else:
-            logger.debug("Reusing existing agent")
         
-        return self._agent
+        logger.info("Creating new agent with tools")
+        tools = self.tool_manager.list_tools(format=ToolFormat.LANGCHAIN)
+        logger.debug(f"Created agent with {len(tools)} tools")
+        
+        # Get current datetime and timezone information
+        current_time = datetime.datetime.now()
+        utc_time = datetime.datetime.now(datetime.UTC)
+        timezone_info = f"Current local time: {current_time.strftime('%Y-%m-%d %H:%M:%S')} | UTC time: {utc_time.strftime('%Y-%m-%d %H:%M:%S')}"
+        
+        agent = create_react_agent(
+            self.llm, 
+            tools=tools, 
+            prompt=f"You are a helpful assistant that is given a list of actions for an app. You are also given a task. Use the tools to complete the task. Current time information: {timezone_info}"
+        )
+        logger.info("Agent created successfully")
+
+        
+        return agent
     
 
 
