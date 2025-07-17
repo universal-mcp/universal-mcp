@@ -414,7 +414,7 @@ class AgentRIntegration(Integration):
         _credentials (dict | None): Cached credentials.
     """
 
-    def __init__(self, name: str, client: AgentrClient | None = None, **kwargs):
+    def __init__(self, name: str, client: AgentrClient | None = None, api_key: str | None = None, base_url: str | None = None, **kwargs):
         """Initializes the AgentRIntegration.
 
         Args:
@@ -422,10 +422,14 @@ class AgentRIntegration(Integration):
                         the AgentR platform (e.g., "github").
             client (AgentrClient | None, optional): The AgentR client. If not provided,
                                                    a new `AgentrClient` will be created.
+            api_key (str | None, optional): API key for AgentR. If not provided,
+                                           will be loaded from environment variables.
+            base_url (str | None, optional): Base URL for AgentR API. If not provided,
+                                            will be loaded from environment variables.
             **kwargs: Additional arguments passed to the parent `Integration`.
         """
         super().__init__(name, **kwargs)
-        self.client = client or AgentrClient()
+        self.client = client or AgentrClient(api_key=api_key, base_url=base_url)
         self._credentials = None
 
     def set_credentials(self, credentials: dict[str, Any] | None = None) -> str:

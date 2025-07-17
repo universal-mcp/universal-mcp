@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     # AutoAgent settings
     AGENTR_API_KEY: str | None = None
-    AGENTR_BASE_URL: str | None = None
+    AGENTR_BASE_URL: str = "https://api.agentr.dev"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
