@@ -108,16 +108,16 @@ class AgentrClient:
         response.raise_for_status()
         return response.json()
 
-    def list_actions(self, app_name: str):
+    def list_actions(self, app_id: str):
         """List actions for an app.
 
         Args:
-            app_name (str): Name of the app to list actions for
+            app_id (str): ID of the app to list actions for
 
         Returns:
             List of action configurations
         """
 
-        response = self.client.get(f"/apps/{app_name}/actions/")
+        response = self.client.get(f"/apps/{app_id}/actions/")
         response.raise_for_status()
         return response.json()
