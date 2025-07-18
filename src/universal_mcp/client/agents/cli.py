@@ -93,3 +93,19 @@ Available commands:
     def clear_screen(self):
         """Clear the screen"""
         self.console.clear()
+
+    def handle_interrupt(self, interrupt) -> str | bool:
+        interrupt_type = interrupt.value["type"]
+        if interrupt_type == "text":
+            value = Prompt.ask(interrupt.value["question"])
+            return value
+        elif interrupt_type == "bool":
+            value = Prompt.ask(interrupt.value["question"], choices=["y", "n"], default="y")
+            return value
+        elif interrupt_type == "choice":
+            value = Prompt.ask(
+                interrupt.value["question"], choices=interrupt.value["choices"], default=interrupt.value["choices"][0]
+            )
+            return value
+        else:
+            raise ValueError(f"Invalid interrupt type: {interrupt.value['type']}")

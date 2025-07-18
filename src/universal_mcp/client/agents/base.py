@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from langchain_core.messages import AIMessageChunk
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.types import Command
 
 from universal_mcp.client.agents.cli import RichCLI
 
@@ -46,8 +47,13 @@ class BaseAgent:
         # Main loop
         while True:
             try:
-                user_input = self.cli.get_user_input()
+                state = self.graph.get_state(config={"configurable": {"thread_id": thread_id}})
+                if state.interrupts:
+                    value = self.cli.handle_interrupt(state.interrupts[0])
+                    self.graph.invoke(Command(resume=value), config={"configurable": {"thread_id": thread_id}})
+                    continue
 
+                user_input = self.cli.get_user_input()
                 if not user_input.strip():
                     continue
 
