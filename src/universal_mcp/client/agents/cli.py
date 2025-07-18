@@ -89,3 +89,7 @@ Available commands:
     def display_info(self, message: str):
         """Display info message"""
         self.console.print(f"[bold cyan]ℹ️ {message}[/bold cyan]")
+
+    def clear_screen(self):
+        """Clear the screen"""
+        self.console.clear()

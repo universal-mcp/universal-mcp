@@ -28,6 +28,7 @@ class TaskAnalysis(BaseModel):
 
     requires_app: bool
     reasoning: str
+    # TODO: Should be made more readable, choice should be inside app_sets
     app_sets: list[list[str]] = []  # Multiple sets of app choices
     choice: list[bool] = []  # Whether user choice is needed for each app set
 
@@ -254,6 +255,7 @@ class AutoAgent(BaseAgent):
 
         return choice_data
 
+    # TODO: Use a proper handler for this, the ui is going to send a proper json with choices
     async def parse_user_choices_with_llm(self, user_input: str, choice_data: dict) -> list[str]:
         """Use LLM to parse user choice input and return a list of selected app IDs"""
         logger.info(f"Using LLM to parse user choices: {user_input}")
