@@ -253,8 +253,8 @@ def {app_name}_app():
             tasks_formatted += f'            "{escaped_task}",\n'
         tasks_formatted += "        ]"
         
-        # Escape validation query
-        escaped_validation = test_case.validate_query.replace('"', '\\"')
+        # Use triple quotes for validation query to avoid escaping issues
+        validation_query = test_case.validate_query
         
         file_content += f'''
 @pytest.fixture
@@ -266,7 +266,7 @@ def {app_name}_test_case_{i}({app_name}_app):
         tools={tools_formatted},
         tasks={tasks_formatted},
         validate_query=(
-            "{escaped_validation}"
+            """{validation_query}"""
         )
     )
 
@@ -291,8 +291,3 @@ async def test_{app_name}_test_case_{i}({app_name}_test_case_{i}):
     print(f"✅ Generated {output_file} with {len(multi_test_case.test_cases)} test cases for {app_name}")
     for i, test_case in enumerate(multi_test_case.test_cases, 1):
         print(f"   Test Case {i}: {len(test_case.tools)} tools, {len(test_case.tasks)} tasks")
-
-
-if __name__ == "__main__":
-    # For backward compatibility, default to outlook
-    generate_test_cases("outlook", "OutlookApp", "tests")
