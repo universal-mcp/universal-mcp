@@ -620,5 +620,32 @@ def split_api(
         raise typer.Exit(1) from e
 
 
+@app.command()
+def generate_tests(
+    app_name: str = typer.Argument(..., help="Name of the app (e.g., 'outlook')"),
+    class_name: str = typer.Argument(..., help="Name of the app class (e.g., 'OutlookApp')"),
+    output_dir: str = typer.Option("tests", "--output", "-o", help="Output directory for the test file")
+):
+    """Generate automated test cases for an app"""
+    from universal_mcp.utils.openapi.test_generator import generate_test_cases
+    
+    console.print(f"[blue]Generating test cases for {app_name} ({class_name})...[/blue]")
+    
+    try:
+        response = generate_test_cases(app_name, class_name, output_dir)
+        console.print(f"[green]✅ Successfully generated {len(response.test_cases)} test cases![/green]")
+    except ImportError as e:
+        console.print(f"[red]Import Error: {e}[/red]")
+        console.print(f"[yellow]Make sure the module 'universal_mcp_{app_name}' is installed and available.[/yellow]")
+        raise typer.Exit(1)
+    except AttributeError as e:
+        console.print(f"[red]Attribute Error: {e}[/red]")
+        console.print(f"[yellow]Make sure the class '{class_name}' exists in 'universal_mcp_{app_name}.app'.[/yellow]")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[red]Error generating test cases: {e}[/red]")
+        raise typer.Exit(1) from e
+
+
 if __name__ == "__main__":
     app()
