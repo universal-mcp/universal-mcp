@@ -120,14 +120,18 @@ MANDATORY RULES:
 
 EXAMPLE DATA FLOW PATTERN (WITHIN SAME TEST CASE):
 Test Case 1:
-- Step 1: "Call 'get_user_info' to retrieve the current user's ID and profile data"
-- Step 2: "Using the user_id from step 1, call 'list_items' to get available items"
-- Step 3: "Take the first item_id from the list in step 2 and call 'update_item' with new data"
+- Step 1: "Get the user id."
+- Step 2: "Send an email to example@gmail.com saying subject: Hello and message: Hey Agentr"
+- Step 3: "List last 3 email in my inbox."
+validate_query = (
+    "Based on the conversation history, verify: "
+    "1. Was a user Id retrieved? "
+    "2. Was the email sent successfully (check for success response)? "
+    "3. Were exactly 3 emails listed from the inbox (check if response shows 3 numbered items)? "
+    "4. Does the sent email content 'Hey Agentr' appear in any of the listed email previews?"
+)
 
-Test Case 2 (INDEPENDENT):
-- Step 1: "Call 'get_user_info' to retrieve the current user's ID" (gets user_id independently)
-- Step 2: "Using the user_id from step 1, call 'create_item' to add a new item"
-- Step 3: "Using the item_id returned in step 2, call 'delete_item' to remove it"
+
 """
 
     user_prompt = f"""Generate 3 comprehensive test cases for the application using the available tools.
@@ -175,16 +179,7 @@ CRITICAL REQUIREMENTS:
    - Verify data integrity and consistency
    - Check for proper error messages and status codes
 
-EXAMPLE STRUCTURE:
-Test Case 1: [tool1, tool2, tool3]
-- Step 1: "Call 'tool1' to get foundational data (e.g., user_id, initial list)"
-- Step 2: "Using the data from step 1, call 'tool2' to perform action"
-- Step 3: "Using results from step 2, call 'tool3' to complete workflow"
 
-Test Case 2: [tool4, tool5, tool6] (INDEPENDENT)
-- Step 1: "Call 'tool4' to independently get needed data" (gets user_id again if needed)
-- Step 2: "Using the data from step 1, call 'tool5' to perform different action"  
-- Step 3: "Using results from step 2, call 'tool6' to finalize"
 
 Generate the 3 test cases now following these requirements, ensuring NO hardcoded placeholder values and complete test case independence."""
     
