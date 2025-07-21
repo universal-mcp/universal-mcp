@@ -82,6 +82,8 @@ class AutoAgent(BaseAgent):
         Analyze the given task and determine if it requires an external app or can be completed through general reasoning.
         If it requires an app, select the most relevant apps from the available list.
         If the task requires multiple different types of functionality, organize apps into logical sets.
+
+        If an app has previously been loaded, it should not be loaded again.
         """
         logger.debug("AutoAgent initialized successfully")
         self._graph = self._build_graph()
@@ -146,7 +148,7 @@ class AutoAgent(BaseAgent):
             user_choices = await self.parse_user_choices_with_llm(user_input, choice_data)
 
             # Execute with the parsed choices
-            result = await self.run(state["messages"], user_choices=user_choices)
+            result = await self.run(state["messages"], user_choices=user_choices, loaded_apps=current_loaded_apps)
 
             # Update loaded_apps with the user-selected apps
             current_loaded_apps.extend(user_choices)
@@ -305,10 +307,18 @@ class AutoAgent(BaseAgent):
         await self.platform_manager.load_actions_for_app(app_id, self.tool_manager)
 
     async def analyze_task_and_select_apps(
-        self, task: str, available_apps: list[dict], messages: list[BaseMessage] = None
+        self,
+        task: str,
+        available_apps: list[dict],
+        messages: list[BaseMessage] = None,
+        loaded_apps: list[str] | None = None,
     ) -> TaskAnalysis:
         """Combined task analysis and app selection to reduce LLM calls"""
         logger.info(f"Analyzing task and selecting apps: {task}")
+
+        # Handle mutable default argument
+        if loaded_apps is None:
+            loaded_apps = []
 
         # Get conversation context from messages
         context_summary = ""
@@ -341,7 +351,8 @@ class AutoAgent(BaseAgent):
         Consider the conversation context when making your decision. For example:
         - If the user previously mentioned specific apps or tools, prefer those
         - If the conversation is about a specific topic, choose apps relevant to that topic
-        - If the user is continuing a previous task, maintain consistency in app selection. Include previous app selection if it is still relevant.
+        - If the user is continuing a previous task, maintain consistency in app selection. You do not need to load the same app again.
+        The set of loaded apps is {loaded_apps}
         """
 
         # Use structured output with Pydantic model
@@ -402,16 +413,22 @@ class AutoAgent(BaseAgent):
         agent = create_react_agent(
             self.llm,
             tools=tools,
-            prompt=f"You are a helpful assistant that is given a list of actions for an app. You are also given a task. Use the tools to complete the task. Current time information: {timezone_info}",
+            prompt=f"You are a helpful assistant that is given a list of actions for an app. You are also given a task. Use the tools to complete the task. Current time information: {timezone_info}. Additionally, the following instructions have been given by the user: {self.instructions}",
         )
         logger.info("Agent created successfully")
 
         return agent
 
-    async def run(self, messages: list[BaseMessage], user_choices: list[str] = None):
+    async def run(
+        self, messages: list[BaseMessage], user_choices: list[str] | None = None, loaded_apps: list[str] | None = None
+    ):
         # Extract task from the last message
         if not messages or len(messages) == 0:
             raise ValueError("No messages provided")
+
+        # Handle mutable default argument
+        if loaded_apps is None:
+            loaded_apps = []
 
         task = messages[-1].content
         logger.info(f"Starting task execution: {task}")
@@ -429,7 +446,7 @@ class AutoAgent(BaseAgent):
         logger.info(f"Found {len(available_apps)} available apps")
 
         # Analyze task and select apps
-        task_analysis = await self.analyze_task_and_select_apps(task, available_apps, messages)
+        task_analysis = await self.analyze_task_and_select_apps(task, available_apps, messages, loaded_apps)
 
         if not task_analysis.requires_app:
             logger.info("Task does not require an app, using general reasoning")
@@ -465,8 +482,10 @@ if __name__ == "__main__":
 
     # Create platform manager
     platform_manager = AgentRPlatformManager(api_key=api_key)
+    want_instructions = input("Do you want to add a system prompt/instructions? (Y/N)")
+    instructions = "" if want_instructions.upper() == "N" else input("Enter your instructions/system prompt: ")
 
-    agent = AutoAgent("Auto Agent", "You are a helpful assistant", "gpt-4.1", platform_manager=platform_manager)
+    agent = AutoAgent("Auto Agent", instructions, "gpt-4.1", platform_manager=platform_manager)
 
     print("AutoAgent created successfully!")
     print(f"Agent name: {agent.name}")
