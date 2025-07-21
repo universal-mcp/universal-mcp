@@ -637,11 +637,11 @@ def generate_tests(
     except ImportError as e:
         console.print(f"[red]Import Error: {e}[/red]")
         console.print(f"[yellow]Make sure the module 'universal_mcp_{app_name}' is installed and available.[/yellow]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
     except AttributeError as e:
         console.print(f"[red]Attribute Error: {e}[/red]")
         console.print(f"[yellow]Make sure the class '{class_name}' exists in 'universal_mcp_{app_name}.app'.[/yellow]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
     except Exception as e:
         console.print(f"[red]Error generating test cases: {e}[/red]")
         raise typer.Exit(1) from e

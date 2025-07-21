@@ -1,12 +1,13 @@
-import os
 import importlib
+import os
 from pathlib import Path
-from pydantic import SecretStr, BaseModel
+
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import AzureChatOpenAI
+from pydantic import BaseModel, SecretStr
 
 from universal_mcp.tools import ToolManager
 from universal_mcp.tools.adapters import ToolFormat
-from langchain_core.messages import SystemMessage, HumanMessage
 
 
 class TestCaseOutput(BaseModel):
@@ -35,9 +36,9 @@ def generate_test_cases(app_name: str, class_name: str, output_dir: str = "tests
         app_class = getattr(module, class_name)
         app = app_class(integration=None)  # type: ignore
     except ImportError as e:
-        raise ImportError(f"Could not import universal_mcp_{app_name}.app: {e}")
+        raise ImportError(f"Could not import universal_mcp_{app_name}.app: {e}") from e
     except AttributeError as e:
-        raise AttributeError(f"Class {class_name} not found in universal_mcp_{app_name}.app: {e}")
+        raise AttributeError(f"Class {class_name} not found in universal_mcp_{app_name}.app: {e}") from e
     
     tool_manager = ToolManager()
     tool_manager.register_tools_from_app(app, tags=["important"])
