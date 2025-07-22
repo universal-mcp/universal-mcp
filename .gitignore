@@ -53,3 +53,6 @@ tmp/
 # Docs
 site/
 .cache/
+
+# langgraph temporary files
+.langgraph_api/

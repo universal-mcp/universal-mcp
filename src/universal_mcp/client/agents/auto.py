@@ -1,8 +1,10 @@
 import asyncio
 import datetime
+import os
 from typing import Annotated
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import create_react_agent
@@ -23,14 +25,20 @@ class State(TypedDict):
     choice_data: dict | None
 
 
+class AppSet(BaseModel):
+    """Represents a set of apps for a specific purpose"""
+
+    purpose: str
+    apps: list[str]
+    choice: bool  # Whether user choice is needed for this app set
+
+
 class TaskAnalysis(BaseModel):
     """Combined analysis of task type and app requirements"""
 
     requires_app: bool
     reasoning: str
-    # TODO: Should be made more readable, choice should be inside app_sets
-    app_sets: list[list[str]] = []  # Multiple sets of app choices
-    choice: list[bool] = []  # Whether user choice is needed for each app set
+    app_sets: list[AppSet] = []  # Multiple sets of app choices with purpose and choice flags
 
 
 class UserChoices(BaseModel):
@@ -50,7 +58,7 @@ class AutoAgent(BaseAgent):
 
         1. Whether the task requires an external application or can be handled through general reasoning
         2. If it requires an app, which apps are most relevant
-        3. If the task requires multiple different types of functionality, organize apps into logical sets
+        3. If the task requires multiple different types of functionality, organize apps into logical sets with purposes
 
         Tasks that typically require apps:
         - Searching the web for information
@@ -70,18 +78,24 @@ class AutoAgent(BaseAgent):
         - Creative writing or brainstorming
         - Logical problem solving
 
-        For complex tasks that require multiple types of functionality, organize apps into logical sets.
+        For complex tasks that require multiple types of functionality, organize apps into logical sets with clear purposes.
         For example, if a task requires both email and search functionality, you might create:
-        - app_sets: [["outlook", "google-mail"], ["serpapi", "tavily"]]
-        - choice: [True, False] (user chooses email app, all search apps are loaded)
+        - app_sets: [
+            {"purpose": "Email communication", "apps": ["outlook", "google-mail"], "choice": true},
+            {"purpose": "Web search", "apps": ["serpapi", "tavily"], "choice": false}
+          ]
 
-        The choice field should be an array of booleans with the same length as app_sets.
-        Set choice[i] to True if the user should choose from app_sets[i].
-        Set choice[i] to False if all apps in app_sets[i] should be automatically loaded.
+        Each app set should have:
+        - purpose: A clear description of what this set of apps is for
+        - apps: List of app IDs that serve this purpose
+        - choice: Boolean indicating if user choice is needed (true) or all apps should be auto-loaded (false)
+
+        Set choice to True if the user should choose from the apps in that set.
+        Set choice to False if all apps in that set should be automatically loaded.
 
         Analyze the given task and determine if it requires an external app or can be completed through general reasoning.
         If it requires an app, select the most relevant apps from the available list.
-        If the task requires multiple different types of functionality, organize apps into logical sets.
+        If the task requires multiple different types of functionality, organize apps into logical sets with clear purposes.
 
         If an app has previously been loaded, it should not be loaded again.
         """
@@ -101,15 +115,10 @@ class AutoAgent(BaseAgent):
             # Check if the response is choice data (dict) or a direct response (str)
             if isinstance(response, dict) and "requires_app" in response:
                 # This is choice data - store it and ask for user input
-                choice_message = "I need to load some apps to help with your request. Please provide your choices for the following app sets:\n\n"
+                app_sets = response.get("app_sets", [])
 
-                for i, app_set in enumerate(response.get("app_sets", []), 1):
-                    choice_message += f"Set {i}:\n"
-                    for app in app_set.get("apps", []):
-                        choice_message += (
-                            f"  - {app.get('name', app.get('id'))}: {app.get('description', 'No description')}\n"
-                        )
-                    choice_message += "\n"
+                # Use LLM to generate a natural choice message
+                choice_message = await self._generate_choice_message(app_sets, response["task"])
 
                 # Update loaded_apps with any auto-selected apps from the choice data
                 if "auto_selected_apps" in response:
@@ -203,9 +212,7 @@ class AutoAgent(BaseAgent):
 
         return app_details
 
-    async def get_app_choice_data(
-        self, app_sets: list[list[str]], choice_flags: list[bool], messages: list[BaseMessage]
-    ) -> dict:
+    async def get_app_choice_data(self, app_sets: list[AppSet], messages: list[BaseMessage]) -> dict:
         """Get app choice data for frontend display"""
         task = messages[-1].content
         logger.info(f"Preparing app choice data for task: {task}")
@@ -215,9 +222,9 @@ class AutoAgent(BaseAgent):
         # Load auto-selected apps immediately
         auto_selected_apps = []
 
-        for set_index, (app_set, needs_choice) in enumerate(zip(app_sets, choice_flags, strict=False), 1):
+        for set_index, app_set in enumerate(app_sets, 1):
             # Get detailed information about the apps in this set
-            app_details = await self.get_app_details(app_set)
+            app_details = await self.get_app_details(app_set.apps)
             available_apps = [app for app in app_details if app.get("available", False)]
 
             if not available_apps:
@@ -231,7 +238,7 @@ class AutoAgent(BaseAgent):
                 auto_selected_apps.append(selected)
                 continue
 
-            if not needs_choice:
+            if not app_set.choice:
                 # Automatically load all apps in this set
                 selected_apps = [app["id"] for app in available_apps]
                 selected_names = [app["name"] for app in available_apps]
@@ -240,7 +247,12 @@ class AutoAgent(BaseAgent):
                 continue
 
             # Add this set to choice data for frontend
-            set_data = {"set_index": set_index, "apps": available_apps, "needs_choice": needs_choice}
+            set_data = {
+                "set_index": set_index,
+                "purpose": app_set.purpose,
+                "apps": available_apps,
+                "needs_choice": app_set.choice,
+            }
             choice_data["app_sets"].append(set_data)
 
         # Load auto-selected apps immediately
@@ -257,7 +269,49 @@ class AutoAgent(BaseAgent):
 
         return choice_data
 
+    async def _generate_choice_message(self, app_sets: list[dict], task: str) -> str:
+        """Use LLM to generate a natural choice message for app selection"""
+        if not app_sets:
+            return "I need to load some apps to help with your request."
+
+        # Format app sets for the LLM
+        app_sets_info = []
+        for i, app_set in enumerate(app_sets, 1):
+            purpose = app_set.get("purpose", f"Set {i}")
+            apps_info = []
+            for app in app_set.get("apps", []):
+                app_name = app.get("name", app.get("id"))
+                app_desc = app.get("description", "No description")
+                apps_info.append(f"- {app_name}: {app_desc}")
+
+            app_sets_info.append(f"{purpose}:\n" + "\n".join(apps_info))
+
+        app_sets_text = "\n\n".join(app_sets_info)
+
+        prompt = f"""You are an agent capable of performing different actions to help the user. The user has asked you to perform a task, however, that is possible using multiple different apps. The task is:
+        {task}
+        The user has the following apps available to them, for performing the task they have asked for:
+
+{app_sets_text}
+The above may contain multiple sets of apps, each with a different purpose for performing the task. Now draft a message asking the user to select apps from each of these sets.
+Be friendly and concise, but list each set of apps clearly. Do not return any other text than the question to be asked to the user, since it will be directly sent to the user. That is, do not start with "Here is the message to be sent to the user:" or anything like that."""
+
+        try:
+            response = await self.llm.ainvoke(prompt)
+            return response.content
+        except Exception as e:
+            logger.error(f"Failed to generate choice message with LLM: {e}")
+            # Fallback to a simple message
+            if len(app_sets) == 1:
+                purpose = app_sets[0].get("purpose", "this task")
+                return (
+                    f"I need to know which app you'd prefer to use for {purpose}. Please choose from the options above."
+                )
+            else:
+                return "I need to load some apps to help with your request. Please let me know which apps you'd like me to use for each category."
+
     # TODO: Use a proper handler for this, the ui is going to send a proper json with choices
+
     async def parse_user_choices_with_llm(self, user_input: str, choice_data: dict) -> list[str]:
         """Use LLM to parse user choice input and return a list of selected app IDs"""
         logger.info(f"Using LLM to parse user choices: {user_input}")
@@ -265,9 +319,11 @@ class AutoAgent(BaseAgent):
         # Create a prompt for the LLM to parse the user's choice
         available_apps = []
         for i, app_set in enumerate(choice_data.get("app_sets", []), 1):
+            purpose = app_set.get("purpose", f"Set {i}")
+            available_apps.append(f"\n{purpose}:")
             for app in app_set.get("apps", []):
                 available_apps.append(
-                    f"Set {i}: {app.get('name', app.get('id'))} (ID: {app.get('id')}) - {app.get('description', 'No description')}"
+                    f"  - {app.get('name', app.get('id'))} (ID: {app.get('id')}) - {app.get('description', 'No description')}"
                 )
 
         prompt = f"""
@@ -346,7 +402,7 @@ class AutoAgent(BaseAgent):
 
         Determine if this task requires an external application or can be completed through general reasoning and knowledge.
         If it requires an app, select the most relevant apps from the available list.
-        If the task requires multiple different types of functionality, organize apps into logical sets using the app_sets field.
+        If the task requires multiple different types of functionality, organize apps into logical sets with clear purposes using the app_sets field.
 
         Consider the conversation context when making your decision. For example:
         - If the user previously mentioned specific apps or tools, prefer those
@@ -364,7 +420,6 @@ class AutoAgent(BaseAgent):
         logger.info(f"Reasoning: {response.reasoning}")
         if response.requires_app:
             logger.info(f"App sets: {response.app_sets}")
-            logger.info(f"Choice flags: {response.choice}")
 
         return response
 
@@ -458,9 +513,10 @@ class AutoAgent(BaseAgent):
             return await self._execute_task_with_agent(messages or [])
 
         # Check if choices are required
-        choice_data = await self.get_app_choice_data(task_analysis.app_sets, task_analysis.choice, messages)
+        choice_data = await self.get_app_choice_data(task_analysis.app_sets, messages)
         choice_data["requires_app"] = True
         choice_data["reasoning"] = task_analysis.reasoning
+        choice_data["task"] = task
 
         # If no choices are needed (all apps auto-selected), execute directly
         if not choice_data["app_sets"]:
@@ -471,9 +527,24 @@ class AutoAgent(BaseAgent):
         return choice_data
 
 
+async def graph(config: RunnableConfig):
+    # Get API key for the model
+    api_key = os.getenv("AUTO_AGENT_API_KEY", "test_api_key")
+    if api_key == "test_api_key":
+        api_key = input("Enter your API key: ")
+
+    # Create platform manager for AutoAgent
+    platform_manager = AgentRPlatformManager(api_key=api_key)
+
+    # Create AutoAgent with the configured model and system prompt
+    auto_agent = AutoAgent(name="Auto Agent", instructions="", model="gpt-4.1", platform_manager=platform_manager)
+
+    # Return the AutoAgent's graph
+    return auto_agent.graph
+
+
 if __name__ == "__main__":
     # Test the AutoAgent
-    import os
 
     # Get API key from environment or use a placeholder
     api_key = os.getenv("AUTO_AGENT_API_KEY", "test_api_key")

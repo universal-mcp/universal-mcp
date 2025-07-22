@@ -1,0 +1,8 @@
+{
+    "dependencies": ["."],
+    "graphs": {
+      "agent": "./src/universal_mcp/client/agents/auto.py:graph"
+    },
+    "env": ".env",
+    "python_version": "3.13"
+  }
