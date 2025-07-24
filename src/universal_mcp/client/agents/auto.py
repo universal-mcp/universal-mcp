@@ -1,9 +1,9 @@
 import asyncio
 import datetime
 import os
-from typing import Annotated
+from typing import Annotated, cast
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
@@ -51,7 +51,9 @@ class AutoAgent(BaseAgent):
     def __init__(self, name: str, instructions: str, model: str, platform_manager: PlatformManager):
         super().__init__(name, instructions, model)
         self.platform_manager = platform_manager
-        self.llm = get_llm(model)
+        self.llm_tools = get_llm(model, tags=["tools"])
+        self.llm_choice = get_llm(model, tags=["choice"])
+        self.llm_quiet = get_llm(model, tags=["quiet"])
         self.tool_manager = ToolManager()
 
         self.task_analysis_prompt = """You are a task analysis expert. Given a task description and available apps, determine:
@@ -189,6 +191,20 @@ class AutoAgent(BaseAgent):
     def graph(self):
         return self._graph
 
+    async def stream(self, thread_id: str, user_input: str):
+        async for event, metadata in self.graph.astream(
+            {"messages": [{"role": "user", "content": user_input}]},
+            config={"configurable": {"thread_id": thread_id}},
+            stream_mode="messages",
+        ):
+            logger.info(f"Stream event: {event}")
+            logger.info(f"Stream metadata: {metadata}")
+            if "tags" in metadata and "quiet" in metadata["tags"]:
+                pass
+            else:
+                event = cast(AIMessageChunk, event)
+                yield event
+
     async def get_app_details(self, app_ids: list[str]) -> list[dict]:
         """Get detailed information about apps for better choice presentation"""
         app_details = []
@@ -297,7 +313,7 @@ The above may contain multiple sets of apps, each with a different purpose for p
 Be friendly and concise, but list each set of apps clearly. Do not return any other text than the question to be asked to the user, since it will be directly sent to the user. That is, do not start with "Here is the message to be sent to the user:" or anything like that."""
 
         try:
-            response = await self.llm.ainvoke(prompt)
+            response = await self.llm_choice.ainvoke(prompt)
             return response.content
         except Exception as e:
             logger.error(f"Failed to generate choice message with LLM: {e}")
@@ -347,7 +363,7 @@ Be friendly and concise, but list each set of apps clearly. Do not return any ot
 
         try:
             # Use structured output with Pydantic model
-            structured_llm = self.llm.with_structured_output(UserChoices)
+            structured_llm = self.llm_quiet.with_structured_output(UserChoices)
             parsed_choices = await structured_llm.ainvoke(prompt)
 
             logger.info(f"LLM parsed choices: {parsed_choices}")
@@ -412,7 +428,7 @@ Be friendly and concise, but list each set of apps clearly. Do not return any ot
         """
 
         # Use structured output with Pydantic model
-        structured_llm = self.llm.with_structured_output(TaskAnalysis)
+        structured_llm = self.llm_quiet.with_structured_output(TaskAnalysis)
         response = await structured_llm.ainvoke(prompt)
         logger.debug(f"Task analysis response: {response}")
 
@@ -466,7 +482,7 @@ Be friendly and concise, but list each set of apps clearly. Do not return any ot
         timezone_info = f"Current local time: {current_time.strftime('%Y-%m-%d %H:%M:%S')} | UTC time: {utc_time.strftime('%Y-%m-%d %H:%M:%S')}"
 
         agent = create_react_agent(
-            self.llm,
+            self.llm_tools,
             tools=tools,
             prompt=f"You are a helpful assistant that is given a list of actions for an app. You are also given a task. Use the tools to complete the task. Current time information: {timezone_info}. Additionally, the following instructions have been given by the user: {self.instructions}",
         )
