@@ -313,7 +313,7 @@ The above may contain multiple sets of apps, each with a different purpose for p
 Be friendly and concise, but list each set of apps clearly. Do not return any other text than the question to be asked to the user, since it will be directly sent to the user. That is, do not start with "Here is the message to be sent to the user:" or anything like that."""
 
         try:
-            response = await self.llm_choice.ainvoke(prompt)
+            response = await self.llm_quiet.ainvoke(prompt)
             return response.content
         except Exception as e:
             logger.error(f"Failed to generate choice message with LLM: {e}")
