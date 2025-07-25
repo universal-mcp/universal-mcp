@@ -25,6 +25,7 @@ def convert_tool_to_mcp_tool(
         description=tool.description or "",
         inputSchema=tool.parameters,
         outputSchema=tool.output_schema,
+        annotations=tool.annotations,
     )
     logger.debug(f"Successfully converted tool '{tool.name}' to MCP format")
     return mcp_tool
