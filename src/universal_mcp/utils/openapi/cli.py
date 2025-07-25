@@ -647,5 +647,23 @@ def generate_tests(
         raise typer.Exit(1) from e
 
 
+@app.command()
+def postprocess(
+    input_file: Path = typer.Argument(..., help="Path to the input API client Python file"),
+    output_file: Path = typer.Argument(..., help="Path to save the postprocessed API client Python file"),
+):
+    """Postprocess API client: add hint tags to docstrings based on HTTP method."""
+    from universal_mcp.utils.openapi.postprocessor import add_hint_tags_to_docstrings
+    if not input_file.exists() or not input_file.is_file():
+        console.print(f"[red]Error: Input file {input_file} does not exist or is not a file.[/red]")
+        raise typer.Exit(1)
+    try:
+        add_hint_tags_to_docstrings(str(input_file), str(output_file))
+        console.print(f"[green]Successfully postprocessed {input_file} and saved to {output_file}[/green]")
+    except Exception as e:
+        console.print(f"[red]Error during postprocessing: {e}[/red]")
+        raise typer.Exit(1) from e
+
+
 if __name__ == "__main__":
     app()
