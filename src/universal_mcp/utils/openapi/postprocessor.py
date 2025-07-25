@@ -1,6 +1,6 @@
 import ast
-from pathlib import Path
 import re
+
 
 def add_hint_tags_to_docstrings(input_path: str, output_path: str):
     """
@@ -10,7 +10,7 @@ def add_hint_tags_to_docstrings(input_path: str, output_path: str):
     Does not alter other tags in the docstring.
     Writes the modified code to output_path.
     """
-    with open(input_path, 'r', encoding='utf-8') as f:
+    with open(input_path, encoding='utf-8') as f:
         source = f.read()
     tree = ast.parse(source)
     
@@ -20,12 +20,12 @@ def add_hint_tags_to_docstrings(input_path: str, output_path: str):
             http_methods = []
             
             def visit_node(n):
-                if isinstance(n, ast.Call):
-                    if isinstance(n.func, ast.Attribute):
-                        if isinstance(n.func.value, ast.Name) and n.func.value.id == 'self':
-                            method_name = n.func.attr
-                            if method_name in ['_get', '_post', '_put', '_patch', '_delete']:
-                                http_methods.append(method_name[1:]) 
+                if (isinstance(n, ast.Call) and 
+                    isinstance(n.func, ast.Attribute) and
+                    isinstance(n.func.value, ast.Name) and 
+                    n.func.value.id == 'self' and
+                    n.func.attr in ['_get', '_post', '_put', '_patch', '_delete']):
+                    http_methods.append(n.func.attr[1:]) 
                 for child in ast.iter_child_nodes(n):
                     visit_node(child)
             
