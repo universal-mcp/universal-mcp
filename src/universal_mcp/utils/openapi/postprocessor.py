@@ -137,7 +137,7 @@ Your answer (one word only):"""
             
             try:
                 response = litellm.completion(
-                    model="perplexity/sonar",
+                    model="perplexity/sonar-pro",
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
@@ -174,7 +174,6 @@ Your answer (one word only):"""
     print(f"Functions processed by LLM: {functions_processed_by_llm}")
     print(f"Functions successfully tagged: {functions_tagged}")
     print(f"LLM failures: {llm_failures}")
-    print(f"Success rate: {(functions_tagged/total_functions*100):.1f}% of all functions")
     if functions_with_http_methods > 0:
         print(f"LLM success rate: {(functions_processed_by_llm/functions_with_http_methods*100):.1f}% of HTTP functions")
     print(f"{'='*60}")
