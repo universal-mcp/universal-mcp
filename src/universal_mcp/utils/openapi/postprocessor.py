@@ -110,7 +110,12 @@ def add_hint_tags_to_docstrings(input_path: str, output_path: str):
             - 'readOnlyHint': for functions that are safe, read-only, or non-destructive
             - 'destructiveHint': for functions that modify data, delete resources, or are potentially dangerous
             
-            Think through the function's purpose, HTTP method, parameters, and docstring to make your decision.
+            IMPORTANT: HTTP method alone is NOT enough to determine the tag. You must analyze the function's actual purpose.
+            
+            Common patterns:
+            - GET requests are usually readOnlyHint (but not always)
+            - DELETE requests are usually destructiveHint
+            - POST/PUT/PATCH can be either depending on what they actually do
             
             Respond with ONLY one word: either 'readOnlyHint' or 'destructiveHint'"""
             
@@ -121,17 +126,34 @@ HTTP Method: {http_method}
 Parameters: {', '.join(parameters)}
 Docstring: {docstring[:1000]}...
 
-
 Based on this information, should this function get 'readOnlyHint' or 'destructiveHint'?
 
 Think through:
-1. What does this function do? (from name and docstring)
-2. Is it modifying/deleting data or just reading?
-3. Could it be potentially dangerous or destructive
-            # Example: Not all PUT or POST methods are destructive.
-            # For example, a "like" function may use PUT to register a like, but this is not truly destructive.
-            # Similarly, sometimes a POST request is used to fetch or search for something, not to modify data.
+1. What does this function actually do? (from name and docstring)
+2. Is it modifying/deleting data or just reading/fetching?
+3. Could it be potentially dangerous or destructive?
 
+GUIDELINES for readOnlyHint (safe, non-destructive):
+- Functions that only READ or FETCH data
+- Functions that VALIDATE or CHECK things without saving
+- Functions that CREATE DRAFTS or PREPARE content (but don't send/publish)
+- Functions that EXPORT or DOWNLOAD data
+- Functions that perform HEALTH CHECKS or PING operations
+- Functions that REFRESH tokens or sessions
+- Functions that SEARCH or FILTER data
+- Functions that UPDATE PREFERENCES (low-risk personal settings)
+
+GUIDELINES for destructiveHint (modifying, potentially dangerous):
+- Functions that CREATE new resources (users, posts, files)
+- Functions that UPDATE important data (user profiles, system settings)
+- Functions that DELETE resources
+- Functions that SEND emails, messages, or notifications
+- Functions that UPLOAD files or data
+- Functions that CHANGE system state or configurations
+- Functions that PERFORM administrative actions
+- Functions that MODIFY database records
+
+Focus on the FUNCTION'S PURPOSE, not just the HTTP method. A POST request can be safe if it's just preparing/validating, and a GET request can be dangerous if it triggers side effects.
 
 Your answer (one word only):"""
             
