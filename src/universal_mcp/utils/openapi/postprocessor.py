@@ -13,7 +13,6 @@ def add_hint_tags_to_docstrings(input_path: str, output_path: str):
     with open(input_path, encoding='utf-8') as f:
         source = f.read()
     tree = ast.parse(source)
-    
     class DocstringTagAdder(ast.NodeTransformer):
         def _find_http_method(self, node):
             """Find the HTTP method used in the function body."""
@@ -67,5 +66,21 @@ def add_hint_tags_to_docstrings(input_path: str, output_path: str):
     new_tree = DocstringTagAdder().visit(tree)
     ast.fix_missing_locations(new_tree)
     new_source = ast.unparse(new_tree)
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(new_source)
+    
+    # Format with Black in memory
+    try:
+        import black
+        formatted_content = black.format_file_contents(new_source, fast=False, mode=black.FileMode())
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(formatted_content)
+        print(f"Black formatting applied successfully to: {output_path}")
+    except ImportError:
+        print(f"Black not installed. Skipping formatting for: {output_path}")
+        # Write unformatted version if Black is not available
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(new_source)
+    except Exception as e:
+        print(f"Black formatting failed for {output_path}: {e}")
+        # Write unformatted version if Black formatting fails
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(new_source)
