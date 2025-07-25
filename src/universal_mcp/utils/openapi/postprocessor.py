@@ -6,9 +6,12 @@ import litellm
 
 def add_hint_tags_to_docstrings(input_path: str, output_path: str):
     """
-    Reads a Python API client file, inspects each function, and adds a tag to the docstring:
-    - 'readOnlyHint' for GET/POST/PUT
-    - 'destructiveHint' for DELETE
+    Reads a Python API client file, inspects each function, and adds appropriate tags to the docstring:
+    - 'readOnlyHint': Tool does not modify its environment (fetching, reading, etc.)
+    - 'destructiveHint': Tool may perform destructive updates
+    - 'openWorldHint': Tool interacts with external entities (3rd party APIs)
+    
+    Functions can have multiple tags (e.g., 'readOnlyHint, openWorldHint').
     Does not alter other tags in the docstring.
     Writes the modified code to output_path.
     """
@@ -60,7 +63,7 @@ def add_hint_tags_to_docstrings(input_path: str, output_path: str):
                 
                 if tag_to_add:
                     functions_processed_by_llm += 1
-                    print(f"  └─ LLM suggested tag: {tag_to_add}")
+                    print(f"  └─ LLM suggested tags: {tag_to_add}")
                 else:
                     print("  └─ LLM failed or returned invalid response")
             else:
@@ -75,9 +78,14 @@ def add_hint_tags_to_docstrings(input_path: str, output_path: str):
                         tags_line = tags_match.group(1).strip()
                         # Parse existing tags
                         existing_tags = [tag.strip() for tag in tags_line.split(',')]
-                        if tag_to_add not in existing_tags:
-                            # Add the new tag to the existing list
-                            new_tags_line = tags_line.rstrip() + f", {tag_to_add}"
+                        
+                        # Parse new tags to add
+                        new_tags_to_add = [tag.strip() for tag in tag_to_add.split(',')]
+                        tags_to_add = [tag for tag in new_tags_to_add if tag not in existing_tags]
+                        
+                        if tags_to_add:
+                            # Add the new tags to the existing list
+                            new_tags_line = tags_line.rstrip() + f", {', '.join(tags_to_add)}"
                             new_docstring = re.sub(
                                 r'(Tags:\s*)(.+)',
                                 r'\1' + new_tags_line,
@@ -88,9 +96,9 @@ def add_hint_tags_to_docstrings(input_path: str, output_path: str):
                             if isinstance(node.body[0], ast.Expr) and isinstance(node.body[0].value, ast.Constant):
                                 node.body[0].value.value = new_docstring
                                 functions_tagged += 1
-                                print(f"  └─ ✅ Tag '{tag_to_add}' added successfully")
+                                print(f"  └─ ✅ Tags '{', '.join(tags_to_add)}' added successfully")
                         else:
-                            print(f"  └─ ⚠️  Tag '{tag_to_add}' already exists - skipping")
+                            print(f"  └─ ⚠️  All tags '{tag_to_add}' already exist - skipping")
                     else:
                         print("  └─ ⚠️  No 'Tags:' section found in docstring - skipping")
                 else:
@@ -104,58 +112,89 @@ def add_hint_tags_to_docstrings(input_path: str, output_path: str):
             docstring = ast.get_docstring(node, clean=False) or ""
             parameters = [arg.arg for arg in node.args.args if arg.arg != 'self']
             
-            system_prompt = """You are an expert at analyzing API functions and determining their safety level.
+            system_prompt = """You are an expert at analyzing API functions and determining their characteristics.
             
-            Your task is to analyze each function and decide which tag to add:
-            - 'readOnlyHint': for functions that are safe, read-only, or non-destructive
-            - 'destructiveHint': for functions that modify data, delete resources, or are potentially dangerous
+            Your task is to analyze each function and decide which tags to add:
+            - 'readOnlyHint': Tool does not modify its environment (fetching, reading, etc.)
+            - 'destructiveHint': Tool may perform destructive updates
+            - 'openWorldHint': Tool interacts with external entities (3rd party APIs)
             
-            IMPORTANT: HTTP method alone is NOT enough to determine the tag. You must analyze the function's actual purpose.
+            IMPORTANT: 
+            - HTTP method alone is NOT enough to determine the tags. You must analyze the function's actual purpose.
+            - Since these are all API client functions, MOST functions should have 'openWorldHint' (they interact with external APIs).
+            - Only functions that are purely local operations (like reading local files) should NOT have 'openWorldHint'.
             
-            Common patterns:
-            - GET requests are usually readOnlyHint (but not always)
-            - DELETE requests are usually destructiveHint
-            - POST/PUT/PATCH can be either depending on what they actually do
+            Functions can have multiple tags. For example:
+            - A function that reads from Gmail API: 'readOnlyHint, openWorldHint'
+            - A function that deletes from GitHub API: 'destructiveHint, openWorldHint'
+            - A function that only reads local files: 'readOnlyHint' (no openWorldHint)
             
-            Respond with ONLY one word: either 'readOnlyHint' or 'destructiveHint'"""
+            Respond with comma-separated tags (e.g., 'readOnlyHint, openWorldHint') or 'none' if no tags apply."""
             
-            user_prompt = f"""Analyze this API function and decide which tag to add:
+            user_prompt = f"""Analyze this API function and decide which tags to add:
 
 Function Name: {function_name}
 HTTP Method: {http_method}
 Parameters: {', '.join(parameters)}
 Docstring: {docstring[:1000]}...
 
-Based on this information, should this function get 'readOnlyHint' or 'destructiveHint'?
+Based on this information, which tags should this function get?
 
 Think through:
 1. What does this function actually do? (from name and docstring)
-2. Is it modifying/deleting data or just reading/fetching?
-3. Could it be potentially dangerous or destructive?
+2. Does it modify its environment or just read/fetch?
+3. Does it interact with external entities (3rd party APIs)?
+4. Could it be potentially destructive?
 
-GUIDELINES for readOnlyHint (safe, non-destructive):
+GUIDELINES for readOnlyHint (does not modify environment):
 - Functions that only READ or FETCH data
 - Functions that VALIDATE or CHECK things without saving
-- Functions that CREATE DRAFTS or PREPARE content (but don't send/publish)
 - Functions that EXPORT or DOWNLOAD data
 - Functions that perform HEALTH CHECKS or PING operations
 - Functions that REFRESH tokens or sessions
 - Functions that SEARCH or FILTER data
-- Functions that UPDATE PREFERENCES (low-risk personal settings)
+- Functions that GET information without changing anything
+- Functions that LIST or RETRIEVE data
 
-GUIDELINES for destructiveHint (modifying, potentially dangerous):
-- Functions that CREATE new resources (users, posts, files)
-- Functions that UPDATE important data (user profiles, system settings)
-- Functions that DELETE resources
-- Functions that SEND emails, messages, or notifications
-- Functions that UPLOAD files or data
-- Functions that CHANGE system state or configurations
-- Functions that PERFORM administrative actions
-- Functions that MODIFY database records
+GUIDELINES for destructiveHint (DESTROYS or DELETES things):
+- Functions that DELETE resources or data
+- Functions that REMOVE or ERASE things
+- Functions that DESTROY or TERMINATE resources
+- Functions that CANCEL or ABORT operations
+- Functions that REVOKE or INVALIDATE things
 
-Focus on the FUNCTION'S PURPOSE, not just the HTTP method. A POST request can be safe if it's just preparing/validating, and a GET request can be dangerous if it triggers side effects.
+IMPORTANT: 
+- A function should NOT have both readOnlyHint and destructiveHint - they are mutually exclusive.
+- Creating, sending, or updating things is NOT destructive - only deleting/destroying is destructive.
+- Functions that CREATE, SEND, UPDATE, or MODIFY should NOT get destructiveHint.
 
-Your answer (one word only):"""
+GUIDELINES for openWorldHint (interacts with external entities):
+- Functions that interact with 3rd party APIs (Gmail, Outlook, Reddit, GitHub, etc.)
+- Functions that make external HTTP requests
+- Functions that connect to external services
+- Functions that interact with cloud services
+- Functions that communicate with external databases
+- Functions that call external webhooks
+- MOST API client functions will have this tag since they interact with external APIs
+
+NOT openWorldHint (local operations):
+- Functions that only read local files
+- Functions that process local data
+- Functions that work with local databases
+- Functions that manipulate local variables
+- Functions that only work with local system resources
+
+Examples:
+- Gmail API read function: 'readOnlyHint, openWorldHint'
+- Gmail API send email: 'openWorldHint' (not destructive, just sending)
+- Gmail API create draft: 'openWorldHint' (not destructive, just creating)
+- GitHub API delete repository: 'destructiveHint, openWorldHint'
+- Local file reader: 'readOnlyHint' (no openWorldHint)
+- Local data processor: 'none' (no tags)
+
+Focus on the FUNCTION'S PURPOSE, not just the HTTP method.
+
+Your answer (comma-separated tags or 'none'):"""
             
             try:
                 response = litellm.completion(
@@ -165,13 +204,28 @@ Your answer (one word only):"""
                         {"role": "user", "content": user_prompt}
                     ],
                     temperature=0.1,
-                    max_tokens=10
+                    max_tokens=50
                 )
                 
-                suggested_tag = response.choices[0].message.content.strip().lower()
+                suggested_tags = response.choices[0].message.content.strip().lower()
                 
-                if suggested_tag in ['readonlyhint', 'destructivehint']:
-                    return 'readOnlyHint' if suggested_tag == 'readonlyhint' else 'destructiveHint'
+                if suggested_tags == 'none':
+                    return None
+                
+                # Parse comma-separated tags
+                tag_list = [tag.strip() for tag in suggested_tags.split(',')]
+                valid_tags = []
+                
+                for tag in tag_list:
+                    if tag == 'readonlyhint':
+                        valid_tags.append('readOnlyHint')
+                    elif tag == 'destructivehint':
+                        valid_tags.append('destructiveHint')
+                    elif tag == 'openworldhint':
+                        valid_tags.append('openWorldHint')
+                
+                if valid_tags:
+                    return ', '.join(valid_tags)
                 else:
                     # If LLM gives unexpected response, return None (no tag added)
                     return None
