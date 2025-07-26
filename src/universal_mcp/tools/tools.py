@@ -45,7 +45,6 @@ class Tool(BaseModel):
         description="Descriptions of exceptions raised from the docstring",
     )
     tags: list[str] = Field(default_factory=list, description="Tags for categorizing the tool")
-    annotations: dict[str, Any] | None = Field(default=None, description="Tool annotations based on tags")
     parameters: dict[str, Any] = Field(description="JSON schema for tool parameters")
     output_schema: dict[str, Any] | None = Field(default=None, description="JSON schema for tool output")
     fn_metadata: FuncMetadata = Field(
@@ -83,16 +82,6 @@ class Tool(BaseModel):
                 if isinstance(arg_details, dict):
                     simple_args_descriptions[arg_name] = arg_details.get("description") or ""
 
-        annotations = None
-        if parsed_doc["tags"]:
-            annotation_hints = ["readOnlyHint", "destructiveHint", "openWorldHint"]
-            found_annotations = {}
-            for tag in parsed_doc["tags"]:
-                if tag in annotation_hints:
-                    found_annotations[tag] = True
-            if found_annotations:
-                annotations = found_annotations
-
         return cls(
             fn=fn,
             name=func_name,
@@ -101,7 +90,6 @@ class Tool(BaseModel):
             returns_description=parsed_doc["returns"],
             raises_description=parsed_doc["raises"],
             tags=parsed_doc["tags"],
-            annotations=annotations,
             parameters=parameters,
             output_schema=output_schema,
             fn_metadata=func_arg_metadata,
