@@ -100,19 +100,5 @@ if __name__ == "__main__":
     agent = HilAgent(
         "Hil Agent", "You are a friendly agent that asks for the user's name and greets them.", "openrouter/auto"
     )
-    # graph = agent.graph
-    # config = {"configurable": {"thread_id": uuid.uuid4()}}
-    # while True:
-    #     state = agent.graph.get_state(config=config)
-    #     if state.interrupts:
-    #         value = handle_interrupt(state.interrupts[0])
-    #         result = graph.invoke(Command(resume=value), config=config)
-    #     else:
-    #         user_input = input("You: ")
-    #         result = graph.invoke({"messages": [{"role": "user", "content": user_input}]}, config=config)
-    #     interrupts = result.get("__interrupt__")
-    #     if not interrupts:
-    #         to_print = result.get("messages")[-1].content
-    #         print(to_print)
 
     asyncio.run(agent.run_interactive())

@@ -18,6 +18,15 @@ from universal_mcp.client.agents.platform_manager import AgentRPlatformManager, 
 from universal_mcp.tools import ToolManager
 from universal_mcp.tools.adapters import ToolFormat
 
+# Auto Agent
+# Working
+# 1. For every message, and given list of tools, figure out if external tools are needed
+# 2. In case of extra tools needed, make a list of tools and send to subgraph
+# 3. In case no tool needed forward to simple chatbot
+
+# Subgraph
+# In case extra tools are needed, ask for clarification from user what tools are required
+
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]

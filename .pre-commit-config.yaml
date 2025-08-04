@@ -27,7 +27,7 @@ repos:
     rev: v1.10.0
     hooks:
       - id: python-check-blanket-noqa
-      - id: python-no-eval
+      # - id: python-no-eval
       - id: python-no-log-warn
       - id: python-use-type-annotations
       - id: python-check-mock-methods

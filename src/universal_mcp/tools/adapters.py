@@ -9,6 +9,7 @@ from universal_mcp.tools.tools import Tool
 class ToolFormat(str, Enum):
     """Supported tool formats."""
 
+    NATIVE = "native"
     MCP = "mcp"
     LANGCHAIN = "langchain"
     OPENAI = "openai"

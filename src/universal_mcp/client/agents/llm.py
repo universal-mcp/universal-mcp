@@ -1,23 +1,8 @@
-import os
-
-from langchain_openai import AzureChatOpenAI, ChatOpenAI
+from langchain_openai import AzureChatOpenAI
 
 
 def get_llm(model: str, tags: list[str] = None):
-    return AzureChatOpenAI(model="gpt-4o", api_version="2024-12-01-preview", azure_deployment="gpt-4o", tags=tags)
-    llm = ChatOpenAI(
-        openai_api_key=os.getenv("OPENAI_API_KEY"),
-        openai_api_base="https://openrouter.ai/api/v1",
-        model_name="gpt-4o",
-        tags=tags,
-        # model_kwargs={
-        #     "headers": {
-        #         "HTTP-Referer": "https://wingmen.app",
-        #         "X-Title": "Wingmen",
-        #     },
-        # },
-    )
-    return llm
+    return AzureChatOpenAI(model=model, api_version="2024-12-01-preview", azure_deployment=model, tags=tags)
 
 
 if __name__ == "__main__":

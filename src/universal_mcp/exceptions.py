@@ -26,6 +26,10 @@ class ToolError(Exception):
     pass
 
 
+class ToolNotFound(Exception):
+    """Raised when a tool is not found"""
+
+
 class InvalidSignature(Exception):
     """Raised when a cryptographic signature verification fails.
 

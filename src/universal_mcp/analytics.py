@@ -79,7 +79,6 @@ class Analytics:
         app_name: str,
         status: str,
         error: str = None,
-        user_id=None,  # Note: user_id is captured in PostHog but not used from this param
     ):
         """Tracks an event when a tool is called within an application.
 
@@ -92,9 +91,6 @@ class Analytics:
             status (str): The status of the tool call (e.g., "success", "error").
             error (str, optional): The error message if the tool call failed.
                                  Defaults to None.
-            user_id (str, optional): An optional user identifier.
-                                   Note: Currently, the class uses an internally
-                                   generated user_id for PostHog events.
         """
         if not self.enabled:
             return

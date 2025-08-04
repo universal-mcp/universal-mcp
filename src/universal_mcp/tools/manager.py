@@ -5,7 +5,7 @@ from loguru import logger
 
 from universal_mcp.analytics import analytics
 from universal_mcp.applications.application import BaseApplication
-from universal_mcp.exceptions import ToolError
+from universal_mcp.exceptions import ToolNotFound
 from universal_mcp.tools.adapters import (
     ToolFormat,
     convert_tool_to_langchain_tool,
@@ -81,7 +81,8 @@ def _filter_by_tags(tools: list[Tool], tags: list[str] | None) -> list[Tool]:
 
 
 class ToolManager:
-    """Manages FastMCP tools.
+    """
+    Manages tools
 
     This class provides functionality for registering, managing, and executing tools.
     It supports multiple tool formats and provides filtering capabilities based on names and tags.
@@ -94,7 +95,6 @@ class ToolManager:
         Args:
             warn_on_duplicate_tools: Whether to warn when duplicate tool names are detected.
         """
-        self._tools_by_app: dict[str, dict[str, Tool]] = {}
         self._all_tools: dict[str, Tool] = {}
         self.warn_on_duplicate_tools = warn_on_duplicate_tools
         self.default_format = default_format
@@ -110,25 +110,10 @@ class ToolManager:
         """
         return self._all_tools.get(name)
 
-    def get_tools_by_app(self, app_name: str | None = None) -> list[Tool]:
-        """Get all tools from a specific application.
-
-        Args:
-            app_name: The name of the application to get tools from.
-
-        Returns:
-            List of tools from the specified application.
-        """
-        if app_name:
-            return list(self._tools_by_app.get(app_name, {}).values())
-        else:
-            return list(self._all_tools.values())
-
     def list_tools(
         self,
         format: ToolFormat | None = None,
         tags: list[str] | None = None,
-        app_name: str | None = None,
         tool_names: list[str] | None = None,
     ) -> list:
         """List all registered tools in the specified format.
@@ -149,12 +134,14 @@ class ToolManager:
             format = self.default_format
 
         # Start with app-specific tools or all tools
-        tools = self.get_tools_by_app(app_name)
+        tools = list(self._all_tools.values())
         # Apply filters
         tools = _filter_by_tags(tools, tags)
         tools = _filter_by_name(tools, tool_names)
 
         # Convert to requested format
+        if format == ToolFormat.NATIVE:
+            return [tool.fn for tool in tools]
         if format == ToolFormat.MCP:
             return [convert_tool_to_mcp_tool(tool) for tool in tools]
         elif format == ToolFormat.LANGCHAIN:
@@ -196,11 +183,6 @@ class ToolManager:
         logger.debug(f"Adding tool: {tool.name} to app: {app_name}")
         self._all_tools[tool.name] = tool
 
-        # Group tool by application
-        if app_name not in self._tools_by_app:
-            self._tools_by_app[app_name] = {}
-        self._tools_by_app[app_name][tool.name] = tool
-
         return tool
 
     def register_tools(self, tools: list[Tool], app_name: str = DEFAULT_APP_NAME) -> None:
@@ -230,23 +212,13 @@ class ToolManager:
             True if the tool was removed, False if it didn't exist.
         """
         if name in self._all_tools:
-            self._all_tools[name]
             del self._all_tools[name]
-
-            # Remove from app-specific grouping if present
-            for app_tools in self._tools_by_app.values():
-                if name in app_tools:
-                    del app_tools[name]
-                    # PERFORMANCE: Break after finding and removing to avoid unnecessary iterations
-                    break
-
             return True
         return False
 
     def clear_tools(self) -> None:
         """Remove all registered tools."""
         self._all_tools.clear()
-        self._tools_by_app.clear()
 
     def register_tools_from_app(
         self,
@@ -283,7 +255,6 @@ class ToolManager:
             try:
                 tool_instance = Tool.from_function(function)
                 tool_instance.name = f"{app.name}{TOOL_NAME_SEPARATOR}{tool_instance.name}"
-                # BUG FIX: Avoid duplicate tags - check if app.name is already in tags before adding
                 if app.name not in tool_instance.tags:
                     tool_instance.tags.append(app.name)
                 tools.append(tool_instance)
@@ -291,15 +262,12 @@ class ToolManager:
                 tool_name = getattr(function, "__name__", "unknown")
                 logger.error(f"Failed to create Tool from '{tool_name}' in {app.name}: {e}")
 
-        # BUG FIX: Apply filtering logic correctly - if both tool_names and tags are provided,
-        # we should filter by both, not use default important tag
         if tags:
             tools = _filter_by_tags(tools, tags)
 
         if tool_names:
             tools = _filter_by_name(tools, tool_names)
 
-        # BUG FIX: Only use default important tag if NO filters are provided at all
         if not tool_names and not tags:
             tools = _filter_by_tags(tools, [DEFAULT_IMPORTANT_TAG])
 
@@ -325,13 +293,13 @@ class ToolManager:
             ToolError: If the tool is not found or execution fails.
         """
         logger.debug(f"Calling tool: {name} with arguments: {arguments}")
-        app_name = name.split(TOOL_NAME_SEPARATOR, 1)[0] if TOOL_NAME_SEPARATOR in name else DEFAULT_APP_NAME
         tool = self.get_tool(name)
         if not tool:
             logger.error(f"Unknown tool: {name}")
-            raise ToolError(f"Unknown tool: {name}")
+            raise ToolNotFound(f"Unknown tool: {name}")
         try:
             result = await tool.run(arguments, context)
+            app_name = name.split(TOOL_NAME_SEPARATOR, 1)[0] if TOOL_NAME_SEPARATOR in name else DEFAULT_APP_NAME
             analytics.track_tool_called(name, app_name, "success")
             return result
         except Exception as e:
