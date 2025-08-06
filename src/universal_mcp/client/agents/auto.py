@@ -13,6 +13,8 @@ from pydantic import BaseModel
 from typing_extensions import TypedDict
 
 from universal_mcp.client.agents.base import BaseAgent
+from universal_mcp.client.agents.codeact import create_codeact
+from universal_mcp.client.agents.codeact.sandbox import eval_unsafe
 from universal_mcp.client.agents.llm import get_llm
 from universal_mcp.client.agents.platform_manager import AgentRPlatformManager, PlatformManager
 from universal_mcp.tools import ToolManager
@@ -57,13 +59,20 @@ class UserChoices(BaseModel):
 
 
 class AutoAgent(BaseAgent):
-    def __init__(self, name: str, instructions: str, model: str, platform_manager: PlatformManager):
+    def __init__(
+        self, name: str, instructions: str, model: str, platform_manager: PlatformManager, agent_type: str = "react"
+    ):
         super().__init__(name, instructions, model)
         self.platform_manager = platform_manager
+        self.agent_type = agent_type.lower()  # Support both "react" and "codeact"
         self.llm_tools = get_llm(model, tags=["tools"])
         self.llm_choice = get_llm(model, tags=["choice"])
         self.llm_quiet = get_llm(model, tags=["quiet"])
         self.tool_manager = ToolManager()
+
+        # Validate agent type
+        if self.agent_type not in ["react", "codeact"]:
+            raise ValueError(f"Unsupported agent type: {agent_type}. Supported types: 'react', 'codeact'")
 
         self.task_analysis_prompt = """You are a task analysis expert. Given a task description and available apps, determine:
 
@@ -481,22 +490,39 @@ Be friendly and concise, but list each set of apps clearly. Do not return any ot
         """Get or create an agent with tools."""
         # Always create a new agent when requested or if no agent exists
 
-        logger.info("Creating new agent with tools")
-        tools = self.tool_manager.list_tools(format=ToolFormat.LANGCHAIN)
-        logger.debug(f"Created agent with {len(tools)} tools")
+        logger.info(f"Creating new {self.agent_type} agent with tools")
 
         # Get current datetime and timezone information
         current_time = datetime.datetime.now()
         utc_time = datetime.datetime.now(datetime.UTC)
         timezone_info = f"Current local time: {current_time.strftime('%Y-%m-%d %H:%M:%S')} | UTC time: {utc_time.strftime('%Y-%m-%d %H:%M:%S')}"
 
-        agent = create_react_agent(
-            self.llm_tools,
-            tools=tools,
-            prompt=f"You are a helpful assistant that is given a list of actions for an app. You are also given a task. Use the tools to complete the task. Current time information: {timezone_info}. Additionally, the following instructions have been given by the user: {self.instructions}",
-        )
-        logger.info("Agent created successfully")
+        # Create base prompt with instructions and time info
+        base_prompt = f"You are a helpful assistant that is given a list of actions for an app. You are also given a task. Use the tools to complete the task. Current time information: {timezone_info}. Additionally, the following instructions have been given by the user: {self.instructions}"
 
+        if self.agent_type == "react":
+            tools = self.tool_manager.list_tools(format=ToolFormat.LANGCHAIN)
+            logger.debug(f"Created React agent with {len(tools)} tools")
+            agent = create_react_agent(
+                self.llm_tools,
+                tools=tools,
+                prompt=base_prompt,
+            )
+        elif self.agent_type == "codeact":
+            tools = self.tool_manager.list_tools(format=ToolFormat.NATIVE)
+            logger.debug(f"Created CodeAct agent with {len(tools)} tools")
+            # For CodeAct agent, compile the graph
+            agent_graph = create_codeact(
+                model=self.llm_tools,
+                tools=tools,
+                eval_fn=eval_unsafe,
+                prompt=base_prompt,
+            )
+            agent = agent_graph.compile()
+        else:
+            raise ValueError(f"Unsupported agent type: {self.agent_type}")
+
+        logger.info(f"{self.agent_type.capitalize()} agent created successfully")
         return agent
 
     async def run(
@@ -561,8 +587,13 @@ async def graph(config: RunnableConfig):
     # Create platform manager for AutoAgent
     platform_manager = AgentRPlatformManager(api_key=api_key)
 
+    # Get agent type from environment variable or default to react
+    agent_type = os.getenv("AUTO_AGENT_TYPE", "react")
+
     # Create AutoAgent with the configured model and system prompt
-    auto_agent = AutoAgent(name="Auto Agent", instructions="", model="gpt-4.1", platform_manager=platform_manager)
+    auto_agent = AutoAgent(
+        name="Auto Agent", instructions="", model="gpt-4.1", platform_manager=platform_manager, agent_type=agent_type
+    )
 
     # Return the AutoAgent's graph
     return auto_agent.graph
@@ -581,7 +612,12 @@ if __name__ == "__main__":
     want_instructions = input("Do you want to add a system prompt/instructions? (Y/N)")
     instructions = "" if want_instructions.upper() == "N" else input("Enter your instructions/system prompt: ")
 
-    agent = AutoAgent("Auto Agent", instructions, "gpt-4.1", platform_manager=platform_manager)
+    # Ask for agent type
+    agent_type = input("Enter agent type (react/codeact) [default: react]: ").strip().lower()
+    if not agent_type:
+        agent_type = "react"
+
+    agent = AutoAgent("Auto Agent", instructions, "gpt-4.1", platform_manager=platform_manager, agent_type=agent_type)
 
     print("AutoAgent created successfully!")
     print(f"Agent name: {agent.name}")
