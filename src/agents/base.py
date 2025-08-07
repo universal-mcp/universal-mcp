@@ -6,7 +6,7 @@ from langchain_core.messages import AIMessageChunk
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
-from universal_mcp.client.agents.cli import RichCLI
+from .utils import RichCLI
 
 
 class BaseAgent:
@@ -69,7 +69,7 @@ class BaseAgent:
                     elif command == "reset":
                         self.cli.clear_screen()
                         self.cli.display_info("Resetting agent...")
-                        thread_id = uuid4()
+                        thread_id = str(uuid4())
                         continue
                     elif command == "help":
                         self.cli.display_info("Available commands: /about, /exit, /quit, /q, /reset")

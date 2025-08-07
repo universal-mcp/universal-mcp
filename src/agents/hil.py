@@ -6,8 +6,8 @@ from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.types import Interrupt, interrupt
 
-from universal_mcp.client.agents.base import BaseAgent
-from universal_mcp.client.agents.llm import get_llm
+from .base import BaseAgent
+from .llm import get_llm
 
 
 class State(TypedDict):

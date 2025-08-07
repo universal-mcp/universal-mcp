@@ -5,8 +5,8 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
-from universal_mcp.client.agents.base import BaseAgent
-from universal_mcp.client.agents.llm import get_llm
+from .base import BaseAgent
+from .llm import get_llm
 
 
 class State(TypedDict):

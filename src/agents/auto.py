@@ -11,12 +11,13 @@ from loguru import logger
 from pydantic import BaseModel
 from typing_extensions import TypedDict
 
-from universal_mcp.client.agents.base import BaseAgent
-from universal_mcp.client.agents.llm import get_llm
+from agentr.registry import AgentrRegistry
 from universal_mcp.tools import ToolManager
 from universal_mcp.tools.adapters import ToolFormat
 from universal_mcp.tools.registry import ToolRegistry
-from universal_mcp.utils.agentr import AgentrRegistry
+
+from .base import BaseAgent
+from .llm import get_llm
 
 # Auto Agent
 # Working
@@ -521,7 +522,7 @@ Be friendly and concise, but list each set of apps clearly. Do not return any ot
             return result
 
         # Get all available apps from platform manager
-        available_apps = await self.app_registry.get_available_apps()
+        available_apps = await self.app_registry.list_apps()
 
         logger.info(f"Found {len(available_apps)} available apps")
 

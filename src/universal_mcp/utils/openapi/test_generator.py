@@ -12,6 +12,7 @@ from universal_mcp.tools.adapters import ToolFormat
 
 class TestCaseOutput(BaseModel):
     """Single test case for LLM structured output (without app_instance)."""
+
     tools: list[str]
     tasks: list[str]
     validate_query: str
@@ -19,15 +20,16 @@ class TestCaseOutput(BaseModel):
 
 class MultiTestCaseOutput(BaseModel):
     """Multiple test cases for LLM structured output."""
+
     test_cases: list[TestCaseOutput]
 
 
 def generate_test_cases(app_name: str, class_name: str, output_dir: str = "tests"):
     """Generate test cases for a given app and write to specified output directory.
-    
+
     Args:
         app_name: Name of the app (e.g., "outlook")
-        class_name: Name of the app class (e.g., "OutlookApp") 
+        class_name: Name of the app class (e.g., "OutlookApp")
         output_dir: Directory to write the test file (default: "tests")
     """
     # Dynamically import the app class
@@ -39,15 +41,15 @@ def generate_test_cases(app_name: str, class_name: str, output_dir: str = "tests
         raise ImportError(f"Could not import universal_mcp_{app_name}.app: {e}") from e
     except AttributeError as e:
         raise AttributeError(f"Class {class_name} not found in universal_mcp_{app_name}.app: {e}") from e
-    
+
     tool_manager = ToolManager()
     tool_manager.register_tools_from_app(app, tags=["important"])
     tool_def = tool_manager.list_tools(format=ToolFormat.OPENAI)
-    
+
     # Extract tool names for splitting
-    tool_names = [tool['function']['name'] for tool in tool_def]
+    tool_names = [tool["function"]["name"] for tool in tool_def]
     total_tools = len(tool_names)
-    
+
     # Create system and user prompts
     system_prompt = """You are an expert QA Developer experienced in writing comprehensive test cases for API applications.
 
@@ -74,7 +76,7 @@ MANDATORY RULES:
 
 3. TEST CASE DISTRIBUTION:
    - If there are 9 tools: split as 3,3,3 or 4,3,2
-   - If there are 10 tools: split as 4,3,3 or 3,3,4  
+   - If there are 10 tools: split as 4,3,3 or 3,3,4
    - If there are 8 tools: split as 3,3,2
    - Always ensure all tools are covered across all test cases
 
@@ -100,7 +102,7 @@ MANDATORY RULES:
 7. CRUD OPERATIONS COVERAGE:
    - Analyze available tools to identify CRUD capabilities
    - CREATE: If create/send/compose tools are available, include operations that create new items
-   - READ: If list/get/retrieve tools are available, include operations that fetch and display information  
+   - READ: If list/get/retrieve tools are available, include operations that fetch and display information
    - UPDATE: If update/edit/modify tools are available, include operations that modify existing items
    - DELETE: If delete/remove tools are available, include operations that remove items
    - Group related CRUD operations in the same test case when possible
@@ -161,7 +163,7 @@ CRITICAL REQUIREMENTS:
 4. TEST CASE DESIGN:
    - Test Case 1: Focus on initial data retrieval and creation operations (3-4 tools)
      * Should start with getting foundational data (e.g., user info, basic listings)
-   - Test Case 2: Focus on data manipulation, updates and management (3-4 tools)  
+   - Test Case 2: Focus on data manipulation, updates and management (3-4 tools)
      * Should independently get any needed foundational data in its first step
    - Test Case 3: Focus on advanced operations, search, and cleanup (2-4 tools)
      * Should independently get any needed foundational data in its first step
@@ -182,44 +184,41 @@ CRITICAL REQUIREMENTS:
 
 
 Generate the 3 test cases now following these requirements, ensuring NO hardcoded placeholder values and complete test case independence."""
-    
+
     # Setup LLM
     azure_api_key = os.environ.get("AZURE_OPENAI_API_KEY")
     if not azure_api_key:
         raise ValueError("AZURE_OPENAI_API_KEY environment variable is required")
-    
+
     llm = AzureChatOpenAI(
         azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
         azure_deployment=os.environ.get("AZURE_OPENAI_DEPLOYMENT", "o4-mini"),
         api_key=SecretStr(azure_api_key),
         api_version=os.environ.get("AZURE_OPENAI_API_VERSION", "2025-03-01-preview"),
     )
-    
+
     # Get structured output from LLM using system and user prompts
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=user_prompt)
-    ]
-    
+    messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
+
     structured_llm = llm.with_structured_output(MultiTestCaseOutput)
     response = structured_llm.invoke(messages)
-    
+
     write_to_file(response, app_name, class_name, output_dir)  # type: ignore
-    
+
     return response
 
 
 def write_to_file(multi_test_case: MultiTestCaseOutput, app_name: str, class_name: str, output_dir: str):
     """Regenerate the entire automation_test.py file with multiple test cases."""
-    
+
     # Ensure output directory exists
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
-    
+
     file_content = f'''import pytest
 
 from universal_mcp.utils.testing import (
-    AutomationTestCase, 
+    AutomationTestCase,
     execute_automation_test,
     create_app_with_integration
 )
@@ -231,7 +230,7 @@ def {app_name}_app():
     return create_app_with_integration("{app_name}", {class_name})
 
 '''
-    
+
     # Generate fixtures and test functions for each test case
     for i, test_case in enumerate(multi_test_case.test_cases, 1):
         # Format tools array with proper indentation
@@ -240,17 +239,17 @@ def {app_name}_app():
             escaped_tool = tool.replace('"', '\\"')
             tools_formatted += f'            "{escaped_tool}",\n'
         tools_formatted += "        ]"
-        
+
         # Format tasks array with proper indentation
         tasks_formatted = "[\n"
         for task in test_case.tasks:
             escaped_task = task.replace('"', '\\"')
             tasks_formatted += f'            "{escaped_task}",\n'
         tasks_formatted += "        ]"
-        
+
         # Use triple quotes for validation query to avoid escaping issues
         validation_query = test_case.validate_query
-        
+
         file_content += f'''
 @pytest.fixture
 def {app_name}_test_case_{i}({app_name}_app):
@@ -266,7 +265,7 @@ def {app_name}_test_case_{i}({app_name}_app):
     )
 
 '''
-    
+
     # Generate test functions
     for i, _ in enumerate(multi_test_case.test_cases, 1):
         file_content += f'''
@@ -275,14 +274,14 @@ async def test_{app_name}_test_case_{i}({app_name}_test_case_{i}):
     """Execute test case {i}"""
     await execute_automation_test({app_name}_test_case_{i})
 '''
-    
+
     file_content += "\n\n "
-    
+
     # Write the entire file
     output_file = output_path / "automation_test.py"
     with open(output_file, "w") as f:
         f.write(file_content)
-    
+
     print(f"✅ Generated {output_file} with {len(multi_test_case.test_cases)} test cases for {app_name}")
     for i, test_case in enumerate(multi_test_case.test_cases, 1):
         print(f"   Test Case {i}: {len(test_case.tools)} tools, {len(test_case.tasks)} tasks")

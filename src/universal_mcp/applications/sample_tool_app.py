@@ -1,5 +1,7 @@
 import datetime
 
+import httpx
+
 from universal_mcp.applications.application import BaseApplication
 
 
@@ -96,11 +98,9 @@ class SampleToolApp(BaseApplication):
             Dict: Weather data from the API
 
         Raises:
-            requests.RequestException: If API request fails
+            httpx.RequestError: If API request fails
             ValueError: If coordinates are invalid
         """
-        import requests
-
         # Validate coordinates
         if not (-90 <= latitude <= 90):
             raise ValueError("Latitude must be between -90 and 90")
@@ -137,19 +137,19 @@ class SampleToolApp(BaseApplication):
 
         try:
             # Make API request
-            response = requests.get(base_url, params=params, timeout=10)
-            response.raise_for_status()
+            with httpx.Client(timeout=10) as client:
+                response = client.get(base_url, params=params)
+                response.raise_for_status()
+                return response.json()
 
-            return response.json()
-
-        except requests.exceptions.Timeout as e:
-            raise requests.RequestException("Request timed out") from e
-        except requests.exceptions.ConnectionError as e:
-            raise requests.RequestException("Connection error") from e
-        except requests.exceptions.HTTPError as e:
-            raise requests.RequestException(f"HTTP error: {e}") from e
-        except requests.exceptions.RequestException as e:
-            raise requests.RequestException(f"Request failed: {e}") from e
+        except httpx.TimeoutException as e:
+            raise httpx.RequestError("Request timed out") from e
+        except httpx.ConnectError as e:
+            raise httpx.RequestError("Connection error") from e
+        except httpx.HTTPStatusError as e:
+            raise httpx.RequestError(f"HTTP error: {e}") from e
+        except httpx.RequestError as e:
+            raise httpx.RequestError(f"Request failed: {e}") from e
 
     def get_simple_weather(self, latitude: float, longitude: float) -> dict:
         """

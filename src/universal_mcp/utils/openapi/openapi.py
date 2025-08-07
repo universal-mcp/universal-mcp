@@ -38,17 +38,19 @@ def _generate_model_name(operation: dict[str, Any], path: str, method: str, sche
             name = operation["operationId"] + "Response"
         else:
             # Generate from path and method
-            path_parts = [part for part in path.strip("/").split("/") if not (part.startswith("{") and part.endswith("}"))]
+            path_parts = [
+                part for part in path.strip("/").split("/") if not (part.startswith("{") and part.endswith("}"))
+            ]
             if path_parts:
                 name = f"{method.capitalize()}{path_parts[-1].capitalize()}Response"
             else:
                 name = f"{method.capitalize()}Response"
-    
+
     name = "".join(word.capitalize() for word in re.split(r"[^a-zA-Z0-9]", name) if word)
-    
+
     if name and name[0].isdigit():
         name = "Response" + name
-    
+
     return name or "Response"
 
 
@@ -56,7 +58,7 @@ def _generate_response_model_class(schema: dict[str, Any], model_name: str) -> s
     """Generate Pydantic model source code from OpenAPI response schema."""
     if not schema:
         return ""
-    
+
     # Handle array responses
     if schema.get("type") == "array":
         items_schema = schema.get("items", {})
@@ -64,7 +66,7 @@ def _generate_response_model_class(schema: dict[str, Any], model_name: str) -> s
             # Generate model for array items if it's an object
             item_model_name = f"{model_name}Item"
             item_model_code = _generate_response_model_class(items_schema, item_model_name)
-            
+
             # Create collection model
             collection_model = f"""
 class {model_name}(BaseModel):
@@ -83,44 +85,44 @@ class {model_name}(BaseModel):
                     item_type = "float"
                 elif items_schema.get("type") == "boolean":
                     item_type = "bool"
-            
+
             return f"""
 class {model_name}(BaseModel):
     value: List[{item_type}]
 """
-    
+
     # Handle object responses
     if schema.get("type") == "object" or "properties" in schema:
         properties, required_fields = _extract_properties_from_schema(schema)
-        
+
         if not properties:
             return f"""
 class {model_name}(BaseModel):
     pass
 """
-        
+
         field_definitions = []
         for prop_name, prop_schema in properties.items():
             field_name = _sanitize_identifier(prop_name)
             is_required = prop_name in required_fields
-            
+
             # Handle arrays with object items specially
             if prop_schema.get("type") == "array" and prop_schema.get("items", {}).get("properties"):
                 # Generate a model for the array items
                 item_model_name = f"{model_name}{field_name.capitalize()}Item"
                 items_schema = prop_schema.get("items", {})
-                
+
                 # Generate the item model and store it globally
                 item_model_code = _generate_response_model_class(items_schema, item_model_name)
                 if item_model_code and item_model_name not in _generated_models:
                     _generated_models[item_model_name] = item_model_code
-                
+
                 python_type = f"List[{item_model_name}]" if is_required else f"Optional[List[{item_model_name}]]"
             else:
                 python_type = _openapi_type_to_python_type(prop_schema, required=is_required)
-            
+
             # Handle field aliases for special characters like @odata.context
-            if prop_name != field_name or prop_name.startswith('@'):
+            if prop_name != field_name or prop_name.startswith("@"):
                 if is_required:
                     field_definitions.append(f"    {field_name}: {python_type} = Field(alias='{prop_name}')")
                 else:
@@ -130,53 +132,55 @@ class {model_name}(BaseModel):
                     field_definitions.append(f"    {field_name}: {python_type}")
                 else:
                     field_definitions.append(f"    {field_name}: {python_type} = None")
-        
+
         model_code = f"""
 class {model_name}(BaseModel):
 {chr(10).join(field_definitions)}
 """
         return model_code
-    
+
     # Fallback for other schema types
     return ""
 
 
-def _get_or_create_response_model(operation: dict[str, Any], path: str, method: str, schema: dict[str, Any]) -> str | None:
+def _get_or_create_response_model(
+    operation: dict[str, Any], path: str, method: str, schema: dict[str, Any]
+) -> str | None:
     """Get or create a response model for a given schema, avoiding duplicates."""
     if not schema:
         return None
-    
+
     try:
         # Generate hash for this schema
         schema_hash = _get_schema_hash(schema)
-        
+
         # Check if we already have a model for this schema
         if schema_hash in _schema_registry:
             return _schema_registry[schema_hash]
-        
+
         # Generate new model
         model_name = _generate_model_name(operation, path, method, schema)
-        
+
         # Ensure unique model name
         base_name = model_name
         counter = 1
         while model_name in _generated_models:
             model_name = f"{base_name}{counter}"
             counter += 1
-        
+
         # Generate model source code
         model_code = _generate_response_model_class(schema, model_name)
-        
+
         if model_code:
             # Register the model
             _schema_registry[schema_hash] = model_name
             _generated_models[model_name] = model_code
             return model_name
-    
+
     except Exception as e:
         # If model generation fails, log and continue with fallback
         print(f"Warning: Could not generate model for {method.upper()} {path}: {e}")
-    
+
     return None
 
 
@@ -391,7 +395,7 @@ def _load_and_resolve_references(path: Path):
 def _determine_return_type(operation: dict[str, Any], path: str, method: str) -> str:
     """
     Determine the return type from the response schema.
-    
+
     Now generates specific Pydantic model classes for response schemas where possible,
     falling back to generic types for complex or missing schemas.
 
@@ -419,13 +423,13 @@ def _determine_return_type(operation: dict[str, Any], path: str, method: str) ->
         for content_type, content_info in success_response["content"].items():
             if content_type.startswith("application/json") and "schema" in content_info:
                 schema = content_info["schema"]
-                
+
                 # generate a specific model class for this schema
                 model_name = _get_or_create_response_model(operation, path, method, schema)
-                
+
                 if model_name:
                     return model_name
-                
+
                 if schema.get("type") == "array":
                     return "list[Any]"
                 elif schema.get("type") == "object" or "$ref" in schema:
@@ -1207,24 +1211,24 @@ def load_schema(path: Path):
 def generate_schemas_file(schema, class_name: str | None = None, filter_config_path: str | None = None):
     """
     Generate a Python file containing only the response schema classes from an OpenAPI schema.
-    
+
     Args:
         schema (dict): The OpenAPI schema as a dictionary.
         class_name (str | None): Optional class name for context.
         filter_config_path (str | None): Optional path to JSON filter configuration file.
-    
+
     Returns:
         str: A string containing the Python code for the response schema classes.
     """
     global _schema_registry, _generated_models
     _schema_registry.clear()
     _generated_models.clear()
-    
+
     # Load filter configuration if provided
     filter_config = None
     if filter_config_path:
         filter_config = load_filter_config(filter_config_path)
-    
+
     # Generate response models by processing all operations
     for path, path_info in schema.get("paths", {}).items():
         for method in path_info:
@@ -1232,20 +1236,20 @@ def generate_schemas_file(schema, class_name: str | None = None, filter_config_p
                 # Apply filter configuration
                 if not should_process_operation(path, method, filter_config):
                     continue
-                
+
                 operation = path_info[method]
                 # Generate response model for this operation
                 _determine_return_type(operation, path, method)
-    
+
     # Generate the schemas file content
     imports = [
         "from typing import Any, Optional, List",
         "from pydantic import BaseModel, Field",
     ]
-    
+
     imports_section = "\n".join(imports)
     models_section = "\n".join(_generated_models.values()) if _generated_models else ""
-    
+
     if not models_section:
         # If no models were generated, create a minimal file
         schemas_code = f"""{imports_section}
@@ -1259,7 +1263,7 @@ def generate_schemas_file(schema, class_name: str | None = None, filter_config_p
 
 {models_section}
 """
-    
+
     return schemas_code
 
 
@@ -1279,7 +1283,7 @@ def generate_api_client(schema, class_name: str | None = None, filter_config_pat
     global _schema_registry, _generated_models
     _schema_registry.clear()
     _generated_models.clear()
-    
+
     # Load filter configuration if provided
     filter_config = None
     if filter_config_path:
@@ -1367,12 +1371,12 @@ def generate_api_client(schema, class_name: str | None = None, filter_config_pat
         "from typing import Any, Optional, List",
         "from universal_mcp.applications import APIApplication",
         "from universal_mcp.integrations import Integration",
-        "from .schemas import *"
+        "from .schemas import *",
     ]
 
     # Construct the class code (no model classes since they're in separate file)
     imports_section = "\n".join(imports)
-    
+
     class_code_parts = [
         imports_section,
         "",
@@ -1384,9 +1388,9 @@ def generate_api_client(schema, class_name: str | None = None, filter_config_pat
         "\n\n".join(methods),
         "",
         list_tools_method,
-        ""
+        "",
     ]
-    
+
     class_code = "\n".join(class_code_parts)
     return class_code
 

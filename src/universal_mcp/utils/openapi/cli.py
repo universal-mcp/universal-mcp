@@ -17,25 +17,25 @@ app = typer.Typer(name="codegen")
 def _validate_filter_config(filter_config: Path | None) -> None:
     """
     Validate filter configuration file if provided.
-    
+
     Args:
         filter_config: Path to filter config file or None
-        
+
     Raises:
         typer.Exit: If validation fails
     """
     if filter_config is None:
         return
-    
+
     # Handle edge case of empty string or invalid path
     if str(filter_config).strip() == "":
         console.print("[red]Error: Filter configuration path cannot be empty[/red]")
         raise typer.Exit(1)
-    
+
     if not filter_config.exists():
         console.print(f"[red]Error: Filter configuration file '{filter_config}' does not exist[/red]")
         raise typer.Exit(1)
-    
+
     if not filter_config.is_file():
         console.print(f"[red]Error: Filter configuration path '{filter_config}' is not a file[/red]")
         raise typer.Exit(1)
@@ -66,7 +66,9 @@ def _model_callback(model: str) -> str:
             api_key_env_var = "PERPLEXITYAI_API_KEY"
 
         if api_key_env_var and not os.getenv(api_key_env_var):
-            error_message = f"Environment variable '{api_key_env_var}' is not set. Please set it to use the '{model}' model."
+            error_message = (
+                f"Environment variable '{api_key_env_var}' is not set. Please set it to use the '{model}' model."
+            )
             raise typer.BadParameter(error_message)
         elif not api_key_env_var:
             pass
@@ -112,7 +114,7 @@ def generate(
     The JSON configuration format is:
     {
         "/users/{user-id}/profile": "get",
-        "/users/{user-id}/settings": "all", 
+        "/users/{user-id}/settings": "all",
         "/orders": ["get", "post"]
     }
     """
@@ -228,22 +230,18 @@ def generate_from_llm(
     console.print(
         Panel(
             "🚀 [bold]Welcome to the Universal App Generator[/bold] 🚀",
-            title="[bold blue]MCP[/bold blue]", border_style="blue", expand=False
+            title="[bold blue]MCP[/bold blue]",
+            border_style="blue",
+            expand=False,
         )
     )
 
     if output_dir is None:
-        dir_str = Prompt.ask(
-            "[cyan]Enter the directory to save 'app.py'[/cyan]",
-            default=str(Path.cwd())
-        )
+        dir_str = Prompt.ask("[cyan]Enter the directory to save 'app.py'[/cyan]", default=str(Path.cwd()))
         output_dir = Path(dir_str).resolve()
 
     if model is None:
-        model_str = Prompt.ask(
-            "[cyan]Enter the LLM model to use[/cyan]",
-            default="perplexity/sonar"
-        )
+        model_str = Prompt.ask("[cyan]Enter the LLM model to use[/cyan]", default="perplexity/sonar")
         model = _model_callback(model_str)
 
     prompt_guidance = (
@@ -256,18 +254,10 @@ def generate_from_llm(
         "   - Not recommended for complex applications as multi-line input is difficult."
     )
     console.print(
-        Panel(
-            prompt_guidance,
-            title="[bold]How to Provide Your Prompt[/bold]",
-            border_style="blue",
-            padding=(1, 2)
-        )
+        Panel(prompt_guidance, title="[bold]How to Provide Your Prompt[/bold]", border_style="blue", padding=(1, 2))
     )
 
-    use_file = Confirm.ask(
-        "\n[bold]Would you like to provide the prompt from a text file?[/bold]",
-        default=True
-    )
+    use_file = Confirm.ask("\n[bold]Would you like to provide the prompt from a text file?[/bold]", default=True)
 
     prompt = ""
     if use_file:
@@ -286,14 +276,14 @@ def generate_from_llm(
         if not prompt.strip():
             console.print("[bold red]❌ Prompt cannot be empty. Aborting.[/bold red]")
             raise typer.Exit(code=1)
-        
+
     PROMPT_DISPLAY_LIMIT = 400
     prompt_for_display = prompt
 
     if len(prompt) > PROMPT_DISPLAY_LIMIT:
         total_lines = len(prompt.splitlines())
         total_chars = len(prompt)
-        
+
         prompt_for_display = (
             f"{prompt[:PROMPT_DISPLAY_LIMIT]}...\n\n"
             f"[italic grey50](Prompt truncated for display. "
@@ -307,17 +297,12 @@ def generate_from_llm(
         f"[bold blue]💾 Output Directory:[/bold blue] [cyan]{output_dir}[/cyan]"
     )
     console.print(
-        Panel(
-            config_summary,
-            title="[bold green]Configuration[/bold green]",
-            border_style="green",
-            padding=(1, 2)
-        )
+        Panel(config_summary, title="[bold green]Configuration[/bold green]", border_style="green", padding=(1, 2))
     )
 
     try:
         if not output_dir.exists():
-             output_dir.mkdir(parents=True, exist_ok=True)
+            output_dir.mkdir(parents=True, exist_ok=True)
     except Exception as e:
         console.print(f"[red]❌ Failed to create output directory '{output_dir}': {e}[/red]")
         raise typer.Exit(code=1) from e
@@ -334,7 +319,10 @@ def generate_from_llm(
     with Status("[bold green]Generating app code... (this may take a moment)[/bold green]", console=console) as status:
         try:
             response = litellm.completion(
-                model=model, messages=messages, temperature=0.1, timeout=120,
+                model=model,
+                messages=messages,
+                temperature=0.1,
+                timeout=120,
             )
         except Exception as e:
             status.update("[bold red]❌ An error occurred during LLM API call.[/bold red]")
@@ -350,7 +338,9 @@ def generate_from_llm(
     if code_match:
         final_code = code_match.group(1).strip()
     else:
-        console.print("[yellow]Warning: LLM response did not contain a markdown code block. Using the raw response.[/yellow]")
+        console.print(
+            "[yellow]Warning: LLM response did not contain a markdown code block. Using the raw response.[/yellow]"
+        )
         final_code = generated_content.strip()
 
     if not final_code:
@@ -373,7 +363,7 @@ def generate_from_llm(
             Syntax(code_for_display, "python", theme="monokai", line_numbers=True),
             title="[bold magenta]Generated Code Preview: app.py[/bold magenta]",
             border_style="magenta",
-            subtitle=f"Total lines: {num_lines}"
+            subtitle=f"Total lines: {num_lines}",
         )
     )
 
@@ -388,11 +378,18 @@ def generate_from_llm(
         console.print(
             Panel(
                 f"✅ [bold green]Success![/bold green]\nApplication code saved to [cyan]{output_file_path}[/cyan]",
-                title="[bold green]Complete[/bold green]", border_style="green"
+                title="[bold green]Complete[/bold green]",
+                border_style="green",
             )
         )
     except Exception as e:
-        console.print(Panel(f"Failed to write the generated code to file: {e}", title="[bold red]File Error[/bold red]", border_style="red"))
+        console.print(
+            Panel(
+                f"Failed to write the generated code to file: {e}",
+                title="[bold red]File Error[/bold red]",
+                border_style="red",
+            )
+        )
         raise typer.Exit(code=1) from e
 
 
@@ -424,14 +421,12 @@ def init(
     from typer import confirm, prompt
 
     from .cli import generate, generate_from_llm
-    
+
     NAME_PATTERN = r"^[a-zA-Z0-9-]+$"
-        
+
     def validate_app_name(value: str, field_name: str) -> None:
         if not re.match(NAME_PATTERN, value):
-            console.print(
-                f"[red]❌ Invalid {field_name}; only letters, numbers, hyphens allowed[/red]"
-            )
+            console.print(f"[red]❌ Invalid {field_name}; only letters, numbers, hyphens allowed[/red]")
             raise typer.Exit(code=1)
 
     if not app_name:
@@ -440,9 +435,9 @@ def init(
             default="app_name",
             prompt_suffix=" (e.g., reddit, youtube): ",
         ).strip()
-        
+
     validate_app_name(app_name, "app name")
-    
+
     app_name = app_name.lower()
     if not output_dir:
         path_str = typer.prompt(
@@ -490,8 +485,7 @@ def init(
 
     project_dir = output_dir / f"{app_name}"
     console.print(f"✅ Project created at {project_dir}")
-    
-    
+
     generate_client = confirm("Do you want to also generate api_client ?")
 
     if not generate_client:
@@ -504,22 +498,21 @@ def init(
     target_app_dir = project_dir / "src" / f"universal_mcp_{app_dir}"
 
     try:
-         target_app_dir.mkdir(parents=True, exist_ok=True)
+        target_app_dir.mkdir(parents=True, exist_ok=True)
     except Exception as e:
-         console.print(f"[red]❌ Failed to create target app directory '{target_app_dir}': {e}[/red]")
-         raise typer.Exit(code=1) from e
-
+        console.print(f"[red]❌ Failed to create target app directory '{target_app_dir}': {e}[/red]")
+        raise typer.Exit(code=1) from e
 
     if has_openapi_spec:
         schema_path_str = prompt("Enter the path to the OpenAPI schema file (JSON or YAML)")
         schema_path = Path(schema_path_str)
 
         if not schema_path.exists():
-             console.print(f"[red]Error: Schema file {schema_path} does not exist[/red]")
-             raise typer.Exit(1)
-         
-        class_name = "".join([part.title() for part in app_name.split('-')]) + "App"
-        
+            console.print(f"[red]Error: Schema file {schema_path} does not exist[/red]")
+            raise typer.Exit(1)
+
+        class_name = "".join([part.title() for part in app_name.split("-")]) + "App"
+
         try:
             console.print("\n[bold blue]Calling 'codegen generate' with provided schema...[/bold blue]")
             generate(schema_path=schema_path, output_path=target_app_dir, class_name=class_name)
@@ -535,10 +528,10 @@ def init(
         try:
             llm_model = prompt("Enter the LLM model to use", default="perplexity/sonar")
             try:
-                 _model_callback(llm_model)
+                _model_callback(llm_model)
             except typer.BadParameter as e:
-                 console.print(f"[red]Validation Error: {e}[/red]")
-                 raise typer.Exit(code=1) from e
+                console.print(f"[red]Validation Error: {e}[/red]")
+                raise typer.Exit(code=1) from e
 
             llm_prompt_text = prompt("Describe the application and its tools (natural language)")
 
@@ -555,9 +548,15 @@ def init(
 
 @app.command()
 def preprocess(
-    schema_path: Path = typer.Option(None, "--schema", "-s", help="Path to the input OpenAPI schema file (JSON or YAML)."),
-    output_path: Path = typer.Option(None, "--output", "-o", help="Path to save the processed (enhanced) OpenAPI schema file."),
-    filter_config: Path = typer.Option(None, "--filter-config", "-f", help="Path to JSON filter configuration file for selective processing."),
+    schema_path: Path = typer.Option(
+        None, "--schema", "-s", help="Path to the input OpenAPI schema file (JSON or YAML)."
+    ),
+    output_path: Path = typer.Option(
+        None, "--output", "-o", help="Path to save the processed (enhanced) OpenAPI schema file."
+    ),
+    filter_config: Path = typer.Option(
+        None, "--filter-config", "-f", help="Path to JSON filter configuration file for selective processing."
+    ),
 ):
     """Enhances an OpenAPI schema's descriptions using an LLM.
 
@@ -567,7 +566,7 @@ def preprocess(
     helpful for schemas that are auto-generated or lack comprehensive
     human-written documentation, making the schema more understandable and
     usable for client generation or manual review.
-    
+
     Use --filter-config to process only specific paths and methods defined
     in a JSON configuration file. Format:
     {
@@ -577,15 +576,15 @@ def preprocess(
     }
     """
     from universal_mcp.utils.openapi.preprocessor import run_preprocessing
-    
+
     # Validate filter config and display info
     _validate_filter_config(filter_config)
     _display_selective_mode_info(filter_config, "Processing")
-    
+
     run_preprocessing(
-        schema_path=schema_path, 
-        output_path=output_path, 
-        filter_config_path=str(filter_config) if filter_config else None
+        schema_path=schema_path,
+        output_path=output_path,
+        filter_config_path=str(filter_config) if filter_config else None,
     )
 
 
@@ -624,13 +623,13 @@ def split_api(
 def generate_tests(
     app_name: str = typer.Argument(..., help="Name of the app (e.g., 'outlook')"),
     class_name: str = typer.Argument(..., help="Name of the app class (e.g., 'OutlookApp')"),
-    output_dir: str = typer.Option("tests", "--output", "-o", help="Output directory for the test file")
+    output_dir: str = typer.Option("tests", "--output", "-o", help="Output directory for the test file"),
 ):
     """Generate automated test cases for an app"""
     from universal_mcp.utils.openapi.test_generator import generate_test_cases
-    
+
     console.print(f"[blue]Generating test cases for {app_name} ({class_name})...[/blue]")
-    
+
     try:
         response = generate_test_cases(app_name, class_name, output_dir)
         console.print(f"[green]✅ Successfully generated {len(response.test_cases)} test cases![/green]")
@@ -654,6 +653,7 @@ def postprocess(
 ):
     """Postprocess API client: add hint tags to docstrings based on HTTP method."""
     from universal_mcp.utils.openapi.postprocessor import add_hint_tags_to_docstrings
+
     if not input_file.exists() or not input_file.is_file():
         console.print(f"[red]Error: Input file {input_file} does not exist or is not a file.[/red]")
         raise typer.Exit(1)

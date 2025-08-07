@@ -19,19 +19,22 @@ def convert_tool_to_mcp_tool(
     tool: Tool,
 ):
     from mcp.server.fastmcp.server import MCPTool
+    from mcp.types import ToolAnnotations
 
     logger.debug(f"Converting tool '{tool.name}' to MCP format")
-    
+
+    annotations = None
     annotations = None
     if tool.tags:
+        # Only set annotation hints if present in tags
         annotation_hints = ["readOnlyHint", "destructiveHint", "openWorldHint"]
-        found_annotations = {}
-        for tag in tool.tags:
-            if tag in annotation_hints:
-                found_annotations[tag] = True
-        if found_annotations:
-            annotations = found_annotations
-    
+        annotation_kwargs = {}
+        for hint in annotation_hints:
+            if hint in tool.tags:
+                annotation_kwargs[hint] = True
+        if annotation_kwargs:
+            annotations = ToolAnnotations(**annotation_kwargs)
+
     mcp_tool = MCPTool(
         name=tool.name[:63],
         description=tool.description or "",

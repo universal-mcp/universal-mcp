@@ -69,7 +69,7 @@ class Analytics:
                 "app_name": app_name,
                 "user_id": self.user_id,
             }
-            posthog.capture("app_loaded", properties)
+            posthog.capture("app_loaded", properties=properties)
         except Exception as e:
             logger.error(f"Failed to track app_loaded event: {e}")
 
@@ -78,7 +78,7 @@ class Analytics:
         tool_name: str,
         app_name: str,
         status: str,
-        error: str = None,
+        error: str | None = None,
     ):
         """Tracks an event when a tool is called within an application.
 
@@ -103,7 +103,7 @@ class Analytics:
                 "version": self.get_version(),
                 "user_id": self.user_id,
             }
-            posthog.capture("tool_called", properties)
+            posthog.capture("tool_called", properties=properties)
         except Exception as e:
             logger.error(f"Failed to track tool_called event: {e}")
 

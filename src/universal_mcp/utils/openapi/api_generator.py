@@ -109,7 +109,7 @@ def generate_api_from_schema(
     try:
         code = generate_api_client(schema, class_name, filter_config_path)
         logger.info("API client code generated.")
-        
+
         schemas_code = generate_schemas_file(schema, class_name, filter_config_path)
         logger.info("Schemas code generated.")
     except Exception as e:
@@ -130,11 +130,11 @@ def generate_api_from_schema(
     # 4. Write to intermediate files and perform basic checks
     gen_file = target_dir / "app_generated.py"
     schemas_gen_file = target_dir / "schemas_generated.py"
-    
+
     logger.info("Writing generated code to intermediate file: %s", gen_file)
     with open(gen_file, "w") as f:
         f.write(code)
-    
+
     logger.info("Writing schemas code to intermediate file: %s", schemas_gen_file)
     with open(schemas_gen_file, "w") as f:
         f.write(schemas_code)
@@ -157,14 +157,14 @@ def generate_api_from_schema(
     # 5. Copy to final files (overwrite if exists)
     app_file = target_dir / "app.py"
     schemas_file = target_dir / "schemas.py"
-    
+
     if app_file.exists():
         logger.warning("Overwriting existing file: %s", app_file)
     else:
         logger.info("Creating new file: %s", app_file)
     shutil.copy(gen_file, app_file)
     logger.info("App file written to: %s", app_file)
-    
+
     if schemas_file.exists():
         logger.warning("Overwriting existing file: %s", schemas_file)
     else:
@@ -182,7 +182,7 @@ def generate_api_from_schema(
         logger.debug("Cleaned up intermediate file: %s", gen_file)
     except Exception as e:
         logger.warning("Could not remove intermediate file %s: %s", gen_file, e)
-    
+
     try:
         os.remove(schemas_gen_file)
         logger.debug("Cleaned up intermediate schemas file: %s", schemas_gen_file)

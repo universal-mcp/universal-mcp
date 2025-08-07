@@ -4,7 +4,7 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 
-from universal_mcp.client.cli import app as client_app
+from agents.cli import app as client_app
 from universal_mcp.utils.installation import (
     get_supported_apps,
     install_app,
@@ -24,13 +24,20 @@ def run(
     config_path: Path | None = typer.Option(None, "--config", "-c", help="Path to the config file"),
 ):
     """Run the MCP server"""
+    from agentr.server import AgentRServer
     from universal_mcp.config import ServerConfig
     from universal_mcp.logger import setup_logger
-    from universal_mcp.servers import server_from_config
+    from universal_mcp.servers import LocalServer
 
     config = ServerConfig.model_validate_json(config_path.read_text()) if config_path else ServerConfig()
     setup_logger(level=config.log_level)
-    server = server_from_config(config)
+
+    if config.type == "agentr":
+        server = AgentRServer(config=config, api_key=config.api_key)
+    elif config.type == "local":
+        server = LocalServer(config=config)
+    else:
+        raise ValueError(f"Unsupported server type: {config.type}")
     server.run(transport=config.transport)
 
 

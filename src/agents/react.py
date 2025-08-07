@@ -1,15 +1,18 @@
 from langgraph.prebuilt import create_react_agent
 from loguru import logger
 
-from universal_mcp.client.agents.base import BaseAgent
-from universal_mcp.client.agents.llm import get_llm
+from agentr.registry import AgentrRegistry
 from universal_mcp.tools.adapters import ToolFormat
 from universal_mcp.tools.manager import ToolManager
-from universal_mcp.utils.agentr import AgentrRegistry
+
+from .base import BaseAgent
+from .llm import get_llm
 
 
 class ReactAgent(BaseAgent):
-    def __init__(self, name: str, instructions: str, model: str, max_iterations: int = 10, tools: list[str] = None):
+    def __init__(
+        self, name: str, instructions: str, model: str, tools: list[str] | None = None, max_iterations: int = 10
+    ):
         super().__init__(name, instructions, model)
         self.llm = get_llm(model)
         self.max_iterations = max_iterations

@@ -56,3 +56,4 @@ site/
 
 # langgraph temporary files
 .langgraph_api/
+langgraph.json

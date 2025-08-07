@@ -15,16 +15,13 @@ def _get_return_type_schema(return_annotation: Any) -> dict[str, Any] | None:
     """Convert return type annotation to JSON schema using Pydantic."""
     if return_annotation == inspect.Signature.empty or return_annotation == Any:
         return None
-    
+
     try:
-        temp_model = create_model(
-            "ReturnTypeModel",
-            return_value=(return_annotation, ...)
-        )
-        
+        temp_model = create_model("ReturnTypeModel", return_value=(return_annotation, ...))
+
         full_schema = temp_model.model_json_schema()
         return_field_schema = full_schema.get("properties", {}).get("return_value")
-        
+
         return return_field_schema
     except Exception:
         return None
