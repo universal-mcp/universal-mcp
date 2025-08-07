@@ -5,7 +5,7 @@ from universal_mcp.client.agents.base import BaseAgent
 from universal_mcp.client.agents.llm import get_llm
 from universal_mcp.tools.adapters import ToolFormat
 from universal_mcp.tools.manager import ToolManager
-from universal_mcp.utils.loader import load_tools
+from universal_mcp.utils.agentr import AgentrRegistry
 
 
 class ReactAgent(BaseAgent):
@@ -14,7 +14,8 @@ class ReactAgent(BaseAgent):
         self.llm = get_llm(model)
         self.max_iterations = max_iterations
         self.tool_manager = ToolManager()
-        self.tool_manager = load_tools(tools, self.tool_manager)
+        registry = AgentrRegistry()
+        self.tool_manager = registry.load_tools(tools, self.tool_manager)
         logger.debug(f"Initialized ReactAgent: name={name}, model={model}")
         self._graph = self._build_graph()
 

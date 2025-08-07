@@ -4,7 +4,6 @@ import os
 from typing import Annotated, cast
 
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, HumanMessage
-from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import create_react_agent
@@ -14,9 +13,10 @@ from typing_extensions import TypedDict
 
 from universal_mcp.client.agents.base import BaseAgent
 from universal_mcp.client.agents.llm import get_llm
-from universal_mcp.client.agents.platform_manager import AgentRPlatformManager, PlatformManager
 from universal_mcp.tools import ToolManager
 from universal_mcp.tools.adapters import ToolFormat
+from universal_mcp.tools.registry import ToolRegistry
+from universal_mcp.utils.agentr import AgentrRegistry
 
 # Auto Agent
 # Working
@@ -57,9 +57,9 @@ class UserChoices(BaseModel):
 
 
 class AutoAgent(BaseAgent):
-    def __init__(self, name: str, instructions: str, model: str, platform_manager: PlatformManager):
+    def __init__(self, name: str, instructions: str, model: str, app_registry: ToolRegistry):
         super().__init__(name, instructions, model)
-        self.platform_manager = platform_manager
+        self.app_registry = app_registry
         self.llm_tools = get_llm(model, tags=["tools"])
         self.llm_choice = get_llm(model, tags=["choice"])
         self.llm_quiet = get_llm(model, tags=["quiet"])
@@ -221,7 +221,7 @@ class AutoAgent(BaseAgent):
         for app_id in app_ids:
             try:
                 # Get app info from platform manager
-                app_info = await self.platform_manager.get_app_details(app_id)
+                app_info = await self.app_registry.get_app_details(app_id)
                 app_details.append(app_info)
             except Exception as e:
                 logger.error(f"Error getting details for app {app_id}: {e}")
@@ -385,7 +385,7 @@ Be friendly and concise, but list each set of apps clearly. Do not return any ot
 
     async def load_action_for_app(self, app_id):
         """Load actions for an app using the platform manager"""
-        await self.platform_manager.load_actions_for_app(app_id, self.tool_manager)
+        await self.app_registry.load_tools_for_app(app_id, self.tool_manager)
 
     async def analyze_task_and_select_apps(
         self,
@@ -521,7 +521,7 @@ Be friendly and concise, but list each set of apps clearly. Do not return any ot
             return result
 
         # Get all available apps from platform manager
-        available_apps = await self.platform_manager.get_available_apps()
+        available_apps = await self.app_registry.get_available_apps()
 
         logger.info(f"Found {len(available_apps)} available apps")
 
@@ -552,36 +552,20 @@ Be friendly and concise, but list each set of apps clearly. Do not return any ot
         return choice_data
 
 
-async def graph(config: RunnableConfig):
-    # Get API key for the model
-    api_key = os.getenv("AUTO_AGENT_API_KEY", "test_api_key")
-    if api_key == "test_api_key":
-        api_key = input("Enter your API key: ")
-
-    # Create platform manager for AutoAgent
-    platform_manager = AgentRPlatformManager(api_key=api_key)
-
-    # Create AutoAgent with the configured model and system prompt
-    auto_agent = AutoAgent(name="Auto Agent", instructions="", model="gpt-4.1", platform_manager=platform_manager)
-
-    # Return the AutoAgent's graph
-    return auto_agent.graph
-
-
 if __name__ == "__main__":
     # Test the AutoAgent
 
     # Get API key from environment or use a placeholder
-    api_key = os.getenv("AUTO_AGENT_API_KEY", "test_api_key")
-    if api_key == "test_api_key":
-        api_key = input("Enter your API key: ")
+    agentr_api_key = os.getenv("AGENTR_API_KEY", "test_api_key")
+    if not agentr_api_key:
+        agentr_api_key = input("Enter your API key: ")
 
     # Create platform manager
-    platform_manager = AgentRPlatformManager(api_key=api_key)
+    app_registry = AgentrRegistry(api_key=agentr_api_key)
     want_instructions = input("Do you want to add a system prompt/instructions? (Y/N)")
     instructions = "" if want_instructions.upper() == "N" else input("Enter your instructions/system prompt: ")
 
-    agent = AutoAgent("Auto Agent", instructions, "gpt-4.1", platform_manager=platform_manager)
+    agent = AutoAgent("Auto Agent", instructions, "gpt-4.1", app_registry=app_registry)
 
     print("AutoAgent created successfully!")
     print(f"Agent name: {agent.name}")

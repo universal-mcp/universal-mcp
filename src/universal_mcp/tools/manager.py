@@ -20,6 +20,17 @@ TOOL_NAME_SEPARATOR = "_"
 DEFAULT_APP_NAME = "common"
 
 
+def _get_app_and_tool_name(tool_name: str) -> tuple[str, str]:
+    """Get the app name from a tool name."""
+    if TOOL_NAME_SEPARATOR in tool_name:
+        app_name = tool_name.split(TOOL_NAME_SEPARATOR, 1)[0]
+        tool_name_without_app_name = tool_name.split(TOOL_NAME_SEPARATOR, 1)[1]
+    else:
+        app_name = DEFAULT_APP_NAME
+        tool_name_without_app_name = tool_name
+    return app_name, tool_name_without_app_name
+
+
 def _filter_by_name(tools: list[Tool], tool_names: list[str] | None) -> list[Tool]:
     """Filter tools by name using simple string matching.
 
@@ -151,15 +162,12 @@ class ToolManager:
         else:
             raise ValueError(f"Invalid format: {format}")
 
-    def add_tool(
-        self, fn: Callable[..., Any] | Tool, name: str | None = None, app_name: str = DEFAULT_APP_NAME
-    ) -> Tool:
+    def add_tool(self, fn: Callable[..., Any] | Tool, name: str | None = None) -> Tool:
         """Add a tool to the manager.
 
         Args:
             fn: The tool function or Tool instance to add.
             name: Optional name override for the tool.
-            app_name: Application name to group the tool under.
 
         Returns:
             The registered Tool instance.
@@ -180,12 +188,11 @@ class ToolManager:
                     logger.debug(f"Tool '{tool.name}' with the same function already exists.")
             return existing
 
-        logger.debug(f"Adding tool: {tool.name} to app: {app_name}")
+        logger.debug(f"Adding tool: {tool.name}")
         self._all_tools[tool.name] = tool
-
         return tool
 
-    def register_tools(self, tools: list[Tool], app_name: str = DEFAULT_APP_NAME) -> None:
+    def register_tools(self, tools: list[Tool]) -> None:
         """Register a list of tools.
 
         Args:
@@ -193,14 +200,12 @@ class ToolManager:
             app_name: Application name to group the tools under.
         """
         for tool in tools:
-            # Add app name to tool name if not already present
-            if app_name not in tool.name:
-                tool.name = f"{app_name}{TOOL_NAME_SEPARATOR}{tool.name}"
+            app_name, tool_name = _get_app_and_tool_name(tool.name)
 
-            if tool.name in self._all_tools:
-                logger.warning(f"Tool '{tool.name}' already exists. Skipping registration.")
-                continue
-            self.add_tool(tool, app_name=app_name)
+            # Add prefix to tool name, if not already present
+            tool.name = f"{app_name}{TOOL_NAME_SEPARATOR}{tool_name}"
+            tool.tags.append(app_name)
+            self.add_tool(tool)
 
     def remove_tool(self, name: str) -> bool:
         """Remove a tool by name.
@@ -271,7 +276,7 @@ class ToolManager:
         if not tool_names and not tags:
             tools = _filter_by_tags(tools, [DEFAULT_IMPORTANT_TAG])
 
-        self.register_tools(tools, app_name=app.name)
+        self.register_tools(tools)
 
     async def call_tool(
         self,
@@ -299,7 +304,7 @@ class ToolManager:
             raise ToolNotFound(f"Unknown tool: {name}")
         try:
             result = await tool.run(arguments, context)
-            app_name = name.split(TOOL_NAME_SEPARATOR, 1)[0] if TOOL_NAME_SEPARATOR in name else DEFAULT_APP_NAME
+            app_name, _ = _get_app_and_tool_name(name)
             analytics.track_tool_called(name, app_name, "success")
             return result
         except Exception as e:

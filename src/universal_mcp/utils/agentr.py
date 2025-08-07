@@ -3,8 +3,12 @@ import os
 import httpx
 from loguru import logger
 
+from universal_mcp.applications import app_from_slug
 from universal_mcp.config import AppConfig
 from universal_mcp.exceptions import NotAuthorizedError
+from universal_mcp.integrations.integration import Integration
+from universal_mcp.tools.manager import ToolManager, _get_app_and_tool_name
+from universal_mcp.tools.registry import ToolRegistry
 
 
 class AgentrClient:
@@ -121,3 +125,183 @@ class AgentrClient:
         response = self.client.get(f"/apps/{app_id}/actions/")
         response.raise_for_status()
         return response.json()
+
+
+class AgentRIntegration(Integration):
+    """Manages authentication and authorization via the AgentR platform.
+
+    This integration uses an `AgentrClient` to interact with the AgentR API
+    for operations like retrieving authorization URLs and fetching stored
+    credentials. It simplifies integration with services supported by AgentR.
+
+    Attributes:
+        name (str): Name of the integration (e.g., "github", "google").
+        store (BaseStore): Store, typically not used directly by this class
+                       as AgentR manages the primary credential storage.
+        client (AgentrClient): Client for communicating with the AgentR API.
+        _credentials (dict | None): Cached credentials.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        client: AgentrClient | None = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        **kwargs,
+    ):
+        """Initializes the AgentRIntegration.
+
+        Args:
+            name (str): The name of the service integration as configured on
+                        the AgentR platform (e.g., "github").
+            client (AgentrClient | None, optional): The AgentR client. If not provided,
+                                                   a new `AgentrClient` will be created.
+            api_key (str | None, optional): API key for AgentR. If not provided,
+                                           will be loaded from environment variables.
+            base_url (str | None, optional): Base URL for AgentR API. If not provided,
+                                            will be loaded from environment variables.
+            **kwargs: Additional arguments passed to the parent `Integration`.
+        """
+        super().__init__(name, **kwargs)
+        self.client = client or AgentrClient(api_key=api_key, base_url=base_url)
+        self._credentials = None
+
+    def set_credentials(self, credentials: dict[str, any] | None = None) -> str:
+        """Not used for direct credential setting; initiates authorization instead.
+
+        For AgentR integrations, credentials are set via the AgentR platform's
+        OAuth flow. This method effectively redirects to the `authorize` flow.
+
+        Args:
+            credentials (dict | None, optional): Not used by this implementation.
+
+        Returns:
+            str: The authorization URL or message from the `authorize()` method.
+        """
+        raise NotImplementedError("AgentR integrations do not support direct credential setting")
+
+    @property
+    def credentials(self):
+        """Retrieves credentials from the AgentR API, with caching.
+
+        If credentials are not cached locally (in `_credentials`), this property
+        fetches them from the AgentR platform using `self.client.get_credentials`.
+
+        Returns:
+            dict: The credentials dictionary obtained from AgentR.
+
+        Raises:
+            NotAuthorizedError: If credentials are not found (e.g., 404 from AgentR).
+            httpx.HTTPStatusError: For other API errors from AgentR.
+        """
+        if self._credentials is not None:
+            return self._credentials
+        self._credentials = self.client.get_credentials(self.name)
+        return self._credentials
+
+    def get_credentials(self):
+        """Retrieves credentials from the AgentR API. Alias for `credentials` property.
+
+        Returns:
+            dict: The credentials dictionary obtained from AgentR.
+
+        Raises:
+            NotAuthorizedError: If credentials are not found.
+            httpx.HTTPStatusError: For other API errors.
+        """
+        return self.credentials
+
+    def authorize(self) -> str:
+        """Retrieves the authorization URL from the AgentR platform.
+
+        This URL should be presented to the user to initiate the OAuth flow
+        managed by AgentR for the service associated with `self.name`.
+
+        Returns:
+            str: The authorization URL.
+
+        Raises:
+            httpx.HTTPStatusError: If the API request to AgentR fails.
+        """
+        return self.client.get_authorization_url(self.name)
+
+
+class AgentrRegistry(ToolRegistry):
+    """Platform manager implementation for AgentR platform."""
+
+    def __init__(self, client: AgentrClient | None = None):
+        """Initialize the AgentR platform manager."""
+
+        self.client = client or AgentrClient()
+        logger.debug("AgentrRegistry initialized successfully")
+
+    async def list_apps(self) -> list[dict[str, any]]:
+        """Get list of available apps from AgentR.
+
+        Returns:
+            List of app dictionaries with id, name, description, and available fields
+        """
+        try:
+            all_apps = await self.client.list_all_apps()
+            available_apps = [
+                {"id": app["id"], "name": app["name"], "description": app.get("description", "")}
+                for app in all_apps
+                if app.get("available", False)
+            ]
+            logger.info(f"Found {len(available_apps)} available apps from AgentR")
+            return available_apps
+        except Exception as e:
+            logger.error(f"Error fetching apps from AgentR: {e}")
+            return []
+
+    async def get_app_details(self, app_id: str) -> dict[str, any]:
+        """Get detailed information about a specific app from AgentR.
+
+        Args:
+            app_id: The ID of the app to get details for
+
+        Returns:
+            Dictionary containing app details
+        """
+        try:
+            app_info = await self.client.fetch_app(app_id)
+            return {
+                "id": app_info.get("id"),
+                "name": app_info.get("name"),
+                "description": app_info.get("description"),
+                "category": app_info.get("category"),
+                "available": app_info.get("available", True),
+            }
+        except Exception as e:
+            logger.error(f"Error getting details for app {app_id}: {e}")
+            return {
+                "id": app_id,
+                "name": app_id,
+                "description": "Error loading details",
+                "category": "Unknown",
+                "available": True,
+            }
+
+    def load_tools(self, tools: list[str], tool_manager: ToolManager) -> None:
+        """Load tools from AgentR and register them as tools.
+
+        Args:
+            tools: The list of tools to load ( prefixed with app name )
+            tool_manager: The tool manager to register tools with
+        """
+        logger.info(f"Loading all actions for app: {tools}")
+        # Group all tools by app_name, tools
+        tools_by_app = {}
+        for tool_name in tools:
+            app_name, _ = _get_app_and_tool_name(tool_name)
+            if app_name not in tools_by_app:
+                tools_by_app[app_name] = []
+            tools_by_app[app_name].append(tool_name)
+
+        for app_name, tool_names in tools_by_app.items():
+            app = app_from_slug(app_name)
+            integration = AgentRIntegration(name=app_name)
+            app_instance = app(integration=integration)
+            tool_manager.register_tools_from_app(app_instance, tool_names=tool_names)
+        return tool_manager

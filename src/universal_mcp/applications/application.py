@@ -10,7 +10,7 @@ from graphql import DocumentNode
 from loguru import logger
 
 from universal_mcp.analytics import analytics
-from universal_mcp.integrations import Integration
+from universal_mcp.integrations.integration import Integration
 
 
 class BaseApplication(ABC):

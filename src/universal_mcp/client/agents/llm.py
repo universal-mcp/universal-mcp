@@ -2,7 +2,7 @@ from langchain_openai import AzureChatOpenAI
 
 
 def get_llm(model: str, tags: list[str] = None):
-    return AzureChatOpenAI(model=model, api_version="2024-12-01-preview", azure_deployment=model, tags=tags)
+    return AzureChatOpenAI(model=model, api_version="2024-12-01-preview", azure_deployment=model)
 
 
 if __name__ == "__main__":
