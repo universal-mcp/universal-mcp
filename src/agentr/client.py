@@ -1,4 +1,5 @@
 import os
+from typing import List, Optional
 
 import httpx
 from loguru import logger
@@ -28,11 +29,12 @@ class AgentrClient:
             base_url=self.base_url, headers={"X-API-KEY": self.api_key}, timeout=30, follow_redirects=True
         )
 
-    def get_credentials(self, integration_name: str) -> dict:
+    def get_credentials(self, app_id: str, integration_id: Optional[str] = None) -> dict:
         """Get credentials for an integration from the AgentR API.
 
         Args:
-            integration_name (str): Name of the integration to get credentials for
+            app_id (str): The ID of the app to get credentials for.
+            integration_id (str, optional): The specific integration ID. If not provided, the default will be used.
 
         Returns:
             dict: Credentials data from API response
@@ -41,21 +43,25 @@ class AgentrClient:
             NotAuthorizedError: If credentials are not found (404 response)
             HTTPError: For other API errors
         """
-        response = self.client.get(
-            f"/api/{integration_name}/credentials/",
-        )
+        params = {"app_id": app_id}
+        if integration_id:
+            params["integration_id"] = integration_id
+
+        response = self.client.get("/v1/credentials/", params=params)
+
         if response.status_code == 404:
-            logger.warning(f"No credentials found for {integration_name}. Requesting authorization...")
-            action = self.get_authorization_url(integration_name)
-            raise NotAuthorizedError(action)
+            logger.warning(f"No credentials found for app '{app_id}'. Requesting authorization...")
+            auth_url_message = self.get_authorization_url(app_id, integration_id)
+            raise NotAuthorizedError(auth_url_message)
         response.raise_for_status()
         return response.json()
 
-    def get_authorization_url(self, integration_name: str) -> str:
+    def get_authorization_url(self, app_id: str, integration_id: Optional[str] = None) -> str:
         """Get authorization URL for an integration.
 
         Args:
-            integration_name (str): Name of the integration to get authorization URL for
+            app_id (str): The ID of the app to get the authorization URL for.
+            integration_id (str, optional): The specific integration ID. If not provided, the default will be used.
 
         Returns:
             str: Message containing authorization URL
@@ -63,13 +69,20 @@ class AgentrClient:
         Raises:
             HTTPError: If API request fails
         """
-        response = self.client.get(f"/api/{integration_name}/authorize/")
+        payload = {"app_id": app_id}
+        if integration_id:
+            payload["integration_id"] = integration_id
+
+        response = self.client.post("/v1/connections/authorize", json=payload)
         response.raise_for_status()
-        url = response.json()
+        url = response.json().get("authorize_url")
         return f"Please ask the user to visit the following url to authorize the application: {url}. Render the url in proper markdown format with a clickable link."
 
-    def fetch_apps(self) -> list[AppConfig]:
+    def list_apps(self, search: Optional[str] = None) -> list[AppConfig]:
         """Fetch available apps from AgentR API.
+
+        Args:
+            search (str, optional): Perform a semantic search on app names and descriptions.
 
         Returns:
             List of application configurations
@@ -77,12 +90,15 @@ class AgentrClient:
         Raises:
             httpx.HTTPError: If API request fails
         """
-        response = self.client.get("/api/apps/")
+        params = {}
+        if search:
+            params["search"] = search
+        response = self.client.get("/v1/apps/", params=params)
         response.raise_for_status()
         data = response.json()
         return [AppConfig.model_validate(app) for app in data]
 
-    def fetch_app(self, app_id: str) -> dict:
+    def get_app(self, app_id: str) -> dict:
         """Fetch a specific app from AgentR API.
 
         Args:
@@ -94,30 +110,36 @@ class AgentrClient:
         Raises:
             httpx.HTTPError: If API request fails
         """
-        response = self.client.get(f"/apps/{app_id}/")
+        response = self.client.get(f"/v1/apps/{app_id}")
         response.raise_for_status()
         return response.json()
 
-    def list_all_apps(self) -> list:
-        """List all apps from AgentR API.
-
-        Returns:
-            List of app names
-        """
-        response = self.client.get("/apps/")
-        response.raise_for_status()
-        return response.json()
-
-    def list_actions(self, app_id: str):
-        """List actions for an app.
+    def list_tools(self, search: Optional[str] = None) -> list:
+        """List all tools from AgentR API.
 
         Args:
-            app_id (str): ID of the app to list actions for
+            search (str, optional): Perform a semantic search on tool names and descriptions.
 
         Returns:
-            List of action configurations
+            List of tools
         """
+        params = {}
+        if search:
+            params["search"] = search
+        response = self.client.get("/v1/tools/", params=params)
+        response.raise_for_status()
+        return response.json()
 
-        response = self.client.get(f"/apps/{app_id}/actions/")
+    def get_tool(self, tool_id: str) -> dict:
+        """
+        Retrieve a single tool by its unique ID.
+
+        Args:
+            tool_id (str): The ID of the tool to retrieve.
+
+        Returns:
+            dict: The tool data.
+        """
+        response = self.client.get(f"/v1/tools/{tool_id}")
         response.raise_for_status()
         return response.json()
