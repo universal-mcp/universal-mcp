@@ -1,5 +1,4 @@
 import os
-from typing import List, Optional
 
 import httpx
 from loguru import logger
@@ -29,7 +28,7 @@ class AgentrClient:
             base_url=self.base_url, headers={"X-API-KEY": self.api_key}, timeout=30, follow_redirects=True
         )
 
-    def get_credentials(self, app_id: str, integration_id: Optional[str] = None) -> dict:
+    def get_credentials(self, app_id: str, integration_id: str | None = None) -> dict:
         """Get credentials for an integration from the AgentR API.
 
         Args:
@@ -56,7 +55,7 @@ class AgentrClient:
         response.raise_for_status()
         return response.json()
 
-    def get_authorization_url(self, app_id: str, integration_id: Optional[str] = None) -> str:
+    def get_authorization_url(self, app_id: str, integration_id: str | None = None) -> str:
         """Get authorization URL for an integration.
 
         Args:
@@ -78,7 +77,7 @@ class AgentrClient:
         url = response.json().get("authorize_url")
         return f"Please ask the user to visit the following url to authorize the application: {url}. Render the url in proper markdown format with a clickable link."
 
-    def list_apps(self, search: Optional[str] = None) -> list[AppConfig]:
+    def list_apps(self, search: str | None = None) -> list[AppConfig]:
         """Fetch available apps from AgentR API.
 
         Args:
@@ -114,7 +113,7 @@ class AgentrClient:
         response.raise_for_status()
         return response.json()
 
-    def list_tools(self, search: Optional[str] = None) -> list:
+    def list_tools(self, search: str | None = None) -> list:
         """List all tools from AgentR API.
 
         Args:
