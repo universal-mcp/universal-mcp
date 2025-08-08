@@ -25,7 +25,7 @@ class AgentrClient:
         if not self.api_key:
             raise ValueError("No API key provided and AGENTR_API_KEY not found in environment variables")
         self.client = httpx.Client(
-            base_url=self.base_url, headers={"X-API-KEY": self.api_key}, timeout=30, follow_redirects=True
+            base_url=f"{self.base_url}/v1", headers={"X-API-KEY": self.api_key}, timeout=30, follow_redirects=True
         )
 
     def get_credentials(self, app_id: str, integration_id: str | None = None) -> dict:
@@ -46,7 +46,7 @@ class AgentrClient:
         if integration_id:
             params["integration_id"] = integration_id
 
-        response = self.client.get("/v1/credentials/", params=params)
+        response = self.client.get("/credentials/", params=params)
 
         if response.status_code == 404:
             logger.warning(f"No credentials found for app '{app_id}'. Requesting authorization...")
@@ -72,7 +72,7 @@ class AgentrClient:
         if integration_id:
             payload["integration_id"] = integration_id
 
-        response = self.client.post("/v1/connections/authorize", json=payload)
+        response = self.client.post("/connections/authorize", json=payload)
         response.raise_for_status()
         url = response.json().get("authorize_url")
         return f"Please ask the user to visit the following url to authorize the application: {url}. Render the url in proper markdown format with a clickable link."
@@ -92,7 +92,7 @@ class AgentrClient:
         params = {}
         if search:
             params["search"] = search
-        response = self.client.get("/v1/apps/", params=params)
+        response = self.client.get("/apps/", params=params)
         response.raise_for_status()
         data = response.json()
         return [AppConfig.model_validate(app) for app in data]
@@ -109,7 +109,7 @@ class AgentrClient:
         Raises:
             httpx.HTTPError: If API request fails
         """
-        response = self.client.get(f"/v1/apps/{app_id}")
+        response = self.client.get(f"/apps/{app_id}")
         response.raise_for_status()
         return response.json()
 
@@ -125,7 +125,7 @@ class AgentrClient:
         params = {}
         if search:
             params["search"] = search
-        response = self.client.get("/v1/tools/", params=params)
+        response = self.client.get("/tools/", params=params)
         response.raise_for_status()
         return response.json()
 
@@ -139,6 +139,6 @@ class AgentrClient:
         Returns:
             dict: The tool data.
         """
-        response = self.client.get(f"/v1/tools/{tool_id}")
+        response = self.client.get(f"/tools/{tool_id}")
         response.raise_for_status()
         return response.json()
