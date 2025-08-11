@@ -1,6 +1,6 @@
 from typer import Typer
 
-from agents import ReactAgent
+from universal_mcp.agents import ReactAgent
 from universal_mcp.logger import setup_logger
 
 app = Typer()

@@ -22,8 +22,8 @@ class Agentr:
         self.format = format or ToolFormat.NATIVE
         self.manager = manager or ToolManager()
 
-    def load_tools(self, tool_names: list[str]) -> list[Tool]:
-        self.registry.load_tools(tool_names)
+    def load_tools(self, tool_names: list[str]) -> None:
+        self.registry.load_tools(tool_names, self.manager)
         return
 
     def list_tools(self, format: ToolFormat | None = None) -> list[Tool]:

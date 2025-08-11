@@ -26,7 +26,7 @@ class ToolError(Exception):
     pass
 
 
-class ToolNotFound(Exception):
+class ToolNotFoundError(Exception):
     """Raised when a tool is not found"""
 
 

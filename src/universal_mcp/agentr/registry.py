@@ -1,11 +1,11 @@
 from loguru import logger
 
-from agentr.client import AgentrClient
+from universal_mcp.agentr.client import AgentrClient
 from universal_mcp.applications import app_from_slug
 from universal_mcp.tools.manager import ToolManager, _get_app_and_tool_name
 from universal_mcp.tools.registry import ToolRegistry
 
-from .integration import AgentRIntegration
+from .integration import AgentrIntegration
 
 
 class AgentrRegistry(ToolRegistry):
@@ -64,7 +64,7 @@ class AgentrRegistry(ToolRegistry):
                 "available": True,
             }
 
-    def load_tools(self, tools: list[str], tool_manager: ToolManager) -> None:
+    def load_tools(self, tools: list[str] | None, tool_manager: ToolManager) -> None:
         """Load tools from AgentR and register them as tools.
 
         Args:
@@ -84,7 +84,8 @@ class AgentrRegistry(ToolRegistry):
 
         for app_name, tool_names in tools_by_app.items():
             app = app_from_slug(app_name)
-            integration = AgentRIntegration(name=app_name)
-            app_instance = app(name=app_name, integration=integration)
+            integration = AgentrIntegration(name=app_name)
+            # TODO: Import with name param, some apps are written incorrectly and hence passing name fails
+            app_instance = app(integration=integration)
             tool_manager.register_tools_from_app(app_instance, tool_names=tool_names)
         return

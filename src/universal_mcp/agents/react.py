@@ -1,7 +1,7 @@
 from langgraph.prebuilt import create_react_agent
 from loguru import logger
 
-from agentr.registry import AgentrRegistry
+from universal_mcp.agentr.registry import AgentrRegistry
 from universal_mcp.tools.adapters import ToolFormat
 from universal_mcp.tools.manager import ToolManager
 
@@ -18,7 +18,8 @@ class ReactAgent(BaseAgent):
         self.max_iterations = max_iterations
         self.tool_manager = ToolManager()
         registry = AgentrRegistry()
-        self.tool_manager = registry.load_tools(tools, self.tool_manager)
+        if tools:
+            registry.load_tools(tools, self.tool_manager)
         logger.debug(f"Initialized ReactAgent: name={name}, model={model}")
         self._graph = self._build_graph()
 

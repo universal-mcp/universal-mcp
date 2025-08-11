@@ -7,7 +7,7 @@ from langchain_openai import AzureChatOpenAI
 from pydantic import BaseModel, SecretStr
 
 from universal_mcp.tools import ToolManager
-from universal_mcp.tools.adapters import ToolFormat
+from universal_mcp.types import ToolFormat
 
 
 class TestCaseOutput(BaseModel):

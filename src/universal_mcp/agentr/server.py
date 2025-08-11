@@ -6,7 +6,7 @@ from universal_mcp.servers.server import BaseServer
 from universal_mcp.tools import ToolManager
 
 from .client import AgentrClient
-from .integration import AgentRIntegration
+from .integration import AgentrIntegration
 
 
 def load_from_agentr_server(client: AgentrClient, tool_manager: ToolManager) -> None:
@@ -17,7 +17,7 @@ def load_from_agentr_server(client: AgentrClient, tool_manager: ToolManager) -> 
             try:
                 app_config = AppConfig.model_validate(app)
                 integration = (
-                    AgentRIntegration(name=app_config.integration.name, client=client)  # type: ignore
+                    AgentrIntegration(name=app_config.integration.name, client=client)  # type: ignore
                     if app_config.integration
                     else None
                 )
@@ -31,7 +31,7 @@ def load_from_agentr_server(client: AgentrClient, tool_manager: ToolManager) -> 
         raise
 
 
-class AgentRServer(BaseServer):
+class AgentrServer(BaseServer):
     """Server that loads apps from AgentR server."""
 
     def __init__(self, config: ServerConfig, **kwargs):

@@ -6,11 +6,11 @@ from langgraph.prebuilt import create_react_agent
 from loguru import logger
 from pydantic import BaseModel, SecretStr
 
-from agentr.client import AgentrClient
+from universal_mcp.agentr import AgentrIntegration
+from universal_mcp.agentr.client import AgentrClient
 from universal_mcp.applications import APIApplication, BaseApplication
-from universal_mcp.integrations import AgentRIntegration
 from universal_mcp.tools import Tool, ToolManager
-from universal_mcp.tools.adapters import ToolFormat
+from universal_mcp.types import ToolFormat
 
 
 class ValidateResult(BaseModel):
@@ -94,7 +94,7 @@ def create_agentr_client(app_name: str) -> AgentrClient:
     return AgentrClient(api_key=api_key, base_url=base_url)
 
 
-def create_integration(app_name: str) -> AgentRIntegration:
+def create_integration(app_name: str) -> AgentrIntegration:
     """
     Create an AgentRIntegration instance with appropriate client.
 
@@ -105,7 +105,7 @@ def create_integration(app_name: str) -> AgentRIntegration:
         AgentRIntegration instance
     """
     client = create_agentr_client(app_name)
-    return AgentRIntegration(name=app_name, client=client)
+    return AgentrIntegration(name=app_name, client=client)
 
 
 def create_app_with_integration(app_name: str, app_class: type[APIApplication]) -> APIApplication:

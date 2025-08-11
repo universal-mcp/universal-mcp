@@ -5,14 +5,14 @@ from loguru import logger
 
 from universal_mcp.analytics import analytics
 from universal_mcp.applications.application import BaseApplication
-from universal_mcp.exceptions import ToolNotFound
+from universal_mcp.exceptions import ToolNotFoundError
 from universal_mcp.tools.adapters import (
-    ToolFormat,
     convert_tool_to_langchain_tool,
     convert_tool_to_mcp_tool,
     convert_tool_to_openai_tool,
 )
 from universal_mcp.tools.tools import Tool
+from universal_mcp.types import ToolFormat
 
 # Constants
 DEFAULT_IMPORTANT_TAG = "important"
@@ -298,13 +298,13 @@ class ToolManager:
             ToolError: If the tool is not found or execution fails.
         """
         logger.debug(f"Calling tool: {name} with arguments: {arguments}")
+        app_name, _ = _get_app_and_tool_name(name)
         tool = self.get_tool(name)
         if not tool:
             logger.error(f"Unknown tool: {name}")
-            raise ToolNotFound(f"Unknown tool: {name}")
+            raise ToolNotFoundError(f"Unknown tool: {name}")
         try:
             result = await tool.run(arguments, context)
-            app_name, _ = _get_app_and_tool_name(name)
             analytics.track_tool_called(name, app_name, "success")
             return result
         except Exception as e:

@@ -10,7 +10,7 @@ class SampleToolApp(BaseApplication):
 
     def __init__(self):
         """Initializes the SampleToolApp with the name 'sample_tool_app'."""
-        super().__init__("sample_tool_app")
+        super().__init__(name="sample_tool_app")
 
     def get_current_time(self):
         """Get the current system time as a formatted string.

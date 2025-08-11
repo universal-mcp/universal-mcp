@@ -38,7 +38,7 @@ class BaseAgent:
     async def process_command(self, command: str) -> bool | None:
         """Process a command from the user"""
 
-    async def run_interactive(self, thread_id: str = uuid4()):
+    async def run_interactive(self, thread_id: str = str(uuid4())):
         """Main application loop"""
 
         # Display welcome

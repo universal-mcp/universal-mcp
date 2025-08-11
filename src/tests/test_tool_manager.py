@@ -1,7 +1,7 @@
 import pytest
 
 from universal_mcp.applications.application import BaseApplication
-from universal_mcp.exceptions import ToolError
+from universal_mcp.exceptions import ToolError, ToolNotFoundError
 from universal_mcp.tools.adapters import ToolFormat
 from universal_mcp.tools.manager import Tool, ToolManager
 
@@ -72,27 +72,27 @@ class ExampleApp(BaseApplication):
         return [dummy_add, dummy_multiply, dummy_error]
 
 
-def test_add_tool(tool_manager):
+def test_add_tool(tool_manager: ToolManager):
     tool = tool_manager.add_tool(dummy_add)
     assert tool.name == "dummy_add"
     assert tool.name in [t.name for t in tool_manager.list_tools()]
 
 
-def test_add_duplicate_tool(tool_manager):
+def test_add_duplicate_tool(tool_manager: ToolManager):
     tool1 = tool_manager.add_tool(dummy_add)
     tool2 = tool_manager.add_tool(dummy_add)
     assert tool1 is tool2  # Should return existing tool
     assert len(tool_manager.list_tools()) == 1
 
 
-def test_remove_tool(tool_manager):
+def test_remove_tool(tool_manager: ToolManager):
     tool = tool_manager.add_tool(dummy_add)
     assert tool_manager.remove_tool(tool.name) is True
     assert tool_manager.get_tool(tool.name) is None
     assert tool_manager.remove_tool("nonexistent") is False
 
 
-def test_clear_tools(tool_manager, dummy_tools):
+def test_clear_tools(tool_manager: ToolManager, dummy_tools):
     for tool in dummy_tools:
         tool_manager.add_tool(tool)
     assert len(tool_manager.list_tools()) == 3
@@ -100,7 +100,7 @@ def test_clear_tools(tool_manager, dummy_tools):
     assert len(tool_manager.list_tools()) == 0
 
 
-def test_list_tools_format(tool_manager, dummy_tools):
+def test_list_tools_format(tool_manager: ToolManager, dummy_tools):
     for tool in dummy_tools:
         tool_manager.add_tool(tool)
 
@@ -117,7 +117,7 @@ def test_list_tools_format(tool_manager, dummy_tools):
     assert len(openai_tools) == 3
 
 
-def test_filter_tools_by_tags(tool_manager, dummy_tools):
+def test_filter_tools_by_tags(tool_manager: ToolManager, dummy_tools):
     for tool in dummy_tools:
         tool_manager.add_tool(tool)
 
@@ -139,20 +139,20 @@ async def test_call_tool_success(tool_manager):
 
 
 @pytest.mark.asyncio
-async def test_call_tool_error(tool_manager):
+async def test_call_tool_error(tool_manager: ToolManager):
     tool_manager.add_tool(dummy_error)
     with pytest.raises(ToolError):
         await tool_manager.call_tool("dummy_error", {})
 
 
 @pytest.mark.asyncio
-async def test_call_nonexistent_tool(tool_manager):
-    with pytest.raises(ToolError):
+async def test_call_nonexistent_tool(tool_manager: ToolManager):
+    with pytest.raises(ToolNotFoundError):
         await tool_manager.call_tool("nonexistent", {})
 
 
 @pytest.mark.asyncio
-async def test_call_tool_from_app(tool_manager):
+async def test_call_tool_from_app(tool_manager: ToolManager):
     app = ExampleApp()
     # Only important are added by default
     tool_manager.register_tools_from_app(app)
@@ -164,7 +164,7 @@ async def test_call_tool_from_app(tool_manager):
 
 
 @pytest.mark.asyncio
-async def test_call_tool_from_app_with_tags(tool_manager):
+async def test_call_tool_from_app_with_tags(tool_manager: ToolManager):
     app = ExampleApp()
     # Only important are added by default
     tool_manager.register_tools_from_app(app, tags=["math"])
@@ -175,7 +175,7 @@ async def test_call_tool_from_app_with_tags(tool_manager):
 
 
 @pytest.mark.asyncio
-async def test_load_tool_from_name(tool_manager):
+async def test_load_tool_from_name(tool_manager: ToolManager):
     app = ExampleApp()
     # Only important are added by default
     tool_manager.register_tools_from_app(app, tool_names=["dummy_multiply", "dummy_add"])

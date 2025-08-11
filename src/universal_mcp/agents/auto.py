@@ -11,7 +11,7 @@ from loguru import logger
 from pydantic import BaseModel
 from typing_extensions import TypedDict
 
-from agentr.registry import AgentrRegistry
+from universal_mcp.agentr.registry import AgentrRegistry
 from universal_mcp.tools import ToolManager
 from universal_mcp.tools.adapters import ToolFormat
 from universal_mcp.tools.registry import ToolRegistry
@@ -392,7 +392,7 @@ Be friendly and concise, but list each set of apps clearly. Do not return any ot
         self,
         task: str,
         available_apps: list[dict],
-        messages: list[BaseMessage] = None,
+        messages: list[BaseMessage] | None = None,
         loaded_apps: list[str] | None = None,
     ) -> TaskAnalysis:
         """Combined task analysis and app selection to reduce LLM calls"""

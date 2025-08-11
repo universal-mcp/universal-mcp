@@ -3,7 +3,7 @@ from universal_mcp.integrations.integration import Integration
 from .client import AgentrClient
 
 
-class AgentRIntegration(Integration):
+class AgentrIntegration(Integration):
     """Manages authentication and authorization via the AgentR platform.
 
     This integration uses an `AgentrClient` to interact with the AgentR API
@@ -40,6 +40,7 @@ class AgentRIntegration(Integration):
             **kwargs: Additional arguments passed to the parent `Integration`.
         """
         super().__init__(name, **kwargs)
+        self.type = "agentr"
         self.client = client or AgentrClient(api_key=api_key, base_url=base_url)
         self._credentials = None
 

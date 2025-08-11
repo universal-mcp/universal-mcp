@@ -1,18 +1,10 @@
-from enum import Enum
+from typing import Any
 
 from loguru import logger
 from mcp.types import TextContent
 
 from universal_mcp.tools.tools import Tool
-
-
-class ToolFormat(str, Enum):
-    """Supported tool formats."""
-
-    NATIVE = "native"
-    MCP = "mcp"
-    LANGCHAIN = "langchain"
-    OPENAI = "openai"
+from universal_mcp.types import ToolFormat  # noqa: F401
 
 
 def convert_tool_to_mcp_tool(
@@ -46,7 +38,7 @@ def convert_tool_to_mcp_tool(
     return mcp_tool
 
 
-def format_to_mcp_result(result: any) -> list[TextContent]:
+def format_to_mcp_result(result: Any) -> list[TextContent]:
     """Format tool result into TextContent list.
 
     Args:
@@ -86,7 +78,7 @@ def convert_tool_to_langchain_tool(
     logger.debug(f"Converting tool '{tool.name}' to LangChain format")
 
     async def call_tool(
-        **arguments: dict[str, any],
+        **arguments: dict[str, Any],
     ):
         logger.debug(f"Executing LangChain tool '{tool.name}' with arguments: {arguments}")
         call_tool_result = await tool.run(arguments)

@@ -38,13 +38,6 @@ dependencies = [
     "typer>=0.15.2",
 ]
 
-[tool.uv.workspace]
-members = [
-    ".",
-    "agentr",
-    "agennts"
-]
-
 [project.optional-dependencies]
 dev = [
     "mypy>=1.16.0",

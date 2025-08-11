@@ -38,12 +38,13 @@ class Integration:
         """Initializes the Integration.
 
         Args:
-            name (str): The unique name for this integration instance.
+            name (str): The unique name/identifier for this integration instance.
             store (BaseStore | None, optional): A store instance for
                 persisting credentials. Defaults to `MemoryStore()`.
         """
         self.name = name
         self.store = store or MemoryStore()
+        self.type = ""
 
     def authorize(self) -> str | dict[str, Any]:
         """Initiates or provides details for the authorization process.
@@ -101,6 +102,12 @@ class Integration:
                         required fields for the specific integration type.
         """
         self.store.set(self.name, credentials)
+
+    def __str__(self) -> str:
+        return f"Integration(name={self.name}, type={self.type})"
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 class ApiKeyIntegration(Integration):
@@ -261,6 +268,7 @@ class OAuthIntegration(Integration):
             **kwargs: Additional arguments passed to the parent `Integration`.
         """
         super().__init__(name, store, **kwargs)
+        self.type = "oauth"
         self.client_id = client_id
         self.client_secret = client_secret
         self.auth_url = auth_url
