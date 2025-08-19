@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, create_model
 
 from universal_mcp.exceptions import NotAuthorizedError, ToolError
 from universal_mcp.tools.docstring_parser import parse_docstring
+from universal_mcp.types import DEFAULT_APP_NAME, TOOL_NAME_SEPARATOR
 
 from .func_metadata import FuncMetadata
 
@@ -31,8 +32,9 @@ class Tool(BaseModel):
     """Internal tool registration info."""
 
     fn: Callable[..., Any] = Field(exclude=True)
-    name: str = Field(description="Name of the tool")
-    description: str = Field(description="Summary line from the tool's docstring")
+    app_name: str = Field(description="Name of the app that the tool belongs to")
+    tool_name: str = Field(description="Name of the tool")
+    description: str | None = Field(default=None, description="Summary line from the tool's docstring")
     args_description: dict[str, str] = Field(
         default_factory=dict, description="Descriptions of arguments from the docstring"
     )
@@ -44,10 +46,14 @@ class Tool(BaseModel):
     tags: list[str] = Field(default_factory=list, description="Tags for categorizing the tool")
     parameters: dict[str, Any] = Field(description="JSON schema for tool parameters")
     output_schema: dict[str, Any] | None = Field(default=None, description="JSON schema for tool output")
-    fn_metadata: FuncMetadata = Field(
-        description="Metadata about the function including a pydantic model for tool arguments"
+    fn_metadata: FuncMetadata | None = Field(
+        default=None, description="Metadata about the function including a pydantic model for tool arguments"
     )
     is_async: bool = Field(description="Whether the tool is async")
+
+    @property
+    def name(self) -> str:
+        return f"{self.app_name}{TOOL_NAME_SEPARATOR}{self.tool_name}"
 
     @classmethod
     def from_function(
@@ -81,7 +87,8 @@ class Tool(BaseModel):
 
         return cls(
             fn=fn,
-            name=func_name,
+            app_name=DEFAULT_APP_NAME,
+            tool_name=func_name,
             description=parsed_doc["summary"],
             args_description=simple_args_descriptions,
             returns_description=parsed_doc["returns"],

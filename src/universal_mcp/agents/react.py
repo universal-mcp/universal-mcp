@@ -1,34 +1,36 @@
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.prebuilt import create_react_agent
 from loguru import logger
 
-from universal_mcp.agentr.registry import AgentrRegistry
-from universal_mcp.tools.adapters import ToolFormat
-from universal_mcp.tools.manager import ToolManager
-
-from .base import BaseAgent
-from .llm import get_llm
+from universal_mcp.agents.base import BaseAgent
+from universal_mcp.agents.tools import load_agentr_tools, load_mcp_tools
+from universal_mcp.types import ToolConfig
 
 
 class ReactAgent(BaseAgent):
     def __init__(
-        self, name: str, instructions: str, model: str, tools: list[str] | None = None, max_iterations: int = 10
+        self,
+        name: str,
+        instructions: str,
+        model: str,
+        memory: BaseCheckpointSaver | None = None,
+        tools: ToolConfig | None = None,
+        max_iterations: int = 10,
+        **kwargs,
     ):
-        super().__init__(name, instructions, model)
-        self.llm = get_llm(model)
+        super().__init__(name, instructions, model, memory, **kwargs)
+        self.tools = tools
         self.max_iterations = max_iterations
-        self.tool_manager = ToolManager()
-        registry = AgentrRegistry()
-        if tools:
-            registry.load_tools(tools, self.tool_manager)
-        logger.debug(f"Initialized ReactAgent: name={name}, model={model}")
-        self._graph = self._build_graph()
 
-    @property
-    def graph(self):
-        return self._graph
-
-    def _build_graph(self):
-        tools = self.tool_manager.list_tools(format=ToolFormat.LANGCHAIN) if self.tool_manager else []
+    async def _build_graph(self):
+        if self.tools:
+            config = self.tools.model_dump(exclude_none=True)
+            agentr_tools = await load_agentr_tools(config["agentrServers"]) if config.get("agentrServers") else []
+            mcp_tools = await load_mcp_tools(config["mcpServers"]) if config.get("mcpServers") else []
+            tools = agentr_tools + mcp_tools
+        else:
+            tools = []
+        logger.debug(f"Initialized ReactAgent: name={self.name}, model={self.model}")
         return create_react_agent(
             self.llm,
             tools,
@@ -53,6 +55,10 @@ if __name__ == "__main__":
     import asyncio
 
     agent = ReactAgent(
-        "Universal React Agent", "You are a helpful assistant", "gpt-4.1", tools=["google-mail_send_email"]
+        "Universal React Agent",
+        instructions="",
+        model="gpt-4o",
+        tools=ToolConfig(agentrServers={"google-mail": {"tools": ["send_email"]}}),
     )
-    asyncio.run(agent.run_interactive())
+    result = asyncio.run(agent.run(user_input="Send an email with the subject 'Hello' to john.doe@example.com"))
+    print(result["messages"][-1].content)

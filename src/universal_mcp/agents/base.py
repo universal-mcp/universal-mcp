@@ -3,26 +3,31 @@ from typing import cast
 from uuid import uuid4
 
 from langchain_core.messages import AIMessageChunk
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
+from .llm import get_llm
 from .utils import RichCLI
 
 
 class BaseAgent:
-    def __init__(self, name: str, instructions: str, model: str):
+    def __init__(self, name: str, instructions: str, model: str, memory: BaseCheckpointSaver | None = None, **kwargs):
         self.name = name
         self.instructions = instructions
         self.model = model
-        self.memory = MemorySaver()
+        self.memory = memory or MemorySaver()
+        self._graph = None
+        self.llm = get_llm(model)
         self.cli = RichCLI()
 
-    @property
-    def graph(self):
+    async def _build_graph(self):
         raise NotImplementedError("Subclasses must implement this method")
 
     async def stream(self, thread_id: str, user_input: str):
-        async for event, _ in self.graph.astream(
+        if self._graph is None:
+            self._graph = await self._build_graph()
+        async for event, _ in self._graph.astream(
             {"messages": [{"role": "user", "content": user_input}]},
             config={"configurable": {"thread_id": thread_id}},
             stream_mode="messages",
@@ -32,25 +37,33 @@ class BaseAgent:
 
     async def stream_interactive(self, thread_id: str, user_input: str):
         with self.cli.display_agent_response_streaming(self.name) as stream_updater:
-            async for event in self.stream(thread_id, user_input):
+            async for event in self.astream(thread_id, user_input):
                 stream_updater.update(event.content)
 
-    async def process_command(self, command: str) -> bool | None:
-        """Process a command from the user"""
+    async def run(self, user_input: str, thread_id: str = str(uuid4())):
+        """Run the agent"""
+        if not self._graph:
+            self._graph = await self._build_graph()
+        return await self._graph.ainvoke(
+            {"messages": [{"role": "user", "content": user_input}]},
+            config={"configurable": {"thread_id": thread_id}},
+        )
 
     async def run_interactive(self, thread_id: str = str(uuid4())):
         """Main application loop"""
 
+        if not self._graph:
+            self._graph = await self._build_graph()
         # Display welcome
         self.cli.display_welcome(self.name)
 
         # Main loop
         while True:
             try:
-                state = self.graph.get_state(config={"configurable": {"thread_id": thread_id}})
+                state = self._graph.get_state(config={"configurable": {"thread_id": thread_id}})
                 if state.interrupts:
                     value = self.cli.handle_interrupt(state.interrupts[0])
-                    self.graph.invoke(Command(resume=value), config={"configurable": {"thread_id": thread_id}})
+                    self._graph.invoke(Command(resume=value), config={"configurable": {"thread_id": thread_id}})
                     continue
 
                 user_input = self.cli.get_user_input()

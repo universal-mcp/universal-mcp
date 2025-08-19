@@ -7,9 +7,6 @@ repo_url: https://github.com/universal-mcp/universal-mcp
 edit_uri: edit/main/docs/
 site_url: https://universal-mcp.github.io/universal-mcp/
 
-# TODO(Marcelo): Add Anthropic copyright?
-# copyright: © Model Context Protocol 2025 to present
-
 nav:
   - Home: index.md
   - Applications: applications.md

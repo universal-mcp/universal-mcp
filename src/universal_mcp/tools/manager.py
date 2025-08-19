@@ -12,12 +12,7 @@ from universal_mcp.tools.adapters import (
     convert_tool_to_openai_tool,
 )
 from universal_mcp.tools.tools import Tool
-from universal_mcp.types import ToolFormat
-
-# Constants
-DEFAULT_IMPORTANT_TAG = "important"
-TOOL_NAME_SEPARATOR = "_"
-DEFAULT_APP_NAME = "common"
+from universal_mcp.types import DEFAULT_APP_NAME, DEFAULT_IMPORTANT_TAG, TOOL_NAME_SEPARATOR, ToolFormat
 
 
 def _get_app_and_tool_name(tool_name: str) -> tuple[str, str]:
@@ -31,8 +26,13 @@ def _get_app_and_tool_name(tool_name: str) -> tuple[str, str]:
     return app_name, tool_name_without_app_name
 
 
+def _sanitize_tool_names(tool_names: list[str]) -> list[str]:
+    """Sanitize tool names by removing empty strings and converting to lowercase."""
+    return [_get_app_and_tool_name(name)[1].lower() for name in tool_names if name]
+
+
 def _filter_by_name(tools: list[Tool], tool_names: list[str] | None) -> list[Tool]:
-    """Filter tools by name using simple string matching.
+    """Filter tools by name using set comparison for efficient matching.
 
     Args:
         tools: List of tools to filter.
@@ -45,16 +45,14 @@ def _filter_by_name(tools: list[Tool], tool_names: list[str] | None) -> list[Too
         return tools
 
     logger.debug(f"Filtering tools by names: {tool_names}")
-    # Convert names to lowercase for case-insensitive matching
-    tool_names = [name.lower() for name in tool_names]
+    tool_names_set = set(_sanitize_tool_names(tool_names))
+    logger.debug(f"Tool names set: {tool_names_set}")
     filtered_tools = []
     for tool in tools:
-        for tool_name in tool_names:
-            if tool_name in tool.name.lower():
-                filtered_tools.append(tool)
-                logger.debug(f"Tool '{tool.name}' matched name filter")
-                break
-
+        if tool.tool_name.lower() in tool_names_set:
+            filtered_tools.append(tool)
+            logger.debug(f"Tool '{tool.name}' matched name filter")
+    logger.debug(f"Filtered tools: {[tool.name for tool in filtered_tools]}")
     return filtered_tools
 
 
@@ -200,11 +198,6 @@ class ToolManager:
             app_name: Application name to group the tools under.
         """
         for tool in tools:
-            app_name, tool_name = _get_app_and_tool_name(tool.name)
-
-            # Add prefix to tool name, if not already present
-            tool.name = f"{app_name}{TOOL_NAME_SEPARATOR}{tool_name}"
-            tool.tags.append(app_name)
             self.add_tool(tool)
 
     def remove_tool(self, name: str) -> bool:
@@ -259,14 +252,14 @@ class ToolManager:
 
             try:
                 tool_instance = Tool.from_function(function)
-                tool_instance.name = f"{app.name}{TOOL_NAME_SEPARATOR}{tool_instance.name}"
+                tool_instance.app_name = app.name
                 if app.name not in tool_instance.tags:
                     tool_instance.tags.append(app.name)
                 tools.append(tool_instance)
             except Exception as e:
                 tool_name = getattr(function, "__name__", "unknown")
                 logger.error(f"Failed to create Tool from '{tool_name}' in {app.name}: {e}")
-
+        print([tool.name for tool in tools])
         if tags:
             tools = _filter_by_tags(tools, tags)
 
