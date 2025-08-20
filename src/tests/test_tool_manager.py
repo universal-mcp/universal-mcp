@@ -4,6 +4,7 @@ from universal_mcp.applications.application import BaseApplication
 from universal_mcp.exceptions import ToolError, ToolNotFoundError
 from universal_mcp.tools.adapters import ToolFormat
 from universal_mcp.tools.manager import Tool, ToolManager
+from universal_mcp.types import TOOL_NAME_SEPARATOR
 
 
 # Dummy tools for testing
@@ -158,8 +159,8 @@ async def test_call_tool_from_app(tool_manager: ToolManager):
     tool_manager.register_tools_from_app(app)
     tools = tool_manager.list_tools()
     assert len(tools) == 1
-    assert "example_app_dummy_add" in [t.name for t in tools]
-    result = await tool_manager.call_tool("example_app_dummy_add", {"a": 2, "b": 3})
+    assert f"example_app{TOOL_NAME_SEPARATOR}dummy_add" in [t.name for t in tools]
+    result = await tool_manager.call_tool(f"example_app{TOOL_NAME_SEPARATOR}dummy_add", {"a": 2, "b": 3})
     assert result == 5
 
 
@@ -170,8 +171,8 @@ async def test_call_tool_from_app_with_tags(tool_manager: ToolManager):
     tool_manager.register_tools_from_app(app, tags=["math"])
     tools = tool_manager.list_tools()
     assert len(tools) == 2
-    assert "example_app_dummy_add" in [t.name for t in tools]
-    assert "example_app_dummy_multiply" in [t.name for t in tools]
+    assert "example_app__dummy_add" in [t.name for t in tools]
+    assert "example_app__dummy_multiply" in [t.name for t in tools]
 
 
 @pytest.mark.asyncio
@@ -181,5 +182,5 @@ async def test_load_tool_from_name(tool_manager: ToolManager):
     tool_manager.register_tools_from_app(app, tool_names=["dummy_multiply", "dummy_add"])
     tools = tool_manager.list_tools()
     assert len(tools) == 2
-    assert "example_app_dummy_multiply" in [t.name for t in tools]
-    assert "example_app_dummy_add" in [t.name for t in tools]
+    assert f"example_app{TOOL_NAME_SEPARATOR}dummy_multiply" in [t.name for t in tools]
+    assert f"example_app{TOOL_NAME_SEPARATOR}dummy_add" in [t.name for t in tools]

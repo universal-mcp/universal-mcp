@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, create_model
 
 from universal_mcp.exceptions import NotAuthorizedError, ToolError
 from universal_mcp.tools.docstring_parser import parse_docstring
-from universal_mcp.types import DEFAULT_APP_NAME, TOOL_NAME_SEPARATOR
+from universal_mcp.types import TOOL_NAME_SEPARATOR
 
 from .func_metadata import FuncMetadata
 
@@ -32,7 +32,7 @@ class Tool(BaseModel):
     """Internal tool registration info."""
 
     fn: Callable[..., Any] = Field(exclude=True)
-    app_name: str = Field(description="Name of the app that the tool belongs to")
+    app_name: str | None = Field(default=None, description="Name of the app that the tool belongs to")
     tool_name: str = Field(description="Name of the tool")
     description: str | None = Field(default=None, description="Summary line from the tool's docstring")
     args_description: dict[str, str] = Field(
@@ -53,7 +53,7 @@ class Tool(BaseModel):
 
     @property
     def name(self) -> str:
-        return f"{self.app_name}{TOOL_NAME_SEPARATOR}{self.tool_name}"
+        return f"{self.app_name}{TOOL_NAME_SEPARATOR}{self.tool_name}" if self.app_name else self.tool_name
 
     @classmethod
     def from_function(
@@ -87,7 +87,6 @@ class Tool(BaseModel):
 
         return cls(
             fn=fn,
-            app_name=DEFAULT_APP_NAME,
             tool_name=func_name,
             description=parsed_doc["summary"],
             args_description=simple_args_descriptions,
