@@ -29,17 +29,23 @@ class AgentrClient:
         )
 
     def get_credentials(self, app_id: str) -> dict[str, Any]:
-        """Get credentials for an integration from the AgentR API.
+        """Retrieves the credentials for a specific integration.
+
+        This method fetches the necessary credentials for an application,
+        such as API keys or OAuth tokens, required to interact with the
+        service's API.
 
         Args:
-            app_id (str): The ID of the app (e.g., 'asana', 'google-drive').
+            app_id: The unique identifier for the application (e.g., 'asana', 'google-drive').
 
         Returns:
-            dict: Credentials data from API response.
+            A dictionary containing the credentials data from the API response.
 
         Raises:
-            NotAuthorizedError: If credentials are not found (404 response).
-            HTTPError: For other API errors.
+            NotAuthorizedError: If credentials are not found, often indicating
+                that the user has not yet authorized the application.
+            httpx.HTTPError: For other API-related errors, such as network
+                issues or server-side problems.
         """
         response = self.client.get(
             "/credentials/",
@@ -53,16 +59,19 @@ class AgentrClient:
         return response.json()
 
     def get_authorization_url(self, app_id: str) -> str:
-        """Get the authorization URL to connect an app.
+        """Generates an authorization URL for connecting an application.
+
+        This URL should be presented to the user to grant the necessary
+        permissions for the application to access their data.
 
         Args:
-            app_id (str): The ID of the app to authorize.
+            app_id: The ID of the application to authorize.
 
         Returns:
-            str: A message containing the authorization URL.
+            A message containing the authorization URL.
 
         Raises:
-            HTTPError: If the API request fails.
+            httpx.HTTPError: If the API request to generate the URL fails.
         """
         response = self.client.post("/connections/authorize", json={"app_id": app_id})
         response.raise_for_status()
@@ -70,10 +79,13 @@ class AgentrClient:
         return f"Please ask the user to visit the following url to authorize the application: {url}. Render the url in proper markdown format with a clickable link."
 
     def list_apps(self) -> list[dict[str, Any]]:
-        """Fetch available apps from AgentR API.
+        """Fetches a list of all available applications from the AgentR API.
+
+        Each application represents an integration with a third-party service.
 
         Returns:
-            List[Dict[str, Any]]: A list of application data dictionaries.
+            A list of dictionaries, where each dictionary represents an
+            application's data.
 
         Raises:
             httpx.HTTPError: If the API request fails.
@@ -83,13 +95,16 @@ class AgentrClient:
         return response.json().get("items", [])
 
     def get_app(self, app_id: str) -> dict[str, Any]:
-        """Fetch a specific app from AgentR API.
+        """Retrieves the configuration for a specific application.
+
+        This includes details such as the application's name, description,
+        and other metadata.
 
         Args:
-            app_id (str): ID of the app to fetch.
+            app_id: The unique identifier for the application to fetch.
 
         Returns:
-            dict: App configuration data.
+            A dictionary containing the application's configuration data.
 
         Raises:
             httpx.HTTPError: If the API request fails.
@@ -99,26 +114,26 @@ class AgentrClient:
         return response.json()
 
     def list_tools(self) -> list[dict[str, Any]]:
-        """List all available tools from the AgentR API.
+        """Lists all available tools from the AgentR API.
 
-        Note: In the backend, tools are globally listed and not tied to a
-              specific app at this endpoint.
+        Tools are global and not tied to a specific application at this endpoint.
 
         Returns:
-            List[Dict[str, Any]]: A list of tool configurations.
+            A list of dictionaries, where each dictionary represents a tool's
+            configuration.
         """
         response = self.client.get("/tools/")
         response.raise_for_status()
         return response.json().get("items", [])
 
     def get_tool(self, tool_id: str) -> dict[str, Any]:
-        """Fetch a specific tool configuration from the AgentR API.
+        """Fetches the configuration for a specific tool.
 
         Args:
-            tool_id (str): ID of the tool to fetch.
+            tool_id: The unique identifier for the tool to fetch.
 
         Returns:
-            dict: Tool configuration data.
+            A dictionary containing the tool's configuration data.
 
         Raises:
             httpx.HTTPError: If the API request fails.
