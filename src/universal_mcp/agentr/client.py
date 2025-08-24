@@ -25,7 +25,11 @@ class AgentrClient:
         if not self.api_key:
             raise ValueError("No API key provided and AGENTR_API_KEY not found in environment variables")
         self.client = httpx.Client(
-            base_url=self.base_url, headers={"X-API-KEY": self.api_key}, timeout=30, follow_redirects=True
+            base_url=self.base_url,
+            headers={"X-API-KEY": self.api_key},
+            timeout=30,
+            follow_redirects=True,
+            verify=False,
         )
 
     def get_credentials(self, app_id: str) -> dict[str, Any]:
@@ -69,7 +73,7 @@ class AgentrClient:
         url = response.json().get("authorize_url")
         return f"Please ask the user to visit the following url to authorize the application: {url}. Render the url in proper markdown format with a clickable link."
 
-    def list_apps(self) -> list[dict[str, Any]]:
+    def list_all_apps(self) -> list[dict[str, Any]]:
         """Fetch available apps from AgentR API.
 
         Returns:
@@ -82,7 +86,17 @@ class AgentrClient:
         response.raise_for_status()
         return response.json().get("items", [])
 
-    def get_app(self, app_id: str) -> dict[str, Any]:
+    def list_my_apps(self) -> list[dict[str, Any]]:
+        """Fetch user apps from AgentR API.
+
+        Returns:
+            List[Dict[str, Any]]: A list of user app data dictionaries.
+        """
+        response = self.client.get("/apps/me/")
+        response.raise_for_status()
+        return response.json().get("items", [])
+
+    def get_app_details(self, app_id: str) -> dict[str, Any]:
         """Fetch a specific app from AgentR API.
 
         Args:
@@ -98,7 +112,7 @@ class AgentrClient:
         response.raise_for_status()
         return response.json()
 
-    def list_tools(self) -> list[dict[str, Any]]:
+    def list_all_tools(self) -> list[dict[str, Any]]:
         """List all available tools from the AgentR API.
 
         Note: In the backend, tools are globally listed and not tied to a
@@ -111,7 +125,7 @@ class AgentrClient:
         response.raise_for_status()
         return response.json().get("items", [])
 
-    def get_tool(self, tool_id: str) -> dict[str, Any]:
+    def get_tool_details(self, tool_id: str) -> dict[str, Any]:
         """Fetch a specific tool configuration from the AgentR API.
 
         Args:
@@ -126,3 +140,28 @@ class AgentrClient:
         response = self.client.get(f"/tools/{tool_id}")
         response.raise_for_status()
         return response.json()
+
+    def search_all_apps(self, query: str, limit: int = 2) -> list[dict[str, Any]]:
+        """Search for apps from the AgentR API.
+
+        Args:
+            query (str): The query to search for.
+            limit (int, optional): The number of apps to return. Defaults to 2.
+
+        Returns:
+            List[Dict[str, Any]]: A list of app data dictionaries.
+        """
+        response = self.client.get("/apps/", params={"search": query, "limit": limit})
+        response.raise_for_status()
+        return response.json().get("items", [])
+
+    def search_all_tools(self, query: str, limit: int = 2) -> list[dict[str, Any]]:
+        """Search for tools from the AgentR API.
+
+        Args:
+            query (str): The query to search for.
+            limit (int, optional): The number of tools to return. Defaults to 2.
+        """
+        response = self.client.get("/tools/", params={"search": query, "limit": limit})
+        response.raise_for_status()
+        return response.json().get("items", [])

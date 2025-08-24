@@ -3016,7 +3016,7 @@ wheels = [
 
 [[package]]
 name = "universal-mcp"
-version = "0.1.24rc4"
+version = "0.1.24rc5"
 source = { editable = "." }
 dependencies = [
     { name = "black" },
