@@ -6,7 +6,7 @@ from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
 from .base import BaseAgent
-from .llm import get_llm
+from .llm import load_chat_model
 
 
 class State(TypedDict):
@@ -16,7 +16,7 @@ class State(TypedDict):
 class SimpleAgent(BaseAgent):
     def __init__(self, name: str, instructions: str, model: str):
         super().__init__(name, instructions, model)
-        self.llm = get_llm(model)
+        self.llm = load_chat_model(model)
         self._graph = self._build_graph()
 
     def _build_graph(self):

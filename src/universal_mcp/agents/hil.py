@@ -7,7 +7,7 @@ from langgraph.graph.message import add_messages
 from langgraph.types import Interrupt, interrupt
 
 from .base import BaseAgent
-from .llm import get_llm
+from .llm import load_chat_model
 
 
 class State(TypedDict):
@@ -70,7 +70,7 @@ def handle_interrupt(interrupt: Interrupt) -> str | bool:
 class HilAgent(BaseAgent):
     def __init__(self, name: str, instructions: str, model: str):
         super().__init__(name, instructions, model)
-        self.llm = get_llm(model)
+        self.llm = load_chat_model(model)
         self._graph = self._build_graph()
 
     def chatbot(self, state: State):

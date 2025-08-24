@@ -17,7 +17,7 @@ from universal_mcp.tools.adapters import ToolFormat
 from universal_mcp.tools.registry import ToolRegistry
 
 from .base import BaseAgent
-from .llm import get_llm
+from .llm import load_chat_model
 
 # Auto Agent
 # Working
@@ -61,9 +61,9 @@ class AutoAgent(BaseAgent):
     def __init__(self, name: str, instructions: str, model: str, app_registry: ToolRegistry):
         super().__init__(name, instructions, model)
         self.app_registry = app_registry
-        self.llm_tools = get_llm(model, tags=["tools"])
-        self.llm_choice = get_llm(model, tags=["choice"])
-        self.llm_quiet = get_llm(model, tags=["quiet"])
+        self.llm_tools = load_chat_model(model, tags=["tools"])
+        self.llm_choice = load_chat_model(model, tags=["choice"])
+        self.llm_quiet = load_chat_model(model, tags=["quiet"])
         self.tool_manager = ToolManager()
 
         self.task_analysis_prompt = """You are a task analysis expert. Given a task description and available apps, determine:

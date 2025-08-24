@@ -7,7 +7,7 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
-from .llm import get_llm
+from .llm import load_chat_model
 from .utils import RichCLI
 
 
@@ -18,7 +18,7 @@ class BaseAgent:
         self.model = model
         self.memory = memory or MemorySaver()
         self._graph = None
-        self.llm = get_llm(model)
+        self.llm = load_chat_model(model)
         self.cli = RichCLI()
 
     async def _build_graph(self):

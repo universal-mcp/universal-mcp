@@ -60,5 +60,7 @@ if __name__ == "__main__":
         model="gpt-4o",
         tools=ToolConfig(agentrServers={"google-mail": {"tools": ["send_email"]}}),
     )
-    result = asyncio.run(agent.run(user_input="Send an email with the subject 'Hello' to john.doe@example.com"))
+    result = asyncio.run(
+        agent.run(user_input="Send an email with the subject 'testing react agent' to manoj@agentr.dev")
+    )
     print(result["messages"][-1].content)
