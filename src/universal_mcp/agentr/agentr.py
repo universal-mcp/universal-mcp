@@ -22,16 +22,16 @@ class Agentr:
         self.format = format or ToolFormat.NATIVE
         self.manager = manager or ToolManager()
 
-    async def load_tools(self, tool_names: list[str]) -> None:
-        await self.registry.load_tools(tool_names, self.manager)
+    def load_tools(self, tool_names: list[str]) -> None:
+        self.registry.load_tools(tool_names, self.manager)
         return
 
-    async def list_tools(self, format: ToolFormat | None = None) -> list[Tool]:
+    def list_tools(self, format: ToolFormat | None = None) -> list[Tool]:
         return self.manager.list_tools(format=format or self.format)
 
-    async def search_tools(
+    def search_tools(
         self,
         query: str,
     ) -> list[str]:
         """Retrieve a tool to use, given a search query."""
-        return await self.registry.search_tools(query)
+        return self.registry.search_tools(query)
