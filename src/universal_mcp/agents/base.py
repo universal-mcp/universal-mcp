@@ -47,6 +47,7 @@ class BaseAgent:
         return await self._graph.ainvoke(
             {"messages": [{"role": "user", "content": user_input}]},
             config={"configurable": {"thread_id": thread_id}},
+            context={"system_prompt": self.instructions, "model": self.model},
         )
 
     async def run_interactive(self, thread_id: str = str(uuid4())):

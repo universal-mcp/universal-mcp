@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+from universal_mcp.tools.manager import ToolManager
+
 
 class ToolRegistry(ABC):
     """Abstract base class for platform-specific functionality.
@@ -11,7 +13,7 @@ class ToolRegistry(ABC):
     """
 
     @abstractmethod
-    async def list_apps(self) -> list[dict[str, Any]]:
+    def list_apps(self) -> list[dict[str, Any]]:
         """Get list of available apps from the platform.
 
         Returns:
@@ -20,7 +22,7 @@ class ToolRegistry(ABC):
         pass
 
     @abstractmethod
-    async def get_app_details(self, app_id: str) -> dict[str, Any]:
+    def get_app_details(self, app_id: str) -> dict[str, Any]:
         """Get detailed information about a specific app.
 
         Args:
@@ -32,10 +34,18 @@ class ToolRegistry(ABC):
         pass
 
     @abstractmethod
-    async def load_tools(self, tools: list[str]) -> None:
+    def load_tools(self, tools: list[str], tool_manager: ToolManager) -> None:
         """Load tools from the platform and register them as tools.
 
         Args:
             tools: The list of tools to load
         """
+        pass
+
+    @abstractmethod
+    def search_tools(
+        self,
+        query: str,
+    ) -> list[str]:
+        """Retrieve a tool to use, given a search query."""
         pass

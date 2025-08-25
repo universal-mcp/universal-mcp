@@ -17,26 +17,22 @@ class AgentrRegistry(ToolRegistry):
         self.client = client or AgentrClient(**kwargs)
         logger.debug("AgentrRegistry initialized successfully")
 
-    async def list_apps(self) -> list[dict[str, str]]:
+    def list_apps(self) -> list[dict[str, str]]:
         """Get list of available apps from AgentR.
 
         Returns:
             List of app dictionaries with id, name, description, and available fields
         """
+        if self.client is None:
+            raise ValueError("Client is not initialized")
         try:
-            all_apps = await self.client.list_all_apps()
-            available_apps = [
-                {"id": app["id"], "name": app["name"], "description": app.get("description", "")}
-                for app in all_apps
-                if app.get("available", False)
-            ]
-            logger.info(f"Found {len(available_apps)} available apps from AgentR")
-            return available_apps
+            all_apps = self.client.list_all_apps()
+            return all_apps
         except Exception as e:
             logger.error(f"Error fetching apps from AgentR: {e}")
             return []
 
-    async def get_app_details(self, app_id: str) -> dict[str, str]:
+    def get_app_details(self, app_id: str) -> dict[str, str]:
         """Get detailed information about a specific app from AgentR.
 
         Args:
@@ -46,23 +42,11 @@ class AgentrRegistry(ToolRegistry):
             Dictionary containing app details
         """
         try:
-            app_info = await self.client.fetch_app(app_id)
-            return {
-                "id": app_info.get("id"),
-                "name": app_info.get("name"),
-                "description": app_info.get("description"),
-                "category": app_info.get("category"),
-                "available": app_info.get("available", True),
-            }
+            app_info = self.client.get_app_details(app_id)
+            return app_info
         except Exception as e:
             logger.error(f"Error getting details for app {app_id}: {e}")
-            return {
-                "id": app_id,
-                "name": app_id,
-                "description": "Error loading details",
-                "category": "Unknown",
-                "available": True,
-            }
+            return {}
 
     def load_tools(self, tools: list[str] | None, tool_manager: ToolManager) -> None:
         """Load tools from AgentR and register them as tools.
@@ -89,3 +73,14 @@ class AgentrRegistry(ToolRegistry):
             app_instance = app(integration=integration)
             tool_manager.register_tools_from_app(app_instance, tool_names=tool_names)
         return
+
+    def search_tools(self, query: str) -> list[str]:
+        """Search for tools in AgentR.
+
+        Args:
+            query: The query to search for
+
+        Returns:
+            List of tool names
+        """
+        return self.client.search_all_tools(query)

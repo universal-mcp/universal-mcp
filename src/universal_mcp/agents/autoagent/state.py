@@ -1,4 +1,4 @@
-from typing import Annotated, Any
+from typing import Annotated
 
 from langgraph.prebuilt.chat_agent_executor import AgentState
 
@@ -25,5 +25,3 @@ def _enqueue(left: list, right: list) -> list:
 
 class State(AgentState):
     selected_tool_ids: Annotated[list[str], _enqueue]
-    tool_args: dict[str, Any]
-    tool_call_id: str
