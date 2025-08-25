@@ -24,7 +24,7 @@ class AutoAgent(BaseAgent):
         self._graph = self._build_graph()
 
     def _build_graph(self):
-        builder = create_agent(self.tool_registry, self.tool_manager)
+        builder = create_agent(self.tool_registry, self.tool_manager, self.instructions)
         return builder.compile()
 
     @property

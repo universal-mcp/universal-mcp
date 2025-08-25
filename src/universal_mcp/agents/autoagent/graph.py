@@ -17,7 +17,7 @@ from .prompts import SYSTEM_PROMPT
 from .state import State
 
 
-def create_agent(tool_registry: ToolRegistry, tool_manager: ToolManager):
+def create_agent(tool_registry: ToolRegistry, tool_manager: ToolManager, instructions: str = ""):
     retrieve_tools = StructuredTool.from_function(func=tool_registry.search_tools)
 
     def call_model(
@@ -26,7 +26,8 @@ def create_agent(tool_registry: ToolRegistry, tool_manager: ToolManager):
     ):
         system_prompt = runtime.context.system_prompt if runtime.context.system_prompt else SYSTEM_PROMPT
         system_prompt = system_prompt.format(system_time=datetime.now(tz=UTC).isoformat())
-        messages = [{"role": "system", "content": system_prompt}, *state["messages"]]
+
+        messages = [{"role": "system", "content": system_prompt + "\n" + instructions}, *state["messages"]]
         model = load_chat_model(runtime.context.model)
         # Load tools from tool registry
         tool_manager.clear_tools()
@@ -42,11 +43,10 @@ def create_agent(tool_registry: ToolRegistry, tool_manager: ToolManager):
         last_message = messages[-1]
         # If there is no function call, then we finish
         if not last_message.tool_calls:
-            print("No tool calls")
-            return "end"
+            return END
         # Otherwise if there is, we continue
         else:
-            return "continue"
+            return "tools"
 
     async def tool_node(state: State):
         outputs = []
@@ -80,11 +80,6 @@ def create_agent(tool_registry: ToolRegistry, tool_manager: ToolManager):
 
     builder.add_edge(START, "agent")
     builder.add_edge("tools", "agent")
-    builder.add_edge("agent", "tools")
-    builder.add_conditional_edges(
-        "agent",
-        should_continue,
-        {"continue": "tools", "end": END},
-    )
+    builder.add_conditional_edges("agent", should_continue)
 
     return builder
