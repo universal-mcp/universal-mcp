@@ -65,7 +65,7 @@ def create_agent(tool_registry: ToolRegistry, tool_manager: ToolManager, instruc
     
     def tool_router(state: State):
         last_message = state["messages"][-1]
-        if type(last_message) == ToolMessage:
+        if isinstance(last_message, ToolMessage):
             return "agent"
         else:
             return END
