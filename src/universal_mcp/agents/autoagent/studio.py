@@ -2,7 +2,6 @@ from universal_mcp.agentr.registry import AgentrRegistry
 from universal_mcp.agents.autoagent import create_agent
 from universal_mcp.tools import ToolManager
 
-
 tool_registry = AgentrRegistry()
 tool_manager = ToolManager()
 
