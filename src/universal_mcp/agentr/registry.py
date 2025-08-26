@@ -74,7 +74,7 @@ class AgentrRegistry(ToolRegistry):
             tool_manager.register_tools_from_app(app_instance, tool_names=tool_names)
         return
 
-    def search_tools(self, query: str, limit: int = 10) -> list[str]:
+    def search_tools(self, query: str, limit: int = 20) -> list[str]:
         """Search for tools in AgentR.
 
         Args:
@@ -84,3 +84,4 @@ class AgentrRegistry(ToolRegistry):
             List of tool names
         """
         return self.client.search_all_tools(query, limit)
+    
