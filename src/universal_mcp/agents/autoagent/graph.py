@@ -45,7 +45,6 @@ def create_agent(tool_registry: ToolRegistry, tool_manager: ToolManager, instruc
         messages = [{"role": "system", "content": system_prompt + "\n" + instructions}, *state["messages"]]
         model = load_chat_model(runtime.context.model)
         # Load tools from tool registry
-        tool_manager.clear_tools()
         tool_registry.load_tools(tools=state["selected_tool_ids"], tool_manager=tool_manager)
         loaded_tools = tool_manager.list_tools(format=ToolFormat.LANGCHAIN)
         model_with_tools = model.bind_tools([retrieve_tools, ask_user, *loaded_tools], tool_choice="auto")
@@ -96,6 +95,8 @@ def create_agent(tool_registry: ToolRegistry, tool_manager: ToolManager, instruc
                 ai_message = AIMessage(content=tool_call["args"]["question"])
                 outputs.append(ai_message)
             else:
+                tool_manager.clear_tools()
+                tool_registry.load_tools([tool_call["name"]], tool_manager=tool_manager)
                 tool_result = await tool_manager.call_tool(tool_call["name"], tool_call["args"])
                 outputs.append(
                     ToolMessage(
