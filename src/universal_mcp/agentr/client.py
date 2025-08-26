@@ -96,6 +96,16 @@ class AgentrClient:
         response.raise_for_status()
         return response.json().get("items", [])
 
+    def list_my_connections(self) -> list[dict[str, Any]]:
+        """Fetch user connections from AgentR API.
+
+        Returns:
+            List[Dict[str, Any]]: A list of user connection data dictionaries.
+        """
+        response = self.client.get("/connections/")
+        response.raise_for_status()
+        return response.json().get("items", [])
+
     def get_app_details(self, app_id: str) -> dict[str, Any]:
         """Fetch a specific app from AgentR API.
 
