@@ -193,7 +193,7 @@ class Parameters(BaseModel):
     required: bool
     example: str | None = None
     is_file: bool = False
-    schema: dict = {}
+    schema_data: dict = {}
 
     def __str__(self):
         return f"{self.name}: ({self.type})"
@@ -392,20 +392,18 @@ def _load_and_resolve_references(path: Path):
     return replace_refs(schema)
 
 
-def _determine_return_type(operation: dict[str, Any], path: str, method: str) -> str:
+def _determine_return_type(operation: dict[str, Any], path: str = "", method: str = "", response_schema: bool = False) -> str:
     """
     Determine the return type from the response schema.
-
-    Now generates specific Pydantic model classes for response schemas where possible,
-    falling back to generic types for complex or missing schemas.
 
     Args:
         operation (dict): The operation details from the schema.
         path (str): The API path (e.g., '/users/{user_id}').
         method (str): The HTTP method (e.g., 'get').
+        response_schema (bool): Whether to generate response schema classes.
 
     Returns:
-        str: The appropriate return type annotation (specific model class name or generic type)
+        str: The appropriate return type annotation (model class name or simple type)
     """
     responses = operation.get("responses", {})
     # Find successful response (2XX)
@@ -424,12 +422,13 @@ def _determine_return_type(operation: dict[str, Any], path: str, method: str) ->
             if content_type.startswith("application/json") and "schema" in content_info:
                 schema = content_info["schema"]
 
-                # generate a specific model class for this schema
-                model_name = _get_or_create_response_model(operation, path, method, schema)
+                if response_schema:
+                    # Generate a specific model class for this schema
+                    model_name = _get_or_create_response_model(operation, path, method, schema)
+                    if model_name:
+                        return model_name
 
-                if model_name:
-                    return model_name
-
+                # Fall back to simple types
                 if schema.get("type") == "array":
                     return "list[Any]"
                 elif schema.get("type") == "object" or "$ref" in schema:
@@ -482,7 +481,7 @@ def _generate_path_params(path: str) -> list[Parameters]:
                     where="path",
                     required=True,
                     example=None,
-                    schema={"type": "string"},
+                    schema_data={"type": "string"},
                 )
             )
         except Exception as e:
@@ -531,7 +530,7 @@ def _generate_query_params(operation: dict[str, Any]) -> list[Parameters]:
                 where=where,
                 required=required,
                 example=str(example_value) if example_value is not None else None,
-                schema=param_schema if param_schema else {"type": type_value},
+                schema_data=param_schema if param_schema else {"type": type_value},
             )
             query_params.append(parameter)
     return query_params
@@ -568,14 +567,14 @@ def _generate_body_params(schema_to_process: dict[str, Any] | None, overall_body
                 required=param_required,
                 example=str(param_example) if param_example is not None else None,
                 is_file=current_is_file,
-                schema=param_schema_details,
+                schema_data=param_schema_details,
             )
         )
     # print(f"[DEBUG] Final body_params list generated: {body_params}") # DEBUG
     return body_params
 
 
-def _generate_method_code(path, method, operation):
+def _generate_method_code(path, method, operation, response_schema: bool = False):
     """
     Generate the code for a single API method.
 
@@ -584,8 +583,7 @@ def _generate_method_code(path, method, operation):
         path (str): The API path (e.g., '/users/{user_id}').
         method (str): The HTTP method (e.g., 'get').
         operation (dict): The operation details from the schema.
-        full_schema (dict): The complete OpenAPI schema, used for reference resolution.
-        tool_name (str, optional): The name of the tool/app to prefix the function name with.
+        response_schema (bool): Whether to generate response schema classes.
 
     Returns:
         tuple: (method_code, func_name) - The Python code for the method and its name.
@@ -718,7 +716,7 @@ def _generate_method_code(path, method, operation):
     # --- End Alias duplicate parameter names ---
 
     # --- Determine Return Type and Body Characteristics ---
-    return_type = _determine_return_type(operation, path, method)
+    return_type = _determine_return_type(operation, path, method, response_schema)
 
     body_required = has_body and operation["requestBody"].get("required", False)  # Remains useful
 
@@ -764,7 +762,7 @@ def _generate_method_code(path, method, operation):
         if param.name not in required_args:  # param.name is the sanitized name
             required_args.append(param.name)
             # For signature with types
-            param_py_type = _openapi_type_to_python_type(param.schema, required=True)
+            param_py_type = _openapi_type_to_python_type(param.schema_data, required=True)
             signature_required_args_typed.append(f"{param.name}: {param_py_type}")
 
     #  Process Query Parameters
@@ -773,7 +771,7 @@ def _generate_method_code(path, method, operation):
         current_arg_names_set = set(required_args) | {arg.split("=")[0] for arg in optional_args}
 
         # For signature with types
-        param_py_type = _openapi_type_to_python_type(param.schema, required=param.required)
+        param_py_type = _openapi_type_to_python_type(param.schema_data, required=param.required)
 
         if arg_name_for_sig not in current_arg_names_set:
             if param.required:
@@ -811,7 +809,7 @@ def _generate_method_code(path, method, operation):
 
             # For signature with types
             # The schema for an array body is body_schema_to_use itself
-            array_body_py_type = _openapi_type_to_python_type(body_schema_to_use, required=body_required)
+            array_body_py_type = _openapi_type_to_python_type(body_schema_to_use or {}, required=body_required)
 
             if body_required:
                 required_args.append(final_array_param_name)
@@ -871,7 +869,7 @@ def _generate_method_code(path, method, operation):
                 current_arg_names_set_loop = set(required_args) | {arg.split("=")[0] for arg in optional_args}
 
                 # For signature with types
-                param_py_type = _openapi_type_to_python_type(param.schema, required=param.required)
+                param_py_type = _openapi_type_to_python_type(param.schema_data, required=param.required)
 
                 if arg_name_for_sig not in current_arg_names_set_loop:
                     if param.required:
@@ -933,7 +931,7 @@ def _generate_method_code(path, method, operation):
     # openapi_path_comment_for_docstring = f"# openapi_path: {path}"
     # docstring_parts.append(openapi_path_comment_for_docstring)
 
-    return_type = _determine_return_type(operation, path, method)
+    return_type = _determine_return_type(operation, path, method, response_schema)
 
     # Summary
     summary = operation.get("summary", "").strip()
@@ -1208,7 +1206,7 @@ def load_schema(path: Path):
     return _load_and_resolve_references(path)
 
 
-def generate_schemas_file(schema, class_name: str | None = None, filter_config_path: str | None = None):
+def generate_schemas_file(schema, class_name: str | None = None, filter_config_path: str | None = None, response_schema: bool = False):
     """
     Generate a Python file containing only the response schema classes from an OpenAPI schema.
 
@@ -1220,6 +1218,12 @@ def generate_schemas_file(schema, class_name: str | None = None, filter_config_p
     Returns:
         str: A string containing the Python code for the response schema classes.
     """
+    if not response_schema:
+        # Return placeholder when not generating response schemas
+        return """# No response models generated - using simple return types instead
+# This file is kept for compatibility but is no longer used for model generation
+"""
+
     global _schema_registry, _generated_models
     _schema_registry.clear()
     _generated_models.clear()
@@ -1239,7 +1243,7 @@ def generate_schemas_file(schema, class_name: str | None = None, filter_config_p
 
                 operation = path_info[method]
                 # Generate response model for this operation
-                _determine_return_type(operation, path, method)
+                _determine_return_type(operation, path, method, response_schema)
 
     # Generate the schemas file content
     imports = [
@@ -1267,7 +1271,7 @@ def generate_schemas_file(schema, class_name: str | None = None, filter_config_p
     return schemas_code
 
 
-def generate_api_client(schema, class_name: str | None = None, filter_config_path: str | None = None):
+def generate_api_client(schema, class_name: str | None = None, filter_config_path: str | None = None, response_schema: bool = False):
     """
     Generate a Python API client class from an OpenAPI schema.
     Models are not included - they should be generated separately using generate_schemas_file.
@@ -1351,7 +1355,7 @@ def generate_api_client(schema, class_name: str | None = None, filter_config_pat
 
                 operation = path_info[method]
                 print(f"Generating method for: {method.upper()} {path}")
-                method_code, func_name = _generate_method_code(path, method, operation)
+                method_code, func_name = _generate_method_code(path, method, operation, response_schema)
                 methods.append(method_code)
                 method_names.append(func_name)
                 processed_count += 1
@@ -1366,13 +1370,15 @@ def generate_api_client(schema, class_name: str | None = None, filter_config_pat
             {tools_list}
         ]"""
 
-    # Generate class imports - import from separate schemas file
+    # Generate class imports - conditionally import schemas
     imports = [
         "from typing import Any, Optional, List",
         "from universal_mcp.applications import APIApplication",
         "from universal_mcp.integrations import Integration",
-        "from .schemas import *",
     ]
+    
+    if response_schema:
+        imports.append(f"from universal_mcp_{tool_name}.schemas import *")
 
     # Construct the class code (no model classes since they're in separate file)
     imports_section = "\n".join(imports)
@@ -1451,6 +1457,6 @@ if __name__ == "__main__":
         }
     }
 
-    schema = load_schema("openapi.yaml")
+    schema = load_schema(Path("openapi.yaml"))
     code = generate_api_client(schema)
     print(code)
