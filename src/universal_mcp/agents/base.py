@@ -7,7 +7,6 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
-from .llm import load_chat_model
 from .utils import RichCLI
 
 
@@ -18,15 +17,19 @@ class BaseAgent:
         self.model = model
         self.memory = memory or MemorySaver()
         self._graph = None
-        self.llm = load_chat_model(model)
+        self._initialized = False
         self.cli = RichCLI()
+
+    async def ainit(self):
+        if not self._initialized:
+            self._graph = await self._build_graph()
+            self._initialized = True
 
     async def _build_graph(self):
         raise NotImplementedError("Subclasses must implement this method")
 
     async def stream(self, thread_id: str, user_input: str):
-        if self._graph is None:
-            self._graph = await self._build_graph()
+        await self.ainit()
         async for event, _ in self._graph.astream(
             {"messages": [{"role": "user", "content": user_input}]},
             config={"configurable": {"thread_id": thread_id}},
@@ -36,14 +39,14 @@ class BaseAgent:
             yield event
 
     async def stream_interactive(self, thread_id: str, user_input: str):
+        await self.ainit()
         with self.cli.display_agent_response_streaming(self.name) as stream_updater:
-            async for event in self.astream(thread_id, user_input):
+            async for event in self.stream(thread_id, user_input):
                 stream_updater.update(event.content)
 
-    async def run(self, user_input: str, thread_id: str = str(uuid4())):
+    async def invoke(self, user_input: str, thread_id: str = str(uuid4())):
         """Run the agent"""
-        if not self._graph:
-            self._graph = await self._build_graph()
+        await self.ainit()
         return await self._graph.ainvoke(
             {"messages": [{"role": "user", "content": user_input}]},
             config={"configurable": {"thread_id": thread_id}},
@@ -53,8 +56,7 @@ class BaseAgent:
     async def run_interactive(self, thread_id: str = str(uuid4())):
         """Main application loop"""
 
-        if not self._graph:
-            self._graph = await self._build_graph()
+        await self.ainit()
         # Display welcome
         self.cli.display_welcome(self.name)
 

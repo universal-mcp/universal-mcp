@@ -11,7 +11,7 @@ async def main():
         model="azure/gpt-4o",
         tool_registry=AgentrRegistry(),
     )
-    result = await agent.run(
+    result = await agent.invoke(
         user_input="Send an email to Manoj from my google mail account, manoj@agentr.dev, with the subject 'Hello from auto agent' and the body 'testing'"
     )
     print(result)

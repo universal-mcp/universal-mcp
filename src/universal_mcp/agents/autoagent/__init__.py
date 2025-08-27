@@ -1,9 +1,9 @@
-from universal_mcp.agentr.registry import AgentrRegistry
-from universal_mcp.agents.base import BaseAgent
-from universal_mcp.tools.manager import ToolManager
-from universal_mcp.tools.registry import ToolRegistry
+from langgraph.checkpoint.base import BaseCheckpointSaver
 
-from universal_mcp.agents.autoagent.graph import create_agent
+from universal_mcp.agentr.registry import AgentrRegistry
+from universal_mcp.agents.autoagent.graph import build_graph
+from universal_mcp.agents.base import BaseAgent
+from universal_mcp.tools.registry import ToolRegistry
 
 
 class AutoAgent(BaseAgent):
@@ -12,20 +12,18 @@ class AutoAgent(BaseAgent):
         name: str,
         instructions: str,
         model: str,
+        memory: BaseCheckpointSaver | None = None,
         tool_registry: ToolRegistry | None = None,
-        tool_manager: ToolManager | None = None,
     ):
-        super().__init__(name, instructions, model, tool_registry)
+        super().__init__(name, instructions, model, memory)
         self.tool_registry = tool_registry or AgentrRegistry()
-        self.tool_manager = tool_manager or ToolManager()
         self.model = model
         self.name = name
         self.instructions = instructions
-        self._graph = self._build_graph()
 
-    def _build_graph(self):
-        builder = create_agent(self.tool_registry, self.tool_manager, self.instructions)
-        return builder.compile()
+    async def _build_graph(self):
+        builder = await build_graph(self.tool_registry, self.instructions)
+        return builder.compile(checkpointer=self.memory)
 
     @property
     def graph(self):

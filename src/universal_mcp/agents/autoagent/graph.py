@@ -7,35 +7,28 @@ from langchain_core.tools import tool
 from langgraph.graph import END, START, StateGraph
 from langgraph.runtime import Runtime
 
-from universal_mcp.agents.llm import load_chat_model
-from universal_mcp.tools.manager import ToolManager
-from universal_mcp.tools.registry import ToolRegistry
-from universal_mcp.types import ToolFormat
-
 from universal_mcp.agents.autoagent.context import Context
 from universal_mcp.agents.autoagent.prompts import SYSTEM_PROMPT
 from universal_mcp.agents.autoagent.state import State
+from universal_mcp.agents.llm import load_chat_model
+from universal_mcp.tools.registry import ToolRegistry
+from universal_mcp.types import ToolFormat
 
 
-def create_agent(tool_registry: ToolRegistry, tool_manager: ToolManager, instructions: str = ""):
+async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
     @tool()
-    def retrieve_tools(query: str) -> list[str]:
+    async def retrieve_tools(query: str) -> list[str]:
         """Retrieve tools using a search query. Use multiple times if you require tools for different tasks."""
-        tools = tool_registry.search_tools(query)
-        my_connections = tool_registry.client.list_my_connections()
-        connected_apps = set(connection["app_id"] for connection in my_connections)
-        filtered_tools = [tool for tool in tools if tool["app_id"] in connected_apps]
-        if len(filtered_tools) == 0:
-            return tools
-        return filtered_tools
-    
+        tools = await tool_registry.search_tools(query)
+        return tools
+
     @tool()
-    def ask_user(question: str) -> str:
+    async def ask_user(question: str) -> str:
         """Ask the user a question. Use this tool to ask the user for any missing information for performing a task, or when you have multiple apps to choose from for performing a task."""
         full_question = question
         return f"ASKING_USER: {full_question}"
 
-    def call_model(
+    async def call_model(
         state: State,
         runtime: Runtime[Context],
     ):
@@ -45,8 +38,7 @@ def create_agent(tool_registry: ToolRegistry, tool_manager: ToolManager, instruc
         messages = [{"role": "system", "content": system_prompt + "\n" + instructions}, *state["messages"]]
         model = load_chat_model(runtime.context.model)
         # Load tools from tool registry
-        tool_registry.load_tools(tools=state["selected_tool_ids"], tool_manager=tool_manager)
-        loaded_tools = tool_manager.list_tools(format=ToolFormat.LANGCHAIN)
+        loaded_tools = await tool_registry.export_tools(tools=state["selected_tool_ids"], format=ToolFormat.LANGCHAIN)
         model_with_tools = model.bind_tools([retrieve_tools, ask_user, *loaded_tools], tool_choice="auto")
         response = cast(AIMessage, model_with_tools.invoke(messages))
         return {"messages": [response]}
@@ -61,7 +53,7 @@ def create_agent(tool_registry: ToolRegistry, tool_manager: ToolManager, instruc
         # Otherwise if there is, we continue
         else:
             return "tools"
-    
+
     def tool_router(state: State):
         last_message = state["messages"][-1]
         if isinstance(last_message, ToolMessage):
@@ -69,13 +61,12 @@ def create_agent(tool_registry: ToolRegistry, tool_manager: ToolManager, instruc
         else:
             return END
 
-
     async def tool_node(state: State):
         outputs = []
         tool_ids = state["selected_tool_ids"]
         for tool_call in state["messages"][-1].tool_calls:
             if tool_call["name"] == retrieve_tools.name:
-                tool_result = retrieve_tools.invoke(tool_call["args"])
+                tool_result = await retrieve_tools.ainvoke(tool_call["args"])
                 tool_ids = [tool["id"] for tool in tool_result]
                 outputs.append(
                     ToolMessage(
@@ -87,7 +78,9 @@ def create_agent(tool_registry: ToolRegistry, tool_manager: ToolManager, instruc
             elif tool_call["name"] == ask_user.name:
                 outputs.append(
                     ToolMessage(
-                        content=json.dumps("The user has been asked the question, and the run will wait for the user's response."),
+                        content=json.dumps(
+                            "The user has been asked the question, and the run will wait for the user's response."
+                        ),
                         name=tool_call["name"],
                         tool_call_id=tool_call["id"],
                     )
@@ -95,9 +88,7 @@ def create_agent(tool_registry: ToolRegistry, tool_manager: ToolManager, instruc
                 ai_message = AIMessage(content=tool_call["args"]["question"])
                 outputs.append(ai_message)
             else:
-                tool_manager.clear_tools()
-                tool_registry.load_tools([tool_call["name"]], tool_manager=tool_manager)
-                tool_result = await tool_manager.call_tool(tool_call["name"], tool_call["args"])
+                tool_result = await tool_registry.call_tool(tool_call["name"], tool_call["args"])
                 outputs.append(
                     ToolMessage(
                         content=json.dumps(tool_result),

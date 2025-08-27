@@ -18,7 +18,7 @@ class AgentrClient:
         base_url (str, optional): Base URL for AgentR API. Defaults to https://api.agentr.dev.
     """
 
-    def __init__(self, api_key: str | None = None, base_url: str | None = None):
+    def __init__(self, api_key: str | None = None, base_url: str | None = None, **kwargs):
         base_url = base_url or os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
         self.base_url = f"{base_url.rstrip('/')}/v1"
         self.api_key = api_key or os.getenv("AGENTR_API_KEY")
@@ -73,7 +73,7 @@ class AgentrClient:
         url = response.json().get("authorize_url")
         return f"Please ask the user to visit the following url to authorize the application: {url}. Render the url in proper markdown format with a clickable link."
 
-    def list_all_apps(self) -> list[dict[str, Any]]:
+    def list_all_apps(self):
         """Fetch available apps from AgentR API.
 
         Returns:
@@ -86,7 +86,7 @@ class AgentrClient:
         response.raise_for_status()
         return response.json().get("items", [])
 
-    def list_my_apps(self) -> list[dict[str, Any]]:
+    def list_my_apps(self):
         """Fetch user apps from AgentR API.
 
         Returns:
@@ -96,7 +96,7 @@ class AgentrClient:
         response.raise_for_status()
         return response.json().get("items", [])
 
-    def list_my_connections(self) -> list[dict[str, Any]]:
+    def list_my_connections(self):
         """Fetch user connections from AgentR API.
 
         Returns:
@@ -106,7 +106,7 @@ class AgentrClient:
         response.raise_for_status()
         return response.json().get("items", [])
 
-    def get_app_details(self, app_id: str) -> dict[str, Any]:
+    def get_app_details(self, app_id: str):
         """Fetch a specific app from AgentR API.
 
         Args:
@@ -122,7 +122,7 @@ class AgentrClient:
         response.raise_for_status()
         return response.json()
 
-    def list_all_tools(self) -> list[dict[str, Any]]:
+    def list_all_tools(self, app_id: str | None = None):
         """List all available tools from the AgentR API.
 
         Note: In the backend, tools are globally listed and not tied to a
@@ -131,11 +131,14 @@ class AgentrClient:
         Returns:
             List[Dict[str, Any]]: A list of tool configurations.
         """
-        response = self.client.get("/tools/")
+        params = {}
+        if app_id:
+            params["app_id"] = app_id
+        response = self.client.get("/tools/", params=params)
         response.raise_for_status()
         return response.json().get("items", [])
 
-    def get_tool_details(self, tool_id: str) -> dict[str, Any]:
+    def get_tool_details(self, tool_id: str):
         """Fetch a specific tool configuration from the AgentR API.
 
         Args:
@@ -151,7 +154,7 @@ class AgentrClient:
         response.raise_for_status()
         return response.json()
 
-    def search_all_apps(self, query: str, limit: int = 2) -> list[dict[str, Any]]:
+    def search_all_apps(self, query: str, limit: int = 2):
         """Search for apps from the AgentR API.
 
         Args:
@@ -165,7 +168,7 @@ class AgentrClient:
         response.raise_for_status()
         return response.json().get("items", [])
 
-    def search_all_tools(self, query: str, limit: int = 2) -> list[dict[str, Any]]:
+    def search_all_tools(self, query: str, limit: int = 2):
         """Search for tools from the AgentR API.
 
         Args:

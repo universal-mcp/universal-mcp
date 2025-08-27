@@ -17,24 +17,23 @@ class SimpleAgent(BaseAgent):
     def __init__(self, name: str, instructions: str, model: str):
         super().__init__(name, instructions, model)
         self.llm = load_chat_model(model)
-        self._graph = self._build_graph()
 
-    def _build_graph(self):
+    async def _build_graph(self):
         graph_builder = StateGraph(State)
 
-        def chatbot(state: State):
-            return {"messages": [self.llm.invoke(state["messages"])]}
+        async def chatbot(state: State):
+            messages = [
+                {"role": "system", "content": self.instructions},
+                *state["messages"],
+            ]
+            return {"messages": [await self.llm.ainvoke(messages)]}
 
         graph_builder.add_node("chatbot", chatbot)
         graph_builder.add_edge(START, "chatbot")
         graph_builder.add_edge("chatbot", END)
         return graph_builder.compile(checkpointer=self.memory)
 
-    @property
-    def graph(self):
-        return self._graph
-
 
 if __name__ == "__main__":
-    agent = SimpleAgent("Simple Agent", "You are a helpful assistant", "openrouter/auto")
+    agent = SimpleAgent("Simple Agent", "You are a helpful assistant", "azure/gpt-4o")
     asyncio.run(agent.run_interactive())
