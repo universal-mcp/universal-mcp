@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Annotated
 
-from .prompts import SYSTEM_PROMPT
+from universal_mcp.agents.autoagent.prompts import SYSTEM_PROMPT
 
 
 @dataclass(kw_only=True)

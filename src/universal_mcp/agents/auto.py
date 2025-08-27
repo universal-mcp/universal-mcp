@@ -16,8 +16,8 @@ from universal_mcp.tools import ToolManager
 from universal_mcp.tools.adapters import ToolFormat
 from universal_mcp.tools.registry import ToolRegistry
 
-from .base import BaseAgent
-from .llm import load_chat_model
+from universal_mcp.agents.base import BaseAgent
+from universal_mcp.agents.llm import load_chat_model
 
 # Auto Agent
 # Working
@@ -522,7 +522,7 @@ Be friendly and concise, but list each set of apps clearly. Do not return any ot
             return result
 
         # Get all available apps from platform manager
-        available_apps = await self.app_registry.list_apps()
+        available_apps =  self.app_registry.list_apps()
 
         logger.info(f"Found {len(available_apps)} available apps")
 
@@ -563,10 +563,10 @@ if __name__ == "__main__":
 
     # Create platform manager
     app_registry = AgentrRegistry(api_key=agentr_api_key)
-    want_instructions = input("Do you want to add a system prompt/instructions? (Y/N)")
+    want_instructions = input("Do you want to add a system prompt/instructions? (Y/N): ")
     instructions = "" if want_instructions.upper() == "N" else input("Enter your instructions/system prompt: ")
 
-    agent = AutoAgent("Auto Agent", instructions, "gpt-4.1", app_registry=app_registry)
+    agent = AutoAgent("Auto Agent", instructions, "azure/gpt-4.1", app_registry=app_registry)
 
     print("AutoAgent created successfully!")
     print(f"Agent name: {agent.name}")

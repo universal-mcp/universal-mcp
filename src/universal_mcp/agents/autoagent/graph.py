@@ -12,9 +12,9 @@ from universal_mcp.tools.manager import ToolManager
 from universal_mcp.tools.registry import ToolRegistry
 from universal_mcp.types import ToolFormat
 
-from .context import Context
-from .prompts import SYSTEM_PROMPT
-from .state import State
+from universal_mcp.agents.autoagent.context import Context
+from universal_mcp.agents.autoagent.prompts import SYSTEM_PROMPT
+from universal_mcp.agents.autoagent.state import State
 
 
 def create_agent(tool_registry: ToolRegistry, tool_manager: ToolManager, instructions: str = ""):

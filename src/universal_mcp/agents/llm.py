@@ -24,5 +24,5 @@ def load_chat_model(fully_specified_name: str, tags: list[str] | None = None) ->
 
 
 if __name__ == "__main__":
-    llm = load_chat_model("gpt-4.1")
+    llm = load_chat_model("azure/gpt-4.1")
     print(llm.invoke("Hello, world!"))

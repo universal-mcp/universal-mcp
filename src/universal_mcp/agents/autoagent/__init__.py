@@ -3,7 +3,7 @@ from universal_mcp.agents.base import BaseAgent
 from universal_mcp.tools.manager import ToolManager
 from universal_mcp.tools.registry import ToolRegistry
 
-from .graph import create_agent
+from universal_mcp.agents.autoagent.graph import create_agent
 
 
 class AutoAgent(BaseAgent):
