@@ -5,8 +5,8 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
-from .base import BaseAgent
-from .llm import load_chat_model
+from universal_mcp.agents.base import BaseAgent
+from universal_mcp.agents.llm import load_chat_model
 
 
 class State(TypedDict):
