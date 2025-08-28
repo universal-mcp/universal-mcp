@@ -97,6 +97,11 @@ def generate(
         "-f",
         help="Path to JSON filter configuration file for selective API client generation.",
     ),
+    response_schema: bool = typer.Option(
+        False,
+        "--response-schema",
+        help="Generate Pydantic response model classes instead of simple return types.",
+    ),
 ):
     """Generates Python client code from an OpenAPI (Swagger) schema.
 
@@ -108,6 +113,10 @@ def generate(
     the API's service name (e.g., 'twitter.py' for a Twitter API client)
     as this convention is used for organizing applications within U-MCP.
     If no output path is provided, the generated code will be printed to the console.
+
+    Response Schema Generation:
+    By default, methods use simple return types (dict[str, Any], list[Any], Any).
+    Use --response-schema to generate Pydantic response model classes for type safety.
 
     Selective Generation:
     Use --filter-config to specify which API operations to generate methods for.
@@ -135,6 +144,7 @@ def generate(
             output_path=output_path,
             class_name=class_name,
             filter_config_path=str(filter_config) if filter_config else None,
+            response_schema=response_schema,
         )
         if isinstance(app_file_data, dict) and "code" in app_file_data:
             console.print("[yellow]No output path specified, printing generated code to console:[/yellow]")
