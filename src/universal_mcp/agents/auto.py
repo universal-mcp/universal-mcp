@@ -12,12 +12,11 @@ from pydantic import BaseModel
 from typing_extensions import TypedDict
 
 from universal_mcp.agentr.registry import AgentrRegistry
+from universal_mcp.agents.base import BaseAgent
+from universal_mcp.agents.llm import load_chat_model
 from universal_mcp.tools import ToolManager
 from universal_mcp.tools.adapters import ToolFormat
 from universal_mcp.tools.registry import ToolRegistry
-
-from universal_mcp.agents.base import BaseAgent
-from universal_mcp.agents.llm import load_chat_model
 
 # Auto Agent
 # Working

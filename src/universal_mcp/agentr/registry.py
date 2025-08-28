@@ -55,7 +55,7 @@ class AgentrRegistry(ToolRegistry):
     async def search_apps(
         self,
         query: str,
-        limit: int = 2,
+        limit: int = 10,
     ) -> list[dict[str, Any]]:
         """Search for apps by a query.
 
