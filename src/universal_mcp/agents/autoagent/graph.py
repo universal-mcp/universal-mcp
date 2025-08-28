@@ -61,9 +61,16 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
         loaded_tools = await tool_registry.export_tools(tools=state["selected_tool_ids"], format=ToolFormat.LANGCHAIN)
         model_with_tools = model.bind_tools([search_apps, ask_user, load_apps, *loaded_tools], tool_choice="auto")
         response_raw = model_with_tools.invoke(messages)
+        token_usage = state.get("token_usage", {})
+        for key in ["input_tokens", "output_tokens", "total_tokens"]:
+            if key in token_usage:
+                token_usage[key] += response_raw.usage_metadata[key]
+            else:
+                token_usage[key] = response_raw.usage_metadata[key]
         print(response_raw.usage_metadata)
+        print(token_usage)
         response = cast(AIMessage, response_raw)
-        return {"messages": [response]}
+        return {"messages": [response], "token_usage": token_usage}
 
     # Define the conditional edge that determines whether to continue or not
     def should_continue(state: State):
