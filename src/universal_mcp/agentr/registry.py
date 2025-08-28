@@ -86,7 +86,7 @@ class AgentrRegistry(ToolRegistry):
             List of tool dictionaries for the specified app
         """
         try:
-            all_tools = self.client.list_all_tools()
+            all_tools = self.client.list_all_tools(app_id=app_id)
             return all_tools
         except Exception as e:
             logger.error(f"Error listing tools for app {app_id}: {e}")
@@ -96,18 +96,19 @@ class AgentrRegistry(ToolRegistry):
         self,
         query: str,
         limit: int = 2,
+        app_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Search for tools by a query.
 
         Args:
             query: The query to search for
             limit: The number of tools to return
-
+            app_id: The ID of the app to list tools for
         Returns:
             List of tool dictionaries matching the query
         """
         try:
-            tools = self.client.search_all_tools(query, limit)
+            tools = self.client.search_all_tools(query, limit, app_id)
             return tools
         except Exception as e:
             logger.error(f"Error searching tools from AgentR: {e}")

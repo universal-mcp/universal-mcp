@@ -8,7 +8,7 @@ async def main():
     agent = AutoAgent(
         name="autoagent",
         instructions="You are a helpful assistant that can use tools to help the user.",
-        model="azure/gpt-4o",
+        model="anthropic/claude-4-sonnet-20250514",
         tool_registry=AgentrRegistry(),
     )
     result = await agent.invoke(
