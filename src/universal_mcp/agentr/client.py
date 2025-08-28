@@ -16,21 +16,33 @@ class AgentrClient:
     Args:
         api_key (str, optional): AgentR API key. If not provided, will look for AGENTR_API_KEY env var.
         base_url (str, optional): Base URL for AgentR API. Defaults to https://api.agentr.dev.
+        auth_token (str, optional): Auth token for AgentR API. If not provided, will look for AGENTR_AUTH_TOKEN env var.
     """
 
-    def __init__(self, api_key: str | None = None, base_url: str | None = None, **kwargs):
+    def __init__(
+        self, api_key: str | None = None, base_url: str | None = None, auth_token: str | None = None, **kwargs
+    ):
         base_url = base_url or os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
         self.base_url = f"{base_url.rstrip('/')}/v1"
         self.api_key = api_key or os.getenv("AGENTR_API_KEY")
-        if not self.api_key:
-            raise ValueError("No API key provided and AGENTR_API_KEY not found in environment variables")
-        self.client = httpx.Client(
-            base_url=self.base_url,
-            headers={"X-API-KEY": self.api_key},
-            timeout=30,
-            follow_redirects=True,
-            verify=False,
-        )
+        if api_key:
+            self.client = httpx.Client(
+                base_url=self.base_url,
+                headers={"X-API-KEY": self.api_key},
+                timeout=30,
+                follow_redirects=True,
+                verify=False,
+            )
+        if auth_token:
+            self.client = httpx.Client(
+                base_url=self.base_url,
+                headers={"Authorization": f"Bearer {auth_token}"},
+                timeout=30,
+                follow_redirects=True,
+                verify=False,
+            )
+        else:
+            raise ValueError("No API key or auth token provided")
 
     def get_credentials(self, app_id: str) -> dict[str, Any]:
         """Get credentials for an integration from the AgentR API.
