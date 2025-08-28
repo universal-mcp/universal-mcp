@@ -25,9 +25,9 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
         apps_list = []
         for app in apps:
             if app["id"] in connections:
-                apps_list.append(f"{app['id']} (Connected)")
+                apps_list.append(f"{app['id']} (Connected): {app['description']}")
             else:
-                apps_list.append(f"{app['id']} (Not Connected)")
+                apps_list.append(f"{app['id']} (Not Connected): {app['description']}")
         return apps_list
 
     @tool()
@@ -38,7 +38,7 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
     
     @tool()
     async def load_apps(apps: list[str]) -> list[str]:
-        """Choose the apps you want to use by passing their app ids. Prefer connected apps to break a tie. If that is not possible, ask the user to choose the app. Loads the tools for the chosen apps and returns the tool ids."""
+        """Choose the apps you want to use by passing their app ids.  Loads the tools for the chosen apps and returns the tool ids."""
         tools_list = []
         for app in apps:
             tools = tool_registry.client.list_all_tools(app)
@@ -69,7 +69,7 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
                 token_usage[key] = response_raw.usage_metadata[key]
         print(response_raw.usage_metadata)
         print(token_usage)
-        response = cast(AIMessage, response_raw)
+        response = cast(AIMessage, response_raw) 
         return {"messages": [response], "token_usage": token_usage}
 
     # Define the conditional edge that determines whether to continue or not
@@ -109,7 +109,7 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
                 apps = await search_apps.ainvoke(tool_call["args"])
                 outputs.append(
                     ToolMessage(
-                        content=json.dumps(apps),
+                        content=json.dumps(apps)+"\n\nUse the load_apps tool to load the tools for the apps you want to use. Prefer connected apps to break a tie between apps with similar functionality. If that is not possible, ask the user to choose the app.",
                         name=tool_call["name"],
                         tool_call_id=tool_call["id"],
                     )
