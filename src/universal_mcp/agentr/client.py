@@ -24,16 +24,19 @@ class AgentrClient:
     ):
         base_url = base_url or os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
         self.base_url = f"{base_url.rstrip('/')}/v1"
-        self.api_key = api_key or os.getenv("AGENTR_API_KEY")
+        api_key = api_key or os.getenv("AGENTR_API_KEY")
+        print(api_key)
         if api_key:
             self.client = httpx.Client(
                 base_url=self.base_url,
-                headers={"X-API-KEY": self.api_key},
+                headers={"X-API-KEY": api_key},
                 timeout=30,
                 follow_redirects=True,
                 verify=False,
             )
-        if auth_token:
+            me_data = self.me()
+            logger.debug(f"Client initialized with user: {me_data['email']}")
+        elif auth_token:
             self.client = httpx.Client(
                 base_url=self.base_url,
                 headers={"Authorization": f"Bearer {auth_token}"},
@@ -41,8 +44,17 @@ class AgentrClient:
                 follow_redirects=True,
                 verify=False,
             )
+            me_data = self.me()
+            logger.debug(f"Client initialized with user: {me_data['email']}")
         else:
             raise ValueError("No API key or auth token provided")
+
+    def me(self):
+        response = self.client.get("/users/me/")
+        logger.debug(f"Me response: {response.status_code}")
+        response.raise_for_status()
+        data = response.json()
+        return data
 
     def get_credentials(self, app_id: str) -> dict[str, Any]:
         """Get credentials for an integration from the AgentR API.
@@ -61,6 +73,7 @@ class AgentrClient:
             "/credentials/",
             params={"app_id": app_id},
         )
+        logger.debug(f"Credentials response: {response.status_code}")
         if response.status_code == 404:
             logger.warning(f"No credentials found for app '{app_id}'. Requesting authorization...")
             action_url = self.get_authorization_url(app_id)
