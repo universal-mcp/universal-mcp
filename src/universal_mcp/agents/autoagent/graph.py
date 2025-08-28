@@ -17,18 +17,16 @@ from universal_mcp.types import ToolFormat
 
 async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
     @tool()
-    async def search_apps(query: str) -> list[str]:
-        """Retrieve apps using a search query. Use multiple times if you require apps for different tasks."""
-        apps = await tool_registry.search_apps(query, limit=10)
-        connections = tool_registry.client.list_my_connections()
-        connections = set(connection["app_id"] for connection in connections)
-        apps_list = []
-        for app in apps:
-            if app["id"] in connections:
-                apps_list.append(f"{app['id']} (Connected): {app['description']}")
-            else:
-                apps_list.append(f"{app['id']} (Not Connected): {app['description']}")
-        return apps_list
+    async def search_tools(query: str, app_ids: list[str] | None = None) -> list[str]:
+        """Retrieve tools using a search query and app id. Use multiple times if you require tools for different tasks."""
+        tools_list = []
+        if app_ids is not None:
+            for app_id in app_ids:
+                tools_list.extend(await tool_registry.search_tools(query, limit=10, app_id=app_id))
+        else:
+            tools_list = await tool_registry.search_tools(query, limit=10)
+        tools_list = [f"{tool['id']}: {tool['description']}" for tool in tools_list]
+        return tools_list
 
     @tool()
     async def ask_user(question: str) -> str:
@@ -37,15 +35,9 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
         return f"ASKING_USER: {full_question}"
     
     @tool()
-    async def load_apps(apps: list[str]) -> list[str]:
-        """Choose the apps you want to use by passing their app ids.  Loads the tools for the chosen apps and returns the tool ids."""
-        tools_list = []
-        for app in apps:
-            tools = tool_registry.client.list_all_tools(app)
-            tools = [tool["id"] for tool in tools]
-            print(tools)
-            tools_list.extend(tools)
-        return tools_list
+    async def load_tools(tools: list[str]) -> list[str]:
+        """Choose the tools you want to use by passing their tool ids.  Loads the tools for the chosen tools and returns the tool ids."""
+        return tools
     
 
     async def call_model(
@@ -53,13 +45,16 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
         runtime: Runtime[Context],
     ):
         system_prompt = runtime.context.system_prompt if runtime.context.system_prompt else SYSTEM_PROMPT
-        system_prompt = system_prompt.format(system_time=datetime.now(tz=UTC).isoformat())
+        app_ids = await tool_registry.list_all_apps()
+        app_id_descriptions = "\n".join([f"{app['id']}: {app['description']}" for app in app_ids])
+        print(app_id_descriptions)
+        system_prompt = system_prompt.format(system_time=datetime.now(tz=UTC).isoformat(), app_ids=app_id_descriptions)
         
         messages = [{"role": "system", "content": system_prompt + "\n" + instructions}, *state["messages"]]
         model = load_chat_model(runtime.context.model)
         # Load tools from tool registry
         loaded_tools = await tool_registry.export_tools(tools=state["selected_tool_ids"], format=ToolFormat.LANGCHAIN)
-        model_with_tools = model.bind_tools([search_apps, ask_user, load_apps, *loaded_tools], tool_choice="auto")
+        model_with_tools = model.bind_tools([search_tools, ask_user, load_tools, *loaded_tools], tool_choice="auto")
         response_raw = model_with_tools.invoke(messages)
         token_usage = state.get("token_usage", {})
         for key in ["input_tokens", "output_tokens", "total_tokens"]:
@@ -105,18 +100,18 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
                 )
                 ai_message = AIMessage(content=tool_call["args"]["question"])
                 outputs.append(ai_message)
-            elif tool_call["name"] == search_apps.name:
-                apps = await search_apps.ainvoke(tool_call["args"])
+            elif tool_call["name"] == search_tools.name:
+                tools = await search_tools.ainvoke(tool_call["args"])
                 outputs.append(
                     ToolMessage(
-                        content=json.dumps(apps)+"\n\nUse the load_apps tool to load the tools for the apps you want to use. Prefer connected apps to break a tie between apps with similar functionality. If that is not possible, ask the user to choose the app.",
+                        content=json.dumps(tools)+"\n\nUse the load_tools tool to load the tools you want to use.",
                         name=tool_call["name"],
                         tool_call_id=tool_call["id"],
                     )
                 )
                 
-            elif tool_call["name"] == load_apps.name:
-                tool_ids = await load_apps.ainvoke(tool_call["args"])
+            elif tool_call["name"] == load_tools.name:
+                tool_ids = await load_tools.ainvoke(tool_call["args"])
                 print(tool_ids)
                 outputs.append(
                     ToolMessage(

@@ -168,13 +168,17 @@ class AgentrClient:
         response.raise_for_status()
         return response.json().get("items", [])
 
-    def search_all_tools(self, query: str, limit: int = 2):
+    def search_all_tools(self, query: str, limit: int = 2, app_id: str | None = None):
         """Search for tools from the AgentR API.
 
         Args:
             query (str): The query to search for.
             limit (int, optional): The number of tools to return. Defaults to 2.
+            app_id (str, optional): The ID of the app to search tools for.
         """
-        response = self.client.get("/tools/", params={"search": query, "limit": limit})
+        params = {"search": query, "limit": limit}
+        if app_id:
+            params["app_id"] = app_id
+        response = self.client.get("/tools/", params=params)
         response.raise_for_status()
         return response.json().get("items", [])

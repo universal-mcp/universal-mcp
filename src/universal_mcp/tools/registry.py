@@ -63,6 +63,7 @@ class ToolRegistry(ABC):
         self,
         query: str,
         limit: int = 2,
+        app_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Search for tools by a query."""
         pass
