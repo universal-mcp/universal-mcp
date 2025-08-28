@@ -17,16 +17,36 @@ from universal_mcp.types import ToolFormat
 
 async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
     @tool()
-    async def retrieve_tools(query: str) -> list[str]:
-        """Retrieve tools using a search query. Use multiple times if you require tools for different tasks."""
-        tools = await tool_registry.search_tools(query)
-        return tools
+    async def search_apps(query: str) -> list[str]:
+        """Retrieve apps using a search query. Use multiple times if you require apps for different tasks."""
+        apps = await tool_registry.search_apps(query, limit=10)
+        connections = tool_registry.client.list_my_connections()
+        connections = set(connection["app_id"] for connection in connections)
+        apps_list = []
+        for app in apps:
+            if app["id"] in connections:
+                apps_list.append(f"{app['id']} (Connected)")
+            else:
+                apps_list.append(f"{app['id']} (Not Connected)")
+        return apps_list
 
     @tool()
     async def ask_user(question: str) -> str:
         """Ask the user a question. Use this tool to ask the user for any missing information for performing a task, or when you have multiple apps to choose from for performing a task."""
         full_question = question
         return f"ASKING_USER: {full_question}"
+    
+    @tool()
+    async def load_apps(apps: list[str]) -> list[str]:
+        """Choose the apps you want to use by passing their app ids. Prefer connected apps to break a tie. If that is not possible, ask the user to choose the app. Loads the tools for the chosen apps and returns the tool ids."""
+        tools_list = []
+        for app in apps:
+            tools = tool_registry.client.list_all_tools(app)
+            tools = [tool["id"] for tool in tools]
+            print(tools)
+            tools_list.extend(tools)
+        return tools_list
+    
 
     async def call_model(
         state: State,
@@ -34,13 +54,15 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
     ):
         system_prompt = runtime.context.system_prompt if runtime.context.system_prompt else SYSTEM_PROMPT
         system_prompt = system_prompt.format(system_time=datetime.now(tz=UTC).isoformat())
-
+        
         messages = [{"role": "system", "content": system_prompt + "\n" + instructions}, *state["messages"]]
         model = load_chat_model(runtime.context.model)
         # Load tools from tool registry
         loaded_tools = await tool_registry.export_tools(tools=state["selected_tool_ids"], format=ToolFormat.LANGCHAIN)
-        model_with_tools = model.bind_tools([retrieve_tools, ask_user, *loaded_tools], tool_choice="auto")
-        response = cast(AIMessage, model_with_tools.invoke(messages))
+        model_with_tools = model.bind_tools([search_apps, ask_user, load_apps, *loaded_tools], tool_choice="auto")
+        response_raw = model_with_tools.invoke(messages)
+        print(response_raw.usage_metadata)
+        response = cast(AIMessage, response_raw)
         return {"messages": [response]}
 
     # Define the conditional edge that determines whether to continue or not
@@ -50,7 +72,6 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
         # If there is no function call, then we finish
         if not last_message.tool_calls:
             return END
-        # Otherwise if there is, we continue
         else:
             return "tools"
 
@@ -65,17 +86,7 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
         outputs = []
         tool_ids = state["selected_tool_ids"]
         for tool_call in state["messages"][-1].tool_calls:
-            if tool_call["name"] == retrieve_tools.name:
-                tool_result = await retrieve_tools.ainvoke(tool_call["args"])
-                tool_ids = [tool["id"] for tool in tool_result]
-                outputs.append(
-                    ToolMessage(
-                        content=json.dumps(tool_result),
-                        name=tool_call["name"],
-                        tool_call_id=tool_call["id"],
-                    )
-                )
-            elif tool_call["name"] == ask_user.name:
+            if tool_call["name"] == ask_user.name:
                 outputs.append(
                     ToolMessage(
                         content=json.dumps(
@@ -87,7 +98,28 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
                 )
                 ai_message = AIMessage(content=tool_call["args"]["question"])
                 outputs.append(ai_message)
+            elif tool_call["name"] == search_apps.name:
+                apps = await search_apps.ainvoke(tool_call["args"])
+                outputs.append(
+                    ToolMessage(
+                        content=json.dumps(apps),
+                        name=tool_call["name"],
+                        tool_call_id=tool_call["id"],
+                    )
+                )
+                
+            elif tool_call["name"] == load_apps.name:
+                tool_ids = await load_apps.ainvoke(tool_call["args"])
+                print(tool_ids)
+                outputs.append(
+                    ToolMessage(
+                        content=json.dumps(tool_ids),
+                        name=tool_call["name"],
+                        tool_call_id=tool_call["id"],
+                    )
+                )
             else:
+                await tool_registry.export_tools([tool_call["name"]], ToolFormat.LANGCHAIN)
                 tool_result = await tool_registry.call_tool(tool_call["name"], tool_call["args"])
                 outputs.append(
                     ToolMessage(
@@ -97,6 +129,10 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
                     )
                 )
         return {"messages": outputs, "selected_tool_ids": tool_ids}
+
+                
+
+
 
     builder = StateGraph(State, context_schema=Context)
 
