@@ -13,13 +13,11 @@ class AutoAgent(BaseAgent):
         instructions: str,
         model: str,
         memory: BaseCheckpointSaver | None = None,
-        tool_registry: ToolRegistry | None = None,
+        registry: ToolRegistry | None = None,
+        **kwargs,
     ):
-        super().__init__(name, instructions, model, memory)
-        self.tool_registry = tool_registry or AgentrRegistry()
-        self.model = model
-        self.name = name
-        self.instructions = instructions
+        super().__init__(name, instructions, model, memory, **kwargs)
+        self.tool_registry = registry or AgentrRegistry()
 
     async def _build_graph(self):
         builder = await build_graph(self.tool_registry, self.instructions)

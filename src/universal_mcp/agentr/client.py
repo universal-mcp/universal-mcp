@@ -25,11 +25,10 @@ class AgentrClient:
         base_url = base_url or os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
         self.base_url = f"{base_url.rstrip('/')}/v1"
         api_key = api_key or os.getenv("AGENTR_API_KEY")
-        print(api_key)
         if api_key:
             self.client = httpx.Client(
                 base_url=self.base_url,
-                headers={"X-API-KEY": api_key},
+                headers={"X-API-KEY": api_key, "accept": "application/json"},
                 timeout=30,
                 follow_redirects=True,
                 verify=False,
@@ -37,9 +36,10 @@ class AgentrClient:
             me_data = self.me()
             logger.debug(f"Client initialized with user: {me_data['email']}")
         elif auth_token:
+            logger.debug("Initializing client with auth token")
             self.client = httpx.Client(
                 base_url=self.base_url,
-                headers={"Authorization": f"Bearer {auth_token}"},
+                headers={"Authorization": f"Bearer {auth_token}", "accept": "application/json"},
                 timeout=30,
                 follow_redirects=True,
                 verify=False,
@@ -50,7 +50,7 @@ class AgentrClient:
             raise ValueError("No API key or auth token provided")
 
     def me(self):
-        response = self.client.get("/users/me/")
+        response = self.client.get("/users/me")
         logger.debug(f"Me response: {response.status_code}")
         response.raise_for_status()
         data = response.json()
@@ -70,7 +70,7 @@ class AgentrClient:
             HTTPError: For other API errors.
         """
         response = self.client.get(
-            "/credentials/",
+            "/credentials",
             params={"app_id": app_id},
         )
         logger.debug(f"Credentials response: {response.status_code}")
@@ -117,7 +117,7 @@ class AgentrClient:
         Returns:
             List[Dict[str, Any]]: A list of user app data dictionaries.
         """
-        response = self.client.get("/apps/me/")
+        response = self.client.get("/apps/me")
         response.raise_for_status()
         return response.json().get("items", [])
 
@@ -127,7 +127,7 @@ class AgentrClient:
         Returns:
             List[Dict[str, Any]]: A list of user connection data dictionaries.
         """
-        response = self.client.get("/connections/")
+        response = self.client.get("/connections")
         response.raise_for_status()
         return response.json().get("items", [])
 
@@ -159,7 +159,7 @@ class AgentrClient:
         params = {}
         if app_id:
             params["app_id"] = app_id
-        response = self.client.get("/tools/", params=params)
+        response = self.client.get("/tools", params=params)
         response.raise_for_status()
         return response.json().get("items", [])
 
@@ -189,7 +189,7 @@ class AgentrClient:
         Returns:
             List[Dict[str, Any]]: A list of app data dictionaries.
         """
-        response = self.client.get("/apps/", params={"search": query, "limit": limit})
+        response = self.client.get("/apps", params={"search": query, "limit": limit})
         response.raise_for_status()
         return response.json().get("items", [])
 
@@ -204,6 +204,6 @@ class AgentrClient:
         params = {"search": query, "limit": limit}
         if app_id:
             params["app_id"] = app_id
-        response = self.client.get("/tools/", params=params)
+        response = self.client.get("/tools", params=params)
         response.raise_for_status()
         return response.json().get("items", [])

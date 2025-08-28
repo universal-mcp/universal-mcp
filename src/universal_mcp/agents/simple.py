@@ -1,7 +1,7 @@
 import asyncio
 from typing import Annotated
 
-from langgraph.checkpoint.memory import BaseCheckpointer
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
@@ -15,7 +15,7 @@ class State(TypedDict):
 
 
 class SimpleAgent(BaseAgent):
-    def __init__(self, name: str, instructions: str, model: str, memory: BaseCheckpointer = None, **kwargs):
+    def __init__(self, name: str, instructions: str, model: str, memory: BaseCheckpointSaver = None, **kwargs):
         super().__init__(name, instructions, model, memory, **kwargs)
         self.llm = load_chat_model(model)
 
