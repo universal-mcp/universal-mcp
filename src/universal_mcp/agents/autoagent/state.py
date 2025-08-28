@@ -25,3 +25,4 @@ def _enqueue(left: list, right: list) -> list:
 
 class State(AgentState):
     selected_tool_ids: Annotated[list[str], _enqueue]
+    token_usage: dict[str, int]
