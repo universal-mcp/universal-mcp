@@ -33,6 +33,7 @@ class BaseAgent:
         async for event, _ in self._graph.astream(
             {"messages": [{"role": "user", "content": user_input}]},
             config={"configurable": {"thread_id": thread_id}},
+            context={"system_prompt": self.instructions, "model": self.model},
             stream_mode="messages",
         ):
             event = cast(AIMessageChunk, event)
