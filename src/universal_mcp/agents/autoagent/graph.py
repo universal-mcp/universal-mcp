@@ -122,14 +122,23 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
                 )
             else:
                 await tool_registry.export_tools([tool_call["name"]], ToolFormat.LANGCHAIN)
-                tool_result = await tool_registry.call_tool(tool_call["name"], tool_call["args"])
-                outputs.append(
-                    ToolMessage(
-                        content=json.dumps(tool_result),
-                        name=tool_call["name"],
-                        tool_call_id=tool_call["id"],
+                try:
+                    tool_result = await tool_registry.call_tool(tool_call["name"], tool_call["args"])
+                    outputs.append(
+                        ToolMessage(
+                            content=json.dumps(tool_result),
+                            name=tool_call["name"],
+                                tool_call_id=tool_call["id"],
+                            )
+                        )
+                except Exception as e:
+                    outputs.append(
+                        ToolMessage(
+                            content=json.dumps("Error: "+str(e)),
+                            name=tool_call["name"],
+                            tool_call_id=tool_call["id"],
+                        )
                     )
-                )
         return {"messages": outputs, "selected_tool_ids": tool_ids}
 
                 
