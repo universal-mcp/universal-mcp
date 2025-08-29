@@ -18,6 +18,7 @@ class Context:
 
     model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
         default="anthropic/claude-4-sonnet-20250514",
+        # default="vertex/gemini-2.5-flash",
         metadata={
             "description": "The name of the language model to use for the agent's main interactions. "
             "Should be in the form: provider/model-name."

@@ -68,8 +68,6 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
                 token_usage[key] += response_raw.usage_metadata[key]
             else:
                 token_usage[key] = response_raw.usage_metadata[key]
-        print(response_raw.usage_metadata)
-        print(token_usage)
         response = cast(AIMessage, response_raw) 
         return {"messages": [response], "token_usage": token_usage}
 
