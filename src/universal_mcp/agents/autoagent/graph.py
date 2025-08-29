@@ -18,7 +18,7 @@ from universal_mcp.types import ToolFormat
 async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
     @tool()
     async def search_tools(query: str, app_ids: list[str] | None = None) -> list[str]:
-        """Retrieve tools using a search query and app id. Use multiple times if you require tools for different tasks."""
+        """Retrieve tools using a search query and a list of app ids. Use multiple times if you require tools for different queries."""
         tools_list = []
         if app_ids is not None:
             for app_id in app_ids:
@@ -46,7 +46,13 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
     ):
         system_prompt = runtime.context.system_prompt if runtime.context.system_prompt else SYSTEM_PROMPT
         app_ids = await tool_registry.list_all_apps()
-        app_id_descriptions = "\n".join([f"{app['id']}: {app['description']}" for app in app_ids])
+        connections = tool_registry.client.list_my_connections()
+        connection_ids = set([connection["app_id"] for connection in connections])
+        connected_apps = [app['id'] for app in app_ids if app["id"] in connection_ids]
+        unconnected_apps = [app['id'] for app in app_ids if app["id"] not in connection_ids]
+        app_id_descriptions = "These are the apps connected to the user's account:\n" + "\n".join([f"{app}" for app in connected_apps])
+        if unconnected_apps:
+            app_id_descriptions += "\n\nOther (not connected) apps: " + "\n".join([f"{app}" for app in unconnected_apps])
         print(app_id_descriptions)
         system_prompt = system_prompt.format(system_time=datetime.now(tz=UTC).isoformat(), app_ids=app_id_descriptions)
         
