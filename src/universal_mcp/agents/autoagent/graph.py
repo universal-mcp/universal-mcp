@@ -33,12 +33,11 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
         """Ask the user a question. Use this tool to ask the user for any missing information for performing a task, or when you have multiple apps to choose from for performing a task."""
         full_question = question
         return f"ASKING_USER: {full_question}"
-    
+
     @tool()
     async def load_tools(tools: list[str]) -> list[str]:
         """Choose the tools you want to use by passing their tool ids.  Loads the tools for the chosen tools and returns the tool ids."""
         return tools
-    
 
     async def call_model(
         state: State,
@@ -48,28 +47,26 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
         app_ids = await tool_registry.list_all_apps()
         connections = tool_registry.client.list_my_connections()
         connection_ids = set([connection["app_id"] for connection in connections])
-        connected_apps = [app['id'] for app in app_ids if app["id"] in connection_ids]
-        unconnected_apps = [app['id'] for app in app_ids if app["id"] not in connection_ids]
-        app_id_descriptions = "These are the apps connected to the user's account:\n" + "\n".join([f"{app}" for app in connected_apps])
+        connected_apps = [app["id"] for app in app_ids if app["id"] in connection_ids]
+        unconnected_apps = [app["id"] for app in app_ids if app["id"] not in connection_ids]
+        app_id_descriptions = "These are the apps connected to the user's account:\n" + "\n".join(
+            [f"{app}" for app in connected_apps]
+        )
         if unconnected_apps:
-            app_id_descriptions += "\n\nOther (not connected) apps: " + "\n".join([f"{app}" for app in unconnected_apps])
+            app_id_descriptions += "\n\nOther (not connected) apps: " + "\n".join(
+                [f"{app}" for app in unconnected_apps]
+            )
         print(app_id_descriptions)
         system_prompt = system_prompt.format(system_time=datetime.now(tz=UTC).isoformat(), app_ids=app_id_descriptions)
-        
+
         messages = [{"role": "system", "content": system_prompt + "\n" + instructions}, *state["messages"]]
         model = load_chat_model(runtime.context.model)
         # Load tools from tool registry
         loaded_tools = await tool_registry.export_tools(tools=state["selected_tool_ids"], format=ToolFormat.LANGCHAIN)
         model_with_tools = model.bind_tools([search_tools, ask_user, load_tools, *loaded_tools], tool_choice="auto")
         response_raw = model_with_tools.invoke(messages)
-        token_usage = state.get("token_usage", {})
-        for key in ["input_tokens", "output_tokens", "total_tokens"]:
-            if key in token_usage:
-                token_usage[key] += response_raw.usage_metadata[key]
-            else:
-                token_usage[key] = response_raw.usage_metadata[key]
-        response = cast(AIMessage, response_raw) 
-        return {"messages": [response], "token_usage": token_usage}
+        response = cast(AIMessage, response_raw)
+        return {"messages": [response]}
 
     # Define the conditional edge that determines whether to continue or not
     def should_continue(state: State):
@@ -108,12 +105,12 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
                 tools = await search_tools.ainvoke(tool_call["args"])
                 outputs.append(
                     ToolMessage(
-                        content=json.dumps(tools)+"\n\nUse the load_tools tool to load the tools you want to use.",
+                        content=json.dumps(tools) + "\n\nUse the load_tools tool to load the tools you want to use.",
                         name=tool_call["name"],
                         tool_call_id=tool_call["id"],
                     )
                 )
-                
+
             elif tool_call["name"] == load_tools.name:
                 tool_ids = await load_tools.ainvoke(tool_call["args"])
                 print(tool_ids)
@@ -132,22 +129,18 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
                         ToolMessage(
                             content=json.dumps(tool_result),
                             name=tool_call["name"],
-                                tool_call_id=tool_call["id"],
-                            )
+                            tool_call_id=tool_call["id"],
                         )
+                    )
                 except Exception as e:
                     outputs.append(
                         ToolMessage(
-                            content=json.dumps("Error: "+str(e)),
+                            content=json.dumps("Error: " + str(e)),
                             name=tool_call["name"],
                             tool_call_id=tool_call["id"],
                         )
                     )
         return {"messages": outputs, "selected_tool_ids": tool_ids}
-
-                
-
-
 
     builder = StateGraph(State, context_schema=Context)
 

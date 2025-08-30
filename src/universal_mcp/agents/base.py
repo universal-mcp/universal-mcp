@@ -102,4 +102,7 @@ class BaseAgent:
                 self.cli.display_info("\nGoodbye! 👋")
                 break
             except Exception as e:
+                import traceback
+
+                traceback.print_exc()
                 self.cli.display_error(f"An error occurred: {str(e)}")

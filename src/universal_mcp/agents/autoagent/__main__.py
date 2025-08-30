@@ -8,13 +8,11 @@ async def main():
     agent = AutoAgent(
         name="autoagent",
         instructions="You are a helpful assistant that can use tools to help the user.",
-        model="anthropic/claude-4-sonnet-20250514",
+        model="azure/gpt-4.1",
         tool_registry=AgentrRegistry(),
     )
-    result = await agent.invoke(
-        user_input="Send an email to Manoj from my google mail account, manoj@agentr.dev, with the subject 'Hello from auto agent' and the body 'testing'"
-    )
-    print(result)
+    await agent.run_interactive()
+    # print(result)
 
 
 if __name__ == "__main__":
