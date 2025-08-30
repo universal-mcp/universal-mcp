@@ -43,7 +43,7 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
         state: State,
         runtime: Runtime[Context],
     ):
-        system_prompt = runtime.context.system_prompt if runtime.context.system_prompt else SYSTEM_PROMPT
+        system_prompt = SYSTEM_PROMPT
         app_ids = await tool_registry.list_all_apps()
         connections = tool_registry.client.list_my_connections()
         connection_ids = set([connection["app_id"] for connection in connections])
