@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "universal-mcp"
-version = "0.1.24-rc11"
+version = "0.1.24-rc12"
 description = "Universal MCP acts as a middle ware for your API applications. It can store your credentials, authorize, enable disable apps on the fly and much more."
 readme = "README.md"
 authors = [
@@ -21,6 +21,7 @@ dependencies = [
     "jsonref>=1.1.0",
     "keyring>=25.6.0",
     "langchain-anthropic>=0.3.19",
+    "langchain-google-genai>=2.1.10",
     "langchain-google-vertexai>=2.0.28",
     "langchain-mcp-adapters>=0.1.9",
     "langchain-openai>=0.3.27",
