@@ -43,7 +43,7 @@ def _filter_by_name(tools: list[Tool], tool_names: list[str] | None) -> list[Too
     """
     if not tool_names:
         return tools
-
+    logger.debug(f"All tools: {[tool.name for tool in tools]}")
     logger.debug(f"Filtering tools by names: {tool_names}")
     tool_names_set = set(_sanitize_tool_names(tool_names))
     logger.debug(f"Tool names set: {tool_names_set}")
@@ -259,7 +259,7 @@ class ToolManager:
             except Exception as e:
                 tool_name = getattr(function, "__name__", "unknown")
                 logger.error(f"Failed to create Tool from '{tool_name}' in {app.name}: {e}")
-        print([tool.name for tool in tools])
+        # logger.debug([tool.name for tool in tools])
         if tags:
             tools = _filter_by_tags(tools, tags)
 

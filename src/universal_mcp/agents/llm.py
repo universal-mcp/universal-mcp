@@ -1,7 +1,7 @@
 from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models import BaseChatModel
-from langchain_google_vertexai.model_garden import ChatAnthropicVertex
 from langchain_google_vertexai import ChatVertexAI
+from langchain_google_vertexai.model_garden import ChatAnthropicVertex
 from langchain_openai import AzureChatOpenAI
 
 
@@ -26,5 +26,7 @@ def load_chat_model(fully_specified_name: str, tags: list[str] | None = None) ->
 
 
 if __name__ == "__main__":
+    from loguru import logger
+
     llm = load_chat_model("azure/gpt-4.1")
-    print(llm.invoke("Hello, world!"))
+    logger.info(llm.invoke("Hello, world!"))

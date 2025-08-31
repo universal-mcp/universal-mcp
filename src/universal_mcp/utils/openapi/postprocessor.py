@@ -55,26 +55,28 @@ def add_hint_tags_to_docstrings(input_path: str, output_path: str):
                 llm_failures
 
             total_functions += 1
-            print(f"\n[{total_functions}] Processing function: {node.name}")
+            from loguru import logger
+
+            logger.info(f"Processing function: {node.name} ({total_functions})")
 
             http_method = self._find_http_method(node)
             tag_to_add = None
 
             if http_method:
                 functions_with_http_methods += 1
-                print(f"  └─ Found HTTP method: {http_method.upper()}")
+                logger.debug(f"Found HTTP method: {http_method.upper()}")
 
                 # Use simple agent to decide tag
-                print("  └─ Calling LLM to determine tag...")
+                logger.debug("Calling LLM to determine tag...")
                 tag_to_add = self._get_tag_suggestion_from_agent(node, http_method)
 
                 if tag_to_add:
                     functions_processed_by_llm += 1
-                    print(f"  └─ LLM suggested tags: {tag_to_add}")
+                    logger.info(f"LLM suggested tags: {tag_to_add}")
                 else:
-                    print("  └─ LLM failed or returned invalid response")
+                    logger.warning("LLM failed or returned invalid response")
             else:
-                print("  └─ No HTTP method found - skipping")
+                logger.debug("No HTTP method found - skipping")
 
             if tag_to_add:
                 docstring = ast.get_docstring(node, clean=False)
@@ -98,13 +100,13 @@ def add_hint_tags_to_docstrings(input_path: str, output_path: str):
                             if isinstance(node.body[0], ast.Expr) and isinstance(node.body[0].value, ast.Constant):
                                 node.body[0].value.value = new_docstring
                                 functions_tagged += 1
-                                print(f"  └─ ✅ Tags '{', '.join(tags_to_add)}' added successfully")
+                                logger.info(f"Tags '{', '.join(tags_to_add)}' added successfully")
                         else:
-                            print(f"  └─ ⚠️  All tags '{tag_to_add}' already exist - skipping")
+                            logger.warning(f"All tags '{tag_to_add}' already exist - skipping")
                     else:
-                        print("  └─ ⚠️  No 'Tags:' section found in docstring - skipping")
+                        logger.warning("No 'Tags:' section found in docstring - skipping")
                 else:
-                    print("  └─ ⚠️  No docstring found - skipping")
+                    logger.warning("No docstring found - skipping")
             return node
 
         def _get_tag_suggestion_from_agent(self, node, http_method):
@@ -232,7 +234,9 @@ Your answer (comma-separated tags or 'none'):"""
             except Exception as e:
                 nonlocal llm_failures
                 llm_failures += 1
-                print(f"  └─ ❌ LLM failed for function {function_name}: {e}")
+                from loguru import logger
+
+                logger.error(f"LLM failed for function {function_name}: {e}")
                 # If LLM fails, return None (no tag added)
                 return None
 
@@ -241,19 +245,18 @@ Your answer (comma-separated tags or 'none'):"""
     new_source = ast.unparse(new_tree)
 
     # Print summary statistics
-    print(f"\n{'=' * 60}")
-    print("📊 PROCESSING SUMMARY")
-    print(f"{'=' * 60}")
-    print(f"Total functions processed: {total_functions}")
-    print(f"Functions with HTTP methods: {functions_with_http_methods}")
-    print(f"Functions processed by LLM: {functions_processed_by_llm}")
-    print(f"Functions successfully tagged: {functions_tagged}")
-    print(f"LLM failures: {llm_failures}")
+    from loguru import logger
+
+    logger.info("📊 PROCESSING SUMMARY")
+    logger.info(f"Total functions processed: {total_functions}")
+    logger.info(f"Functions with HTTP methods: {functions_with_http_methods}")
+    logger.info(f"Functions processed by LLM: {functions_processed_by_llm}")
+    logger.info(f"Functions successfully tagged: {functions_tagged}")
+    logger.info(f"LLM failures: {llm_failures}")
     if functions_with_http_methods > 0:
-        print(
+        logger.info(
             f"LLM success rate: {(functions_processed_by_llm / functions_with_http_methods * 100):.1f}% of HTTP functions"
         )
-    print(f"{'=' * 60}")
 
     # Format with Black in memory
     try:
@@ -262,14 +265,14 @@ Your answer (comma-separated tags or 'none'):"""
         formatted_content = black.format_file_contents(new_source, fast=False, mode=black.FileMode())
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(formatted_content)
-        print(f"Black formatting applied successfully to: {output_path}")
+        logger.info(f"Black formatting applied successfully to: {output_path}")
     except ImportError:
-        print(f"Black not installed. Skipping formatting for: {output_path}")
+        logger.warning(f"Black not installed. Skipping formatting for: {output_path}")
         # Write unformatted version if Black is not available
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(new_source)
     except Exception as e:
-        print(f"Black formatting failed for {output_path}: {e}")
+        logger.error(f"Black formatting failed for {output_path}: {e}")
         # Write unformatted version if Black formatting fails
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(new_source)

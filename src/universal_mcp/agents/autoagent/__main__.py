@@ -11,8 +11,11 @@ async def main():
         model="azure/gpt-4.1",
         tool_registry=AgentrRegistry(),
     )
-    await agent.run_interactive()
-    # print(result)
+    await agent.invoke(
+        user_input="Please send the email from google-mail to manoj@agentr.dev, with subject hello and body hello from auto",
+        thread_id="12345",
+    )
+    # from loguru import logger; logger.debug(result)
 
 
 if __name__ == "__main__":

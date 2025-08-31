@@ -132,10 +132,10 @@ class AgentrRegistry(ToolRegistry):
             # Clear tools from tool manager before loading new tools
             self.tool_manager.clear_tools()
             if isinstance(tools, ToolConfig):
-                print("Loading tools from tool config")
+                logger.info("Loading tools from tool config")
                 self._load_tools_from_tool_config(tools, self.tool_manager)
             else:
-                print("Loading tools from list")
+                logger.info("Loading tools from list")
                 self._load_agentr_tools_from_list(tools, self.tool_manager)
             loaded_tools = self.tool_manager.list_tools(format=format)
             logger.info(f"Exporting {len(loaded_tools)} tools to {format} format")

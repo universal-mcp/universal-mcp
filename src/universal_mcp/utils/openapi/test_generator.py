@@ -282,6 +282,8 @@ async def test_{app_name}_test_case_{i}({app_name}_test_case_{i}):
     with open(output_file, "w") as f:
         f.write(file_content)
 
-    print(f"✅ Generated {output_file} with {len(multi_test_case.test_cases)} test cases for {app_name}")
+    from loguru import logger
+
+    logger.info(f"✅ Generated {output_file} with {len(multi_test_case.test_cases)} test cases for {app_name}")
     for i, test_case in enumerate(multi_test_case.test_cases, 1):
-        print(f"   Test Case {i}: {len(test_case.tools)} tools, {len(test_case.tasks)} tasks")
+        logger.info(f"   Test Case {i}: {len(test_case.tools)} tools, {len(test_case.tasks)} tasks")

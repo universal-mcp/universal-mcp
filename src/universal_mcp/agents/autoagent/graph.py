@@ -56,7 +56,7 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
             app_id_descriptions += "\n\nOther (not connected) apps: " + "\n".join(
                 [f"{app}" for app in unconnected_apps]
             )
-        print(app_id_descriptions)
+
         system_prompt = system_prompt.format(system_time=datetime.now(tz=UTC).isoformat(), app_ids=app_id_descriptions)
 
         messages = [{"role": "system", "content": system_prompt + "\n" + instructions}, *state["messages"]]
@@ -113,7 +113,7 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
 
             elif tool_call["name"] == load_tools.name:
                 tool_ids = await load_tools.ainvoke(tool_call["args"])
-                print(tool_ids)
+
                 outputs.append(
                     ToolMessage(
                         content=json.dumps(tool_ids),

@@ -179,7 +179,9 @@ def _get_or_create_response_model(
 
     except Exception as e:
         # If model generation fails, log and continue with fallback
-        print(f"Warning: Could not generate model for {method.upper()} {path}: {e}")
+        from loguru import logger
+
+        logger.warning(f"Could not generate model for {method.upper()} {path}: {e}")
 
     return None
 
@@ -486,7 +488,9 @@ def _generate_path_params(path: str) -> list[Parameters]:
                 )
             )
         except Exception as e:
-            print(f"Error generating path parameters {param_name}: {e}")
+            from loguru import logger
+
+            logger.error(f"Error generating path parameters {param_name}: {e}")
             raise e
     return parameters
 
@@ -919,11 +923,11 @@ def _generate_method_code(path, method, operation):
 
     # Combine required and optional arguments FOR DOCSTRING (as before, without types)
     args = required_args + optional_args
-    print(f"[DEBUG] Final combined args for DOCSTRING: {args}")  # DEBUG
+    # from loguru import logger; logger.debug(f"Final combined args for DOCSTRING: {args}")  # DEBUG
 
     # Combine required and optional arguments FOR SIGNATURE (with types)
     signature_args_combined_typed = signature_required_args_typed + signature_optional_args_typed
-    print(f"[DEBUG] Final combined args for SIGNATURE: {signature_args_combined_typed}")  # DEBUG
+    # from loguru import logger; logger.debug(f"Final combined args for SIGNATURE: {signature_args_combined_typed}")  # DEBUG
 
     # ----- Build Docstring -----
     # This section constructs the entire docstring for the generated method,
@@ -1288,7 +1292,11 @@ def generate_api_client(schema, class_name: str | None = None, filter_config_pat
     filter_config = None
     if filter_config_path:
         filter_config = load_filter_config(filter_config_path)
-        print(f"Loaded filter configuration from {filter_config_path} with {len(filter_config)} path specifications")
+        from loguru import logger
+
+        logger.info(
+            f"Loaded filter configuration from {filter_config_path} with {len(filter_config)} path specifications"
+        )
 
     methods = []
     method_names = []
@@ -1345,19 +1353,29 @@ def generate_api_client(schema, class_name: str | None = None, filter_config_pat
             if method in ["get", "post", "put", "delete", "patch", "options", "head"]:
                 # Apply filter configuration
                 if not should_process_operation(path, method, filter_config):
-                    print(f"Skipping method generation for '{method.upper()} {path}' due to filter configuration.")
+                    from loguru import logger
+
+                    logger.info(
+                        f"Skipping method generation for '{method.upper()} {path}' due to filter configuration."
+                    )
                     skipped_count += 1
                     continue
 
                 operation = path_info[method]
-                print(f"Generating method for: {method.upper()} {path}")
+                from loguru import logger
+
+                logger.info(f"Generating method for: {method.upper()} {path}")
                 method_code, func_name = _generate_method_code(path, method, operation)
                 methods.append(method_code)
                 method_names.append(func_name)
                 processed_count += 1
 
     if filter_config is not None:
-        print(f"Selective generation complete: {processed_count} methods generated, {skipped_count} methods skipped.")
+        from loguru import logger
+
+        logger.info(
+            f"Selective generation complete: {processed_count} methods generated, {skipped_count} methods skipped."
+        )
 
     # Generate list_tools method with all the function names
     tools_list = ",\n            ".join([f"self.{name}" for name in method_names])
@@ -1453,4 +1471,6 @@ if __name__ == "__main__":
 
     schema = load_schema("openapi.yaml")
     code = generate_api_client(schema)
-    print(code)
+    from loguru import logger
+
+    logger.info(code)

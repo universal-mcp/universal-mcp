@@ -11,7 +11,10 @@ from universal_mcp.utils.openapi.openapi import generate_api_client, generate_sc
 
 def echo(message: str, err: bool = False) -> None:
     """Echo a message to the console, with optional error flag."""
-    print(message, file=os.sys.stderr if err else None)
+    if err:
+        logger.error(message)
+    else:
+        logger.info(message)
 
 
 def validate_and_load_schema(schema_path: Path) -> dict:

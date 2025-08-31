@@ -521,7 +521,7 @@ Be friendly and concise, but list each set of apps clearly. Do not return any ot
             return result
 
         # Get all available apps from platform manager
-        available_apps =  self.app_registry.list_apps()
+        available_apps = self.app_registry.list_apps()
 
         logger.info(f"Found {len(available_apps)} available apps")
 
@@ -567,9 +567,9 @@ if __name__ == "__main__":
 
     agent = AutoAgent("Auto Agent", instructions, "azure/gpt-4.1", app_registry=app_registry)
 
-    print("AutoAgent created successfully!")
-    print(f"Agent name: {agent.name}")
-    print(f"Agent instructions: {agent.instructions}")
-    print(f"Agent model: {agent.model}")
+    logger.info("AutoAgent created successfully!")
+    logger.info(f"Agent name: {agent.name}")
+    logger.info(f"Agent instructions: {agent.instructions}")
+    logger.info(f"Agent model: {agent.model}")
 
     asyncio.run(agent.run_interactive())

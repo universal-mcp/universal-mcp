@@ -66,7 +66,7 @@ class ClientTransport:
 
     async def _callback_handler(self) -> tuple[str, str | None]:
         """Handles the OAuth callback by waiting for and returning auth details."""
-        print("⏳ Waiting for authorization callback...")
+        logger.info("⏳ Waiting for authorization callback...")
         try:
             auth_code = self.callback_server.wait_for_callback(timeout=300)
             return auth_code, self.callback_server.get_state()
@@ -86,7 +86,7 @@ class ClientTransport:
 
     async def _default_redirect_handler(self, authorization_url: str) -> None:
         """Default handler for OAuth redirects; opens URL in a web browser."""
-        print(f"Opening browser for authorization: {authorization_url}")
+        logger.info(f"Opening browser for authorization: {authorization_url}")
         webbrowser.open(authorization_url)
 
     async def initialize(self, exit_stack: AsyncExitStack) -> None:

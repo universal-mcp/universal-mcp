@@ -30,14 +30,37 @@ class BaseAgent:
 
     async def stream(self, thread_id: str, user_input: str):
         await self.ainit()
-        async for event, _ in self._graph.astream(
+        async for event, metadata in self._graph.astream(
             {"messages": [{"role": "user", "content": user_input}]},
             config={"configurable": {"thread_id": thread_id}},
             context={"system_prompt": self.instructions, "model": self.model},
             stream_mode="messages",
+            stream_usage=True,
         ):
+            # Only forward assistant token chunks that are not tool-related.
             event = cast(AIMessageChunk, event)
+            if "finish_reason" in event.response_metadata:
+                # Got LLM finish reason ignore it
+                # logger.debug(f"Finish event: {event}")
+                continue
+
+            # Skip chunks that correspond to tool calls or tool execution phases
+            # - tool_call_chunks present => model is emitting tool call(s)
+            # - metadata tags or node names may indicate tool/quiet phases
+            tags = metadata.get("tags", []) if isinstance(metadata, dict) else []
+
+            is_quiet = isinstance(tags, list) and ("quiet" in tags)
+
+            if is_quiet:
+                continue
+
+            # Emit only the token chunks for the final assistant message.
+            # logger.debug(f"Event: {event}, Metadata: {metadata}")
             yield event
+        # Send a final finished message
+        # The last event would be finish
+        event = cast(AIMessageChunk, event)
+        yield event
 
     async def stream_interactive(self, thread_id: str, user_input: str):
         await self.ainit()

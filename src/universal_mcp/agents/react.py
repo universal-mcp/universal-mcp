@@ -38,9 +38,9 @@ class ReactAgent(BaseAgent):
                 if config.get("agentrServers")
                 else []
             )
-            print(agentr_tools)
+            logger.debug(agentr_tools)
             mcp_tools = await load_mcp_tools(config["mcpServers"]) if config.get("mcpServers") else []
-            print(mcp_tools)
+            logger.debug(mcp_tools)
             tools = agentr_tools + mcp_tools
         else:
             tools = []
@@ -81,4 +81,4 @@ if __name__ == "__main__":
     result = asyncio.run(
         agent.invoke(user_input="Send an email with the subject 'testing react agent' to manoj@agentr.dev")
     )
-    print(result["messages"][-1].content)
+    logger.info(result["messages"][-1].content)
