@@ -31,9 +31,13 @@ class BaseAgent:
     async def stream(self, thread_id: str, user_input: str):
         await self.ainit()
         aggregate = None
+        run_config = {
+            "configurable": {"thread_id": thread_id},
+            "metadata": {"agent_name": self.name},
+        }
         async for event, metadata in self._graph.astream(
             {"messages": [{"role": "user", "content": user_input}]},
-            config={"configurable": {"thread_id": thread_id}},
+            config=run_config,
             context={"system_prompt": self.instructions, "model": self.model},
             stream_mode="messages",
             stream_usage=True,
@@ -71,9 +75,13 @@ class BaseAgent:
     async def invoke(self, user_input: str, thread_id: str = str(uuid4())):
         """Run the agent"""
         await self.ainit()
+        run_config = {
+            "configurable": {"thread_id": thread_id},
+            "metadata": {"agent_name": self.name},
+        }
         return await self._graph.ainvoke(
             {"messages": [{"role": "user", "content": user_input}]},
-            config={"configurable": {"thread_id": thread_id}},
+            config=run_config,
             context={"system_prompt": self.instructions, "model": self.model},
         )
 
