@@ -41,7 +41,6 @@ class BaseAgent:
             # Only forward assistant token chunks that are not tool-related.
             type_ = type(event)
             if type_ != AIMessageChunk:
-                # TODO: Handle other types of events
                 continue
             event = cast(AIMessageChunk, event)
             aggregate = event if aggregate is None else aggregate + event

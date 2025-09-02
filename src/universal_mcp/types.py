@@ -30,6 +30,9 @@ class MCPConnection(BaseModel):
     headers: dict[str, str] | None = None
 
 
-class ToolConfig(BaseModel):
-    mcpServers: dict[str, MCPConnection] | None = None
+class AgentrToolConfig(BaseModel):
     agentrServers: dict[str, AgentrConnection] | None = None
+
+
+class ToolConfig(AgentrToolConfig):
+    mcpServers: dict[str, MCPConnection] | None = None
