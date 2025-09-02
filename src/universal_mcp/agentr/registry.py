@@ -2,6 +2,7 @@ from typing import Any
 
 from loguru import logger
 
+from universal_mcp.agentr.base_client import BaseAgentrClient
 from universal_mcp.agentr.client import AgentrClient
 from universal_mcp.applications import app_from_slug
 from universal_mcp.tools.manager import ToolManager, _get_app_and_tool_name
@@ -14,7 +15,7 @@ from .integration import AgentrIntegration
 class AgentrRegistry(ToolRegistry):
     """Platform manager implementation for AgentR platform."""
 
-    def __init__(self, client: AgentrClient | None = None, **kwargs):
+    def __init__(self, client: BaseAgentrClient | None = None, **kwargs):
         """Initialize the AgentR platform manager."""
 
         self.client = client or AgentrClient(**kwargs)

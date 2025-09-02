@@ -5,9 +5,10 @@ import httpx
 from loguru import logger
 
 from universal_mcp.exceptions import NotAuthorizedError
+from universal_mcp.agentr.base_client import BaseAgentrClient
 
 
-class AgentrClient:
+class AgentrClient(BaseAgentrClient):
     """Helper class for AgentR API operations.
 
     This class provides utility methods for interacting with the AgentR API,
