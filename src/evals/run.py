@@ -9,7 +9,7 @@ from langsmith.evaluation import RunEvaluator
 from evals.dataset import load_dataset
 from evals.evaluators import correctness_evaluator, exact_match_evaluator
 from universal_mcp.agentr.registry import AgentrRegistry
-from universal_mcp.agents.auto import AutoAgent
+from universal_mcp.agents.autoagent import AutoAgent
 from universal_mcp.agents.base import BaseAgent
 from universal_mcp.agents.react import ReactAgent
 from universal_mcp.agents.simple import SimpleAgent
@@ -98,7 +98,8 @@ async def main(agent_name: str, dataset_path: str, evaluator_name: str):
 
     # 3. Upload dataset to LangSmith for the evaluation run
     client = Client()
-    dataset_name = f"{agent_name}-{evaluator_name}-eval-dataset"
+    dataset_name = dataset_path.split("/")[-1].split(".")[0]
+    # dataset_name = f"{agent_name}-{evaluator_name}-eval-dataset"
     try:
         # If dataset with same name and examples exists, read it.
         # Otherwise, a new one is created.
