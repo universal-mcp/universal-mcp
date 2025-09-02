@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+
 class BaseAgentrClient(ABC):
     """
     Abstract Base Class defining the contract for an Agentr client.

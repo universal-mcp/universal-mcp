@@ -4,8 +4,8 @@ from typing import Any
 import httpx
 from loguru import logger
 
-from universal_mcp.exceptions import NotAuthorizedError
 from universal_mcp.agentr.base_client import BaseAgentrClient
+from universal_mcp.exceptions import NotAuthorizedError
 
 
 class AgentrClient(BaseAgentrClient):
