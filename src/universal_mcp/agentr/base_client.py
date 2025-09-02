@@ -15,7 +15,7 @@ class BaseAgentrClient(ABC):
         pass
 
     @abstractmethod
-    async def get_credentials(self, app_id: str) -> dict[str, Any]:
+    def get_credentials(self, app_id: str) -> dict[str, Any]:
         """Get credentials for an integration from the AgentR API.
 
         Args:
@@ -31,7 +31,7 @@ class BaseAgentrClient(ABC):
         pass
     
     @abstractmethod
-    async def get_authorization_url(self, app_id: str) -> str:
+    def get_authorization_url(self, app_id: str) -> str:
         """Get the authorization URL to connect an app.
 
         Args:
