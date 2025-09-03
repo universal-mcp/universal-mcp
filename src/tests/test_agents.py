@@ -2,12 +2,14 @@ from typing import Any
 
 import pytest
 from langchain_core.messages import HumanMessage
+from langchain_core.tools import tool
 
+from universal_mcp.agents.auto import AutoAgent
 from universal_mcp.agents.builder import build_graph
 from universal_mcp.agents.llm import load_chat_model
 from universal_mcp.agents.tool_node import ToolFinderAgent
 from universal_mcp.tools.registry import ToolRegistry
-from universal_mcp.types import ToolConfig, ToolFormat
+from universal_mcp.types import ToolFormat
 
 
 class MockToolRegistry(ToolRegistry):
@@ -127,15 +129,23 @@ class MockToolRegistry(ToolRegistry):
 
     async def export_tools(
         self,
-        tools: list[str] | ToolConfig,
+        tools: list[str],
         format: ToolFormat,
-    ) -> str:
-        """Export given tools to required format."""
-        return f"Exported {tools} in {format} format."
+    ) -> list[Any]:
+        """Exports a list of mock LangChain tools."""
+
+        @tool
+        async def mock_tool_callable(query: str):
+            """A mock tool that confirms the task is done."""
+            return {"status": "task has been done"}
+
+        # Return a list of mock tools for the ReAct agent to use
+        return [mock_tool_callable]
 
     async def call_tool(self, tool_name: str, tool_args: dict[str, Any]) -> dict[str, Any]:
         """Call a tool with the given name and arguments."""
-        return {"result": f"Called tool {tool_name} with args {tool_args}"}
+        print(f"MockToolRegistry: Called tool '{tool_name}' with args {tool_args}")
+        return {"status": f"task has been done by tool {tool_name}"}
 
     def list_connected_apps(self) -> list[str]:
         """
@@ -153,37 +163,41 @@ class TestToolFinderAgent:
         registry = MockToolRegistry()
         return ToolFinderAgent(llm, registry)
 
-    def test_simple_case_connected_app(self, agent: ToolFinderAgent):
+    @pytest.mark.asyncio
+    async def test_simple_case_connected_app(self, agent: ToolFinderAgent):
         """Test Case 1: Simple case (Connected App)"""
         task = "Send an email to my manager about the project update."
-        final_state = agent.run(task)
+        final_state = await agent.run(task)
         assert final_state["apps_required"] is True
         assert "google-mail" in final_state["relevant_apps"]
         assert "google-mail" in final_state["apps_with_tools"]
         assert "send_email" in final_state["apps_with_tools"]["google-mail"]
 
-    def test_multiple_apps_found(self, agent: ToolFinderAgent):
+    @pytest.mark.asyncio
+    async def test_multiple_apps_found(self, agent: ToolFinderAgent):
         """Test Case 2: Multiple apps found"""
         task = "Send a message to my team about the new design."
-        final_state = agent.run(task)
+        final_state = await agent.run(task)
         assert final_state["apps_required"] is True
         assert "google-mail" in final_state["relevant_apps"]
         assert "slack" in final_state["relevant_apps"]
         assert "google-mail" in final_state["apps_with_tools"]
         assert "slack" in final_state["apps_with_tools"]
 
-    def test_no_relevant_app(self, agent: ToolFinderAgent):
+    @pytest.mark.asyncio
+    async def test_no_relevant_app(self, agent: ToolFinderAgent):
         """Test Case 3: No relevant app"""
         task = "Can you create a blog post on my wordpress site?"
-        final_state = agent.run(task)
+        final_state = await agent.run(task)
         assert final_state["apps_required"] is True
         assert not final_state["relevant_apps"]
         assert not final_state["apps_with_tools"]
 
-    def test_multiple_tools_in_one_app(self, agent: ToolFinderAgent):
+    @pytest.mark.asyncio
+    async def test_multiple_tools_in_one_app(self, agent: ToolFinderAgent):
         """Test Case 4: Multiple tools in one app"""
         task = "Create a new issue for a bug in our github repository, and send message on slack about the issue."
-        final_state = agent.run(task)
+        final_state = await agent.run(task)
         assert final_state["apps_required"] is True
         assert "github" in final_state["relevant_apps"]
         assert "slack" in final_state["relevant_apps"]
@@ -192,19 +206,61 @@ class TestToolFinderAgent:
         assert "create_issue" in final_state["apps_with_tools"]["github"]
         assert "send_message" in final_state["apps_with_tools"]["slack"]
 
-    def test_unavailable_app(self, agent: ToolFinderAgent):
+    @pytest.mark.asyncio
+    async def test_unavailable_app(self, agent: ToolFinderAgent):
         """Test Case 5: Unavailable App"""
         task = "Create a new design file in Figma."
-        final_state = agent.run(task)
+        final_state = await agent.run(task)
         assert final_state["apps_required"] is True
         assert not final_state["relevant_apps"]
         assert not final_state["apps_with_tools"]
 
-    def test_no_app_needed(self, agent: ToolFinderAgent):
+    @pytest.mark.asyncio
+    async def test_no_app_needed(self, agent: ToolFinderAgent):
         """Test Case 6: No App Needed"""
         task = "hello"
-        final_state = agent.run(task)
+        final_state = await agent.run(task)
         assert final_state["apps_required"] is False
+
+
+class TestAutoAgent:
+    @pytest.fixture
+    def agent(self):
+        """Set up the test environment for the main AutoAgent."""
+        registry = MockToolRegistry()
+        agent = AutoAgent(
+            "Test Auto Agent",
+            "Test instructions",
+            "gemini/gemini-2.5-flash",
+            app_registry=registry,
+        )
+        return agent
+
+    @pytest.mark.asyncio
+    async def test_end_to_end_with_tool(self, agent: AutoAgent):
+        """Tests the full flow from task to tool execution."""
+        task = "Send an email to my manager."
+        thread_id = "test-thread-auto-agent"
+
+        # Invoke the agent graph to get the final state
+        final_state = await agent.graph.ainvoke(
+            {"messages": [HumanMessage(content=task)]},
+            config={"configurable": {"thread_id": thread_id}},
+        )
+
+        # Extract the content of the last message
+        final_messages = final_state.get("messages", [])
+        assert final_messages, "The agent should have produced at least one message."
+        final_response = final_messages[-1].content
+
+        # Print the response for manual verification and for the LLM judge
+        print("\n--- Agent's Final Response ---")
+        print(final_response)
+        print("------------------------------")
+
+        # Assert that the response is not None or empty, as per the new requirement
+        assert final_response is not None, "The final response should not be None."
+        assert final_response != "", "The final response should not be an empty string."
 
 
 class TestAgentBuilder:

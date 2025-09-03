@@ -1,13 +1,16 @@
 # tool_node.py
 
 import asyncio
-from typing import Annotated, Any, TypedDict
+from typing import Annotated, Any, TypedDict, cast
 
 from langchain_core.messages import AIMessage, AnyMessage, HumanMessage
 from langchain_core.prompts import PromptTemplate
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
+from loguru import logger
+from pydantic import BaseModel
 
+from universal_mcp.agents.bigtool.prompts import SELECT_TOOL_PROMPT
 from universal_mcp.tools.registry import ToolRegistry
 
 # --- LangGraph Agent ---
@@ -20,6 +23,10 @@ class AgentState(TypedDict):
     relevant_apps: list[str]
     messages: Annotated[list[AnyMessage], add_messages]
     reasoning: str
+
+
+class ToolSelectionOutput(TypedDict):
+    tool_names: list[str]
 
 
 class ToolFinderAgent:
@@ -91,33 +98,44 @@ class ToolFinderAgent:
                 "reasoning": reasoning,
             }
 
-    def _find_relevant_apps(self, state: AgentState) -> AgentState:
+    async def _find_relevant_apps(self, state: AgentState) -> AgentState:
         """Identifies relevant apps for the given task, preferring connected apps."""
         task = state["task"]
-        all_apps = asyncio.run(self.registry.list_all_apps())
-        connected_apps = self.registry.list_connected_apps()
+        all_apps = await self.registry.list_all_apps()
+        connected_apps = await self.registry.list_connected_apps()
         prompt = PromptTemplate(
             template="""
-            Given the user's task: "{task}"
-            And the list of all available apps: {all_apps}
-            And the list of apps the user has connected: {connected_apps}
+You are an expert at identifying which applications are needed to complete specific tasks.
 
-            Identify all possible relevant app(s) for the task, considering the task description and the app descriptions. Prefer connected apps.
-            Return a comma-separated list of app names. For example: google-mail,slack
-            If no app is relevant, return "None".
+TASK: "{task}"
+
+AVAILABLE APPS:
+{all_apps}
+
+CONNECTED APPS (user has already authenticated these):
+{connected_apps}
+
+INSTRUCTIONS:
+1. Analyze the task carefully to understand what functionality is required
+2. Review the available apps and their descriptions to identify which ones could help
+3. STRONGLY PREFER connected apps when multiple options exist - these are ready to use
+4. Consider apps that provide complementary functionality for complex tasks
+5. Only suggest apps that are directly relevant to the core task requirements
+
             """,
             input_variables=["task", "all_apps", "connected_apps"],
         )
-        chain = prompt | self.llm
-        response = chain.invoke(
-            {
-                "task": task,
-                "all_apps": all_apps,
-                "connected_apps": connected_apps,
-            }
+
+        class AppList(BaseModel):
+            app_list: list[str]
+            reasoning: str
+
+        response = await self.llm.with_structured_output(AppList).ainvoke(
+            input=prompt.format(task=task, all_apps=all_apps, connected_apps=connected_apps)
         )
-        app_list = [app.strip() for app in response.content.split(",") if app.strip() and app.strip().lower() != "none"]
-        reasoning = f"Found relevant apps: {app_list}. LLM response: {response.content}"
+        app_list = response.app_list
+        reasoning = f"Found relevant apps: {app_list}. Reasoning: {response.reasoning}"
+        logger.info(f"Found relevant apps: {app_list}.")
 
         return {
             **state,
@@ -126,40 +144,69 @@ class ToolFinderAgent:
             "reasoning": state.get("reasoning", "") + "\n" + reasoning,
         }
 
-    def _filter_tools(self, task: str, app_name: str, tools: list[str]) -> list[str]:
-        """Filters a list of tools based on the task."""
+    async def _select_tools(self, task: str, tools: list[dict]) -> list[str]:
+        """Selects the most appropriate tools from a list for a given task."""
+        tool_candidates = [f"{tool['name']}: {tool['description']}" for tool in tools]
+
+        response = await self.llm.with_structured_output(schema=ToolSelectionOutput, method="json_mode").ainvoke(
+            SELECT_TOOL_PROMPT.format(tool_candidates="\n - ".join(tool_candidates), task=task)
+        )
+
+        selected_tool_names = cast(ToolSelectionOutput, response)["tool_names"]
+        return selected_tool_names
+
+    async def _generate_search_query(self, task: str) -> str:
+        """Generates a concise search query from the user's task."""
         prompt = PromptTemplate(
             template="""
-            Given the user's task: "{task}"
-            And the following list of available tools for the app '{app_name}': {tools}
+You are an expert at summarizing a user's task into a concise search query for finding relevant tools.
+The query should capture the main action or intent of the task.
 
-            Select the minimal set of tools from this list required to complete the part of the task relevant to this app.
-            Return a comma-separated list of tool names. For example: send_email,create_draft
-            If no tool is relevant, return "None".
+For example:
+Task: "Send an email to abc@the-read-example.com with the subject 'Hello'"
+Query: "send email"
+
+Task: "Create a new contact in my CRM for John Doe"
+Query: "create contact"
+
+Task: "Find the latest news about artificial intelligence"
+Query: "search news"
+
+Task: "Post a message to the #general channel in Slack"
+Query: "send message"
+
+Task: "{task}"
             """,
-            input_variables=["task", "app_name", "tools"],
+            input_variables=["task"],
         )
-        chain = prompt | self.llm
-        response = chain.invoke({"task": task, "app_name": app_name, "tools": ", ".join(tools)})
-        return [tool.strip() for tool in response.content.split(",") if tool.strip() and tool.strip().lower() != "none"]
 
-    def _search_tools(self, state: AgentState) -> AgentState:
+        class SearchQuery(BaseModel):
+            query: str
+
+        response = await self.llm.with_structured_output(SearchQuery).ainvoke(input=prompt.format(task=task))
+        query = response.query
+        logger.info(f"Generated search query '{query}' for task '{task}'")
+        return query
+
+    async def _search_tools(self, state: AgentState) -> AgentState:
         """Searches for and filters tools in the relevant apps."""
         task = state["task"]
+        logger.info(f"Searching for tools in relevant apps for task: {task}")
+        search_query = await self._generate_search_query(task)
         apps_with_tools = {}
         reasoning_steps = []
         for app_name in state["relevant_apps"]:
-            found_tools_dicts = asyncio.run(self.registry.search_tools(query=task, app_id=app_name))
-            found_tools = [tool["name"] for tool in found_tools_dicts]
+            logger.info(f"Searching for tools in {app_name} for task: {task} with query '{search_query}'")
+            found_tools = await self.registry.search_tools(query=search_query, app_id=app_name)
 
-            if not found_tools or (len(found_tools) == 1 and found_tools[0] == "general_purpose_tool"):
+            if not found_tools or (len(found_tools) == 1 and found_tools[0]["name"] == "general_purpose_tool"):
                 apps_with_tools[app_name] = []
                 reasoning_steps.append(f"No specific tools found for '{app_name}' for this task.")
                 continue
 
-            filtered_tools = self._filter_tools(task, app_name, found_tools)
-            apps_with_tools[app_name] = filtered_tools
-            reasoning_steps.append(f"For '{app_name}', selected tool(s): {', '.join(filtered_tools)}.")
+            selected_tools = await self._select_tools(task, found_tools)
+            apps_with_tools[app_name] = selected_tools
+            reasoning_steps.append(f"For '{app_name}', selected tool(s): {', '.join(selected_tools)}.")
 
         return {
             **state,
@@ -176,7 +223,7 @@ class ToolFinderAgent:
             "reasoning": state.get("reasoning", "") + "\n" + reasoning,
         }
 
-    def run(self, task: str) -> dict[str, Any]:
+    async def run(self, task: str) -> dict[str, Any]:
         """Runs the agent for a given task."""
         initial_state = AgentState(
             task=task,
@@ -187,5 +234,19 @@ class ToolFinderAgent:
             reasoning="",
         )
         # The workflow is synchronous
-        final_state = self.workflow.invoke(initial_state)
+        final_state = await self.workflow.ainvoke(initial_state)
         return final_state
+
+
+async def main():
+    from universal_mcp.agentr.registry import AgentrRegistry
+    from universal_mcp.agents.bigtool.utils import load_chat_model
+
+    registry = AgentrRegistry()
+    agent = ToolFinderAgent(llm=load_chat_model("gemini/gemini-2.5-flash"), registry=registry)
+    result = await agent.run("Send an email to manoj@agentr.dev")
+    print(result)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

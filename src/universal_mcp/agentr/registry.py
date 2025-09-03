@@ -31,6 +31,8 @@ class AgentrRegistry(ToolRegistry):
             raise ValueError("Client is not initialized")
         try:
             all_apps = self.client.list_all_apps()
+            all_apps = [{"id": app["id"], "name": app["name"], "description": app["description"]} for app in all_apps]
+            # logger.debug(f"All apps: {all_apps}")
             return all_apps
         except Exception as e:
             logger.error(f"Error fetching apps from AgentR: {e}")
@@ -180,3 +182,7 @@ class AgentrRegistry(ToolRegistry):
     async def call_tool(self, tool_name: str, tool_args: dict[str, Any]) -> dict[str, Any]:
         """Call a tool with the given name and arguments."""
         return await self.tool_manager.call_tool(tool_name, tool_args)
+
+    async def list_connected_apps(self) -> list[str]:
+        """List all apps that the user has connected."""
+        return self.client.list_my_connections()
