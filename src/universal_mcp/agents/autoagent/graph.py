@@ -61,7 +61,6 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
 
         messages = [{"role": "system", "content": system_prompt + "\n" + instructions}, *state["messages"]]
         model = load_chat_model(runtime.context.model)
-        # Load tools from tool registry
         loaded_tools = await tool_registry.export_tools(tools=state["selected_tool_ids"], format=ToolFormat.LANGCHAIN)
         model_with_tools = model.bind_tools([search_tools, ask_user, load_tools, *loaded_tools], tool_choice="auto")
         response_raw = model_with_tools.invoke(messages)

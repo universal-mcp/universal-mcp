@@ -4,7 +4,6 @@ from uuid import uuid4
 
 from langchain_core.messages import AIMessageChunk
 from langgraph.checkpoint.base import BaseCheckpointSaver
-from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
 from .utils import RichCLI
@@ -15,7 +14,7 @@ class BaseAgent:
         self.name = name
         self.instructions = instructions
         self.model = model
-        self.memory = memory or MemorySaver()
+        self.memory = memory
         self._graph = None
         self._initialized = False
         self.cli = RichCLI()
@@ -41,7 +40,6 @@ class BaseAgent:
             # Only forward assistant token chunks that are not tool-related.
             type_ = type(event)
             if type_ != AIMessageChunk:
-                # TODO: Handle other types of events
                 continue
             event = cast(AIMessageChunk, event)
             aggregate = event if aggregate is None else aggregate + event

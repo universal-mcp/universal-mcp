@@ -1,0 +1,22 @@
+{"user_input": "Send an email to manoj@agentr.dev", "difficulty": 1}
+{"user_input": "Show me events from today's calendar.", "difficulty": 1}
+{"user_input": "Create a Google Doc summarizing the last 5 merged pull requests in my GitHub repo- universal-mcp/universal-mcp, including links and commit highlights.", "difficulty": 4}
+{"user_input": "Summarize the key insights from all marketing emails received this week and add a section in a Google Doc with action points.", "difficulty": 4}
+{"user_input": "Create a sheet of the best cafes and restaurants near IIT Bombay", "difficulty": 3}
+{"user_input": "Track the top posts in r/startups over the past 7 days and create a trend report on what's being discussed most (e.g., hiring, funding, MVPs).", "difficulty": 5}
+{"user_input": "Find the best restaurants in Goa", "difficulty": 2}
+{"user_input": "List the unread emails from the last 24 hours, sorted by sender.", "difficulty": 2}
+{"user_input": "Tell me how many meetings I have tomorrow and when they start.", "difficulty": 1}
+{"user_input": "Create a meeting with aditakarsh@example.com on the topic of the latest trends in AI at 8PM today.", "difficulty": 2}
+{"user_input": "What are the topics of my meetings today and who are the attendees? Give a 1-line context for each attendee using LinkedIn or web search.", "difficulty": 4}
+{"user_input": "Fetch my last inbox mail from outlook", "difficulty": 1}
+{"user_input": "Fetch unsubscribe links from my inbox for promo emails I have received in the last 7 days", "difficulty": 3}
+{"user_input": "Fetch all unread emails and new tickets from Clickup for me from last night", "difficulty": 4}
+{"user_input": "Give me a report on the earnings of Oklo, and projections for the company revenue, stock price", "difficulty": 4}
+{"user_input": "Create a weekly expense report from my credit card transactions and categorize spending by type (food, transport, entertainment, etc.)", "difficulty": 3}
+{"user_input": "Generate a comparison table of SaaS tools for project management, including pricing, features, and user ratings", "difficulty": 4}
+{"user_input": "Research the top 10 Y Combinator startups from the latest batch and create a report on their industries and funding status in Google Docs", "difficulty": 5}
+{"user_input": "Find and summarize the key takeaways from the latest earnings calls of FAANG companies", "difficulty": 5}
+{"user_input": "Draft personalized LinkedIn outreach messages for 10 potential collaborators in the fintech space based on their recent posts in a Google Sheet", "difficulty": 5}
+{"user_input": "Monitor my Twitter mentions and DMs from the past 48 hours and create a response priority list in Google Sheets", "difficulty": 4}
+{"user_input": "Create a content calendar for next month with trending AI/ML topics and optimal posting times based on my audience analytics", "difficulty": 5}

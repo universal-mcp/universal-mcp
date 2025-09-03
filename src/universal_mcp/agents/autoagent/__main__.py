@@ -1,5 +1,7 @@
 import asyncio
 
+from loguru import logger
+
 from universal_mcp.agentr.registry import AgentrRegistry
 from universal_mcp.agents.autoagent import AutoAgent
 
@@ -9,12 +11,13 @@ async def main():
         name="autoagent",
         instructions="You are a helpful assistant that can use tools to help the user.",
         model="azure/gpt-4.1",
-        tool_registry=AgentrRegistry(),
+        registry=AgentrRegistry(),
     )
-    await agent.invoke(
-        user_input="Please send the email from google-mail to manoj@agentr.dev, with subject hello and body hello from auto",
-        thread_id="12345",
-    )
+    async for event in agent.stream(
+        user_input="Send an email to manoj@agentr.dev",
+        thread_id="test123",
+    ):
+        logger.info(event.content)
     # from loguru import logger; logger.debug(result)
 
 
