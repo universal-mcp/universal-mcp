@@ -25,4 +25,3 @@ def _enqueue(left: list, right: list) -> list:
 
 class State(AgentState):
     selected_tool_ids: Annotated[list[str], _enqueue]
-    tool_candidates: Annotated[list[str], _enqueue]
