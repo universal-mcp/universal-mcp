@@ -25,7 +25,18 @@ def create_agent(tool_registry: ToolRegistry, instructions: str = ""):
         For tasks requiring multiple tools, call this tool multiple times for each subtask."""
         tools_list = await tool_registry.search_tools(task_query, limit=10)
         tool_candidates = [f"{tool['id']}: {tool['description']}" for tool in tools_list]
-        return tool_candidates
+
+        class ToolSelectionOutput(TypedDict):
+            tool_names: list[str]
+
+        model = load_chat_model("anthropic/claude-4-sonnet-20250514")
+        
+        response = await model.with_structured_output(
+            schema=ToolSelectionOutput, method="json_mode"
+        ).ainvoke(SELECT_TOOL_PROMPT.format(tool_candidates="\n - ".join(tool_candidates), task=task_query))
+
+        selected_tool_names = cast(ToolSelectionOutput, response)["tool_names"]
+        return selected_tool_names
     
     async def call_model(state: State, runtime: Runtime[Context]) -> Command[Literal["select_tools", "call_tools"]]:
         system_message = runtime.context.system_prompt.format(
@@ -45,10 +56,9 @@ def create_agent(tool_registry: ToolRegistry, instructions: str = ""):
                 raise Exception("Not possible in Claude with llm.bind_tools(tools=tools, tool_choice='auto')")
             tool_call = response.tool_calls[0]
             if tool_call["name"] == retrieve_tools.name:
-                tool_candidates = await retrieve_tools.ainvoke(input=tool_call['args'])
                 return Command(
                     goto="select_tools",
-                    update={"messages": [response], "tool_candidates": tool_candidates}
+                    update={"messages": [response]}
                 )
             elif tool_call["name"] not in state["selected_tool_ids"]:
                 try:
@@ -63,33 +73,8 @@ def create_agent(tool_registry: ToolRegistry, instructions: str = ""):
             return Command(update={"messages": [response]})
         
     async def select_tools(state: State, runtime: Runtime[Context]) -> Command[Literal["call_model"]]:
-        # messages = state.get("messages", [])
-        # if not messages:
-        #     return Command(goto="call_model")
-
-        # last_message = messages[-1]
-
-        # if not hasattr(last_message, "tool_calls") or not last_message.tool_calls:
-        #     return Command(goto="call_model")
-        
-        # if len(last_message.tool_calls) > 1:
-        #     raise Exception("Not possible in Claude with llm.bind_tools(tools=tools, tool_choice='auto')")
-
         tool_call = state["messages"][-1].tool_calls[0]
-        task_query = tool_call["args"].get("task_query") or "unknown task"
-
-        class ToolSelectionOutput(TypedDict):
-            tool_names: list[str]
-
-        model = load_chat_model("anthropic/claude-4-sonnet-20250514")
-        
-        response = await model.with_structured_output(
-            schema=ToolSelectionOutput, method="json_mode"
-        ).ainvoke(SELECT_TOOL_PROMPT.format(tool_candidates="\n - ".join(state["tool_candidates"]), task=task_query))
-
-        selected_tool_names = cast(ToolSelectionOutput, response)["tool_names"]
-        
-        tool_call = state["messages"][-1].tool_calls[0]
+        selected_tool_names = await retrieve_tools.ainvoke(input=tool_call['args'])
         tool_msg = ToolMessage(f"Available tools: {selected_tool_names}", tool_call_id=tool_call["id"])
         return Command(goto="call_model", update={"messages": [tool_msg], "selected_tool_ids": selected_tool_names})
     
