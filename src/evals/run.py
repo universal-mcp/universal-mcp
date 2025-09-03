@@ -25,7 +25,7 @@ def get_agent(agent_name: str) -> BaseAgent:
     common_params = {
         "instructions": "You are a helpful assistant.",
         "model": "anthropic/claude-4-sonnet-20250514",
-        "tool_registry": AgentrRegistry() if agent_name != "simple" else None,
+        "registry": AgentrRegistry() if agent_name != "simple" else None,
     }
     if agent_name == "simple":
         return SimpleAgent(name="simple-agent", **common_params)

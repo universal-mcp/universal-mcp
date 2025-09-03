@@ -11,7 +11,7 @@ async def main():
         name="autoagent",
         instructions="You are a helpful assistant that can use tools to help the user.",
         model="azure/gpt-4.1",
-        tool_registry=AgentrRegistry(),
+        registry=AgentrRegistry(),
     )
     async for event in agent.stream(
         user_input="Send an email to manoj@agentr.dev",

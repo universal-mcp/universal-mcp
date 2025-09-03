@@ -1,6 +1,5 @@
 from langgraph.checkpoint.base import BaseCheckpointSaver
 
-from universal_mcp.agentr.registry import AgentrRegistry
 from universal_mcp.agents.autoagent.graph import build_graph
 from universal_mcp.agents.base import BaseAgent
 from universal_mcp.tools.registry import ToolRegistry
@@ -17,7 +16,7 @@ class AutoAgent(BaseAgent):
         **kwargs,
     ):
         super().__init__(name, instructions, model, memory, **kwargs)
-        self.tool_registry = registry or AgentrRegistry()
+        self.tool_registry = registry
 
     async def _build_graph(self):
         builder = await build_graph(self.tool_registry, self.instructions)
