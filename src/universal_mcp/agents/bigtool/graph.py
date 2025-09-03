@@ -23,7 +23,7 @@ def create_agent(tool_registry: ToolRegistry, instructions: str = ""):
         For tasks requiring multiple tools, call this tool multiple times for each subtask."""
         tools_list = await tool_registry.search_tools(task_query, limit=10)
         tool_ids = [tool['id'] for tool in tools_list]
-        return tool_ids
+        return tool_ids[:8]
     
     async def call_model(state: State, runtime: Runtime[Context]) -> Command[Literal["select_tools", "call_tools"]]:
         system_message = runtime.context.system_prompt.format(
