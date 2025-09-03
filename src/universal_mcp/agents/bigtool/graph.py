@@ -16,6 +16,9 @@ from universal_mcp.types import ToolFormat
 from .utils import get_message_text, load_chat_model
 from .prompts import SELECT_TOOL_PROMPT
 
+
+
+
 def create_agent(tool_registry: ToolRegistry, instructions: str = ""):
 
     @tool
@@ -39,8 +42,21 @@ def create_agent(tool_registry: ToolRegistry, instructions: str = ""):
         return selected_tool_names
     
     async def call_model(state: State, runtime: Runtime[Context]) -> Command[Literal["select_tools", "call_tools"]]:
+        app_ids = await tool_registry.list_all_apps()
+        connections = tool_registry.client.list_my_connections()
+        connection_ids = set([connection["app_id"] for connection in connections])
+        connected_apps = [app["id"] for app in app_ids if app["id"] in connection_ids]
+        unconnected_apps = [app["id"] for app in app_ids if app["id"] not in connection_ids]
+        app_id_descriptions = "These are the apps connected to the user's account:\n" + "\n".join(
+            [f"{app}" for app in connected_apps]
+        )
+        if unconnected_apps:
+            app_id_descriptions += "\n\nOther (not connected) apps: " + "\n".join(
+                [f"{app}" for app in unconnected_apps]
+            )
         system_message = runtime.context.system_prompt.format(
-            system_time=datetime.now(tz=UTC).isoformat()
+            system_time=datetime.now(tz=UTC).isoformat(),
+            app_ids=app_id_descriptions
         )
         messages = [{"role": "system", "content": system_message}, *state["messages"]]
         
