@@ -1,7 +1,7 @@
 import inspect
 from collections.abc import Callable
 from typing import Any
-
+import functools
 import httpx
 from pydantic import BaseModel, Field, create_model
 
@@ -63,20 +63,39 @@ class Tool(BaseModel):
     ) -> "Tool":
         """Create a Tool from a function."""
 
-        func_name = name or fn.__name__
+        # --- START: MODIFIED LOGIC TO HANDLE functools.partial ---
+        skip_names = ()
+        if isinstance(fn, functools.partial):
+            func_for_inspection = fn.func
+            # Determine which argument names are already bound in the partial
+            sig = inspect.signature(func_for_inspection)
+            param_names = list(sig.parameters.keys())
+            num_bound_args = len(fn.args)
+            skip_names = tuple(param_names[:num_bound_args])
+        else:
+            func_for_inspection = fn
+        # --- END: MODIFIED LOGIC ---
+
+        # Use the underlying function for its name and metadata
+        func_name = name or func_for_inspection.__name__
 
         if func_name == "<lambda>":
             raise ValueError("You must provide a name for lambda functions")
 
-        raw_doc = inspect.getdoc(fn)
+        raw_doc = inspect.getdoc(func_for_inspection)
         parsed_doc = parse_docstring(raw_doc)
 
-        is_async = inspect.iscoroutinefunction(fn)
+        is_async = inspect.iscoroutinefunction(func_for_inspection)
 
-        func_arg_metadata = FuncMetadata.func_metadata(fn, arg_description=parsed_doc["args"])
+        # Pass the original function for inspection and tell it which names to skip
+        func_arg_metadata = FuncMetadata.func_metadata(
+            func_for_inspection, 
+            arg_description=parsed_doc["args"],
+            skip_names=skip_names # <-- Pass the names of bound arguments to be skipped
+        )
         parameters = func_arg_metadata.arg_model.model_json_schema()
 
-        sig = inspect.signature(fn)
+        sig = inspect.signature(func_for_inspection)
         output_schema = _get_return_type_schema(sig.return_annotation)
 
         simple_args_descriptions: dict[str, str] = {}
@@ -86,7 +105,7 @@ class Tool(BaseModel):
                     simple_args_descriptions[arg_name] = arg_details.get("description") or ""
 
         return cls(
-            fn=fn,
+            fn=fn, #<-- IMPORTANT: Store the original callable (which is the partial object) for execution
             tool_name=func_name,
             description=parsed_doc["summary"],
             args_description=simple_args_descriptions,
