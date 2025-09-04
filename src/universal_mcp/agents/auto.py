@@ -2,7 +2,8 @@ import asyncio
 import datetime
 from typing import Annotated, Any
 
-from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage
+from langchain_core.messages import AIMessage
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import create_react_agent
@@ -23,8 +24,16 @@ class State(TypedDict):
 
 
 class AutoAgent(BaseAgent):
-    def __init__(self, name: str, instructions: str, model: str, registry: ToolRegistry):
-        super().__init__(name, instructions, model)
+    def __init__(
+        self,
+        name: str,
+        instructions: str,
+        model: str,
+        registry: ToolRegistry,
+        memory: BaseCheckpointSaver | None = None,
+        **kwargs,
+    ):
+        super().__init__(name, instructions, model, memory, **kwargs)
         self.app_registry = registry
         self.llm = load_chat_model(model)
         self.tool_finder = ToolFinderAgent(self.llm, self.app_registry)
@@ -115,23 +124,24 @@ class AutoAgent(BaseAgent):
     def graph(self):
         return self._graph
 
-    async def stream(self, thread_id: str, user_input: str):
-        """Streams the agent's response for a given user input."""
-        async for chunk in self.graph.astream(
-            {"messages": [HumanMessage(content=user_input)]},
-            config={"configurable": {"thread_id": thread_id}},
-        ):
-            # The output of the graph is a dictionary with the final state
-            # We are interested in the 'messages' key
-            final_messages = chunk.get("messages", [])
-            if final_messages:
-                # The last message is the one we want to stream
-                ai_message = final_messages[-1]
-                if isinstance(ai_message, AIMessageChunk):
-                    yield ai_message
-                else:
-                    # If it's a full message, wrap it in a chunk for consistency
-                    yield AIMessageChunk(content=str(ai_message.content))
+    # async def stream(self, user_input: str,thread_id: str = uuid4()):
+    #     """Streams the agent's response for a given user input."""
+    #     await self.ainit()
+    #     async for chunk in self.graph.astream(
+    #         {"messages": [HumanMessage(content=user_input)]},
+    #         config={"configurable": {"thread_id": thread_id}},
+    #     ):
+    #         # The output of the graph is a dictionary with the final state
+    #         # We are interested in the 'messages' key
+    #         final_messages = chunk.get("messages", [])
+    #         if final_messages:
+    #             # The last message is the one we want to stream
+    #             ai_message = final_messages[-1]
+    #             if isinstance(ai_message, AIMessageChunk):
+    #                 yield ai_message
+    #             else:
+    #                 # If it's a full message, wrap it in a chunk for consistency
+    #                 yield AIMessageChunk(content=str(ai_message.content))
 
 
 async def main():
@@ -144,10 +154,12 @@ async def main():
         model="gemini/gemini-2.5-flash",
         registry=registry,
     )
-    result = await agent.invoke(
-        user_input="Send an email to manoj@agentr.dev with subject 'testing auto agent' and body 'this is a test email'"
-    )
-    print(result["messages"][-1].content)
+    from rich.console import Console
+
+    console = Console()
+    console.print("Starting agent...", style="yellow")
+    async for event in agent.stream(user_input="Send an email to manoj@agentr.dev'", thread_id="xyz"):
+        console.print(event.content, style="red")
 
 
 if __name__ == "__main__":
