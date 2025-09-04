@@ -9,7 +9,7 @@ from langsmith.evaluation import RunEvaluator
 from evals.dataset import load_dataset
 from evals.evaluators import correctness_evaluator, exact_match_evaluator
 from universal_mcp.agentr.registry import AgentrRegistry
-from universal_mcp.agents.autoagent import AutoAgent
+from universal_mcp.agents.auto import AutoAgent
 from universal_mcp.agents.base import BaseAgent
 from universal_mcp.agents.react import ReactAgent
 from universal_mcp.agents.simple import SimpleAgent

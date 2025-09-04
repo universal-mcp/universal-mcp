@@ -1,26 +1,23 @@
-from datetime import UTC, datetime
 import json
+from datetime import UTC, datetime
 from typing import Literal, TypedDict, cast
 
+from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.tools import tool
-from langchain_core.messages import ToolMessage, AIMessage
-from langgraph.graph import END, START, StateGraph
+from langgraph.graph import StateGraph
 from langgraph.runtime import Runtime
-from langgraph.types import Command, RetryPolicy
+from langgraph.types import Command
 
-from universal_mcp.agents.bigtool.state import State
 from universal_mcp.agents.bigtool.context import Context
+from universal_mcp.agents.bigtool.state import State
 from universal_mcp.tools.registry import ToolRegistry
 from universal_mcp.types import ToolFormat
 
-from .utils import get_message_text, load_chat_model
 from .prompts import SELECT_TOOL_PROMPT
-
-
+from .utils import load_chat_model
 
 
 def create_agent(tool_registry: ToolRegistry, instructions: str = ""):
-
     @tool
     async def retrieve_tools(task_query: str) -> list[str]:
         """Retrieve tools for a given task.
@@ -33,14 +30,14 @@ def create_agent(tool_registry: ToolRegistry, instructions: str = ""):
             tool_names: list[str]
 
         model = load_chat_model("anthropic/claude-4-sonnet-20250514")
-        
-        response = await model.with_structured_output(
-            schema=ToolSelectionOutput, method="json_mode"
-        ).ainvoke(SELECT_TOOL_PROMPT.format(tool_candidates="\n - ".join(tool_candidates), task=task_query))
+
+        response = await model.with_structured_output(schema=ToolSelectionOutput, method="json_mode").ainvoke(
+            SELECT_TOOL_PROMPT.format(tool_candidates="\n - ".join(tool_candidates), task=task_query)
+        )
 
         selected_tool_names = cast(ToolSelectionOutput, response)["tool_names"]
         return selected_tool_names
-    
+
     async def call_model(state: State, runtime: Runtime[Context]) -> Command[Literal["select_tools", "call_tools"]]:
         app_ids = await tool_registry.list_all_apps()
         connections = tool_registry.client.list_my_connections()
@@ -55,13 +52,16 @@ def create_agent(tool_registry: ToolRegistry, instructions: str = ""):
                 [f"{app}" for app in unconnected_apps]
             )
         system_message = runtime.context.system_prompt.format(
-            system_time=datetime.now(tz=UTC).isoformat(),
-            app_ids=app_id_descriptions
+            system_time=datetime.now(tz=UTC).isoformat(), app_ids=app_id_descriptions
         )
         messages = [{"role": "system", "content": system_message}, *state["messages"]]
-        
+
         # Load tools from tool registry
-        selected_tools = await tool_registry.export_tools(tools=state["selected_tool_ids"], format=ToolFormat.LANGCHAIN)
+        selected_tools = (
+            await tool_registry.export_tools(tools=state["selected_tool_ids"], format=ToolFormat.LANGCHAIN)
+            if state["selected_tool_ids"]
+            else []
+        )
 
         model = load_chat_model(runtime.context.model)
         model_with_tools = model.bind_tools([retrieve_tools, *selected_tools], tool_choice="auto")
@@ -72,28 +72,27 @@ def create_agent(tool_registry: ToolRegistry, instructions: str = ""):
                 raise Exception("Not possible in Claude with llm.bind_tools(tools=tools, tool_choice='auto')")
             tool_call = response.tool_calls[0]
             if tool_call["name"] == retrieve_tools.name:
-                return Command(
-                    goto="select_tools",
-                    update={"messages": [response]}
-                )
+                return Command(goto="select_tools", update={"messages": [response]})
             elif tool_call["name"] not in state["selected_tool_ids"]:
                 try:
                     await tool_registry.export_tools([tool_call["name"]], ToolFormat.LANGCHAIN)
                     return Command(goto="call_tools", update={"messages": [response]})
                 except Exception as e:
-                    raise Exception(f"Unexpected tool call: {tool_call['name']}. Available tools: {state["selected_tool_ids"]}")
+                    raise Exception(
+                        f"Unexpected tool call: {tool_call['name']}. Available tools: {state['selected_tool_ids']}"
+                    ) from e
             # We are only validating that the tool name is correct
             # if arguements are incorrect it should be handled in the ToolNode
             return Command(goto="call_tools", update={"messages": [response]})
         else:
             return Command(update={"messages": [response]})
-        
+
     async def select_tools(state: State, runtime: Runtime[Context]) -> Command[Literal["call_model"]]:
         tool_call = state["messages"][-1].tool_calls[0]
-        selected_tool_names = await retrieve_tools.ainvoke(input=tool_call['args'])
+        selected_tool_names = await retrieve_tools.ainvoke(input=tool_call["args"])
         tool_msg = ToolMessage(f"Available tools: {selected_tool_names}", tool_call_id=tool_call["id"])
         return Command(goto="call_model", update={"messages": [tool_msg], "selected_tool_ids": selected_tool_names})
-    
+
     async def call_tools(state: State) -> Command[Literal["call_model"]]:
         outputs = []
         recent_tool_ids = []
@@ -118,7 +117,7 @@ def create_agent(tool_registry: ToolRegistry, instructions: str = ""):
                     )
                 )
         return Command(goto="call_model", update={"messages": outputs, "selected_tool_ids": recent_tool_ids})
-    
+
     builder = StateGraph(State, context_schema=Context)
 
     builder.add_node(call_model)

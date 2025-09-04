@@ -19,8 +19,8 @@ from universal_mcp.tools.registry import ToolRegistry
 class AgentState(TypedDict):
     task: str
     apps_required: bool
-    apps_with_tools: dict[str, list[str]]
     relevant_apps: list[str]
+    apps_with_tools: dict[str, list[str]]
     messages: Annotated[list[AnyMessage], add_messages]
     reasoning: str
 
@@ -67,19 +67,15 @@ class ToolFinderAgent:
     def _check_if_app_needed(self, state: AgentState) -> AgentState:
         """Checks if an external application is needed for the given task."""
         task = state["task"]
-        prompt = PromptTemplate(
-            template="""
+        prompt = f"""
             Given the user's task: "{task}"
             Does this task require an external application to be completed?
             Your answer should be a simple "Yes" or "No", followed by a brief explanation.
             For example:
             Yes, an external application is needed to send emails.
             No, this is a general question that can be answered directly.
-            """,
-            input_variables=["task"],
-        )
-        chain = prompt | self.llm
-        response = chain.invoke({"task": task})
+            """
+        response = self.llm.invoke(prompt)
         content = response.content.strip()
         reasoning = f"Initial check for app requirement. LLM response: {content}"
 

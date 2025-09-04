@@ -124,25 +124,6 @@ class AutoAgent(BaseAgent):
     def graph(self):
         return self._graph
 
-    # async def stream(self, user_input: str,thread_id: str = uuid4()):
-    #     """Streams the agent's response for a given user input."""
-    #     await self.ainit()
-    #     async for chunk in self.graph.astream(
-    #         {"messages": [HumanMessage(content=user_input)]},
-    #         config={"configurable": {"thread_id": thread_id}},
-    #     ):
-    #         # The output of the graph is a dictionary with the final state
-    #         # We are interested in the 'messages' key
-    #         final_messages = chunk.get("messages", [])
-    #         if final_messages:
-    #             # The last message is the one we want to stream
-    #             ai_message = final_messages[-1]
-    #             if isinstance(ai_message, AIMessageChunk):
-    #                 yield ai_message
-    #             else:
-    #                 # If it's a full message, wrap it in a chunk for consistency
-    #                 yield AIMessageChunk(content=str(ai_message.content))
-
 
 async def main():
     from universal_mcp.agentr.registry import AgentrRegistry
