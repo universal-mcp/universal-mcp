@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from typing import Literal, TypedDict, cast
 
 from langchain_anthropic import ChatAnthropic
+from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.tools import tool
 from langgraph.graph import StateGraph
@@ -16,10 +17,13 @@ from universal_mcp.tools.registry import ToolRegistry
 from universal_mcp.types import ToolFormat
 
 from .prompts import SELECT_TOOL_PROMPT
-from .utils import load_chat_model
 
 
-def create_agent(tool_registry: ToolRegistry, instructions: str = ""):
+def build_graph(
+    tool_registry: ToolRegistry,
+    llm: BaseChatModel,
+    tool_selection_llm: BaseChatModel,
+):
     @tool
     async def retrieve_tools(task_query: str) -> list[str]:
         """Retrieve tools for a given task.
@@ -34,11 +38,7 @@ def create_agent(tool_registry: ToolRegistry, instructions: str = ""):
             class ToolSelectionOutput(TypedDict):
                 tool_names: list[str]
 
-            try:
-                model = load_chat_model("gemini/gemini-2.0-flash-001")
-            except Exception as e:
-                logger.error(f"Failed to load chat model: {e}")
-                raise
+            model = tool_selection_llm
             app_ids = await tool_registry.list_all_apps()
             connections = await tool_registry.list_connected_apps()
             connection_ids = set([connection["app_id"] for connection in connections])
@@ -73,22 +73,19 @@ def create_agent(tool_registry: ToolRegistry, instructions: str = ""):
 
             logger.info(f"Selected tool IDs: {state['selected_tool_ids']}")
             selected_tools = await tool_registry.export_tools(
-                tools=state["selected_tool_ids"], format=ToolFormat.LANGCHAIN
+                tools=state["selected_tool_ids"],
+                format=ToolFormat.LANGCHAIN,
             )
             logger.info(f"Exported {len(selected_tools)} tools for model.")
 
-            try:
-                model = load_chat_model(runtime.context.model)
-            except Exception as e:
-                logger.error(f"Failed to load chat model: {e}")
-                raise
+            model = llm
             if isinstance(model, ChatAnthropic):
                 model_with_tools = model.bind_tools(
                     [retrieve_tools, *selected_tools], tool_choice="auto", cache_control={"type": "ephemeral"}
                 )
             else:
                 model_with_tools = model.bind_tools([retrieve_tools, *selected_tools], tool_choice="auto")
-            response = cast(AIMessage, model_with_tools.invoke(messages))
+            response = cast(AIMessage, await model_with_tools.ainvoke(messages))
 
             if response.tool_calls:
                 logger.info(f"Model responded with {len(response.tool_calls)} tool calls.")
