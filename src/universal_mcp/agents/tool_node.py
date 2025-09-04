@@ -10,7 +10,6 @@ from langgraph.graph.message import add_messages
 from loguru import logger
 from pydantic import BaseModel
 
-from universal_mcp.agents.bigtool.prompts import SELECT_TOOL_PROMPT
 from universal_mcp.tools.registry import ToolRegistry
 
 # --- LangGraph Agent ---
@@ -112,11 +111,12 @@ CONNECTED APPS (user has already authenticated these):
 {connected_apps}
 
 INSTRUCTIONS:
-1. Analyze the task carefully to understand what functionality is required
-2. Review the available apps and their descriptions to identify which ones could help
-3. STRONGLY PREFER connected apps when multiple options exist - these are ready to use
-4. Consider apps that provide complementary functionality for complex tasks
-5. Only suggest apps that are directly relevant to the core task requirements
+1. Analyze the task carefully to understand what functionality is required.
+2. Review the available apps and their descriptions to identify which ones could help.
+3. If multiple apps can perform the task, prefer connected apps, but you MUST include all relevant apps.
+4. Consider apps that provide complementary functionality for complex tasks.
+5. Only suggest apps that are directly relevant to the core task requirements.
+6. Your output should be a list of app IDs.
 
             """,
             input_variables=["task", "all_apps", "connected_apps"],
@@ -144,9 +144,23 @@ INSTRUCTIONS:
         """Selects the most appropriate tools from a list for a given task."""
         tool_candidates = [f"{tool['name']}: {tool['description']}" for tool in tools]
 
-        response = await self.llm.with_structured_output(schema=ToolSelectionOutput, method="json_mode").ainvoke(
-            SELECT_TOOL_PROMPT.format(tool_candidates="\n - ".join(tool_candidates), task=task)
-        )
+        SELECT_TOOL_PROMPT = f"""You are an AI assistant that helps the user perform tasks using various apps (each app has multiple tools).
+You will be provided with a task and a list of tools which might be relevant for this task.
+
+Your goal is to select the most appropriate tool for the given task.
+<task>
+{task}
+</task>
+
+Note that when multiple apps seem relevant for a task, prefer connected apps over unconnected apps while breaking a tie. If more than one relevant app (or none of the relevant apps) are connected, you must choose both apps tools. In case the user specifically asks you to use an app that is not connected, select the tool.
+
+<tool_candidates>
+ - {tool_candidates}
+</tool_candidates>
+
+"""
+
+        response = await self.llm.with_structured_output(schema=ToolSelectionOutput).ainvoke(SELECT_TOOL_PROMPT)
 
         selected_tool_names = cast(ToolSelectionOutput, response)["tool_names"]
         return selected_tool_names

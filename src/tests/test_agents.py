@@ -147,7 +147,7 @@ class MockToolRegistry(ToolRegistry):
         print(f"MockToolRegistry: Called tool '{tool_name}' with args {tool_args}")
         return {"status": f"task has been done by tool {tool_name}"}
 
-    def list_connected_apps(self) -> list[str]:
+    async def list_connected_apps(self) -> list[str]:
         """
         Returns a list of apps that the user has connected/authenticated.
         This is a mock function.
@@ -232,7 +232,7 @@ class TestAutoAgent:
             "Test Auto Agent",
             "Test instructions",
             "gemini/gemini-2.5-flash",
-            app_registry=registry,
+            registry=registry,
         )
         return agent
 
@@ -242,6 +242,7 @@ class TestAutoAgent:
         task = "Send an email to my manager."
         thread_id = "test-thread-auto-agent"
 
+        await agent.ainit()
         # Invoke the agent graph to get the final state
         final_state = await agent.graph.ainvoke(
             {"messages": [HumanMessage(content=task)]},
