@@ -12,12 +12,12 @@ from universal_mcp.agents.base import BaseAgent
 from universal_mcp.agents.llm import load_chat_model
 from universal_mcp.tools.tools import Tool
 
-
 async def search_apps(registry: AgentrRegistry, query: str) -> List[Dict[str, Any]]:
     """
     Searches for available applications based on a user's task or query.
     Use this tool first to discover which apps can help with a specific goal.
-    You should always use the most popular app from the search results.
+    Always use the most popular app from the search results.
+    
     Args:
         query (str): A natural language description of the task (e.g., "send an email", "list my files").
 
@@ -25,7 +25,7 @@ async def search_apps(registry: AgentrRegistry, query: str) -> List[Dict[str, An
         List[Dict[str, Any]]: A list of applications that match the query, including their 'id', 'name', and 'description'.
     """
     print(f"DEBUG: Searching for apps with query: {query}")
-    return await registry.search_apps(query=query, limit=10)
+    return await registry.search_apps(query=query, limit=1)
 
 
 async def search_tools(registry: AgentrRegistry, app_id: str, query: str) -> List[Dict[str, Any]]:
@@ -84,8 +84,11 @@ async def call_tool(registry: AgentrRegistry, tool_id: str, arguments: Dict[str,
         Any: The result of the tool's execution.
     """
     print(f"DEBUG: Calling tool '{tool_id}' with arguments: {arguments}")
-    return await registry.call_tool(tool_name=tool_id, tool_args=arguments)
-
+    result = await registry.call_tool(tool_name=tool_id, tool_args=arguments)
+    
+    # print(result)
+    
+    return result
 
 class MetaAgent(BaseAgent):
     """
@@ -162,6 +165,8 @@ You must follow a strict four-step process:
 
 4.  **CALL TOOL**: Now that you have the correct parameters from the schema, you can finally execute the task by using the `call_tool` function. Make sure the 'arguments' you provide is a JSON object that perfectly matches the schema from the previous step.
 
+**IMPORTANT**: If a `call_tool` action returns a message that starts with "Not authorized to call tool", it means the user needs to connect the application. You MUST stop the process and show the entire message to the user, as it contains the required authorization link. Do not try to call the tool again.
+
 Always think step-by-step and explain your reasoning. Do not try to guess tool names or parameters. Follow the process.
 """
 
@@ -175,8 +180,12 @@ Always think step-by-step and explain your reasoning. Do not try to guess tool n
         memory=memory,
     )
 
-    print("Agent is ready. You can now chat with it.")
-    await agent.run_interactive()
+    # await agent.run_interactive()
+
+    user_input="send a email to ankit@agentr.dev for testing purposes telling meta agent is working as expected"
+    final_state = await agent.invoke(user_input)
+    final_message = final_state['messages'][-1]
+    print(final_message.content)
 
 if __name__ == "__main__":
     asyncio.run(main())
