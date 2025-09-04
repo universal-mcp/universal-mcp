@@ -20,7 +20,6 @@ from .prompts import SELECT_TOOL_PROMPT
 
 
 def create_agent(tool_registry: ToolRegistry, instructions: str = ""):
-
     @tool
     async def retrieve_tools(task_query: str) -> list[str]:
         """Retrieve tools for a given task.
@@ -32,18 +31,9 @@ def create_agent(tool_registry: ToolRegistry, instructions: str = ""):
         class ToolSelectionOutput(TypedDict):
             tool_names: list[str]
 
-        model = load_chat_model("anthropic/claude-4-sonnet-20250514")
-        
-        response = await model.with_structured_output(
-            schema=ToolSelectionOutput, method="json_mode"
-        ).ainvoke(SELECT_TOOL_PROMPT.format(tool_candidates="\n - ".join(tool_candidates), task=task_query))
-
-        selected_tool_names = cast(ToolSelectionOutput, response)["tool_names"]
-        return selected_tool_names
-    
-    async def call_model(state: State, runtime: Runtime[Context]) -> Command[Literal["select_tools", "call_tools"]]:
+        model = load_chat_model("gemini/gemini-2.0-flash-001")
         app_ids = await tool_registry.list_all_apps()
-        connections = tool_registry.client.list_my_connections()
+        connections = await tool_registry.list_connected_apps()
         connection_ids = set([connection["app_id"] for connection in connections])
         connected_apps = [app["id"] for app in app_ids if app["id"] in connection_ids]
         unconnected_apps = [app["id"] for app in app_ids if app["id"] not in connection_ids]
@@ -54,10 +44,18 @@ def create_agent(tool_registry: ToolRegistry, instructions: str = ""):
             app_id_descriptions += "\n\nOther (not connected) apps: " + "\n".join(
                 [f"{app}" for app in unconnected_apps]
             )
+        
+        response = await model.with_structured_output(
+            schema=ToolSelectionOutput, method="json_mode"
+        ).ainvoke(SELECT_TOOL_PROMPT.format(app_ids=app_id_descriptions, tool_candidates="\n - ".join(tool_candidates), task=task_query))
+
+        selected_tool_names = cast(ToolSelectionOutput, response)["tool_names"]
+        return selected_tool_names
+    
+    async def call_model(state: State, runtime: Runtime[Context]) -> Command[Literal["select_tools", "call_tools"]]:
+        
         system_message = runtime.context.system_prompt.format(
-            system_time=datetime.now(tz=UTC).isoformat(),
-            app_ids=app_id_descriptions
-        )
+            system_time=datetime.now(tz=UTC).isoformat()        )
         messages = [{"role": "system", "content": system_message}, *state["messages"]]
         
         # Load tools from tool registry
