@@ -1,5 +1,5 @@
-from universal_mcp.agents.bigtool import BigToolAgent
 from universal_mcp.agentr.registry import AgentrRegistry
+from universal_mcp.agents.bigtool import BigToolAgent
 
 agent = BigToolAgent(
     name="BigTool Agent",

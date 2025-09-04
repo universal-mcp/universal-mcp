@@ -2,6 +2,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage
 from loguru import logger
 
+
 def get_message_text(msg: BaseMessage) -> str:
     """Get the text content of a message."""
     content = msg.content

@@ -2,8 +2,8 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 
 from universal_mcp.agents.base import BaseAgent
 from universal_mcp.agents.bigtool.graph import create_agent
-from universal_mcp.tools.registry import ToolRegistry
 from universal_mcp.logger import logger
+from universal_mcp.tools.registry import ToolRegistry
 
 
 class BigToolAgent(BaseAgent):
