@@ -100,7 +100,7 @@ def create_agent(tool_registry: ToolRegistry, instructions: str = ""):
                         return Command(goto="call_tools", update={"messages": [response]})
                     except Exception as e:
                         logger.error(f"Unexpected tool call: {tool_call['name']}. Error: {e}")
-                        raise Exception(f"Unexpected tool call: {tool_call['name']}. Available tools: {state['selected_tool_ids']}")
+                        raise Exception(f"Unexpected tool call: {tool_call['name']}. Available tools: {state['selected_tool_ids']}") from e
                 logger.info(f"Proceeding to call tool: {tool_call['name']}")
                 return Command(goto="call_tools", update={"messages": [response]})
             else:
