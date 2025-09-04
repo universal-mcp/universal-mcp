@@ -2,6 +2,7 @@ import json
 from datetime import UTC, datetime
 from typing import Literal, TypedDict, cast
 
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.tools import tool
 from langgraph.graph import StateGraph
@@ -79,7 +80,10 @@ def create_agent(tool_registry: ToolRegistry, instructions: str = ""):
             except Exception as e:
                 logger.error(f"Failed to load chat model: {e}")
                 raise
-            model_with_tools = model.bind_tools([retrieve_tools, *selected_tools], tool_choice="auto")
+            if isinstance(model, ChatAnthropic):
+                model_with_tools = model.bind_tools([retrieve_tools, *selected_tools], tool_choice="auto", cache_control={"type": "ephemeral"})
+            else:
+                model_with_tools = model.bind_tools([retrieve_tools, *selected_tools], tool_choice="auto")
             response = cast(AIMessage, model_with_tools.invoke(messages))
 
             if response.tool_calls:
