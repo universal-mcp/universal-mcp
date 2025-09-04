@@ -7,7 +7,7 @@ from langchain_core.tools import tool
 from universal_mcp.agents.auto import AutoAgent
 from universal_mcp.agents.builder import build_graph
 from universal_mcp.agents.llm import load_chat_model
-from universal_mcp.agents.tool_node import ToolFinderAgent
+from universal_mcp.agents.shared.tool_node import ToolFinderAgent
 from universal_mcp.tools.registry import ToolRegistry
 from universal_mcp.types import ToolFormat
 
@@ -170,8 +170,8 @@ class TestToolFinderAgent:
         final_state = await agent.run(task)
         assert final_state["apps_required"] is True
         assert "google-mail" in final_state["relevant_apps"]
-        assert "google-mail" in final_state["apps_with_tools"]
-        assert "send_email" in final_state["apps_with_tools"]["google-mail"]
+        assert "google-mail" in final_state["apps_with_tools"].agentrServers
+        assert "send_email" in final_state["apps_with_tools"].agentrServers["google-mail"].tools
 
     @pytest.mark.asyncio
     async def test_multiple_apps_found(self, agent: ToolFinderAgent):
@@ -181,8 +181,8 @@ class TestToolFinderAgent:
         assert final_state["apps_required"] is True
         assert "google-mail" in final_state["relevant_apps"]
         assert "slack" in final_state["relevant_apps"]
-        assert "google-mail" in final_state["apps_with_tools"]
-        assert "slack" in final_state["apps_with_tools"]
+        assert "google-mail" in final_state["apps_with_tools"].agentrServers
+        assert "slack" in final_state["apps_with_tools"].agentrServers
 
     @pytest.mark.asyncio
     async def test_no_relevant_app(self, agent: ToolFinderAgent):
@@ -191,7 +191,7 @@ class TestToolFinderAgent:
         final_state = await agent.run(task)
         assert final_state["apps_required"] is True
         assert not final_state["relevant_apps"]
-        assert not final_state["apps_with_tools"]
+        assert not final_state["apps_with_tools"].agentrServers
 
     @pytest.mark.asyncio
     async def test_multiple_tools_in_one_app(self, agent: ToolFinderAgent):
@@ -201,10 +201,10 @@ class TestToolFinderAgent:
         assert final_state["apps_required"] is True
         assert "github" in final_state["relevant_apps"]
         assert "slack" in final_state["relevant_apps"]
-        assert "github" in final_state["apps_with_tools"]
-        assert "slack" in final_state["apps_with_tools"]
-        assert "create_issue" in final_state["apps_with_tools"]["github"]
-        assert "send_message" in final_state["apps_with_tools"]["slack"]
+        assert "github" in final_state["apps_with_tools"].agentrServers
+        assert "slack" in final_state["apps_with_tools"].agentrServers
+        assert "create_issue" in final_state["apps_with_tools"].agentrServers["github"].tools
+        assert "send_message" in final_state["apps_with_tools"].agentrServers["slack"].tools
 
     @pytest.mark.asyncio
     async def test_unavailable_app(self, agent: ToolFinderAgent):
@@ -213,7 +213,7 @@ class TestToolFinderAgent:
         final_state = await agent.run(task)
         assert final_state["apps_required"] is True
         assert not final_state["relevant_apps"]
-        assert not final_state["apps_with_tools"]
+        assert not final_state["apps_with_tools"].agentrServers
 
     @pytest.mark.asyncio
     async def test_no_app_needed(self, agent: ToolFinderAgent):

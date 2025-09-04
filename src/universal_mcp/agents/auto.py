@@ -1,26 +1,25 @@
 import asyncio
-import datetime
 from typing import Annotated, Any
 
 from langchain_core.messages import AIMessage
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
-from langgraph.prebuilt import create_react_agent
 from loguru import logger
 from typing_extensions import TypedDict
 
 from universal_mcp.agents.base import BaseAgent
 from universal_mcp.agents.llm import load_chat_model
-from universal_mcp.agents.tool_node import ToolFinderAgent
-from universal_mcp.tools.adapters import ToolFormat
+from universal_mcp.agents.react import ReactAgent
+from universal_mcp.agents.shared.tool_node import ToolFinderAgent
 from universal_mcp.tools.registry import ToolRegistry
+from universal_mcp.types import AgentrToolConfig, ToolConfig
 
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
     task: str
-    apps_with_tools: dict[str, list[str]]
+    apps_with_tools: AgentrToolConfig
 
 
 class AutoAgent(BaseAgent):
@@ -67,33 +66,35 @@ class AutoAgent(BaseAgent):
 
         if not tool_finder_state.get("apps_required"):
             logger.info("Tool finder determined no apps are required.")
-            return {"apps_with_tools": {}}
+            return {"apps_with_tools": AgentrToolConfig(agentrServers={})}
 
-        apps_with_tools = tool_finder_state.get("apps_with_tools", {})
+        apps_with_tools = tool_finder_state.get("apps_with_tools", AgentrToolConfig(agentrServers={}))
         logger.info(f"Tool finder identified apps and tools: {apps_with_tools}")
         return {"apps_with_tools": apps_with_tools, "task": task}
 
     def _should_continue(self, state: State) -> str:
         """Determines whether to continue to the executor or end."""
-        if state.get("apps_with_tools"):
+        if state.get("apps_with_tools") and state["apps_with_tools"].agentrServers:
             return "continue"
         return "end"
 
     async def _executor_node(self, state: State) -> dict[str, Any]:
         """Executes the task with the identified tools."""
-        apps_with_tools = state["apps_with_tools"]
-        # Flatten the list of tools from all apps
-        # Tool name is app__tool
-        # where app is the app id and tool is the tool name
-        tool_names = [f"{app}__{tool}" for app, tools in apps_with_tools.items() for tool in tools]
+        tool_config = state["apps_with_tools"]
 
-        logger.info(f"Preparing executor with tools: {', '.join(tool_names)}")
-        agent = await self._get_react_agent(tool_names)
+        logger.info(f"Preparing executor with tools: {tool_config}")
+        agent = ReactAgent(
+            name="react-executor",
+            instructions=self.instructions,
+            model=self.model,
+            registry=self.app_registry,
+            tools=ToolConfig(agentrServers=tool_config.agentrServers),
+        )
 
+        react_graph = await agent.graph
         logger.info("Invoking ReAct agent with tools.")
         # We invoke the agent to make it run the tool
-        response = await agent.ainvoke({"messages": state["messages"]})
-        print(f"Response: {response}")
+        response = await react_graph.ainvoke({"messages": state["messages"]})
 
         final_message = AIMessage(content=response["messages"][-1].content)
         return {"messages": [final_message]}
@@ -103,22 +104,6 @@ class AutoAgent(BaseAgent):
         logger.info("No tools required. Invoking LLM directly.")
         response = await self.llm.ainvoke(state["messages"])
         return {"messages": [response]}
-
-    async def _get_react_agent(self, tool_names: list[str]):
-        """Creates a ReAct agent with a specific set of tools."""
-        tools = await self.app_registry.export_tools(tool_names, format=ToolFormat.LANGCHAIN)
-        logger.debug(f"Creating ReAct agent with {len(tools)} tools.")
-
-        current_time = datetime.datetime.now()
-        utc_time = datetime.datetime.now(datetime.UTC)
-        timezone_info = f"Current local time: {current_time.strftime('%Y-%m-%d %H:%M:%S')} | UTC time: {utc_time.strftime('%Y-%m-%d %H:%M:%S')}"
-
-        agent = create_react_agent(
-            self.llm,
-            tools=tools,
-            prompt=f"You are a helpful assistant. Use the provided tools to complete the task. Current time information: {timezone_info}. User instructions: {self.instructions}. After calling a tool, confirm the action is complete and include the results from the tool call in your final response.",
-        )
-        return agent
 
     @property
     def graph(self):
