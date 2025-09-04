@@ -63,20 +63,15 @@ class Tool(BaseModel):
     ) -> "Tool":
         """Create a Tool from a function."""
 
-        # --- START: MODIFIED LOGIC TO HANDLE functools.partial ---
         skip_names = ()
         if isinstance(fn, functools.partial):
             func_for_inspection = fn.func
-            # Determine which argument names are already bound in the partial
             sig = inspect.signature(func_for_inspection)
             param_names = list(sig.parameters.keys())
             num_bound_args = len(fn.args)
             skip_names = tuple(param_names[:num_bound_args])
         else:
             func_for_inspection = fn
-        # --- END: MODIFIED LOGIC ---
-
-        # Use the underlying function for its name and metadata
         func_name = name or func_for_inspection.__name__
 
         if func_name == "<lambda>":
@@ -87,11 +82,10 @@ class Tool(BaseModel):
 
         is_async = inspect.iscoroutinefunction(func_for_inspection)
 
-        # Pass the original function for inspection and tell it which names to skip
         func_arg_metadata = FuncMetadata.func_metadata(
             func_for_inspection, 
             arg_description=parsed_doc["args"],
-            skip_names=skip_names # <-- Pass the names of bound arguments to be skipped
+            skip_names=skip_names
         )
         parameters = func_arg_metadata.arg_model.model_json_schema()
 

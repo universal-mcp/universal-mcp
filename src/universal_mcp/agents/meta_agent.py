@@ -1,11 +1,8 @@
-# src/universal_mcp/agents/meta_agent.py
-
 import asyncio
 import functools
 from typing import Any, Dict, List
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
-# *** STEP 1: IMPORT THE IN-MEMORY CHECKPOINTER ***
 from langgraph.checkpoint.memory import MemorySaver 
 from langgraph.prebuilt import create_react_agent
 from langchain_core.tools import BaseTool
@@ -16,13 +13,11 @@ from universal_mcp.agents.llm import load_chat_model
 from universal_mcp.tools.tools import Tool
 
 
-# --- Tool Definitions (unchanged) ---
-
 async def search_apps(registry: AgentrRegistry, query: str) -> List[Dict[str, Any]]:
     """
     Searches for available applications based on a user's task or query.
     Use this tool first to discover which apps can help with a specific goal.
-
+    You should always use the most popular app from the search results.
     Args:
         query (str): A natural language description of the task (e.g., "send an email", "list my files").
 
@@ -30,7 +25,7 @@ async def search_apps(registry: AgentrRegistry, query: str) -> List[Dict[str, An
         List[Dict[str, Any]]: A list of applications that match the query, including their 'id', 'name', and 'description'.
     """
     print(f"DEBUG: Searching for apps with query: {query}")
-    return await registry.search_apps(query=query, limit=5)
+    return await registry.search_apps(query=query, limit=10)
 
 
 async def search_tools(registry: AgentrRegistry, app_id: str, query: str) -> List[Dict[str, Any]]:
@@ -92,8 +87,6 @@ async def call_tool(registry: AgentrRegistry, tool_id: str, arguments: Dict[str,
     return await registry.call_tool(tool_name=tool_id, tool_args=arguments)
 
 
-# --- Custom MetaAgent Class (unchanged) ---
-
 class MetaAgent(BaseAgent):
     """
     A custom agent that uses meta-tools to discover and orchestrate other tools.
@@ -129,9 +122,6 @@ class MetaAgent(BaseAgent):
             prompt=self.system_prompt,
             checkpointer=self.memory,
         )
-
-
-# --- Main Execution Block (updated) ---
 
 async def main():
     """
@@ -175,16 +165,13 @@ You must follow a strict four-step process:
 Always think step-by-step and explain your reasoning. Do not try to guess tool names or parameters. Follow the process.
 """
 
-    # *** STEP 2: INSTANTIATE THE CHECKPOINTER ***
     memory = MemorySaver()
 
-    # Create an instance of our new custom agent
     agent = MetaAgent(
         name="Tool Orchestrator Agent",
         instructions=system_prompt,
         model="azure/gpt-4.1",
         tools=langchain_tools,
-        # *** STEP 3: PASS THE CHECKPOINTER TO THE AGENT ***
         memory=memory,
     )
 
@@ -192,8 +179,4 @@ Always think step-by-step and explain your reasoning. Do not try to guess tool n
     await agent.run_interactive()
 
 if __name__ == "__main__":
-    # To run this file:
-    # 1. Make sure you are in the root directory of the project.
-    # 2. Set the AGENTR_API_KEY environment variable: `export AGENTR_API_KEY='your_key_here'`
-    # 3. Run the module: `python -m src.universal_mcp.agents.meta_agent`
     asyncio.run(main())
