@@ -99,7 +99,7 @@ class Tool(BaseModel):
                     simple_args_descriptions[arg_name] = arg_details.get("description") or ""
 
         return cls(
-            fn=fn, #<-- IMPORTANT: Store the original callable (which is the partial object) for execution
+            fn=fn,
             tool_name=func_name,
             description=parsed_doc["summary"],
             args_description=simple_args_descriptions,
