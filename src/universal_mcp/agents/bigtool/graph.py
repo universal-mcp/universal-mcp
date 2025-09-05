@@ -72,11 +72,11 @@ def build_graph(
             messages = [{"role": "system", "content": system_message}, *state["messages"]]
 
             logger.info(f"Selected tool IDs: {state['selected_tool_ids']}")
-            selected_tools = await tool_registry.export_tools(
-                tools=state["selected_tool_ids"],
-                format=ToolFormat.LANGCHAIN,
-            )
-            logger.info(f"Exported {len(selected_tools)} tools for model.")
+            if len(state["selected_tool_ids"]) > 0:
+                selected_tools = await tool_registry.export_tools(tools=state["selected_tool_ids"], format=ToolFormat.LANGCHAIN)
+                logger.info(f"Exported {len(selected_tools)} tools for model.")
+            else:
+                selected_tools = []
 
             model = llm
             if isinstance(model, ChatAnthropic):
