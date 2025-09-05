@@ -4,9 +4,12 @@ import pytest
 from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
 
-from universal_mcp.agents.auto import AutoAgent
+from universal_mcp.agents.autoagent import AutoAgent
+from universal_mcp.agents.base import BaseAgent
+from universal_mcp.agents.bigtool import BigToolAgent
 from universal_mcp.agents.builder import BuilderAgent
 from universal_mcp.agents.llm import load_chat_model
+from universal_mcp.agents.planner import PlannerAgent
 from universal_mcp.agents.shared.tool_node import build_tool_node_graph
 from universal_mcp.tools.registry import ToolRegistry
 from universal_mcp.types import ToolFormat
@@ -35,23 +38,23 @@ class MockToolRegistry(ToolRegistry):
         self._connected_apps = ["google-mail", "google-calendar", "github"]
         self._tools = {
             "google-mail": [
-                {"name": "send_email", "description": "Send an email to a recipient."},
-                {"name": "read_email", "description": "Read emails from inbox."},
-                {"name": "create_draft", "description": "Create a draft email."},
+                {"id": "send_email", "name": "send_email", "description": "Send an email to a recipient."},
+                {"id": "read_email", "name": "read_email", "description": "Read emails from inbox."},
+                {"id": "create_draft", "name": "create_draft", "description": "Create a draft email."},
             ],
             "slack": [
-                {"name": "send_message", "description": "Send a message to a team channel."},
-                {"name": "read_channel", "description": "Read messages from a channel."},
+                {"id": "send_message", "name": "send_message", "description": "Send a message to a team channel."},
+                {"id": "read_channel", "name": "read_channel", "description": "Read messages from a channel."},
             ],
             "google-calendar": [
-                {"name": "create_event", "description": "Create a new calendar event."},
-                {"name": "find_event", "description": "Find an event in the calendar."},
+                {"id": "create_event", "name": "create_event", "description": "Create a new calendar event."},
+                {"id": "find_event", "name": "find_event", "description": "Find an event in the calendar."},
             ],
             "github": [
-                {"name": "create_issue", "description": "Create an issue in a repository."},
-                {"name": "get_issue", "description": "Get details of a specific issue."},
-                {"name": "create_pull_request", "description": "Create a pull request."},
-                {"name": "get_repository", "description": "Get details of a repository."},
+                {"id": "create_issue", "name": "create_issue", "description": "Create an issue in a repository."},
+                {"id": "get_issue", "name": "get_issue", "description": "Get details of a specific issue."},
+                {"id": "create_pull_request", "name": "create_pull_request", "description": "Create a pull request."},
+                {"id": "get_repository", "name": "get_repository", "description": "Get details of a repository."},
             ],
         }
         self._tool_mappings = {
@@ -147,12 +150,12 @@ class MockToolRegistry(ToolRegistry):
         print(f"MockToolRegistry: Called tool '{tool_name}' with args {tool_args}")
         return {"status": f"task has been done by tool {tool_name}"}
 
-    async def list_connected_apps(self) -> list[str]:
+    async def list_connected_apps(self) -> list[dict[str, str]]:
         """
         Returns a list of apps that the user has connected/authenticated.
         This is a mock function.
         """
-        return self._connected_apps
+        return [{"app_id": app_id} for app_id in self._connected_apps]
 
 
 class TestToolFinderGraph:
@@ -230,36 +233,46 @@ class TestToolFinderGraph:
         assert final_state["apps_required"] is False
 
 
-class TestAutoAgent:
+@pytest.mark.parametrize(
+    "agent_class",
+    [
+        AutoAgent,
+        BigToolAgent,
+        PlannerAgent,
+    ],
+)
+class TestAgents:
     @pytest.fixture
-    def agent(self):
-        """Set up the test environment for the main AutoAgent."""
+    def agent(self, agent_class: type[BaseAgent]):
+        """Set up the test environment for the agent."""
         registry = MockToolRegistry()
-        agent = AutoAgent(
-            "Test Auto Agent",
-            "Test instructions",
-            "gemini/gemini-2.5-flash",
+        agent = agent_class(
+            name=f"Test {agent_class.__name__}",
+            instructions="Test instructions",
+            model="gemini/gemini-2.5-flash",
             registry=registry,
         )
         return agent
 
     @pytest.mark.asyncio
-    async def test_end_to_end_with_tool(self, agent: AutoAgent):
+    async def test_end_to_end_with_tool(self, agent: BaseAgent):
         """Tests the full flow from task to tool execution."""
         task = "Send an email to my manager."
-        thread_id = "test-thread-auto-agent"
+        thread_id = f"test-thread-{agent.name.replace(' ', '-')}"
 
         await agent.ainit()
         # Invoke the agent graph to get the final state
-        final_state = await agent.graph.ainvoke(
-            {"messages": [HumanMessage(content=task)]},
-            config={"configurable": {"thread_id": thread_id}},
+        final_state = await agent.invoke(
+            task,
+            thread_id=thread_id,
         )
 
         # Extract the content of the last message
         final_messages = final_state.get("messages", [])
         assert final_messages, "The agent should have produced at least one message."
-        final_response = final_messages[-1].content
+        last_message = final_messages[-1]
+
+        final_response = last_message.content if hasattr(last_message, "content") else str(last_message)
 
         # Print the response for manual verification and for the LLM judge
         print("\n--- Agent's Final Response ---")
@@ -302,4 +315,4 @@ class TestAgentBuilder:
 
         assert "tool_config" in result
         tool_config = result["tool_config"]
-        assert "google-mail" in tool_config["apps_with_tools"].agentrServers
+        assert "google-mail" in tool_config.agentrServers

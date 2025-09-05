@@ -45,7 +45,7 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
     ):
         system_prompt = SYSTEM_PROMPT
         app_ids = await tool_registry.list_all_apps()
-        connections = tool_registry.client.list_my_connections()
+        connections = await tool_registry.list_connected_apps()
         connection_ids = set([connection["app_id"] for connection in connections])
         connected_apps = [app["id"] for app in app_ids if app["id"] in connection_ids]
         unconnected_apps = [app["id"] for app in app_ids if app["id"] not in connection_ids]

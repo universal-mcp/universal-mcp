@@ -14,3 +14,11 @@ class Context:
             "This prompt sets the context and behavior for the agent."
         },
     )
+
+    model: str = field(
+        default="anthropic/claude-4-sonnet-20250514",
+        metadata={
+            "description": "The name of the language model to use for the agent's main interactions. "
+            "Should be in the form: provider/model-name."
+        },
+    )

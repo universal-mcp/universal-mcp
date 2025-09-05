@@ -71,8 +71,9 @@ async def main():
     result = await agent.invoke(
         "Send a daily email to manoj@agentr.dev with daily agenda of the day",
     )
-    print(f"Agent: {result['generated_agent'].model_dump_json(indent=2)}")
-    print(f"Tool Config: {result['tool_config']}")
+    print(result.model_dump_json(indent=2))
+    # print(f"Agent: {result['generated_agent'].model_dump_json(indent=2)}")
+    # print(f"Tool Config: {result['tool_config'].model_dump_json(indent=2)}")
 
 
 if __name__ == "__main__":

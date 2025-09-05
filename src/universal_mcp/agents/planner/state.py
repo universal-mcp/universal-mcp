@@ -6,7 +6,7 @@ from typing_extensions import TypedDict
 from universal_mcp.types import AgentrToolConfig
 
 
-class PlannerState(TypedDict):
+class State(TypedDict):
     messages: Annotated[list, add_messages]
     task: str
     apps_with_tools: AgentrToolConfig
