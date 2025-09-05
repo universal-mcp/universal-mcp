@@ -11,7 +11,7 @@ from typing_extensions import TypedDict
 from universal_mcp.agents.base import BaseAgent
 from universal_mcp.agents.llm import load_chat_model
 from universal_mcp.agents.react import ReactAgent
-from universal_mcp.agents.shared.tool_node import ToolFinderAgent
+from universal_mcp.agents.shared.tool_node import build_tool_node_graph
 from universal_mcp.tools.registry import ToolRegistry
 from universal_mcp.types import AgentrToolConfig, ToolConfig
 
@@ -35,7 +35,6 @@ class AutoAgent(BaseAgent):
         super().__init__(name, instructions, model, memory, **kwargs)
         self.app_registry = registry
         self.llm = load_chat_model(model)
-        self.tool_finder = ToolFinderAgent(self.llm, self.app_registry)
 
     async def _build_graph(self):
         graph_builder = StateGraph(State)
@@ -62,7 +61,8 @@ class AutoAgent(BaseAgent):
         """Runs the tool finder subgraph to identify necessary tools."""
         task = state["messages"][-1].content
         logger.info(f"Running tool finder for task: {task}")
-        tool_finder_state = await self.tool_finder.run(task)
+        tool_finder_graph = build_tool_node_graph(self.llm, self.app_registry)
+        tool_finder_state = await tool_finder_graph.ainvoke({"task": task, "messages": state["messages"]})
 
         if not tool_finder_state.get("apps_required"):
             logger.info("Tool finder determined no apps are required.")
@@ -91,7 +91,8 @@ class AutoAgent(BaseAgent):
             tools=ToolConfig(agentrServers=tool_config.agentrServers),
         )
 
-        react_graph = await agent.graph
+        await agent.ainit()
+        react_graph = agent._graph
         logger.info("Invoking ReAct agent with tools.")
         # We invoke the agent to make it run the tool
         response = await react_graph.ainvoke({"messages": state["messages"]})

@@ -1,13 +1,14 @@
 # tool_node.py
 
 import asyncio
-from typing import Annotated, Any, TypedDict, cast
+from typing import Annotated, TypedDict
 
+from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, AnyMessage, HumanMessage
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 from loguru import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from universal_mcp.tools.registry import ToolRegistry
 from universal_mcp.types import AgentrConnection, AgentrToolConfig
@@ -24,46 +25,14 @@ class AgentState(TypedDict):
     reasoning: str
 
 
-class ToolSelectionOutput(TypedDict):
-    tool_names: list[str]
+class ToolSelectionOutput(BaseModel):
+    tool_ids: list[str] = Field(description="The ids of the tools to use")
 
 
-class ToolFinderAgent:
-    """
-    An agent that suggests applications and tools for a given task.
-    """
+def build_tool_node_graph(llm: BaseChatModel, registry: ToolRegistry) -> StateGraph:
+    """Builds the LangGraph workflow."""
 
-    def __init__(self, llm: Any, registry: ToolRegistry):
-        self.llm = llm
-        self.registry = registry
-        self.graph = self._build_graph()
-
-    def _build_graph(self) -> StateGraph:
-        """Builds the LangGraph workflow."""
-        workflow = StateGraph(AgentState)
-
-        workflow.add_node("check_if_app_needed", self._check_if_app_needed)
-        workflow.add_node("find_relevant_apps", self._find_relevant_apps)
-        workflow.add_node("search_tools", self._search_tools)
-        workflow.add_node("handle_no_apps_found", self._handle_no_apps_found)
-
-        workflow.set_entry_point("check_if_app_needed")
-
-        workflow.add_conditional_edges(
-            "check_if_app_needed",
-            lambda state: "find_relevant_apps" if state["apps_required"] else END,
-        )
-        workflow.add_conditional_edges(
-            "find_relevant_apps",
-            lambda state: "search_tools" if state["relevant_apps"] else "handle_no_apps_found",
-        )
-
-        workflow.add_edge("search_tools", END)
-        workflow.add_edge("handle_no_apps_found", END)
-
-        return workflow.compile()
-
-    def _check_if_app_needed(self, state: AgentState) -> AgentState:
+    async def _check_if_app_needed(state: AgentState) -> AgentState:
         """Checks if an external application is needed for the given task."""
         task = state["task"]
         prompt = f"""
@@ -74,7 +43,7 @@ class ToolFinderAgent:
             Yes, an external application is needed to send emails.
             No, this is a general question that can be answered directly.
             """
-        response = self.llm.invoke(prompt)
+        response = await llm.ainvoke(prompt)
         content = response.content.strip()
         reasoning = f"Initial check for app requirement. LLM response: {content}"
 
@@ -93,11 +62,11 @@ class ToolFinderAgent:
                 "reasoning": reasoning,
             }
 
-    async def _find_relevant_apps(self, state: AgentState) -> AgentState:
+    async def _find_relevant_apps(state: AgentState) -> AgentState:
         """Identifies relevant apps for the given task, preferring connected apps."""
         task = state["task"]
-        all_apps = await self.registry.list_all_apps()
-        connected_apps = await self.registry.list_connected_apps()
+        all_apps = await registry.list_all_apps()
+        connected_apps = await registry.list_connected_apps()
         prompt = """
 You are an expert at identifying which applications are needed to complete specific tasks.
 
@@ -123,7 +92,7 @@ INSTRUCTIONS:
             app_list: list[str]
             reasoning: str
 
-        response = await self.llm.with_structured_output(AppList).ainvoke(
+        response = await llm.with_structured_output(AppList).ainvoke(
             input=prompt.format(task=task, all_apps=all_apps, connected_apps=connected_apps)
         )
         app_list = response.app_list
@@ -137,7 +106,7 @@ INSTRUCTIONS:
             "reasoning": state.get("reasoning", "") + "\n" + reasoning,
         }
 
-    async def _select_tools(self, task: str, tools: list[dict]) -> list[str]:
+    async def _select_tools(task: str, tools: list[dict]) -> list[str]:
         """Selects the most appropriate tools from a list for a given task."""
         tool_candidates = [f"{tool['name']}: {tool['description']}" for tool in tools]
 
@@ -149,20 +118,19 @@ Your goal is to select the most appropriate tool for the given task.
 {task}
 </task>
 
-Note that when multiple apps seem relevant for a task, prefer connected apps over unconnected apps while breaking a tie. If more than one relevant app (or none of the relevant apps) are connected, you must choose both apps tools. In case the user specifically asks you to use an app that is not connected, select the tool.
-
 <tool_candidates>
  - {tool_candidates}
 </tool_candidates>
 
+Only return tool ids.
 """
 
-        response = await self.llm.with_structured_output(schema=ToolSelectionOutput).ainvoke(SELECT_TOOL_PROMPT)
+        response = await llm.with_structured_output(schema=ToolSelectionOutput).ainvoke(input=SELECT_TOOL_PROMPT)
 
-        selected_tool_names = cast(ToolSelectionOutput, response)["tool_names"]
-        return selected_tool_names
+        selected_tool_ids = response.tool_ids
+        return selected_tool_ids
 
-    async def _generate_search_query(self, task: str) -> str:
+    async def _generate_search_query(task: str) -> str:
         """Generates a concise search query from the user's task."""
         prompt = f"""
 You are an expert at summarizing a user's task into a concise search query for finding relevant tools.
@@ -187,28 +155,22 @@ Task: "{task}"
         class SearchQuery(BaseModel):
             query: str
 
-        response = await self.llm.with_structured_output(SearchQuery).ainvoke(input=prompt.format(task=task))
+        response = await llm.with_structured_output(SearchQuery).ainvoke(input=prompt.format(task=task))
         query = response.query
         logger.info(f"Generated search query '{query}' for task '{task}'")
         return query
 
-    async def _search_tools(self, state: AgentState) -> AgentState:
+    async def _search_tools(state: AgentState) -> AgentState:
         """Searches for and filters tools in the relevant apps."""
         task = state["task"]
         logger.info(f"Searching for tools in relevant apps for task: {task}")
-        search_query = await self._generate_search_query(task)
+        search_query = await _generate_search_query(task)
         apps_with_tools_dict = {}
         reasoning_steps = []
         for app_name in state["relevant_apps"]:
             logger.info(f"Searching for tools in {app_name} for task: {task} with query '{search_query}'")
-            found_tools = await self.registry.search_tools(query=search_query, app_id=app_name)
-
-            if not found_tools or (len(found_tools) == 1 and found_tools[0]["name"] == "general_purpose_tool"):
-                apps_with_tools_dict[app_name] = []
-                reasoning_steps.append(f"No specific tools found for '{app_name}' for this task.")
-                continue
-
-            selected_tools = await self._select_tools(task, found_tools)
+            found_tools = await registry.search_tools(query=search_query, app_id=app_name)
+            selected_tools = await _select_tools(task, found_tools)
             apps_with_tools_dict[app_name] = selected_tools
             reasoning_steps.append(f"For '{app_name}', selected tool(s): {', '.join(selected_tools)}.")
 
@@ -221,7 +183,7 @@ Task: "{task}"
             "reasoning": state.get("reasoning", "") + "\n" + "\n".join(reasoning_steps),
         }
 
-    def _handle_no_apps_found(self, state: AgentState) -> AgentState:
+    def _handle_no_apps_found(state: AgentState) -> AgentState:
         """Handles the case where no relevant apps are found."""
         reasoning = "No suitable application was found among the available apps."
         return {
@@ -230,19 +192,28 @@ Task: "{task}"
             "reasoning": state.get("reasoning", "") + "\n" + reasoning,
         }
 
-    async def run(self, task: str) -> dict[str, Any]:
-        """Runs the agent for a given task."""
-        initial_state = AgentState(
-            task=task,
-            messages=[HumanMessage(content=task)],
-            relevant_apps=[],
-            apps_with_tools=AgentrToolConfig(agentrServers={}),
-            apps_required=False,
-            reasoning="",
-        )
-        # The workflow is synchronous
-        final_state = await self.graph.ainvoke(initial_state)
-        return final_state
+    workflow = StateGraph(AgentState)
+
+    workflow.add_node("check_if_app_needed", _check_if_app_needed)
+    workflow.add_node("find_relevant_apps", _find_relevant_apps)
+    workflow.add_node("search_tools", _search_tools)
+    workflow.add_node("handle_no_apps_found", _handle_no_apps_found)
+
+    workflow.set_entry_point("check_if_app_needed")
+
+    workflow.add_conditional_edges(
+        "check_if_app_needed",
+        lambda state: "find_relevant_apps" if state["apps_required"] else END,
+    )
+    workflow.add_conditional_edges(
+        "find_relevant_apps",
+        lambda state: "search_tools" if state["relevant_apps"] else "handle_no_apps_found",
+    )
+
+    workflow.add_edge("search_tools", END)
+    workflow.add_edge("handle_no_apps_found", END)
+
+    return workflow.compile()
 
 
 async def main():
@@ -250,8 +221,13 @@ async def main():
     from universal_mcp.agents.llm import load_chat_model
 
     registry = AgentrRegistry()
-    agent = ToolFinderAgent(llm=load_chat_model("gemini/gemini-2.5-flash"), registry=registry)
-    result = await agent.run("Send an email to manoj@agentr.dev")
+    llm = load_chat_model("gemini/gemini-2.5-flash")
+    graph = build_tool_node_graph(llm, registry)
+    initial_state = {
+        "task": "Send an email to manoj@agentr.dev",
+        "messages": [HumanMessage(content="Send an email to manoj@agentr.dev")],
+    }
+    result = await graph.ainvoke(initial_state)
     print(result)
 
 

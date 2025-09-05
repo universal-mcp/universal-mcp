@@ -5,9 +5,9 @@ from langchain_core.messages import HumanMessage
 from langchain_core.tools import tool
 
 from universal_mcp.agents.auto import AutoAgent
-from universal_mcp.agents.builder import build_graph
+from universal_mcp.agents.builder import BuilderAgent
 from universal_mcp.agents.llm import load_chat_model
-from universal_mcp.agents.shared.tool_node import ToolFinderAgent
+from universal_mcp.agents.shared.tool_node import build_tool_node_graph
 from universal_mcp.tools.registry import ToolRegistry
 from universal_mcp.types import ToolFormat
 
@@ -155,29 +155,32 @@ class MockToolRegistry(ToolRegistry):
         return self._connected_apps
 
 
-class TestToolFinderAgent:
+class TestToolFinderGraph:
     @pytest.fixture
-    def agent(self):
-        """Set up the test environment."""
-        llm = load_chat_model("gemini/gemini-2.5-flash")
-        registry = MockToolRegistry()
-        return ToolFinderAgent(llm, registry)
+    def llm(self):
+        return load_chat_model("gemini/gemini-2.5-flash")
+
+    @pytest.fixture
+    def registry(self):
+        return MockToolRegistry()
 
     @pytest.mark.asyncio
-    async def test_simple_case_connected_app(self, agent: ToolFinderAgent):
+    async def test_simple_case_connected_app(self, llm, registry):
         """Test Case 1: Simple case (Connected App)"""
         task = "Send an email to my manager about the project update."
-        final_state = await agent.run(task)
+        graph = build_tool_node_graph(llm, registry)
+        final_state = await graph.ainvoke({"task": task, "messages": [HumanMessage(content=task)]})
         assert final_state["apps_required"] is True
         assert "google-mail" in final_state["relevant_apps"]
         assert "google-mail" in final_state["apps_with_tools"].agentrServers
         assert "send_email" in final_state["apps_with_tools"].agentrServers["google-mail"].tools
 
     @pytest.mark.asyncio
-    async def test_multiple_apps_found(self, agent: ToolFinderAgent):
+    async def test_multiple_apps_found(self, llm, registry):
         """Test Case 2: Multiple apps found"""
         task = "Send a message to my team about the new design."
-        final_state = await agent.run(task)
+        graph = build_tool_node_graph(llm, registry)
+        final_state = await graph.ainvoke({"task": task, "messages": [HumanMessage(content=task)]})
         assert final_state["apps_required"] is True
         assert "google-mail" in final_state["relevant_apps"]
         assert "slack" in final_state["relevant_apps"]
@@ -185,19 +188,21 @@ class TestToolFinderAgent:
         assert "slack" in final_state["apps_with_tools"].agentrServers
 
     @pytest.mark.asyncio
-    async def test_no_relevant_app(self, agent: ToolFinderAgent):
+    async def test_no_relevant_app(self, llm, registry):
         """Test Case 3: No relevant app"""
         task = "Can you create a blog post on my wordpress site?"
-        final_state = await agent.run(task)
+        graph = build_tool_node_graph(llm, registry)
+        final_state = await graph.ainvoke({"task": task, "messages": [HumanMessage(content=task)]})
         assert final_state["apps_required"] is True
         assert not final_state["relevant_apps"]
         assert not final_state["apps_with_tools"].agentrServers
 
     @pytest.mark.asyncio
-    async def test_multiple_tools_in_one_app(self, agent: ToolFinderAgent):
+    async def test_multiple_tools_in_one_app(self, llm, registry):
         """Test Case 4: Multiple tools in one app"""
         task = "Create a new issue for a bug in our github repository, and send message on slack about the issue."
-        final_state = await agent.run(task)
+        graph = build_tool_node_graph(llm, registry)
+        final_state = await graph.ainvoke({"task": task, "messages": [HumanMessage(content=task)]})
         assert final_state["apps_required"] is True
         assert "github" in final_state["relevant_apps"]
         assert "slack" in final_state["relevant_apps"]
@@ -207,19 +212,21 @@ class TestToolFinderAgent:
         assert "send_message" in final_state["apps_with_tools"].agentrServers["slack"].tools
 
     @pytest.mark.asyncio
-    async def test_unavailable_app(self, agent: ToolFinderAgent):
+    async def test_unavailable_app(self, llm, registry):
         """Test Case 5: Unavailable App"""
         task = "Create a new design file in Figma."
-        final_state = await agent.run(task)
+        graph = build_tool_node_graph(llm, registry)
+        final_state = await graph.ainvoke({"task": task, "messages": [HumanMessage(content=task)]})
         assert final_state["apps_required"] is True
         assert not final_state["relevant_apps"]
         assert not final_state["apps_with_tools"].agentrServers
 
     @pytest.mark.asyncio
-    async def test_no_app_needed(self, agent: ToolFinderAgent):
+    async def test_no_app_needed(self, llm, registry):
         """Test Case 6: No App Needed"""
         task = "hello"
-        final_state = await agent.run(task)
+        graph = build_tool_node_graph(llm, registry)
+        final_state = await graph.ainvoke({"task": task, "messages": [HumanMessage(content=task)]})
         assert final_state["apps_required"] is False
 
 
@@ -267,15 +274,22 @@ class TestAutoAgent:
 class TestAgentBuilder:
     @pytest.fixture
     def agent_builder(self):
-        """Set up the agent builder graph."""
-        yield build_graph()
+        """Set up the agent builder."""
+        registry = MockToolRegistry()
+        agent = BuilderAgent(
+            name="Test Builder Agent",
+            instructions="Test instructions for builder",
+            model="gemini/gemini-1.5-flash",
+            registry=registry,
+        )
+        yield agent
 
     @pytest.mark.asyncio
-    async def test_create_agent(self, agent_builder):
+    async def test_create_agent(self, agent_builder: BuilderAgent):
         """Test case for creating an agent with the builder."""
         task = "Send a daily email to manoj@agentr.dev with daily agenda of the day"
 
-        result = await agent_builder.ainvoke({"messages": [HumanMessage(content=task)]})
+        result = await agent_builder.invoke(task)
 
         assert "generated_agent" in result
         generated_agent = result["generated_agent"]
@@ -284,4 +298,8 @@ class TestAgentBuilder:
         assert generated_agent.description
         assert generated_agent.expertise
         assert "manoj@agentr.dev" in generated_agent.instructions
-        assert generated_agent.schedule is not None  # and generated_agent.schedule == '0 9 * * *'
+        assert generated_agent.schedule is not None
+
+        assert "tool_config" in result
+        tool_config = result["tool_config"]
+        assert "google-mail" in tool_config["apps_with_tools"].agentrServers
