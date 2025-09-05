@@ -25,7 +25,7 @@ async def search_apps(registry: AgentrRegistry, query: str) -> List[Dict[str, An
         List[Dict[str, Any]]: A list of applications that match the query, including their 'id', 'name', and 'description'.
     """
     print(f"DEBUG: Searching for apps with query: {query}")
-    return await registry.search_apps(query=query, limit=1)
+    return await registry.search_apps(query=query, limit=10)
 
 
 async def search_tools(registry: AgentrRegistry, app_id: str, query: str) -> List[Dict[str, Any]]:
