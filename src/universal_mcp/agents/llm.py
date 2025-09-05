@@ -4,7 +4,9 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import AzureChatOpenAI
 
 
-def load_chat_model(fully_specified_name: str, tags: list[str] | None = None) -> BaseChatModel:
+def load_chat_model(
+    fully_specified_name: str, temperature: float = 1.0, tags: list[str] | None = None
+) -> BaseChatModel:
     """Load a chat model from a fully specified name.
     Args:
         fully_specified_name (str): String in the format 'provider/model'.
@@ -13,7 +15,7 @@ def load_chat_model(fully_specified_name: str, tags: list[str] | None = None) ->
     if provider == "anthropic":
         return ChatAnthropic(
             model=model,
-            temperature=1,
+            temperature=temperature,
             thinking={"type": "enabled", "budget_tokens": 2048},
             max_tokens=4096,
             tags=tags,
@@ -24,11 +26,12 @@ def load_chat_model(fully_specified_name: str, tags: list[str] | None = None) ->
             model=model,
             api_version="2024-12-01-preview",
             azure_deployment=model,
+            temperature=temperature,
             tags=tags,
             stream_usage=True,
         )
     elif provider == "gemini":
-        return ChatGoogleGenerativeAI(model=model, temperature=1.0, max_retries=2)
+        return ChatGoogleGenerativeAI(model=model, temperature=temperature)
     else:
         raise ValueError(f"Unsupported provider: {provider}")
 
@@ -39,4 +42,4 @@ if __name__ == "__main__":
     models_to_test = ["azure/gpt-5-chat", "anthropic/claude-4-sonnet-20250514", "gemini/gemini-2.5-pro"]
     for model in models_to_test:
         llm = load_chat_model(model)
-        logger.info(llm.invoke("Hello, world!"))
+        logger.info(llm.invoke("Hi!"))

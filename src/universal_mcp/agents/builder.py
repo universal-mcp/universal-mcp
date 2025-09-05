@@ -2,68 +2,78 @@ import asyncio
 from collections.abc import Sequence
 from typing import Annotated, TypedDict
 
-from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import BaseMessage
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
-from pydantic import BaseModel, Field
 
-from universal_mcp.agentr.registry import AgentrRegistry
+from universal_mcp.agents.base import BaseAgent
 from universal_mcp.agents.llm import load_chat_model
-
-registry = AgentrRegistry()
-
-# class BuilderToolConfig(BaseModel):
-#     servers: list[str] = Field(description="List of apps and tools that the agent needs to execute the task")
-
-
-class Agent(BaseModel):
-    name: str = Field(description="The name of the agent")
-    description: str = Field(description="A small paragraph description of the agent")
-    expertise: str = Field(description="Agents expertise. Growth expert, SEO expert, etc")
-    instructions: str = Field(description="The instructions for the agent")
-    schedule: str = Field(
-        description="The schedule for the agent in crontab syntax (e.g., '0 9 * * *' for daily at 9 AM)"
-    )
+from universal_mcp.agents.shared.agent_node import Agent, generate_agent
+from universal_mcp.agents.shared.tool_node import build_tool_node_graph
+from universal_mcp.tools.registry import ToolRegistry
+from universal_mcp.types import ToolConfig
 
 
-class State(TypedDict):
+class BuilderState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
-    generated_agent: Agent
+    generated_agent: Agent | None
+    tool_config: ToolConfig | None
 
 
-def build_graph():
-    model = load_chat_model("gemini/gemini-2.5-pro")
+class BuilderAgent(BaseAgent):
+    def __init__(
+        self,
+        name: str,
+        instructions: str,
+        model: str,
+        registry: ToolRegistry,
+        memory: BaseCheckpointSaver | None = None,
+        **kwargs,
+    ):
+        super().__init__(name, instructions, model, memory, **kwargs)
+        self.registry = registry
+        self.llm: BaseChatModel = load_chat_model(model)
 
-    system_prompt = """You are an AI assistant that creates autonomous agents based on user requests.
-
-Your task is to analyze the user's request and create a structured agent definition that includes:
-- A clear name for the agent
-- A concise description of what the agent does
-- The agent's area of expertise
-- Detailed instructions for executing the task
-- A cron schedule for when the agent should run
-- A list of apps/services the agent will need to use
-
-Be specific and actionable in your agent definitions. Consider the user's intent and create agents that can effectively accomplish their goals."""
-
-    async def _create_agent(state: State):
-        messages = [{"role": "system", "content": system_prompt}] + state["messages"]
-        generated_agent = await model.with_structured_output(Agent).ainvoke(messages)
+    async def _create_agent(self, state: BuilderState):
+        last_message = state["messages"][-1]
+        generated_agent = await generate_agent(self.llm, last_message.content)
         return {"generated_agent": generated_agent}
 
-    builder = StateGraph(State)
-    builder.add_node("create_agent", _create_agent)
-    builder.add_edge(START, "create_agent")
-    builder.add_edge("create_agent", END)
-    return builder.compile()
+    async def _create_tool_config(self, state: BuilderState):
+        last_message = state["messages"][-1]
+        tool_finder_graph = build_tool_node_graph(self.llm, self.registry)
+        tool_config = await tool_finder_graph.ainvoke({"task": last_message.content, "messages": [last_message]})
+        tool_config = tool_config.get("apps_with_tools", {})
+        return {"tool_config": tool_config}
+
+    async def _build_graph(self):
+        builder = StateGraph(BuilderState)
+        builder.add_node("create_agent", self._create_agent)
+        builder.add_node("create_tool_config", self._create_tool_config)
+        builder.add_edge(START, "create_agent")
+        builder.add_edge("create_agent", "create_tool_config")
+        builder.add_edge("create_tool_config", END)
+        return builder.compile()
 
 
 async def main():
-    graph = build_graph()
-    result = await graph.ainvoke(
-        {"messages": [HumanMessage(content="Send a daily email to manoj@agentr.dev with daily agenda of the day")]}
+    from universal_mcp.agentr.registry import AgentrRegistry
+
+    registry = AgentrRegistry()
+    agent = BuilderAgent(
+        name="Builder Agent",
+        instructions="You are a builder agent that creates other agents.",
+        model="gemini/gemini-1.5-pro",
+        registry=registry,
     )
-    print(f"Agent: {result['generated_agent'].model_dump_json(indent=2)}")
+    result = await agent.invoke(
+        "Send a daily email to manoj@agentr.dev with daily agenda of the day",
+    )
+    print(result.model_dump_json(indent=2))
+    # print(f"Agent: {result['generated_agent'].model_dump_json(indent=2)}")
+    # print(f"Tool Config: {result['tool_config'].model_dump_json(indent=2)}")
 
 
 if __name__ == "__main__":

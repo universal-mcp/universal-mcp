@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import Annotated
 
 from .prompts import SYSTEM_PROMPT
 
@@ -16,7 +15,7 @@ class Context:
         },
     )
 
-    model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
+    model: str = field(
         default="anthropic/claude-4-sonnet-20250514",
         metadata={
             "description": "The name of the language model to use for the agent's main interactions. "
