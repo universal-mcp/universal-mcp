@@ -1,23 +1,24 @@
 import asyncio
 import functools
-from typing import Any, Dict, List
+from typing import Any
 
-from langgraph.checkpoint.base import BaseCheckpointSaver
-from langgraph.checkpoint.memory import MemorySaver 
-from langgraph.prebuilt import create_react_agent
 from langchain_core.tools import BaseTool
+from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.prebuilt import create_react_agent
 
 from universal_mcp.agentr.registry import AgentrRegistry
 from universal_mcp.agents.base import BaseAgent
 from universal_mcp.agents.llm import load_chat_model
 from universal_mcp.tools.tools import Tool
 
-async def search_apps(registry: AgentrRegistry, query: str) -> List[Dict[str, Any]]:
+
+async def search_apps(registry: AgentrRegistry, query: str) -> list[dict[str, Any]]:
     """
     Searches for available applications based on a user's task or query.
     Use this tool first to discover which apps can help with a specific goal.
     Always use the most popular app from the search results.
-    
+
     Args:
         query (str): A natural language description of the task (e.g., "send an email", "list my files").
 
@@ -28,7 +29,7 @@ async def search_apps(registry: AgentrRegistry, query: str) -> List[Dict[str, An
     return await registry.search_apps(query=query, limit=10)
 
 
-async def search_tools(registry: AgentrRegistry, app_id: str, query: str) -> List[Dict[str, Any]]:
+async def search_tools(registry: AgentrRegistry, app_id: str, query: str) -> list[dict[str, Any]]:
     """
     Searches for specific tools within a given application.
     Use this tool after you have identified a relevant app with 'search_apps'.
@@ -44,7 +45,7 @@ async def search_tools(registry: AgentrRegistry, app_id: str, query: str) -> Lis
     return await registry.search_tools(query=query, app_id=app_id, limit=10)
 
 
-async def get_tool_info(registry: AgentrRegistry, tool_id: str) -> Dict[str, Any]:
+async def get_tool_info(registry: AgentrRegistry, tool_id: str) -> dict[str, Any]:
     """
     Retrieves the detailed schema and description for a specific tool.
     You MUST use this tool to understand the required parameters and their format before calling 'call_tool'.
@@ -62,16 +63,16 @@ async def get_tool_info(registry: AgentrRegistry, tool_id: str) -> Dict[str, Any
     tool = temp_manager.get_tool(tool_id)
     if not tool:
         return {"error": f"Tool with ID '{tool_id}' not found."}
-    
+
     return {
         "name": tool.name,
         "description": tool.description,
         "parameters_schema": tool.parameters,
-        "output_schema": tool.output_schema
+        "output_schema": tool.output_schema,
     }
 
 
-async def call_tool(registry: AgentrRegistry, tool_id: str, arguments: Dict[str, Any]) -> Any:
+async def call_tool(registry: AgentrRegistry, tool_id: str, arguments: dict[str, Any]) -> Any:
     """
     Executes a tool with the specified arguments.
     This is the final step. Only call this after using 'get_tool_info' to understand the required arguments.
@@ -85,10 +86,11 @@ async def call_tool(registry: AgentrRegistry, tool_id: str, arguments: Dict[str,
     """
     print(f"DEBUG: Calling tool '{tool_id}' with arguments: {arguments}")
     result = await registry.call_tool(tool_name=tool_id, tool_args=arguments)
-    
+
     # print(result)
-    
+
     return result
+
 
 class MetaAgent(BaseAgent):
     """
@@ -102,7 +104,7 @@ class MetaAgent(BaseAgent):
         name: str,
         instructions: str,
         model: str,
-        tools: List[BaseTool],
+        tools: list[BaseTool],
         memory: BaseCheckpointSaver | None = None,
         **kwargs,
     ):
@@ -112,7 +114,7 @@ class MetaAgent(BaseAgent):
         super().__init__(name, instructions, model, memory, **kwargs)
         self.llm = load_chat_model(model)
         self.tools = tools
-        self.system_prompt = instructions # Store the detailed instructions
+        self.system_prompt = instructions  # Store the detailed instructions
 
     async def _build_graph(self):
         """
@@ -125,6 +127,7 @@ class MetaAgent(BaseAgent):
             prompt=self.system_prompt,
             checkpointer=self.memory,
         )
+
 
 async def main():
     """
@@ -146,9 +149,9 @@ async def main():
         functools.partial(get_tool_info, registry),
         functools.partial(call_tool, registry),
     ]
-    
+
     from universal_mcp.tools.adapters import convert_tool_to_langchain_tool
-    
+
     langchain_tools = [
         convert_tool_to_langchain_tool(Tool.from_function(pt, name=pt.func.__name__)) for pt in partial_tools
     ]
@@ -182,10 +185,11 @@ Always think step-by-step and explain your reasoning. Do not try to guess tool n
 
     # await agent.run_interactive()
 
-    user_input="send a email to ankit@agentr.dev for testing purposes telling meta agent is working as expected"
+    user_input = "send a email to ankit@agentr.dev for testing purposes telling meta agent is working as expected"
     final_state = await agent.invoke(user_input)
-    final_message = final_state['messages'][-1]
+    final_message = final_state["messages"][-1]
     print(final_message.content)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

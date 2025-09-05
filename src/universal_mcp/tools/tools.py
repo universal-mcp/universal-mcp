@@ -1,7 +1,8 @@
+import functools
 import inspect
 from collections.abc import Callable
 from typing import Any
-import functools
+
 import httpx
 from pydantic import BaseModel, Field, create_model
 
@@ -83,9 +84,7 @@ class Tool(BaseModel):
         is_async = inspect.iscoroutinefunction(func_for_inspection)
 
         func_arg_metadata = FuncMetadata.func_metadata(
-            func_for_inspection, 
-            arg_description=parsed_doc["args"],
-            skip_names=skip_names
+            func_for_inspection, arg_description=parsed_doc["args"], skip_names=skip_names
         )
         parameters = func_arg_metadata.arg_model.model_json_schema()
 
