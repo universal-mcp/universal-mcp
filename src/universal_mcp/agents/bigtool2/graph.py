@@ -10,60 +10,61 @@ from langgraph.graph import StateGraph
 from langgraph.runtime import Runtime
 from langgraph.types import Command
 
-from universal_mcp.agents.bigtool.context import Context
-from universal_mcp.agents.bigtool.state import State
+from universal_mcp.agents.bigtool2.context import Context
+from universal_mcp.agents.bigtool2.state import State
 from universal_mcp.logger import logger
 from universal_mcp.tools.registry import ToolRegistry
 from universal_mcp.types import ToolFormat
 
-from .prompts import SELECT_TOOL_PROMPT
 
 
 def build_graph(
     tool_registry: ToolRegistry,
-    llm: BaseChatModel,
-    tool_selection_llm: BaseChatModel,
+    llm: BaseChatModel
 ):
     @tool
-    async def retrieve_tools(task_query: str) -> list[str]:
-        """Retrieve tools for a given task.
-        Task query should be atomic (doable with a single tool).
-        For tasks requiring multiple tools, call this tool multiple times for each subtask."""
-        logger.info(f"Retrieving tools for task: '{task_query}'")
+    async def search_tools(queries: list[str]) -> str:
+        """Search tools for a given list of queries
+        Each single query should be atomic (doable with a single tool).
+        For tasks requiring multiple tools, add separate queries for each subtask"""
+        logger.info(f"Searching tools for queries: '{queries}'")
         try:
-            tools_list = await tool_registry.search_tools(task_query, limit=10)
-            tool_candidates = [f"{tool['id']}: {tool['description']}" for tool in tools_list]
-            logger.info(f"Found {len(tool_candidates)} candidate tools.")
-
-            class ToolSelectionOutput(TypedDict):
-                tool_names: list[str]
-
-            model = tool_selection_llm
+            all_tool_candidates = ""
             app_ids = await tool_registry.list_all_apps()
             connections = await tool_registry.list_connected_apps()
             connection_ids = set([connection["app_id"] for connection in connections])
             connected_apps = [app["id"] for app in app_ids if app["id"] in connection_ids]
             unconnected_apps = [app["id"] for app in app_ids if app["id"] not in connection_ids]
-            app_id_descriptions = "These are the apps connected to the user's account:\n" + "\n".join(
-                [f"{app}" for app in connected_apps]
-            )
-            if unconnected_apps:
-                app_id_descriptions += "\n\nOther (not connected) apps: " + "\n".join(
-                    [f"{app}" for app in unconnected_apps]
-                )
-
-            response = await model.with_structured_output(schema=ToolSelectionOutput, method="json_mode").ainvoke(
-                SELECT_TOOL_PROMPT.format(
-                    app_ids=app_id_descriptions, tool_candidates="\n - ".join(tool_candidates), task=task_query
-                )
-            )
-
-            selected_tool_names = cast(ToolSelectionOutput, response)["tool_names"]
-            logger.info(f"Selected tools: {selected_tool_names}")
-            return selected_tool_names
+            app_tools = {}
+            for task_query in queries:
+                tools_list = await tool_registry.search_tools(task_query, limit=40)
+                tool_candidates = [f"{tool['id']}: {tool['description']}" for tool in tools_list]
+                for tool in tool_candidates:
+                    app = tool.split("__")[0]
+                    if app not in app_tools:
+                        if len(app_tools.keys()) >= 10:
+                            break
+                        app_tools[app] = []
+                    if len(app_tools[app]) < 3:
+                        app_tools[app].append(tool)
+            for app in app_tools:
+                app_status = "connected" if app in connected_apps else "NOT connected"
+                all_tool_candidates += f"Tools from {app} (status: {app_status} by user):\n"
+                for tool in app_tools[app]:
+                    all_tool_candidates += f" - {tool}\n"
+                all_tool_candidates += "\n"
+                
+            
+            return all_tool_candidates
         except Exception as e:
             logger.error(f"Error retrieving tools: {e}")
-            return []
+            return "Error: " + str(e)
+    
+    @tool
+    async def load_tools(tool_ids: list[str]) -> list[str]:
+        """Load the tools for the given tool ids. Returns the tool ids."""
+        return tool_ids
+
 
     async def call_model(state: State, runtime: Runtime[Context]) -> Command[Literal["select_tools", "call_tools"]]:
         logger.info("Calling model...")
@@ -79,12 +80,8 @@ def build_graph(
                 selected_tools = []
 
             model = llm
-            if isinstance(model, ChatAnthropic):
-                model_with_tools = model.bind_tools(
-                    [retrieve_tools, *selected_tools], tool_choice="auto", cache_control={"type": "ephemeral"}
-                )
-            else:
-                model_with_tools = model.bind_tools([retrieve_tools, *selected_tools], tool_choice="auto")
+
+            model_with_tools = model.bind_tools([search_tools, load_tools, *selected_tools], tool_choice="auto")
             response = cast(AIMessage, await model_with_tools.ainvoke(messages))
 
             if response.tool_calls:
@@ -92,9 +89,16 @@ def build_graph(
                 if len(response.tool_calls) > 1:
                     raise Exception("Not possible in Claude with llm.bind_tools(tools=tools, tool_choice='auto')")
                 tool_call = response.tool_calls[0]
-                if tool_call["name"] == retrieve_tools.name:
+                if tool_call["name"] == search_tools.name:
                     logger.info("Model requested to select tools.")
                     return Command(goto="select_tools", update={"messages": [response]})
+                elif tool_call["name"] == load_tools.name:
+                    logger.info("Model requested to load tools.")
+                    tool_msg = ToolMessage(f"Loaded tools.", tool_call_id=tool_call["id"])
+                    selected_tool_ids = tool_call["args"]["tool_ids"]
+                    logger.info(f"Loaded tools: {selected_tool_ids}")
+                    return Command(goto="call_model", update={ "messages": [response, tool_msg], "selected_tool_ids": selected_tool_ids})
+
                 elif tool_call["name"] not in state["selected_tool_ids"]:
                     try:
                         await tool_registry.export_tools([tool_call["name"]], ToolFormat.LANGCHAIN)
@@ -120,10 +124,9 @@ def build_graph(
         logger.info("Selecting tools...")
         try:
             tool_call = state["messages"][-1].tool_calls[0]
-            selected_tool_names = await retrieve_tools.ainvoke(input=tool_call["args"])
-            tool_msg = ToolMessage(f"Available tools: {selected_tool_names}", tool_call_id=tool_call["id"])
-            logger.info(f"Tools selected: {selected_tool_names}")
-            return Command(goto="call_model", update={"messages": [tool_msg], "selected_tool_ids": selected_tool_names})
+            searched_tools= await search_tools.ainvoke(input=tool_call["args"])
+            tool_msg = ToolMessage(f"Available tools: {searched_tools}", tool_call_id=tool_call["id"])
+            return Command(goto="call_model", update={"messages": [tool_msg]})
         except Exception as e:
             logger.error(f"Error in select_tools: {e}")
             raise
