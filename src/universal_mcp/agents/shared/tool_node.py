@@ -44,7 +44,11 @@ def build_tool_node_graph(llm: BaseChatModel, registry: ToolRegistry) -> StateGr
             No, this is a general question that can be answered directly.
             """
         response = await llm.ainvoke(prompt)
-        content = response.content.strip()
+        # Handle both string and list content types
+        if isinstance(response.content, list):
+            content = " ".join([str(item) for item in response.content]).strip()
+        else:
+            content = response.content.strip()
         reasoning = f"Initial check for app requirement. LLM response: {content}"
 
         if content.lower().startswith("yes"):
