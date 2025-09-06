@@ -11,7 +11,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 from universal_mcp.tools.registry import ToolRegistry
-from universal_mcp.types import AgentrConnection, AgentrToolConfig
+from universal_mcp.types import ToolConfig
 
 # --- LangGraph Agent ---
 
@@ -20,7 +20,7 @@ class AgentState(TypedDict):
     task: str
     apps_required: bool
     relevant_apps: list[str]
-    apps_with_tools: AgentrToolConfig
+    apps_with_tools: ToolConfig
     messages: Annotated[list[AnyMessage], add_messages]
     reasoning: str
 
@@ -178,12 +178,9 @@ Task: "{task}"
             apps_with_tools_dict[app_name] = selected_tools
             reasoning_steps.append(f"For '{app_name}', selected tool(s): {', '.join(selected_tools)}.")
 
-        agentr_servers = {app_name: AgentrConnection(tools=tools) for app_name, tools in apps_with_tools_dict.items()}
-        tool_config = AgentrToolConfig(agentrServers=agentr_servers)
-
         return {
             **state,
-            "apps_with_tools": tool_config,
+            "apps_with_tools": apps_with_tools_dict,
             "reasoning": state.get("reasoning", "") + "\n" + "\n".join(reasoning_steps),
         }
 
@@ -192,7 +189,7 @@ Task: "{task}"
         reasoning = "No suitable application was found among the available apps."
         return {
             **state,
-            "apps_with_tools": AgentrToolConfig(agentrServers={}),
+            "apps_with_tools": {},
             "reasoning": state.get("reasoning", "") + "\n" + reasoning,
         }
 

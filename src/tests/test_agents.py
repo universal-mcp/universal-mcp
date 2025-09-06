@@ -175,8 +175,8 @@ class TestToolFinderGraph:
         final_state = await graph.ainvoke({"task": task, "messages": [HumanMessage(content=task)]})
         assert final_state["apps_required"] is True
         assert "google-mail" in final_state["relevant_apps"]
-        assert "google-mail" in final_state["apps_with_tools"].agentrServers
-        assert "send_email" in final_state["apps_with_tools"].agentrServers["google-mail"].tools
+        assert "google-mail" in final_state["apps_with_tools"]
+        assert "send_email" in final_state["apps_with_tools"]["google-mail"]
 
     @pytest.mark.asyncio
     async def test_multiple_apps_found(self, llm, registry):
@@ -187,8 +187,8 @@ class TestToolFinderGraph:
         assert final_state["apps_required"] is True
         assert "google-mail" in final_state["relevant_apps"]
         assert "slack" in final_state["relevant_apps"]
-        assert "google-mail" in final_state["apps_with_tools"].agentrServers
-        assert "slack" in final_state["apps_with_tools"].agentrServers
+        assert "google-mail" in final_state["apps_with_tools"]
+        assert "slack" in final_state["apps_with_tools"]
 
     @pytest.mark.asyncio
     async def test_no_relevant_app(self, llm, registry):
@@ -198,7 +198,7 @@ class TestToolFinderGraph:
         final_state = await graph.ainvoke({"task": task, "messages": [HumanMessage(content=task)]})
         assert final_state["apps_required"] is True
         assert not final_state["relevant_apps"]
-        assert not final_state["apps_with_tools"].agentrServers
+        assert not final_state["apps_with_tools"]
 
     @pytest.mark.asyncio
     async def test_multiple_tools_in_one_app(self, llm, registry):
@@ -209,10 +209,10 @@ class TestToolFinderGraph:
         assert final_state["apps_required"] is True
         assert "github" in final_state["relevant_apps"]
         assert "slack" in final_state["relevant_apps"]
-        assert "github" in final_state["apps_with_tools"].agentrServers
-        assert "slack" in final_state["apps_with_tools"].agentrServers
-        assert "create_issue" in final_state["apps_with_tools"].agentrServers["github"].tools
-        assert "send_message" in final_state["apps_with_tools"].agentrServers["slack"].tools
+        assert "github" in final_state["apps_with_tools"]
+        assert "slack" in final_state["apps_with_tools"]
+        assert "create_issue" in final_state["apps_with_tools"]["github"]
+        assert "send_message" in final_state["apps_with_tools"]["slack"]
 
     @pytest.mark.asyncio
     async def test_unavailable_app(self, llm, registry):
@@ -222,7 +222,7 @@ class TestToolFinderGraph:
         final_state = await graph.ainvoke({"task": task, "messages": [HumanMessage(content=task)]})
         assert final_state["apps_required"] is True
         assert not final_state["relevant_apps"]
-        assert not final_state["apps_with_tools"].agentrServers
+        assert not final_state["apps_with_tools"]
 
     @pytest.mark.asyncio
     async def test_no_app_needed(self, llm, registry):
@@ -315,4 +315,4 @@ class TestAgentBuilder:
 
         assert "tool_config" in result
         tool_config = result["tool_config"]
-        assert "google-mail" in tool_config.agentrServers
+        assert "google-mail" in tool_config

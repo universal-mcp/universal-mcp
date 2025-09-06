@@ -3,7 +3,7 @@ from typing import Any
 from loguru import logger
 
 from universal_mcp.agentr.client import AgentrClient
-from universal_mcp.applications import app_from_slug
+from universal_mcp.applications.utils import app_from_slug
 from universal_mcp.tools.manager import ToolManager, _get_app_and_tool_name
 from universal_mcp.tools.registry import ToolRegistry
 from universal_mcp.types import ToolConfig, ToolFormat
@@ -133,7 +133,7 @@ class AgentrRegistry(ToolRegistry):
         try:
             # Clear tools from tool manager before loading new tools
             self.tool_manager.clear_tools()
-            if isinstance(tools, ToolConfig):
+            if isinstance(tools, dict):
                 logger.info("Loading tools from tool config")
                 self._load_tools_from_tool_config(tools, self.tool_manager)
             else:
@@ -176,8 +176,8 @@ class AgentrRegistry(ToolRegistry):
             tool_config: The tool configuration containing app names and tools
             tool_manager: The tool manager to register tools with
         """
-        for app_name, tool_data in tool_config.agentrServers.items():
-            self._load_tools(app_name, tool_data.tools, tool_manager)
+        for app_name, tool_names in tool_config.items():
+            self._load_tools(app_name, tool_names, tool_manager)
 
     async def call_tool(self, tool_name: str, tool_args: dict[str, Any]) -> dict[str, Any]:
         """Call a tool with the given name and arguments."""

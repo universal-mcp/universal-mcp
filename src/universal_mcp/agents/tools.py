@@ -3,7 +3,7 @@ import json
 from langchain_mcp_adapters.client import MultiServerMCPClient
 
 from universal_mcp.agentr.integration import AgentrIntegration
-from universal_mcp.applications import app_from_slug
+from universal_mcp.applications.utils import app_from_slug
 from universal_mcp.tools.adapters import ToolFormat
 from universal_mcp.tools.manager import ToolManager
 from universal_mcp.types import ToolConfig

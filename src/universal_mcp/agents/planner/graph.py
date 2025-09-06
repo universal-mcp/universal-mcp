@@ -5,7 +5,6 @@ from langgraph.graph import END, START, StateGraph
 from loguru import logger
 
 from universal_mcp.agents.shared.tool_node import build_tool_node_graph
-from universal_mcp.types import AgentrToolConfig, ToolConfig
 
 from .state import State
 
@@ -23,15 +22,15 @@ def build_graph(llm, registry, instructions, model, executor_agent_cls):
 
         if not tool_finder_state.get("apps_required"):
             logger.info("Tool finder determined no apps are required.")
-            return {"apps_with_tools": AgentrToolConfig(agentrServers={})}
+            return {"apps_with_tools": {}}
 
-        apps_with_tools = tool_finder_state.get("apps_with_tools", AgentrToolConfig(agentrServers={}))
+        apps_with_tools = tool_finder_state.get("apps_with_tools", {})
         logger.info(f"Tool finder identified apps and tools: {apps_with_tools}")
         return {"apps_with_tools": apps_with_tools, "task": task}
 
     def _should_continue(state: State) -> str:
         """Determines whether to continue to the executor or end."""
-        if state.get("apps_with_tools") and state["apps_with_tools"].agentrServers:
+        if state.get("apps_with_tools"):
             return "continue"
         return "end"
 
@@ -45,7 +44,7 @@ def build_graph(llm, registry, instructions, model, executor_agent_cls):
             instructions=instructions,
             model=model,
             registry=registry,
-            tools=ToolConfig(agentrServers=tool_config.agentrServers),
+            tools=tool_config,
         )
 
         await agent.ainit()

@@ -5,7 +5,6 @@ from loguru import logger
 from universal_mcp.agentr.registry import AgentrRegistry
 from universal_mcp.agents.base import BaseAgent
 from universal_mcp.agents.llm import load_chat_model
-from universal_mcp.agents.tools import load_mcp_tools
 from universal_mcp.tools.registry import ToolRegistry
 from universal_mcp.types import ToolConfig, ToolFormat
 
@@ -29,21 +28,16 @@ class ReactAgent(BaseAgent):
         self.registry = registry
 
     async def _build_graph(self):
+        tools = []
         if self.tools:
-            config = self.tools.model_dump(exclude_none=True)
-            if config.get("agentrServers") and not self.registry:
-                raise ValueError("Agentr servers are configured but no registry is provided")
-            agentr_tools = (
-                await self.registry.export_tools(self.tools, ToolFormat.LANGCHAIN)
-                if config.get("agentrServers")
-                else []
-            )
-            logger.debug(agentr_tools)
-            mcp_tools = await load_mcp_tools(config["mcpServers"]) if config.get("mcpServers") else []
-            logger.debug(mcp_tools)
-            tools = agentr_tools + mcp_tools
+            if not self.registry:
+                raise ValueError("Tools are configured but no registry is provided")
+
+            tools = await self.registry.export_tools(self.tools, ToolFormat.LANGCHAIN)
+            logger.debug(tools)
         else:
             tools = []
+
         logger.debug(f"Initialized ReactAgent: name={self.name}, model={self.model}")
         return create_react_agent(
             self.llm,
@@ -52,7 +46,7 @@ class ReactAgent(BaseAgent):
             checkpointer=self.memory,
         )
 
-    def _build_system_message(self) -> str:
+    def _build_system_message(self):
         system_message = f"""You are {self.name}.
 
 You have access to various tools that can help you answer questions and complete tasks. When you need to use a tool:
@@ -75,10 +69,8 @@ if __name__ == "__main__":
         "Universal React Agent",
         instructions="",
         model="azure/gpt-4o",
-        tools=ToolConfig(agentrServers={"google-mail": {"tools": ["send_email"]}}),
+        tools={"google-mail": ["send_email"]},
         registry=AgentrRegistry(),
     )
-    result = asyncio.run(
-        agent.invoke(user_input="Send an email with the subject 'testing react agent' to manoj@agentr.dev")
-    )
+    result = asyncio.run(agent.invoke("Send an email with the subject 'testing react agent' to manoj@agentr.dev"))
     logger.info(result["messages"][-1].content)
