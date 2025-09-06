@@ -1,6 +1,7 @@
 from universal_mcp.agents.bigtool2 import BigToolAgent2
 from universal_mcp.agentr.registry import AgentrRegistry
 
+
 async def agent():
     agent_object = await BigToolAgent2(
         name="BigTool Agent 2",

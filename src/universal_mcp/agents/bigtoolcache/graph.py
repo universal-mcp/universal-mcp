@@ -17,11 +17,7 @@ from universal_mcp.tools.registry import ToolRegistry
 from universal_mcp.types import ToolFormat
 
 
-
-def build_graph(
-    tool_registry: ToolRegistry,
-    llm: BaseChatModel
-):
+def build_graph(tool_registry: ToolRegistry, llm: BaseChatModel):
     @tool
     async def search_tools(queries: list[str]) -> str:
         """Search tools for a given list of queries
@@ -53,13 +49,12 @@ def build_graph(
                 for tool in app_tools[app]:
                     all_tool_candidates += f" - {tool}: {app_tools[app][tool]}\n"
                 all_tool_candidates += "\n"
-                
-            
+
             return all_tool_candidates
         except Exception as e:
             logger.error(f"Error retrieving tools: {e}")
             return "Error: " + str(e)
-    
+
     @tool
     async def load_tools(tool_ids: list[str]) -> list[dict[str, Any]]:
         """Load the tools for the given tool ids. Returns the tool name, description, parameters schema, and output schema."""
@@ -69,19 +64,20 @@ def build_graph(
         tool_details = []
         for tool_id in tool_ids:
             tool = temp_manager.get_tool(tool_id)
-            tool_details.append({
-                "name": tool.name,
-                "description": tool.description,
-                "parameters_schema": tool.parameters,
-                "output_schema": tool.output_schema,
-            })
+            tool_details.append(
+                {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "parameters_schema": tool.parameters,
+                    "output_schema": tool.output_schema,
+                }
+            )
         return tool_details
-    
+
     @tool
     async def call_tool(tool_id: str, tool_args: dict[str, Any]) -> Any:
         """Call the tool with the given id and arguments."""
         return await tool_registry.call_tool(tool_id, tool_args)
-
 
     async def call_model(state: State, runtime: Runtime[Context]) -> Command[Literal["select_tools", "call_tools"]]:
         logger.info("Calling model...")
@@ -113,7 +109,10 @@ def build_graph(
                     tool_msg = ToolMessage(f"Loaded tools. {tool_details}", tool_call_id=tool_call["id"])
                     selected_tool_ids = tool_call["args"]["tool_ids"]
                     logger.info(f"Loaded tools: {selected_tool_ids}")
-                    return Command(goto="call_model", update={ "messages": [response, tool_msg], "selected_tool_ids": selected_tool_ids})
+                    return Command(
+                        goto="call_model",
+                        update={"messages": [response, tool_msg], "selected_tool_ids": selected_tool_ids},
+                    )
                 elif tool_call["name"] == call_tool.name:
                     logger.info("Model requested to call tool.")
                     return Command(goto="call_tools", update={"messages": [response]})
@@ -129,7 +128,7 @@ def build_graph(
         logger.info("Selecting tools...")
         try:
             tool_call = state["messages"][-1].tool_calls[0]
-            searched_tools= await search_tools.ainvoke(input=tool_call["args"])
+            searched_tools = await search_tools.ainvoke(input=tool_call["args"])
             tool_msg = ToolMessage(f"Available tools: {searched_tools}", tool_call_id=tool_call["id"])
             return Command(goto="call_model", update={"messages": [tool_msg]})
         except Exception as e:

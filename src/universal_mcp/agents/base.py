@@ -30,20 +30,20 @@ class BaseAgent:
     async def stream(self, thread_id: str, user_input: str, metadata: dict = None):
         await self.ainit()
         aggregate = None
-        
+
         run_metadata = {
             "agent_name": self.name,
-            "is_background_run": False  # Default to False
+            "is_background_run": False,  # Default to False
         }
-        
+
         if metadata:
             run_metadata.update(metadata)
-        
+
         run_config = {
             "configurable": {"thread_id": thread_id},
             "metadata": run_metadata,
         }
-        
+
         async for event, metadata in self._graph.astream(
             {"messages": [{"role": "user", "content": user_input}]},
             config=run_config,
@@ -83,15 +83,15 @@ class BaseAgent:
     async def invoke(self, user_input: str, thread_id: str = str(uuid4()), metadata: dict = None):
         """Run the agent"""
         await self.ainit()
-        
+
         run_metadata = {
             "agent_name": self.name,
-            "is_background_run": False  # Default to False
+            "is_background_run": False,  # Default to False
         }
-        
+
         if metadata:
             run_metadata.update(metadata)
-        
+
         run_config = {
             "configurable": {"thread_id": thread_id},
             "metadata": run_metadata,

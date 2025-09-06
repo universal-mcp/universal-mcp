@@ -17,11 +17,7 @@ from universal_mcp.tools.registry import ToolRegistry
 from universal_mcp.types import ToolFormat
 
 
-
-def build_graph(
-    tool_registry: ToolRegistry,
-    llm: BaseChatModel
-):
+def build_graph(tool_registry: ToolRegistry, llm: BaseChatModel):
     @tool
     async def search_tools(queries: list[str]) -> str:
         """Search tools for a given list of queries
@@ -53,18 +49,16 @@ def build_graph(
                 for tool in app_tools[app]:
                     all_tool_candidates += f" - {tool}\n"
                 all_tool_candidates += "\n"
-                
-            
+
             return all_tool_candidates
         except Exception as e:
             logger.error(f"Error retrieving tools: {e}")
             return "Error: " + str(e)
-    
+
     @tool
     async def load_tools(tool_ids: list[str]) -> list[str]:
         """Load the tools for the given tool ids. Returns the tool ids."""
         return tool_ids
-
 
     async def call_model(state: State, runtime: Runtime[Context]) -> Command[Literal["select_tools", "call_tools"]]:
         logger.info("Calling model...")
@@ -74,7 +68,9 @@ def build_graph(
 
             logger.info(f"Selected tool IDs: {state['selected_tool_ids']}")
             if len(state["selected_tool_ids"]) > 0:
-                selected_tools = await tool_registry.export_tools(tools=state["selected_tool_ids"], format=ToolFormat.LANGCHAIN)
+                selected_tools = await tool_registry.export_tools(
+                    tools=state["selected_tool_ids"], format=ToolFormat.LANGCHAIN
+                )
                 logger.info(f"Exported {len(selected_tools)} tools for model.")
             else:
                 selected_tools = []
@@ -97,7 +93,10 @@ def build_graph(
                     tool_msg = ToolMessage(f"Loaded tools.", tool_call_id=tool_call["id"])
                     selected_tool_ids = tool_call["args"]["tool_ids"]
                     logger.info(f"Loaded tools: {selected_tool_ids}")
-                    return Command(goto="call_model", update={ "messages": [response, tool_msg], "selected_tool_ids": selected_tool_ids})
+                    return Command(
+                        goto="call_model",
+                        update={"messages": [response, tool_msg], "selected_tool_ids": selected_tool_ids},
+                    )
 
                 elif tool_call["name"] not in state["selected_tool_ids"]:
                     try:
@@ -124,7 +123,7 @@ def build_graph(
         logger.info("Selecting tools...")
         try:
             tool_call = state["messages"][-1].tool_calls[0]
-            searched_tools= await search_tools.ainvoke(input=tool_call["args"])
+            searched_tools = await search_tools.ainvoke(input=tool_call["args"])
             tool_msg = ToolMessage(f"Available tools: {searched_tools}", tool_call_id=tool_call["id"])
             return Command(goto="call_model", update={"messages": [tool_msg]})
         except Exception as e:
