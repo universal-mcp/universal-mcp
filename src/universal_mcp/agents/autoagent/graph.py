@@ -45,7 +45,7 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
     ):
         system_prompt = SYSTEM_PROMPT
         app_ids = await tool_registry.list_all_apps()
-        connections = tool_registry.client.list_my_connections()
+        connections = await tool_registry.list_connected_apps()
         connection_ids = set([connection["app_id"] for connection in connections])
         connected_apps = [app["id"] for app in app_ids if app["id"] in connection_ids]
         unconnected_apps = [app["id"] for app in app_ids if app["id"] not in connection_ids]
@@ -61,7 +61,6 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
 
         messages = [{"role": "system", "content": system_prompt + "\n" + instructions}, *state["messages"]]
         model = load_chat_model(runtime.context.model)
-        # Load tools from tool registry
         loaded_tools = await tool_registry.export_tools(tools=state["selected_tool_ids"], format=ToolFormat.LANGCHAIN)
         model_with_tools = model.bind_tools([search_tools, ask_user, load_tools, *loaded_tools], tool_choice="auto")
         response_raw = model_with_tools.invoke(messages)
@@ -80,10 +79,10 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
 
     def tool_router(state: State):
         last_message = state["messages"][-1]
-        if isinstance(last_message, ToolMessage):
-            return "agent"
-        else:
+        if isinstance(last_message, ToolMessage) and last_message.name == ask_user.name:
             return END
+        else:
+            return "agent"
 
     async def tool_node(state: State):
         outputs = []
@@ -99,8 +98,6 @@ async def build_graph(tool_registry: ToolRegistry, instructions: str = ""):
                         tool_call_id=tool_call["id"],
                     )
                 )
-                ai_message = AIMessage(content=tool_call["args"]["question"])
-                outputs.append(ai_message)
             elif tool_call["name"] == search_tools.name:
                 tools = await search_tools.ainvoke(tool_call["args"])
                 outputs.append(

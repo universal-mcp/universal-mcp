@@ -81,3 +81,8 @@ class ToolRegistry(ABC):
     async def call_tool(self, tool_name: str, tool_args: dict[str, Any]) -> dict[str, Any]:
         """Call a tool with the given name and arguments."""
         pass
+
+    @abstractmethod
+    async def list_connected_apps(self) -> list[str]:
+        """List all apps that the user has connected."""
+        pass

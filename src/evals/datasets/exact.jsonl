@@ -1,0 +1,6 @@
+{"user_input": "What is 2 + 2?", "expected_output": "4"}
+{"user_input": "What is the opposite of 'hot'?", "expected_output": "cold"}
+{"user_input": "Who is the first president of the United States?", "expected_output": "George Washington"}
+{"user_input": "What is the capital of France?", "expected_output": "Paris"}
+{"user_input": "Who wrote 'To Kill a Mockingbird'?", "expected_output": "Harper Lee"}
+{"user_input": "What is the boiling point of water at sea level in Celsius?", "expected_output": "100"}
