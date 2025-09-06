@@ -9,7 +9,6 @@ from gql.transport.requests import RequestsHTTPTransport
 from graphql import DocumentNode
 from loguru import logger
 
-from universal_mcp.analytics import analytics
 from universal_mcp.integrations.integration import Integration
 
 
@@ -37,7 +36,6 @@ class BaseApplication(ABC):
         """
         self.name = name
         logger.debug(f"Initializing Application '{name}' with kwargs: {kwargs}")
-        analytics.track_app_loaded(name)  # Track app loading
 
     @abstractmethod
     def list_tools(self) -> list[Callable]:

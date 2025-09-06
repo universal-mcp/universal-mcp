@@ -16,7 +16,7 @@ def load_chat_model(
         return ChatAnthropic(
             model=model,
             temperature=temperature,
-            thinking={"type": "enabled", "budget_tokens": 2048},
+            # thinking={"type": "enabled", "budget_tokens": 2048},
             max_tokens=4096,
             tags=tags,
             stream_usage=True,

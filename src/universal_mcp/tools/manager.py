@@ -3,7 +3,6 @@ from typing import Any
 
 from loguru import logger
 
-from universal_mcp.analytics import analytics
 from universal_mcp.applications.application import BaseApplication
 from universal_mcp.exceptions import ToolNotFoundError
 from universal_mcp.tools.adapters import (
@@ -298,8 +297,6 @@ class ToolManager:
             raise ToolNotFoundError(f"Unknown tool: {name}")
         try:
             result = await tool.run(arguments, context)
-            analytics.track_tool_called(name, app_name, "success")
             return result
         except Exception as e:
-            analytics.track_tool_called(name, app_name, "error", str(e))
             raise e
