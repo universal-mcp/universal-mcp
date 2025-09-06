@@ -185,7 +185,7 @@ Always think step-by-step and explain your reasoning. Do not try to guess tool n
 
     # await agent.run_interactive()
 
-    user_input = "send a email to ankit@agentr.dev for testing purposes telling meta agent is working as expected"
+    user_input = "seacrh for elon musk using perplexity and tell me which college he went to"
     final_state = await agent.invoke(user_input)
     final_message = final_state["messages"][-1]
     print(final_message.content)
