@@ -4547,7 +4547,7 @@ wheels = [
 
 [[package]]
 name = "universal-mcp"
-version = "0.1.24rc14"
+version = "0.1.24rc17"
 source = { editable = "." }
 dependencies = [
     { name = "agentevals" },
