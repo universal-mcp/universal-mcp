@@ -4,12 +4,6 @@ from typing import Any
 from loguru import logger
 
 from universal_mcp.applications.application import BaseApplication
-from universal_mcp.exceptions import ToolNotFoundError
-from universal_mcp.tools.adapters import (
-    convert_tool_to_langchain_tool,
-    convert_tool_to_mcp_tool,
-    convert_tool_to_openai_tool,
-)
 from universal_mcp.tools.tools import Tool
 from universal_mcp.types import DEFAULT_APP_NAME, DEFAULT_IMPORTANT_TAG, TOOL_NAME_SEPARATOR, ToolFormat
 
@@ -118,46 +112,24 @@ class ToolManager:
         """
         return self._all_tools.get(name)
 
-    def list_tools(
+    def get_tools(
         self,
-        format: ToolFormat | None = None,
         tags: list[str] | None = None,
         tool_names: list[str] | None = None,
-    ) -> list:
-        """List all registered tools in the specified format.
+    ) -> list[Tool]:
+        """Get a filtered list of registered tools.
 
         Args:
-            format: The format to convert tools to.
             tags: Optional list of tags to filter tools by.
-            app_name: Optional app name to filter tools by.
             tool_names: Optional list of tool names to filter by.
 
         Returns:
-            List of tools in the specified format.
-
-        Raises:
-            ValueError: If an invalid format is provided.
+            A list of Tool instances.
         """
-        if format is None:
-            format = self.default_format
-
-        # Start with app-specific tools or all tools
         tools = list(self._all_tools.values())
-        # Apply filters
         tools = _filter_by_tags(tools, tags)
         tools = _filter_by_name(tools, tool_names)
-
-        # Convert to requested format
-        if format == ToolFormat.NATIVE:
-            return [tool.fn for tool in tools]
-        if format == ToolFormat.MCP:
-            return [convert_tool_to_mcp_tool(tool) for tool in tools]
-        elif format == ToolFormat.LANGCHAIN:
-            return [convert_tool_to_langchain_tool(tool) for tool in tools]
-        elif format == ToolFormat.OPENAI:
-            return [convert_tool_to_openai_tool(tool) for tool in tools]
-        else:
-            raise ValueError(f"Invalid format: {format}")
+        return tools
 
     def add_tool(self, fn: Callable[..., Any] | Tool, name: str | None = None) -> Tool:
         """Add a tool to the manager.
@@ -269,34 +241,3 @@ class ToolManager:
             tools = _filter_by_tags(tools, [DEFAULT_IMPORTANT_TAG])
 
         self.register_tools(tools)
-
-    async def call_tool(
-        self,
-        name: str,
-        arguments: dict[str, Any],
-        context: dict[str, Any] | None = None,
-    ) -> Any:
-        """Call a tool by name with arguments.
-
-        Args:
-            name: The name of the tool to call.
-            arguments: The arguments to pass to the tool.
-            context: Optional context information for the tool execution.
-
-        Returns:
-            The result of the tool execution.
-
-        Raises:
-            ToolError: If the tool is not found or execution fails.
-        """
-        logger.debug(f"Calling tool: {name} with arguments: {arguments}")
-        app_name, _ = _get_app_and_tool_name(name)
-        tool = self.get_tool(name)
-        if not tool:
-            logger.error(f"Unknown tool: {name}")
-            raise ToolNotFoundError(f"Unknown tool: {name}")
-        try:
-            result = await tool.run(arguments, context)
-            return result
-        except Exception as e:
-            raise e

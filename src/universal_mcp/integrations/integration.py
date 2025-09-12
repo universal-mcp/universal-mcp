@@ -404,3 +404,20 @@ class OAuthIntegration(Integration):
         credentials = response.json()
         self.store.set(self.name, credentials)
         return credentials
+
+
+class IntegrationFactory:
+    """A factory for creating integration instances."""
+
+    @staticmethod
+    def create(app_name: str, integration_type: str = "api_key", **kwargs) -> "Integration":
+        """Create an integration instance."""
+        if integration_type == "api_key":
+            return ApiKeyIntegration(app_name, **kwargs)
+        elif integration_type == "oauth":
+            return OAuthIntegration(app_name, **kwargs)
+        # Add other integration types here
+        else:
+            # Return a default or generic integration if type is unknown
+            logger.warning(f"Unknown integration type '{integration_type}'. Using a default integration.")
+            return Integration(app_name, **kwargs)

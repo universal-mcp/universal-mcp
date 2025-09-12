@@ -4,7 +4,21 @@ from loguru import logger
 from mcp.types import TextContent
 
 from universal_mcp.tools.tools import Tool
-from universal_mcp.types import ToolFormat  # noqa: F401
+from universal_mcp.types import ToolFormat
+
+
+def convert_tools(tools: list[Tool], format: ToolFormat) -> list[Any]:
+    """Convert a list of Tool objects to a specified format."""
+    logger.debug(f"Converting {len(tools)} tools to {format.value} format.")
+    if format == ToolFormat.NATIVE:
+        return [tool.fn for tool in tools]
+    if format == ToolFormat.MCP:
+        return [convert_tool_to_mcp_tool(tool) for tool in tools]
+    if format == ToolFormat.LANGCHAIN:
+        return [convert_tool_to_langchain_tool(tool) for tool in tools]
+    if format == ToolFormat.OPENAI:
+        return [convert_tool_to_openai_tool(tool) for tool in tools]
+    raise ValueError(f"Invalid format: {format}")
 
 
 def convert_tool_to_mcp_tool(

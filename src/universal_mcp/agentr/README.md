@@ -85,7 +85,7 @@ if apps:
 
 if all_tools:
     tool_id = all_tools[0]['id']
-    
+
     # Fetch a single tool's details
     tool_details = client.get_tool(tool_id)
     print(f"Fetched details for tool '{tool_id}':", tool_details)

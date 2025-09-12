@@ -31,11 +31,11 @@ from universal_mcp.tools import Tool
 
 def my_tool(param1: str, param2: int) -> str:
     """A simple tool that does something.
-    
+
     Args:
         param1: Description of param1
         param2: Description of param2
-        
+
     Returns:
         Description of return value
     """

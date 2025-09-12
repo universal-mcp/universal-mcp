@@ -15,7 +15,7 @@ class {{ class_name }}(APIApplication):
         Tags: {{ method.tags|join(', ') }}
         {% endif %}
         """
-        
+
         {{ method.implementation|indent(8) }}
 {% endfor %}
 
@@ -24,4 +24,4 @@ class {{ class_name }}(APIApplication):
             {% for method in methods %}
             self.{{ method.name }}{% if not loop.last %},{% endif %}
             {%- endfor %}
-        ] 
+        ]

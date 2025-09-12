@@ -12,7 +12,8 @@ from universal_mcp.exceptions import ConfigurationError, ToolError
 from universal_mcp.integrations.integration import ApiKeyIntegration, OAuthIntegration
 from universal_mcp.stores import store_from_config
 from universal_mcp.tools import ToolManager
-from universal_mcp.tools.adapters import ToolFormat, format_to_mcp_result
+from universal_mcp.tools.adapters import convert_tool_to_mcp_tool, format_to_mcp_result
+from universal_mcp.tools.local_registry import LocalRegistry
 
 # --- Loader Implementations ---
 
@@ -69,6 +70,7 @@ class BaseServer(FastMCP):
             super().__init__(config.name, config.description, port=config.port, **kwargs)  # type: ignore
             self.config = config
             self._tool_manager = tool_manager
+            self.registry: Any = None
             ServerConfig.model_validate(config)
         except Exception as e:
             logger.error(f"Failed to initialize server: {e}", exc_info=True)
@@ -84,7 +86,8 @@ class BaseServer(FastMCP):
         self.tool_manager.add_tool(fn, name)
 
     async def list_tools(self) -> list:  # type: ignore
-        return self.tool_manager.list_tools(format=ToolFormat.MCP)
+        tools = self.tool_manager.get_tools()
+        return [convert_tool_to_mcp_tool(tool) for tool in tools]
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
         if not name:
@@ -92,7 +95,8 @@ class BaseServer(FastMCP):
         if not isinstance(arguments, dict):
             raise ValueError("Arguments must be a dictionary")
         try:
-            result = await self.tool_manager.call_tool(name, arguments)
+            # Delegate the call to the registry
+            result = await self.registry.call_tool(name, arguments)
             return format_to_mcp_result(result)
         except Exception as e:
             logger.error(f"Tool '{name}' failed: {e}", exc_info=True)
@@ -102,18 +106,28 @@ class BaseServer(FastMCP):
 class LocalServer(BaseServer):
     """Server that loads apps and store from local config."""
 
-    def __init__(self, config: ServerConfig, **kwargs):
+    def __init__(self, config: ServerConfig, registry: LocalRegistry | None = None, **kwargs):
         super().__init__(config, **kwargs)
+        self.registry = registry or LocalRegistry()
         self._tools_loaded = False
+        self._load_tools_from_config()
+
+    def _load_tools_from_config(self):
+        """Load tools from the server configuration into the registry."""
+        if not self.config.apps:
+            logger.warning("No applications configured in server config; no tools to load.")
+            return
+
+        logger.info(f"Loading tools from {len(self.config.apps)} app(s) specified in server config...")
+        # Create a tool config dictionary from the server config
+        tool_config = {app.name: app.actions for app in self.config.apps}
+        self.registry._load_tools_from_tool_config(tool_config)
+        self._tools_loaded = True
+        logger.info("Finished loading tools from server config.")
 
     @property
     def tool_manager(self) -> ToolManager:
-        if self._tool_manager is None:
-            self._tool_manager = ToolManager(warn_on_duplicate_tools=True)
-        if not getattr(self, "_tools_loaded", False):
-            load_from_local_config(self.config, self._tool_manager)
-            self._tools_loaded = True
-        return self._tool_manager
+        return self.registry.tool_manager
 
 
 class SingleMCPServer(BaseServer):

@@ -4,9 +4,10 @@ from typing import Any
 from loguru import logger
 
 from universal_mcp.agentr.client import AgentrClient
+from universal_mcp.applications.application import BaseApplication
 from universal_mcp.applications.utils import app_from_slug
-from universal_mcp.exceptions import ToolError
-from universal_mcp.tools.manager import ToolManager, _get_app_and_tool_name
+from universal_mcp.exceptions import ToolError, ToolNotFoundError
+from universal_mcp.tools.adapters import convert_tools
 from universal_mcp.tools.registry import ToolRegistry
 from universal_mcp.types import ToolConfig, ToolFormat
 
@@ -35,10 +36,14 @@ class AgentrRegistry(ToolRegistry):
 
     def __init__(self, client: AgentrClient | None = None, **kwargs):
         """Initialize the AgentR platform manager."""
-
+        super().__init__()
         self.client = client or AgentrClient(**kwargs)
-        self.tool_manager = ToolManager()
-        logger.debug("AgentrRegistry initialized successfully")
+
+    def _create_app_instance(self, app_name: str) -> BaseApplication:
+        """Create an app instance with an AgentrIntegration."""
+        app = app_from_slug(app_name)
+        integration = AgentrIntegration(name=app_name, client=self.client)
+        return app(integration=integration)
 
     async def list_all_apps(self) -> list[dict[str, Any]]:
         """Get list of available apps from AgentR.
@@ -139,7 +144,7 @@ class AgentrRegistry(ToolRegistry):
         self,
         tools: list[str] | ToolConfig,
         format: ToolFormat,
-    ) -> str:
+    ) -> list[Any]:
         """Export given tools to required format.
 
         Args:
@@ -147,61 +152,54 @@ class AgentrRegistry(ToolRegistry):
             format: The format to export tools to (native, mcp, langchain, openai)
 
         Returns:
-            String representation of tools in the specified format
+            List of tools in the specified format
         """
+        from langchain_core.tools import StructuredTool
+
         try:
             # Clear tools from tool manager before loading new tools
             self.tool_manager.clear_tools()
+            logger.info(f"Exporting tools to {format.value} format")
             if isinstance(tools, dict):
-                logger.info("Loading tools from tool config")
-                self._load_tools_from_tool_config(tools, self.tool_manager)
+                self._load_tools_from_tool_config(tools)
             else:
-                logger.info("Loading tools from list")
-                self._load_agentr_tools_from_list(tools, self.tool_manager)
-            loaded_tools = self.tool_manager.list_tools(format=format)
-            logger.info(f"Exporting {len(loaded_tools)} tools to {format} format")
-            return loaded_tools
+                self._load_tools_from_list(tools)
+
+            loaded_tools = self.tool_manager.get_tools()
+
+            if format != ToolFormat.LANGCHAIN:
+                return convert_tools(loaded_tools, format)
+
+            logger.info(f"Exporting {len(loaded_tools)} tools to LangChain format with special handling")
+
+            langchain_tools = []
+            for tool in loaded_tools:
+
+                def create_coroutine(t):
+                    async def call_tool_wrapper(**arguments: dict[str, Any]):
+                        logger.debug(
+                            f"Executing registry-wrapped LangChain tool '{t.name}' with arguments: {arguments}"
+                        )
+                        return await self.call_tool(t.name, arguments)
+
+                    return call_tool_wrapper
+
+                langchain_tool = StructuredTool(
+                    name=tool.name,
+                    description=tool.description or "",
+                    coroutine=create_coroutine(tool),
+                    response_format="content",
+                    args_schema=tool.parameters,
+                )
+                langchain_tools.append(langchain_tool)
+
+            return langchain_tools
+
         except Exception as e:
             logger.error(f"Error exporting tools: {e}")
-            return ""
+            return []
 
-    def _load_tools(self, app_name: str, tool_names: list[str], tool_manager: ToolManager) -> None:
-        """Helper method to load and register tools for an app."""
-        app = app_from_slug(app_name)
-        integration = AgentrIntegration(name=app_name, client=self.client)
-        app_instance = app(integration=integration)
-        tool_manager.register_tools_from_app(app_instance, tool_names=tool_names)
-
-    def _load_agentr_tools_from_list(self, tools: list[str], tool_manager: ToolManager) -> None:
-        """Load tools from AgentR and register them as tools.
-
-        Args:
-            tools: The list of tools to load (prefixed with app name)
-            tool_manager: The tool manager to register tools with
-        """
-        logger.info(f"Loading all tools: {tools}")
-        tools_by_app = {}
-        for tool_name in tools:
-            app_name, _ = _get_app_and_tool_name(tool_name)
-            tools_by_app.setdefault(app_name, []).append(tool_name)
-
-        for app_name, tool_names in tools_by_app.items():
-            self._load_tools(app_name, tool_names, tool_manager)
-
-    def _load_tools_from_tool_config(self, tool_config: ToolConfig, tool_manager: ToolManager) -> None:
-        """Load tools from ToolConfig and register them as tools.
-
-        Args:
-            tool_config: The tool configuration containing app names and tools
-            tool_manager: The tool manager to register tools with
-        """
-        for app_name, tool_names in tool_config.items():
-            self._load_tools(app_name, tool_names, tool_manager)
-
-    async def call_tool(self, tool_name: str, tool_args: dict[str, Any]) -> dict[str, Any]:
-        """Call a tool with the given name and arguments."""
-        data = await self.tool_manager.call_tool(tool_name, tool_args)
-        logger.debug(f"Tool {tool_name} called with args {tool_args} and returned {data}")
+    def _handle_special_output(self, data: Any) -> Any:
         if isinstance(data, dict):
             type_ = data.get("type")
             if type_ == "image" or type_ == "audio":
@@ -217,6 +215,20 @@ class AgentrRegistry(ToolRegistry):
                 response = {**response, "instructions": MARKDOWN_INSTRUCTIONS}
                 return response
         return data
+
+    async def call_tool(self, tool_name: str, tool_args: dict[str, Any]) -> dict[str, Any]:
+        """Call a tool with the given name and arguments."""
+        logger.debug(f"Calling tool: {tool_name} with arguments: {tool_args}")
+        tool = self.tool_manager.get_tool(tool_name)
+        if not tool:
+            logger.error(f"Unknown tool: {tool_name}")
+            raise ToolNotFoundError(f"Unknown tool: {tool_name}")
+        try:
+            data = await tool.run(tool_args)
+            logger.debug(f"Tool {tool_name} called with args {tool_args} and returned {data}")
+            return self._handle_special_output(data)
+        except Exception as e:
+            raise e
 
     async def list_connected_apps(self) -> list[str]:
         """List all apps that the user has connected."""

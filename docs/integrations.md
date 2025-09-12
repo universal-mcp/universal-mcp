@@ -11,7 +11,7 @@ An Integration defines how an application authenticates and authorizes with a se
 ### AgentR Integration
 The `AgentRIntegration` class handles OAuth-based authentication flow with the AgentR API. It requires an API key which can be obtained from [agentr.dev](https://agentr.dev).
 
-### API Key Integration  
+### API Key Integration
 The `ApiKeyIntegration` class provides a simple API key based authentication mechanism. API keys are configured via environment variables.
 
 ## Usage
