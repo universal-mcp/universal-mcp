@@ -4758,7 +4758,7 @@ requires-dist = [
     { name = "streamlit", specifier = ">=1.46.1" },
     { name = "ty", marker = "extra == 'dev'", specifier = ">=0.0.1a17" },
     { name = "typer", specifier = ">=0.15.2" },
-    { name = "universal-mcp-applications", specifier = ">=0.1.2" },
+    { name = "universal-mcp-applications", specifier = ">=0.1.4" },
 ]
 provides-extras = ["dev", "docs"]
 
