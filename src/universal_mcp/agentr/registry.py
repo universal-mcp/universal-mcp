@@ -1,14 +1,33 @@
+import base64
 from typing import Any
 
 from loguru import logger
 
 from universal_mcp.agentr.client import AgentrClient
 from universal_mcp.applications.utils import app_from_slug
+from universal_mcp.exceptions import ToolError
 from universal_mcp.tools.manager import ToolManager, _get_app_and_tool_name
 from universal_mcp.tools.registry import ToolRegistry
 from universal_mcp.types import ToolConfig, ToolFormat
 
 from .integration import AgentrIntegration
+
+MARKDOWN_INSTRUCTIONS = """Always render the URL in markdown format for images and media files. Here are examples:
+The url is provided in the response as "signed_url".
+For images:
+- Use markdown image syntax: ![alt text](url)
+- Example: ![Generated sunset image](https://example.com/image.png)
+- Always include descriptive alt text that explains what the image shows
+
+For audio files:
+- Use markdown link syntax with audio description: [🔊 Audio file description](url)
+- Example: [🔊 Generated speech audio](https://example.com/audio.mp3)
+
+For other media:
+- Use descriptive link text: [📄 File description](url)
+- Example: [📄 Generated document](https://example.com/document.pdf)
+
+Always make the links clickable and include relevant context about what the user will see or hear when they access the URL."""
 
 
 class AgentrRegistry(ToolRegistry):
@@ -181,7 +200,23 @@ class AgentrRegistry(ToolRegistry):
 
     async def call_tool(self, tool_name: str, tool_args: dict[str, Any]) -> dict[str, Any]:
         """Call a tool with the given name and arguments."""
-        return await self.tool_manager.call_tool(tool_name, tool_args)
+        data = await self.tool_manager.call_tool(tool_name, tool_args)
+        logger.debug(f"Tool {tool_name} called with args {tool_args} and returned {data}")
+        if isinstance(data, dict):
+            type_ = data.get("type")
+            if type_ == "image" or type_ == "audio":
+                # Special handling for images and audio
+                base64_data = data.get("data")
+                mime_type = data.get("mime_type")
+                file_name = data.get("file_name")
+                if not mime_type or not file_name:
+                    raise ToolError("Mime type or file name is missing")
+                bytes_data = base64.b64decode(base64_data)
+                response = self.client._upload_file(file_name, mime_type, bytes_data)
+                # Hard code instructions for llm
+                response = {**response, "instructions": MARKDOWN_INSTRUCTIONS}
+                return response
+        return data
 
     async def list_connected_apps(self) -> list[str]:
         """List all apps that the user has connected."""

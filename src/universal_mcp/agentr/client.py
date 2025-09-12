@@ -1,3 +1,4 @@
+import io
 import os
 from typing import Any
 
@@ -25,6 +26,7 @@ class AgentrClient:
         base_url = base_url or os.getenv("AGENTR_BASE_URL", "https://api.agentr.dev")
         self.base_url = f"{base_url.rstrip('/')}/v1"
         api_key = api_key or os.getenv("AGENTR_API_KEY")
+        self.user_id = None
         if api_key:
             self.client = httpx.Client(
                 base_url=self.base_url,
@@ -34,6 +36,7 @@ class AgentrClient:
                 verify=False,
             )
             me_data = self.me()
+            self.user_id = me_data["id"]
             logger.debug(f"Client initialized with user: {me_data['email']}")
         elif auth_token:
             logger.debug("Initializing client with auth token")
@@ -45,6 +48,7 @@ class AgentrClient:
                 verify=False,
             )
             me_data = self.me()
+            self.user_id = me_data["id"]
             logger.debug(f"Client initialized with user: {me_data['email']}")
         else:
             raise ValueError("No API key or auth token provided")
@@ -207,3 +211,10 @@ class AgentrClient:
         response = self.client.get("/tools/", params=params)
         response.raise_for_status()
         return response.json().get("items", [])
+
+    def _upload_file(self, file_name: str, mime_type: str, base64_data: str) -> str:
+        """Upload a file to the server."""
+        files = {"file": (file_name, io.BytesIO(base64_data), mime_type)}
+        reponse = self.client.post("/files/upload", files=files)
+        reponse.raise_for_status()
+        return reponse.json()

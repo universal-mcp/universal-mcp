@@ -1,22 +1,25 @@
 import datetime
 
 import httpx
+from loguru import logger
 
 from universal_mcp.applications.application import BaseApplication
 
 
-class SampleToolApp(BaseApplication):
+class SampleApp(BaseApplication):
     """A sample application providing basic utility tools."""
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         """Initializes the SampleToolApp with the name 'sample_tool_app'."""
-        super().__init__(name="sample_tool_app")
+        super().__init__(name="sample")
 
     def get_current_time(self):
         """Get the current system time as a formatted string.
 
         Returns:
             str: The current time in the format 'YYYY-MM-DD HH:MM:SS'.
+        Tags:
+            time, date, current, system, utility, important
         """
         return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -25,6 +28,8 @@ class SampleToolApp(BaseApplication):
 
         Returns:
             str: The current date in the format 'YYYY-MM-DD'.
+        Tags:
+            time, date, current, system, utility, important
         """
         return datetime.datetime.now().strftime("%Y-%m-%d")
 
@@ -36,6 +41,8 @@ class SampleToolApp(BaseApplication):
 
         Returns:
             str: The result of the calculation, or an error message if evaluation fails.
+        Tags:
+            math, calculation, utility, important
         """
         try:
             # Safe evaluation of mathematical expressions
@@ -44,29 +51,41 @@ class SampleToolApp(BaseApplication):
         except Exception as e:
             return f"Error in calculation: {str(e)}"
 
-    def file_operations(self, operation: str, filename: str, content: str = ""):
-        """Perform file read or write operations.
+    def read_file(self, filename: str):
+        """Read content from a file.
 
         Args:
-            operation (str): The operation to perform, either 'read' or 'write'.
-            filename (str): The name of the file to operate on.
-            content (str, optional): The content to write to the file (used only for 'write'). Defaults to "".
+            filename (str): The name of the file to read from.
 
         Returns:
-            str: The result of the file operation, or an error message if the operation fails.
+            str: The content of the file, or an error message if the operation fails.
+        Tags:
+            file, read, utility, important
         """
         try:
-            if operation == "read":
-                with open(filename) as f:
-                    return f"File content:\n{f.read()}"
-            elif operation == "write":
-                with open(filename, "w") as f:
-                    f.write(content)
-                return f"Successfully wrote to {filename}"
-            else:
-                return "Invalid operation. Use 'read' or 'write'"
+            with open(filename) as f:
+                return f"File content:\n{f.read()}"
         except Exception as e:
-            return f"File operation error: {str(e)}"
+            return f"File read error: {str(e)}"
+
+    def write_file(self, filename: str, content: str):
+        """Write content to a file.
+
+        Args:
+            filename (str): The name of the file to write to.
+            content (str): The content to write to the file.
+
+        Returns:
+            str: Success message or an error message if the operation fails.
+        Tags:
+            file, write, utility, important
+        """
+        try:
+            with open(filename, "w") as f:
+                f.write(content)
+            return f"Successfully wrote to {filename}"
+        except Exception as e:
+            return f"File write error: {str(e)}"
 
     def get_weather(
         self,
@@ -230,6 +249,44 @@ class SampleToolApp(BaseApplication):
         except Exception as e:
             return {"error": str(e)}
 
+    def generate_image(self, prompt: str):
+        """Generate an image based on a prompt.
+        A
+        Args:
+            prompt (str): The prompt to generate an image from.
+
+        Returns:
+            dict: The generated image.
+        Tags:
+            image, generate, utility, important
+        """
+        import base64
+        import io
+
+        from PIL import Image, ImageDraw, ImageFont
+
+        # Create a simple placeholder image
+        img = Image.new("RGB", (600, 400), color="lightblue")
+        draw = ImageDraw.Draw(img)
+
+        # Add text to the image
+        try:
+            # Try to use a default font
+            font = ImageFont.load_default()
+        except Exception as e:
+            logger.error(f"Error loading font: {e}")
+            font = None
+
+        text = f"Generated: {prompt[:50]}..."
+        draw.text((50, 200), text, fill="black", font=font)
+
+        # Convert to base64
+        buffer = io.BytesIO()
+        img.save(buffer, format="PNG")
+        img_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+        return {"type": "image", "data": img_base64, "mime_type": "image/png", "file_name": "sample.png"}
+
     def list_tools(self):
         """List all available tool methods in this application.
 
@@ -240,6 +297,8 @@ class SampleToolApp(BaseApplication):
             self.get_current_time,
             self.get_current_date,
             self.calculate,
-            self.file_operations,
+            self.read_file,
+            self.write_file,
             self.get_simple_weather,
+            self.generate_image,
         ]

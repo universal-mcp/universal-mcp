@@ -5,7 +5,7 @@ set -x
 
 # Ensure dependencies are installed
 echo "Syncing dependencies..."
-uv sync
+uv sync --frozen --all-extras --dev
 
 # Run tests with pytest
 echo "Running tests with pytest..."
