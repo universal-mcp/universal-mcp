@@ -230,6 +230,6 @@ class AgentrRegistry(ToolRegistry):
         except Exception as e:
             raise e
 
-    async def list_connected_apps(self) -> list[str]:
+    async def list_connected_apps(self) -> list[dict[str, Any]]:
         """List all apps that the user has connected."""
         return self.client.list_my_connections()

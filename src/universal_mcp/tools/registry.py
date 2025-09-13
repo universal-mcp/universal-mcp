@@ -57,7 +57,7 @@ class ToolRegistry(ABC):
         pass
 
     @abstractmethod
-    async def list_connected_apps(self) -> list[str]:
+    async def list_connected_apps(self) -> list[dict[str, Any]]:
         """List all apps that the user has connected."""
         pass
 

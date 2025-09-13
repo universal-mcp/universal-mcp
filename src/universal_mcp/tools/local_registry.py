@@ -104,6 +104,6 @@ class LocalRegistry(ToolRegistry):
         result = await tool.run(tool_args)
         return self._handle_file_output(result)
 
-    async def list_connected_apps(self) -> list[str]:
+    async def list_connected_apps(self) -> list[dict[str, Any]]:
         """Not implemented for LocalRegistry."""
         raise NotImplementedError("LocalRegistry does not support listing connected apps.")
