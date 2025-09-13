@@ -63,10 +63,9 @@ class ToolRegistry(ABC):
 
     # --- Abstract method for subclass implementation ---
 
-    @abstractmethod
     def _create_app_instance(self, app_name: str) -> BaseApplication:
         """Create an application instance for a given app name."""
-        pass
+        raise NotImplementedError("Subclasses must implement this method")
 
     # --- Concrete methods for shared tool loading ---
 
