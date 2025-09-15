@@ -72,7 +72,7 @@ class AgentrRegistry(ToolRegistry):
             Dictionary containing app details
         """
         try:
-            app_info = self.client.get_app_details(app_id)
+            app_info = self.client.get_app_details(app_id=app_id)
             return app_info
         except Exception as e:
             logger.error(f"Error getting details for app {app_id}: {e}")
@@ -93,7 +93,7 @@ class AgentrRegistry(ToolRegistry):
             List of app dictionaries matching the query
         """
         try:
-            apps = self.client.search_all_apps(query, limit)
+            apps = self.client.search_all_apps(query=query, limit=limit)
             return apps
         except Exception as e:
             logger.error(f"Error searching apps from AgentR: {e}")
@@ -134,7 +134,7 @@ class AgentrRegistry(ToolRegistry):
             List of tool dictionaries matching the query
         """
         try:
-            tools = self.client.search_all_tools(query, limit, app_id)
+            tools = self.client.search_all_tools(query=query, limit=limit, app_id=app_id)
             return tools
         except Exception as e:
             logger.error(f"Error searching tools from AgentR: {e}")
