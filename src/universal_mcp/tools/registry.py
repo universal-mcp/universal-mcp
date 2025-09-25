@@ -32,7 +32,7 @@ class ToolRegistry(ABC):
         pass
 
     @abstractmethod
-    async def search_apps(self, query: str, limit: int = 2) -> list[dict[str, Any]]:
+    async def search_apps(self, query: str, limit: int = 2, distance_threshold: float = 0.6) -> list[dict[str, Any]]:
         """Search for apps by a query."""
         pass
 
@@ -42,7 +42,7 @@ class ToolRegistry(ABC):
         pass
 
     @abstractmethod
-    async def search_tools(self, query: str, limit: int = 2, app_id: str | None = None) -> list[dict[str, Any]]:
+    async def search_tools(self, query: str, limit: int = 2, app_id: str | None = None, distance_threshold: float = 0.6) -> list[dict[str, Any]]:
         """Search for tools by a query, optionally filtered by an app."""
         pass
 

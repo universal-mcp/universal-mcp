@@ -183,7 +183,7 @@ class AgentrClient:
         response.raise_for_status()
         return response.json()
 
-    def search_all_apps(self, query: str, limit: int = 2):
+    def search_all_apps(self, query: str, limit: int = 2, distance_threshold: float = 0.6):
         """Search for apps from the AgentR API.
 
         Args:
@@ -193,11 +193,11 @@ class AgentrClient:
         Returns:
             List[Dict[str, Any]]: A list of app data dictionaries.
         """
-        response = self.client.get("/apps/", params={"search": query, "limit": limit})
+        response = self.client.get("/apps/", params={"search": query, "limit": limit, "distance_threshold": distance_threshold})
         response.raise_for_status()
         return response.json().get("items", [])
 
-    def search_all_tools(self, query: str, limit: int = 2, app_id: str | None = None):
+    def search_all_tools(self, query: str, limit: int = 2, app_id: str | None = None, distance_threshold: float = 0.6):
         """Search for tools from the AgentR API.
 
         Args:
@@ -205,7 +205,7 @@ class AgentrClient:
             limit (int, optional): The number of tools to return. Defaults to 2.
             app_id (str, optional): The ID of the app to search tools for.
         """
-        params = {"search": query, "limit": limit}
+        params = {"search": query, "limit": limit, "distance_threshold": distance_threshold}
         if app_id:
             params["app_id"] = app_id
         response = self.client.get("/tools/", params=params)
