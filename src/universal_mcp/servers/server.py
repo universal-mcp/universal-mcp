@@ -14,7 +14,7 @@ from universal_mcp.stores import store_from_config
 from universal_mcp.tools import ToolManager
 from universal_mcp.tools.adapters import convert_tool_to_mcp_tool, format_to_mcp_result
 from universal_mcp.tools.local_registry import LocalRegistry
-
+from universal_mcp.exceptions import ConfigurationError, ToolError, ToolNotFoundError
 # --- Loader Implementations ---
 
 
@@ -89,7 +89,7 @@ class BaseServer(FastMCP):
         tools = self.tool_manager.get_tools()
         return [convert_tool_to_mcp_tool(tool) for tool in tools]
 
-    async def call_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
         if not name:
             raise ValueError("Tool name is required")
         if not isinstance(arguments, dict):
@@ -129,6 +129,7 @@ class LocalServer(BaseServer):
     def tool_manager(self) -> ToolManager:
         return self.registry.tool_manager
 
+# In universal_mcp/servers/server.py
 
 class SingleMCPServer(BaseServer):
     """Server for a single, pre-configured application."""
@@ -156,3 +157,20 @@ class SingleMCPServer(BaseServer):
             load_from_application(self.app_instance, self._tool_manager)
             self._tools_loaded = True
         return self._tool_manager
+
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
+        """
+        Overrides the BaseServer's call_tool to use the internal tool_manager
+        instead of a non-existent registry.
+        """
+        logger.debug(f"SingleMCPServer is calling tool '{name}'")
+        tool = self.tool_manager.get_tool(name)
+        if not tool:
+            raise ToolNotFoundError(f"Tool '{name}' not found in the currently loaded application.")
+
+        try:
+            result = await tool.run(arguments)
+            return result
+        except Exception as e:
+            logger.error(f"Tool '{name}' failed during execution: {e}", exc_info=True)
+            raise ToolError(f"Tool execution failed: {str(e)}") from e
