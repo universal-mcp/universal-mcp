@@ -136,7 +136,9 @@ class AgentrRegistry(ToolRegistry):
             List of tool dictionaries matching the query
         """
         try:
-            tools = self.client.search_all_tools(query=query, limit=limit, app_id=app_id, distance_threshold=distance_threshold)
+            tools = self.client.search_all_tools(
+                query=query, limit=limit, app_id=app_id, distance_threshold=distance_threshold
+            )
             return tools
         except Exception as e:
             logger.error(f"Error searching tools from AgentR: {e}")

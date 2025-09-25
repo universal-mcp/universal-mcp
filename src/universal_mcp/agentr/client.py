@@ -193,7 +193,9 @@ class AgentrClient:
         Returns:
             List[Dict[str, Any]]: A list of app data dictionaries.
         """
-        response = self.client.get("/apps/", params={"search": query, "limit": limit, "distance_threshold": distance_threshold})
+        response = self.client.get(
+            "/apps/", params={"search": query, "limit": limit, "distance_threshold": distance_threshold}
+        )
         response.raise_for_status()
         return response.json().get("items", [])
 
