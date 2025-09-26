@@ -6,10 +6,11 @@ from loguru import logger
 from universal_mcp.agentr.client import AgentrClient
 from universal_mcp.applications.application import BaseApplication
 from universal_mcp.applications.utils import app_from_slug
-from universal_mcp.exceptions import ToolError, ToolNotFoundError
+from universal_mcp.exceptions import ToolError, ToolNotFoundError, ToolTimeoutError
 from universal_mcp.tools.adapters import convert_tools
 from universal_mcp.tools.registry import ToolRegistry
 from universal_mcp.types import ToolConfig, ToolFormat
+import asyncio
 
 from .integration import AgentrIntegration
 
@@ -228,11 +229,18 @@ class AgentrRegistry(ToolRegistry):
             logger.error(f"Unknown tool: {tool_name}")
             raise ToolNotFoundError(f"Unknown tool: {tool_name}")
         try:
-            data = await tool.run(tool_args)
+            data = await asyncio.wait_for(tool.run(tool_args), timeout=30)
             logger.debug(f"Tool {tool_name} called with args {tool_args} and returned {data}")
             return self._handle_special_output(data)
+        
+        except asyncio.TimeoutError as e:
+            raise ToolTimeoutError(f"Tool '{tool_name}' timed out after 30 seconds.") from e
+
+        except ToolError:
+            raise
+
         except Exception as e:
-            raise e
+            raise ToolError(f"An unexpected error occurred in tool '{tool_name}': {e}") from e
 
     async def list_connected_apps(self) -> list[dict[str, Any]]:
         """List all apps that the user has connected."""

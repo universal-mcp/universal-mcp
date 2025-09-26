@@ -3,10 +3,11 @@ import os
 from typing import Any
 
 from loguru import logger
+import asyncio
 
 from universal_mcp.applications.application import BaseApplication
 from universal_mcp.applications.utils import app_from_slug
-from universal_mcp.exceptions import ToolError, ToolNotFoundError
+from universal_mcp.exceptions import ToolError, ToolNotFoundError, ToolTimeoutError
 from universal_mcp.integrations.integration import IntegrationFactory
 from universal_mcp.tools.adapters import convert_tools
 from universal_mcp.tools.registry import ToolRegistry
@@ -101,8 +102,19 @@ class LocalRegistry(ToolRegistry):
         if not tool:
             raise ToolNotFoundError(f"Tool '{tool_name}' not found.")
 
-        result = await tool.run(tool_args)
-        return self._handle_file_output(result)
+        try:
+            data = await asyncio.wait_for(tool.run(tool_args), timeout=30)
+            logger.debug(f"Tool {tool_name} called with args {tool_args} and returned {data}")
+            return self._handle_special_output(data)
+        except asyncio.TimeoutError as e:
+            raise ToolTimeoutError(f"Tool '{tool_name}' timed out after 30 seconds.") from e
+
+        except ToolError:
+            raise
+
+        except Exception as e:
+            raise ToolError(f"An unexpected error occurred in tool '{tool_name}': {e}") from e
+    
 
     async def list_connected_apps(self) -> list[dict[str, Any]]:
         """Not implemented for LocalRegistry."""

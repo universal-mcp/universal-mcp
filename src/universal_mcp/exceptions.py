@@ -25,6 +25,9 @@ class ToolError(Exception):
 
     pass
 
+class ToolTimeoutError(ToolError):
+    """Raised when a tool execution exceeds its configured timeout."""
+    pass
 
 class ToolNotFoundError(Exception):
     """Raised when a tool is not found"""

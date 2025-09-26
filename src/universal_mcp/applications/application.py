@@ -11,7 +11,7 @@ from loguru import logger
 
 from universal_mcp.integrations.integration import Integration
 
-DEFAULT_API_TIMEOUT = 30  # seconds
+DEFAULT_API_TIMEOUT = 180  # seconds
 
 
 class BaseApplication(ABC):

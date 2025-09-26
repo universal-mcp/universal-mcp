@@ -6,7 +6,7 @@ from typing import (
     Any,
     ForwardRef,
 )
-
+import asyncio
 from mcp.server.fastmcp.exceptions import InvalidSignature
 from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema, create_model
 from pydantic._internal._typing_extra import eval_type_backport
@@ -130,7 +130,7 @@ class FuncMetadata(BaseModel):
                 return await fn
             return await fn(**arguments_parsed_dict)
         if isinstance(fn, Callable):
-            return fn(**arguments_parsed_dict)
+            return await asyncio.to_thread(fn, **arguments_parsed_dict)
         raise TypeError("fn must be either Callable or Awaitable")
 
     def pre_parse_json(self, data: dict[str, Any]) -> dict[str, Any]:
