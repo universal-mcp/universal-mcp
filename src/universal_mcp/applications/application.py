@@ -11,6 +11,8 @@ from loguru import logger
 
 from universal_mcp.integrations.integration import Integration
 
+DEFAULT_API_TIMEOUT = 30  # seconds
+
 
 class BaseApplication(ABC):
     """Defines the foundational structure for applications in Universal MCP.
@@ -90,7 +92,7 @@ class APIApplication(BaseApplication):
                              BaseApplication.
         """
         super().__init__(name, **kwargs)
-        self.default_timeout: int = 180
+        self.default_timeout: int = DEFAULT_API_TIMEOUT
         self.integration = integration
         logger.debug(f"Initializing APIApplication '{name}' with integration: {integration}")
         self._client: httpx.Client | None = client
@@ -452,6 +454,7 @@ class GraphQLApplication(BaseApplication):
         super().__init__(name, **kwargs)
         self.base_url = base_url
         self.integration = integration
+        self.default_timeout: float = DEFAULT_API_TIMEOUT
         logger.debug(f"Initializing Application '{name}' with kwargs: {kwargs}")
         self._client: GraphQLClient | None = client
 

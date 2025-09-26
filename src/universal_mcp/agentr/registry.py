@@ -82,6 +82,7 @@ class AgentrRegistry(ToolRegistry):
         self,
         query: str,
         limit: int = 10,
+        distance_threshold: float = 0.6,
     ) -> list[dict[str, Any]]:
         """Search for apps by a query.
 
@@ -93,7 +94,7 @@ class AgentrRegistry(ToolRegistry):
             List of app dictionaries matching the query
         """
         try:
-            apps = self.client.search_all_apps(query=query, limit=limit)
+            apps = self.client.search_all_apps(query=query, limit=limit, distance_threshold=distance_threshold)
             return apps
         except Exception as e:
             logger.error(f"Error searching apps from AgentR: {e}")
@@ -123,6 +124,7 @@ class AgentrRegistry(ToolRegistry):
         query: str,
         limit: int = 2,
         app_id: str | None = None,
+        distance_threshold: float = 0.6,
     ) -> list[dict[str, Any]]:
         """Search for tools by a query.
 
@@ -134,7 +136,9 @@ class AgentrRegistry(ToolRegistry):
             List of tool dictionaries matching the query
         """
         try:
-            tools = self.client.search_all_tools(query=query, limit=limit, app_id=app_id)
+            tools = self.client.search_all_tools(
+                query=query, limit=limit, app_id=app_id, distance_threshold=distance_threshold
+            )
             return tools
         except Exception as e:
             logger.error(f"Error searching tools from AgentR: {e}")
