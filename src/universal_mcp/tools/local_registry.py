@@ -105,7 +105,7 @@ class LocalRegistry(ToolRegistry):
         try:
             data = await asyncio.wait_for(tool.run(tool_args), timeout=30)
             logger.debug(f"Tool {tool_name} called with args {tool_args} and returned {data}")
-            return self._handle_special_output(data)
+            return self._handle_file_output(data)
         except asyncio.TimeoutError as e:
             raise ToolTimeoutError(f"Tool '{tool_name}' timed out after 30 seconds.") from e
 
