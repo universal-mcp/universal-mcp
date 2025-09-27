@@ -35,10 +35,11 @@ Always make the links clickable and include relevant context about what the user
 class AgentrRegistry(ToolRegistry):
     """Platform manager implementation for AgentR platform."""
 
-    def __init__(self, client: AgentrClient | None = None, **kwargs):
+    def __init__(self, client: AgentrClient | None = None, timeout: int = 60, **kwargs):
         """Initialize the AgentR platform manager."""
         super().__init__()
         self.client = client or AgentrClient(**kwargs)
+        self.timeout = timeout
 
     def _create_app_instance(self, app_name: str) -> BaseApplication:
         """Create an app instance with an AgentrIntegration."""
@@ -221,15 +222,16 @@ class AgentrRegistry(ToolRegistry):
                 return response
         return data
 
-    async def call_tool(self, tool_name: str, tool_args: dict[str, Any]) -> dict[str, Any]:
+    async def call_tool(self, tool_name: str, tool_args: dict[str, Any], timeout: int | None = None) -> dict[str, Any]:
         """Call a tool with the given name and arguments."""
         logger.debug(f"Calling tool: {tool_name} with arguments: {tool_args}")
         tool = self.tool_manager.get_tool(tool_name)
         if not tool:
             logger.error(f"Unknown tool: {tool_name}")
             raise ToolNotFoundError(f"Unknown tool: {tool_name}")
+        effective_timeout = timeout if timeout is not None else self.timeout  # will allow us to override default timeout for tools which need more time
         try:
-            data = await asyncio.wait_for(tool.run(tool_args), timeout=30)
+            data = await asyncio.wait_for(tool.run(tool_args), timeout=effective_timeout)
             logger.debug(f"Tool {tool_name} called with args {tool_args} and returned {data}")
             return self._handle_special_output(data)
         
