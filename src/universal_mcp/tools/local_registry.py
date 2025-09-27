@@ -1,9 +1,9 @@
+import asyncio
 import base64
 import os
 from typing import Any
 
 from loguru import logger
-import asyncio
 
 from universal_mcp.applications.application import BaseApplication
 from universal_mcp.applications.utils import app_from_slug
@@ -106,7 +106,7 @@ class LocalRegistry(ToolRegistry):
             data = await asyncio.wait_for(tool.run(tool_args), timeout=30)
             logger.debug(f"Tool {tool_name} called with args {tool_args} and returned {data}")
             return self._handle_file_output(data)
-        except asyncio.TimeoutError as e:
+        except TimeoutError as e:
             raise ToolTimeoutError(f"Tool '{tool_name}' timed out after 30 seconds.") from e
 
         except ToolError:
@@ -114,7 +114,6 @@ class LocalRegistry(ToolRegistry):
 
         except Exception as e:
             raise ToolError(f"An unexpected error occurred in tool '{tool_name}': {e}") from e
-    
 
     async def list_connected_apps(self) -> list[dict[str, Any]]:
         """Not implemented for LocalRegistry."""

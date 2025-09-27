@@ -1,3 +1,4 @@
+import asyncio
 import base64
 from typing import Any
 
@@ -10,7 +11,6 @@ from universal_mcp.exceptions import ToolError, ToolNotFoundError, ToolTimeoutEr
 from universal_mcp.tools.adapters import convert_tools
 from universal_mcp.tools.registry import ToolRegistry
 from universal_mcp.types import ToolConfig, ToolFormat
-import asyncio
 
 from .integration import AgentrIntegration
 
@@ -229,13 +229,15 @@ class AgentrRegistry(ToolRegistry):
         if not tool:
             logger.error(f"Unknown tool: {tool_name}")
             raise ToolNotFoundError(f"Unknown tool: {tool_name}")
-        effective_timeout = timeout if timeout is not None else self.timeout  # will allow us to override default timeout for tools which need more time
+        effective_timeout = (
+            timeout if timeout is not None else self.timeout
+        )  # will allow us to override default timeout for tools which need more time
         try:
             data = await asyncio.wait_for(tool.run(tool_args), timeout=effective_timeout)
             logger.debug(f"Tool {tool_name} called with args {tool_args} and returned {data}")
             return self._handle_special_output(data)
-        
-        except asyncio.TimeoutError as e:
+
+        except TimeoutError as e:
             raise ToolTimeoutError(f"Tool '{tool_name}' timed out after 30 seconds.") from e
 
         except ToolError:

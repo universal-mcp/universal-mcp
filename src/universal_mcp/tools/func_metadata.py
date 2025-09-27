@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 import json
 from collections.abc import Awaitable, Callable, Sequence
@@ -6,7 +7,7 @@ from typing import (
     Any,
     ForwardRef,
 )
-import asyncio
+
 from mcp.server.fastmcp.exceptions import InvalidSignature
 from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema, create_model
 from pydantic._internal._typing_extra import eval_type_backport
