@@ -222,18 +222,15 @@ class AgentrRegistry(ToolRegistry):
                 return response
         return data
 
-    async def call_tool(self, tool_name: str, tool_args: dict[str, Any], timeout: int | None = None) -> dict[str, Any]:
+    async def call_tool(self, tool_name: str, tool_args: dict[str, Any]) -> dict[str, Any]:
         """Call a tool with the given name and arguments."""
         logger.debug(f"Calling tool: {tool_name} with arguments: {tool_args}")
         tool = self.tool_manager.get_tool(tool_name)
         if not tool:
             logger.error(f"Unknown tool: {tool_name}")
             raise ToolNotFoundError(f"Unknown tool: {tool_name}")
-        effective_timeout = (
-            timeout if timeout is not None else self.timeout
-        )  # will allow us to override default timeout for tools which need more time
         try:
-            data = await asyncio.wait_for(tool.run(tool_args), timeout=effective_timeout)
+            data = await asyncio.wait_for(tool.run(tool_args), timeout=self.timeout)
             logger.debug(f"Tool {tool_name} called with args {tool_args} and returned {data}")
             return self._handle_special_output(data)
 
@@ -249,3 +246,15 @@ class AgentrRegistry(ToolRegistry):
     async def list_connected_apps(self) -> list[dict[str, Any]]:
         """List all apps that the user has connected."""
         return self.client.list_my_connections()
+
+    async def authorise_app(self, app_id: str) -> str:
+        """Authorise an app to connect to the user's account.
+
+        Args:
+            app_id: The ID of the app to authorise
+
+        Returns:
+            String containing authorisation url
+        """
+        url = self.client.get_authorization_url(app_id=app_id)
+        return url
