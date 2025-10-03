@@ -237,3 +237,15 @@ class AgentrRegistry(ToolRegistry):
     async def list_connected_apps(self) -> list[dict[str, Any]]:
         """List all apps that the user has connected."""
         return self.client.list_my_connections()
+
+    async def authorise_app(self, app_id: str) -> str:
+        """Authorise an app to connect to the user's account.
+
+        Args:
+            app_id: The ID of the app to authorise
+
+        Returns:
+            String containing authorisation url
+        """
+        url = self.client.get_authorization_url(app_id=app_id)
+        return url
