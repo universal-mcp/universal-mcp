@@ -3,8 +3,8 @@ from pathlib import Path
 import typer
 from rich.console import Console
 from rich.panel import Panel
-
 from universal_mcp.agents.cli import app as client_app
+
 from universal_mcp.utils.installation import (
     get_supported_apps,
     install_app,
