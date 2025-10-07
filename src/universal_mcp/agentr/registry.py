@@ -161,8 +161,6 @@ class AgentrRegistry(ToolRegistry):
         from langchain_core.tools import StructuredTool
 
         try:
-            # Clear tools from tool manager before loading new tools
-            self.tool_manager.clear_tools()
             logger.info(f"Exporting tools to {format.value} format")
             if isinstance(tools, dict):
                 self._load_tools_from_tool_config(tools)

@@ -16,6 +16,7 @@ class ToolRegistry(ABC):
 
     def __init__(self):
         """Initializes the registry and its internal tool manager."""
+        self._app_instances = {}
         self.tool_manager = ToolManager()
         logger.debug(f"{self.__class__.__name__} initialized.")
 
@@ -75,7 +76,9 @@ class ToolRegistry(ABC):
         """Helper method to load and register tools for an app."""
         logger.info(f"Loading tools for app '{app_name}' (tools: {tool_names or 'default'})")
         try:
-            app_instance = self._create_app_instance(app_name)
+            if app_name not in self._app_instances:
+                self._app_instances[app_name] = self._create_app_instance(app_name)
+            app_instance = self._app_instances[app_name]
             self.tool_manager.register_tools_from_app(app_instance, tool_names=tool_names)
             logger.info(f"Successfully registered tools for app: {app_name}")
         except Exception as e:
