@@ -1,3 +1,4 @@
+import inspect
 from typing import Any
 
 from loguru import logger
@@ -90,6 +91,7 @@ def convert_tool_to_langchain_tool(
     """
 
     logger.debug(f"Converting tool '{tool.name}' to LangChain format")
+    full_docstring = inspect.getdoc(tool.fn)
 
     async def call_tool(
         **arguments: dict[str, Any],
@@ -101,7 +103,7 @@ def convert_tool_to_langchain_tool(
 
     langchain_tool = StructuredTool(
         name=tool.name,
-        description=tool.description or "",
+        description=full_docstring or tool.description or "",
         coroutine=call_tool,
         response_format="content",
         args_schema=tool.parameters,
