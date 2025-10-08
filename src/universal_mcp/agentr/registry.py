@@ -1,3 +1,4 @@
+import inspect
 import base64
 from typing import Any
 
@@ -176,7 +177,7 @@ class AgentrRegistry(ToolRegistry):
 
             langchain_tools = []
             for tool in loaded_tools:
-
+                full_docstring = inspect.getdoc(tool.fn)
                 def create_coroutine(t):
                     async def call_tool_wrapper(**arguments: dict[str, Any]):
                         logger.debug(
@@ -188,7 +189,7 @@ class AgentrRegistry(ToolRegistry):
 
                 langchain_tool = StructuredTool(
                     name=tool.name,
-                    description=tool.description or "",
+                    description=full_docstring or tool.description or "",
                     coroutine=create_coroutine(tool),
                     response_format="content",
                     args_schema=tool.parameters,
