@@ -178,6 +178,7 @@ class AgentrRegistry(ToolRegistry):
             langchain_tools = []
             for tool in loaded_tools:
                 full_docstring = inspect.getdoc(tool.fn)
+
                 def create_coroutine(t):
                     async def call_tool_wrapper(**arguments: dict[str, Any]):
                         logger.debug(
