@@ -1,5 +1,5 @@
-import inspect
 import base64
+import inspect
 from typing import Any
 
 from loguru import logger

@@ -207,7 +207,9 @@ class AgentrClient:
             limit (int, optional): The number of tools to return. Defaults to 2.
             app_id (str, optional): The ID of the app to search tools for.
         """
-        params = {"search": query, "limit": limit, "distance_threshold": distance_threshold}
+        params = {"limit": limit, "distance_threshold": distance_threshold}
+        if query:
+            params["search"] = query
         if app_id:
             params["app_id"] = app_id
         response = self.client.get("/tools/", params=params)
