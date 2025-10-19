@@ -5,23 +5,13 @@ from loguru import logger
 
 from universal_mcp.applications.application import BaseApplication
 from universal_mcp.tools.tools import Tool
-from universal_mcp.types import DEFAULT_APP_NAME, DEFAULT_IMPORTANT_TAG, TOOL_NAME_SEPARATOR, ToolFormat
-
-
-def _get_app_and_tool_name(tool_name: str) -> tuple[str, str]:
-    """Get the app name from a tool name."""
-    if TOOL_NAME_SEPARATOR in tool_name:
-        app_name = tool_name.split(TOOL_NAME_SEPARATOR, 1)[0]
-        tool_name_without_app_name = tool_name.split(TOOL_NAME_SEPARATOR, 1)[1]
-    else:
-        app_name = DEFAULT_APP_NAME
-        tool_name_without_app_name = tool_name
-    return app_name, tool_name_without_app_name
+from universal_mcp.tools.utils import get_app_and_tool_name
+from universal_mcp.types import DEFAULT_IMPORTANT_TAG, ToolFormat
 
 
 def _sanitize_tool_names(tool_names: list[str]) -> list[str]:
     """Sanitize tool names by removing empty strings and converting to lowercase."""
-    return [_get_app_and_tool_name(name)[1].lower() for name in tool_names if name]
+    return [get_app_and_tool_name(name)[1].lower() for name in tool_names if name]
 
 
 def _filter_by_name(tools: list[Tool], tool_names: list[str] | None) -> list[Tool]:
@@ -114,8 +104,8 @@ class ToolManager:
 
     def get_tools(
         self,
-        tags: list[str] | None = None,
         tool_names: list[str] | None = None,
+        tags: list[str] | None = None,
     ) -> list[Tool]:
         """Get a filtered list of registered tools.
 
@@ -151,10 +141,10 @@ class ToolManager:
             if self.warn_on_duplicate_tools:
                 if existing.fn is not tool.fn:
                     logger.warning(
-                        f"Tool name '{tool.name}' conflicts with an existing tool. Skipping addition of new function."
+                        f"Tool '{tool.name}' already exists with a different function. Skipping addition of new function."
                     )
                 else:
-                    logger.debug(f"Tool '{tool.name}' with the same function already exists.")
+                    logger.debug(f"Tool '{tool.name}' already exists with the same function.")
             return existing
 
         logger.debug(f"Adding tool: {tool.name}")

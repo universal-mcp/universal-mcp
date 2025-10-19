@@ -1,5 +1,4 @@
 import base64
-import inspect
 from typing import Any
 
 from loguru import logger
@@ -8,9 +7,7 @@ from universal_mcp.agentr.client import AgentrClient
 from universal_mcp.applications.application import BaseApplication
 from universal_mcp.applications.utils import app_from_slug
 from universal_mcp.exceptions import ToolError, ToolNotFoundError
-from universal_mcp.tools.adapters import convert_tools
 from universal_mcp.tools.registry import ToolRegistry
-from universal_mcp.types import ToolConfig, ToolFormat
 
 from .integration import AgentrIntegration
 
@@ -143,64 +140,6 @@ class AgentrRegistry(ToolRegistry):
             return tools
         except Exception as e:
             logger.error(f"Error searching tools from AgentR: {e}")
-            return []
-
-    async def export_tools(
-        self,
-        tools: list[str] | ToolConfig,
-        format: ToolFormat,
-    ) -> list[Any]:
-        """Export given tools to required format.
-
-        Args:
-            tools: List of tool identifiers to export
-            format: The format to export tools to (native, mcp, langchain, openai)
-
-        Returns:
-            List of tools in the specified format
-        """
-        from langchain_core.tools import StructuredTool
-
-        try:
-            logger.info(f"Exporting tools to {format.value} format")
-            if isinstance(tools, dict):
-                self._load_tools_from_tool_config(tools)
-            else:
-                self._load_tools_from_list(tools)
-
-            loaded_tools = self.tool_manager.get_tools()
-
-            if format != ToolFormat.LANGCHAIN:
-                return convert_tools(loaded_tools, format)
-
-            logger.info(f"Exporting {len(loaded_tools)} tools to LangChain format with special handling")
-
-            langchain_tools = []
-            for tool in loaded_tools:
-                full_docstring = inspect.getdoc(tool.fn)
-
-                def create_coroutine(t):
-                    async def call_tool_wrapper(**arguments: dict[str, Any]):
-                        logger.debug(
-                            f"Executing registry-wrapped LangChain tool '{t.name}' with arguments: {arguments}"
-                        )
-                        return await self.call_tool(t.name, arguments)
-
-                    return call_tool_wrapper
-
-                langchain_tool = StructuredTool(
-                    name=tool.name,
-                    description=full_docstring or tool.description or "",
-                    coroutine=create_coroutine(tool),
-                    response_format="content",
-                    args_schema=tool.parameters,
-                )
-                langchain_tools.append(langchain_tool)
-
-            return langchain_tools
-
-        except Exception as e:
-            logger.error(f"Error exporting tools: {e}")
             return []
 
     def _handle_special_output(self, data: Any) -> Any:

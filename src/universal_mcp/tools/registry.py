@@ -4,7 +4,9 @@ from typing import Any
 from loguru import logger
 
 from universal_mcp.applications.application import BaseApplication
-from universal_mcp.tools.manager import ToolManager, _get_app_and_tool_name
+from universal_mcp.tools.adapters import convert_tools
+from universal_mcp.tools.manager import ToolManager
+from universal_mcp.tools.utils import list_to_tool_config, tool_config_to_list
 from universal_mcp.types import ToolConfig, ToolFormat
 
 
@@ -19,6 +21,36 @@ class ToolRegistry(ABC):
         self._app_instances = {}
         self.tool_manager = ToolManager()
         logger.debug(f"{self.__class__.__name__} initialized.")
+
+    def _load_tools_from_app(self, app_name: str, tool_names: list[str] | None) -> None:
+        """Helper method to load and register tools for an app."""
+        logger.info(f"Loading tools for app '{app_name}' (tools: {tool_names or 'default'})")
+        try:
+            if app_name not in self._app_instances:
+                self._app_instances[app_name] = self._create_app_instance(app_name)
+            app_instance = self._app_instances[app_name]
+            self.tool_manager.register_tools_from_app(app_instance, tool_names=tool_names)
+            logger.info(f"Successfully registered tools for app: {app_name}")
+        except Exception as e:
+            logger.error(f"Failed to load tools for app {app_name}: {e}", exc_info=True)
+
+    def _load_tools_from_list(self, tools: list[str]) -> None:
+        """Load tools from a list of full tool names (e.g., 'app__tool')."""
+        tool_config = list_to_tool_config(tools)
+        for app_name, tool_names in tool_config.items():
+            self._load_tools_from_app(app_name, tool_names or None)
+
+    def _load_tools_from_tool_config(self, tool_config: ToolConfig) -> None:
+        """Load tools from a ToolConfig dictionary."""
+        logger.debug(f"Loading tools from tool_config: {tool_config}")
+        for app_name, tool_names in tool_config.items():
+            self._load_tools_from_app(app_name, tool_names or None)
+
+    # --- Abstract method for subclass implementation ---
+
+    def _create_app_instance(self, app_name: str) -> BaseApplication:
+        """Create an application instance for a given app name."""
+        raise NotImplementedError("Subclasses must implement this method")
 
     # --- Abstract methods for the public interface ---
 
@@ -49,54 +81,35 @@ class ToolRegistry(ABC):
         """Search for tools by a query, optionally filtered by an app."""
         pass
 
-    @abstractmethod
-    async def export_tools(self, tools: list[str] | ToolConfig, format: ToolFormat) -> list[Any]:
-        """Export a selection of tools to a specified format."""
-        pass
+    async def load_tools(self, tools: list[str] | ToolConfig | None = None):
+        """Load the tools to be used"""
+        if isinstance(tools, list):
+            self._load_tools_from_list(tools)
+        elif isinstance(tools, dict):
+            self._load_tools_from_tool_config(tools)
+        else:
+            raise ValueError(f"Invalid tools type: {type(tools)}. Expected list or ToolConfig.")
+        return self.tool_manager.get_tools()
 
-    @abstractmethod
+    async def export_tools(
+        self, tools: list[str] | ToolConfig | None = None, format: ToolFormat = ToolFormat.NATIVE
+    ) -> list[Any]:
+        """Export the loaded tools as in required format"""
+        if tools is not None:
+            # Load the tools if they are not already loaded
+            await self.load_tools(tools)
+        tools_list = tool_config_to_list(tools) if isinstance(tools, dict) else tools
+        loaded_tools = self.tool_manager.get_tools(tool_names=tools_list)
+        exported_tools = convert_tools(loaded_tools, format)
+        logger.info(f"Exported {len(exported_tools)} tools to {format.value} format")
+        return exported_tools if isinstance(exported_tools, list) else [exported_tools]
+
     async def call_tool(self, tool_name: str, tool_args: dict[str, Any]) -> Any:
         """Call a tool with the given name and arguments."""
-        pass
+        result = await self.tool_manager.get_tool(tool_name)
+        return await result.run(tool_args)
 
     @abstractmethod
     async def list_connected_apps(self) -> list[dict[str, Any]]:
         """List all apps that the user has connected."""
         pass
-
-    # --- Abstract method for subclass implementation ---
-
-    def _create_app_instance(self, app_name: str) -> BaseApplication:
-        """Create an application instance for a given app name."""
-        raise NotImplementedError("Subclasses must implement this method")
-
-    # --- Concrete methods for shared tool loading ---
-
-    def _load_tools(self, app_name: str, tool_names: list[str] | None) -> None:
-        """Helper method to load and register tools for an app."""
-        logger.info(f"Loading tools for app '{app_name}' (tools: {tool_names or 'default'})")
-        try:
-            if app_name not in self._app_instances:
-                self._app_instances[app_name] = self._create_app_instance(app_name)
-            app_instance = self._app_instances[app_name]
-            self.tool_manager.register_tools_from_app(app_instance, tool_names=tool_names)
-            logger.info(f"Successfully registered tools for app: {app_name}")
-        except Exception as e:
-            logger.error(f"Failed to load tools for app {app_name}: {e}", exc_info=True)
-
-    def _load_tools_from_list(self, tools: list[str]) -> None:
-        """Load tools from a list of full tool names (e.g., 'app__tool')."""
-        logger.debug(f"Loading tools from list: {tools}")
-        tools_by_app: dict[str, list[str]] = {}
-        for tool_name in tools:
-            app_name, _ = _get_app_and_tool_name(tool_name)
-            tools_by_app.setdefault(app_name, []).append(tool_name)
-
-        for app_name, tool_names in tools_by_app.items():
-            self._load_tools(app_name, tool_names)
-
-    def _load_tools_from_tool_config(self, tool_config: ToolConfig) -> None:
-        """Load tools from a ToolConfig dictionary."""
-        logger.debug(f"Loading tools from tool_config: {tool_config}")
-        for app_name, tool_names in tool_config.items():
-            self._load_tools(app_name, tool_names or None)

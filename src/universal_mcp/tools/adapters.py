@@ -1,4 +1,6 @@
 import inspect
+from collections.abc import Callable
+from functools import wraps
 from typing import Any
 
 from loguru import logger
@@ -12,7 +14,7 @@ def convert_tools(tools: list[Tool], format: ToolFormat) -> list[Any]:
     """Convert a list of Tool objects to a specified format."""
     logger.debug(f"Converting {len(tools)} tools to {format.value} format.")
     if format == ToolFormat.NATIVE:
-        return [tool.fn for tool in tools]
+        return [convert_to_native_tool(tool) for tool in tools]
     if format == ToolFormat.MCP:
         return [convert_tool_to_mcp_tool(tool) for tool in tools]
     if format == ToolFormat.LANGCHAIN:
@@ -20,6 +22,21 @@ def convert_tools(tools: list[Tool], format: ToolFormat) -> list[Any]:
     if format == ToolFormat.OPENAI:
         return [convert_tool_to_openai_tool(tool) for tool in tools]
     raise ValueError(f"Invalid format: {format}")
+
+
+def convert_to_native_tool(tool: Tool) -> Callable[..., Any]:
+    """Decorator to convert a Tool object to a native tool."""
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+
+        wrapper.__name__ = tool.name
+        wrapper.__doc__ = tool.fn.__doc__
+        return wrapper
+
+    return decorator(tool.fn)
 
 
 def convert_tool_to_mcp_tool(
@@ -80,8 +97,6 @@ def convert_tool_to_langchain_tool(
     from langchain_core.tools import StructuredTool
 
     """Convert an tool to a LangChain tool.
-
-    NOTE: this tool can be executed only in a context of an active MCP client session.
 
     Args:
         tool: Tool to convert
