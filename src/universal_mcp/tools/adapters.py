@@ -28,9 +28,14 @@ def convert_to_native_tool(tool: Tool) -> Callable[..., Any]:
     """Decorator to convert a Tool object to a native tool."""
 
     def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            return func(*args, **kwargs)
+        if inspect.iscoroutinefunction(func):
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+                return await func(*args, **kwargs)
+        else:
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                return func(*args, **kwargs)
 
         wrapper.__name__ = tool.name
         wrapper.__doc__ = tool.fn.__doc__
