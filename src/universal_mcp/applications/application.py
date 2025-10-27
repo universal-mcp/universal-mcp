@@ -39,6 +39,24 @@ class BaseApplication(ABC):
         self.name = name
         logger.debug(f"Initializing Application '{name}' with kwargs: {kwargs}")
 
+    def __getstate__(self) -> dict[str, Any]:
+        """Returns the state of the application for pickling.
+
+        Returns:
+            dict[str, Any]: An empty dictionary because the application cannot be pickled.
+        """
+        logger.debug("Application cannot be pickled because it contains a httpx.Client instance")
+        return {}
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        """Sets the state of the application for unpickling.
+
+        Args:
+            state (dict[str, Any]): The state of the application.
+        """
+        logger.debug("Application cannot be unpickled because it contains a httpx.Client instance")
+        pass
+
     @abstractmethod
     def list_tools(self) -> list[Callable]:
         """Lists all tools provided by this application.
