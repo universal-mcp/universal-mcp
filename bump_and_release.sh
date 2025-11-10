@@ -55,7 +55,7 @@ sed -i '' "s/^version = ".*"/version = \"$NEW_VERSION\"/" pyproject.toml
 echo "Version bumped from $CURRENT_VERSION to $NEW_VERSION"
 
 # Stage the changed file
-git add pyproject.toml
+git add pyproject.toml uv.lock
 
 # Commit the change
 git commit -m "bump: version $CURRENT_VERSION → $NEW_VERSION"
