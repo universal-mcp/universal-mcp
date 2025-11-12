@@ -652,7 +652,9 @@ class APIApplication(BaseApplication):
         logger.debug(f"PATCH request successful with status code: {response.status_code}")
         return response
 
-    async def _async_patch(self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None) -> httpx.Response:
+    async def _async_patch(
+        self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None
+    ) -> httpx.Response:
         """Makes an asynchronous PATCH request to the specified URL.
 
         Args:
