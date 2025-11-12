@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from contextlib import asynccontextmanager, contextmanager
 from typing import Any
 
 import httpx
@@ -40,24 +41,6 @@ class BaseApplication(ABC):
         self.name = name
         logger.debug(f"Initializing Application '{name}' with kwargs: {kwargs}")
 
-    def __getstate__(self) -> dict[str, Any]:
-        """Returns the state of the application for pickling.
-
-        Returns:
-            dict[str, Any]: An empty dictionary because the application cannot be pickled.
-        """
-        logger.debug("Application cannot be pickled because it contains a httpx.Client instance")
-        return {}
-
-    def __setstate__(self, state: dict[str, Any]) -> None:
-        """Sets the state of the application for unpickling.
-
-        Args:
-            state (dict[str, Any]): The state of the application.
-        """
-        logger.debug("Application cannot be unpickled because it contains a httpx.Client instance")
-        pass
-
     @abstractmethod
     def list_tools(self) -> list[Callable]:
         """Lists all tools provided by this application.
@@ -95,8 +78,6 @@ class APIApplication(BaseApplication):
         self,
         name: str,
         integration: Integration | None = None,
-        client: httpx.Client | None = None,
-        async_client: httpx.AsyncClient | None = None,
         **kwargs: Any,
     ) -> None:
         """Initializes the APIApplication.
@@ -105,12 +86,6 @@ class APIApplication(BaseApplication):
             name (str): The unique name for this application instance.
             integration (Integration | None, optional): An Integration object
                 to handle authentication. Defaults to None.
-            client (httpx.Client | None, optional): An existing httpx.Client
-                instance. If None, a new client will be created on demand.
-                Defaults to None.
-            async_client (httpx.AsyncClient | None, optional): An existing httpx.AsyncClient
-                instance. If None, a new client will be created on demand.
-                Defaults to None.
             **kwargs (Any): Additional keyword arguments passed to the
                              BaseApplication.
         """
@@ -118,8 +93,6 @@ class APIApplication(BaseApplication):
         self.default_timeout: int = DEFAULT_API_TIMEOUT
         self.integration = integration
         logger.debug(f"Initializing APIApplication '{name}' with integration: {integration}")
-        self._client: httpx.Client | None = client
-        self._async_client: httpx.AsyncClient | None = async_client
         self.base_url: str = ""
 
     def _get_headers(self) -> dict[str, str]:
@@ -167,47 +140,41 @@ class APIApplication(BaseApplication):
         logger.debug("No authentication found in credentials, returning empty headers")
         return {}
 
-    @property
-    def client(self) -> httpx.Client:
-        """Provides an initialized `httpx.Client` instance.
+    @contextmanager
+    def get_sync_client(self) -> httpx.Client:
+        """Provides an initialized `httpx.Client` instance for use as a context manager.
 
-        If a client was not provided during initialization or has not been
-        created yet, this property will instantiate a new `httpx.Client`.
         The client is configured with the `base_url` and headers derived
         from the `_get_headers` method.
 
         Returns:
-            httpx.Client: The active `httpx.Client` instance.
+            httpx.Client: A new `httpx.Client` instance.
         """
-        if not self._client:
-            headers = self._get_headers()
-            self._client = httpx.Client(
-                base_url=self.base_url,
-                headers=headers,
-                timeout=self.default_timeout,
-            )
-        return self._client
+        headers = self._get_headers()
+        with httpx.Client(
+            base_url=self.base_url,
+            headers=headers,
+            timeout=self.default_timeout,
+        ) as client:
+            yield client
 
-    @property
-    def async_client(self) -> httpx.AsyncClient:
-        """Provides an initialized `httpx.AsyncClient` instance.
+    @asynccontextmanager
+    async def get_async_client(self) -> httpx.AsyncClient:
+        """Provides an initialized `httpx.AsyncClient` instance for use as a context manager.
 
-        If an async client was not provided during initialization or has not been
-        created yet, this property will instantiate a new `httpx.AsyncClient`.
         The client is configured with the `base_url` and headers derived
         from the `_get_headers` method.
 
         Returns:
-            httpx.AsyncClient: The active `httpx.AsyncClient` instance.
+            httpx.AsyncClient: A new `httpx.AsyncClient` instance.
         """
-        if not self._async_client:
-            headers = self._get_headers()
-            self._async_client = httpx.AsyncClient(
-                base_url=self.base_url,
-                headers=headers,
-                timeout=self.default_timeout,
-            )
-        return self._async_client
+        headers = self._get_headers()
+        async with httpx.AsyncClient(
+            base_url=self.base_url,
+            headers=headers,
+            timeout=self.default_timeout,
+        ) as client:
+            yield client
 
     def _handle_response(self, response: httpx.Response) -> dict[str, Any]:
         """Processes an HTTP response, checking for errors and parsing JSON.
@@ -215,34 +182,6 @@ class APIApplication(BaseApplication):
         This method first calls `response.raise_for_status()` to raise an
         `httpx.HTTPStatusError` if the HTTP request failed. If successful,
         it attempts to parse the response body as JSON. If JSON parsing
-        fails, it returns a dictionary containing the success status,
-        status code, and raw text of the response.
-
-        Args:
-            response (httpx.Response): The HTTP response object from `httpx`.
-
-        Returns:
-            dict[str, Any]: The parsed JSON response as a dictionary, or
-                            a status dictionary if JSON parsing is not possible
-                            for a successful response.
-
-        Raises:
-            httpx.HTTPStatusError: If the HTTP response status code indicates
-                                 an error (4xx or 5xx).
-        """
-        response.raise_for_status()
-        try:
-            return response.json()
-        except Exception:
-            return {"status": "success", "status_code": response.status_code, "text": response.text}
-
-    async def _async_handle_response(self, response: httpx.Response) -> dict[str, Any]:
-        """Processes an HTTP response asynchronously, checking for errors and parsing JSON.
-
-        This method first calls `response.raise_for_status()` to raise an
-        `httpx.HTTPStatusError` if the HTTP request failed. If successful,
-        it attempts to parse the response body as JSON. If JSON parsing
-
         fails, it returns a dictionary containing the success status,
         status code, and raw text of the response.
 
@@ -280,7 +219,8 @@ class APIApplication(BaseApplication):
             httpx.HTTPStatusError: Propagated if the underlying client request fails.
         """
         logger.debug(f"Making GET request to {url} with params: {params}")
-        response = self.client.get(url, params=params)
+        with self.get_sync_client() as client:
+            response = client.get(url, params=params)
         logger.debug(f"GET request successful with status code: {response.status_code}")
         return response
 
@@ -293,14 +233,15 @@ class APIApplication(BaseApplication):
                 Defaults to None.
 
         Returns:
-            httpx.Response: The raw HTTP response object. The `_async_handle_response`
+            httpx.Response: The raw HTTP response object. The `_handle_response`
                             method should typically be used to process this.
 
         Raises:
             httpx.HTTPStatusError: Propagated if the underlying client request fails.
         """
         logger.debug(f"Making async GET request to {url} with params: {params}")
-        response = await self.async_client.get(url, params=params)
+        async with self.get_async_client() as client:
+            response = await client.get(url, params=params)
         logger.debug(f"Async GET request successful with status code: {response.status_code}")
         return response
 
@@ -349,39 +290,40 @@ class APIApplication(BaseApplication):
         if content_type != "multipart/form-data":
             headers["Content-Type"] = content_type
 
-        if content_type == "multipart/form-data":
-            response = self.client.post(
-                url,
-                headers=headers,
-                data=data,  # For regular form fields
-                files=files,  # For file parts
-                params=params,
-            )
-        elif content_type == "application/x-www-form-urlencoded":
-            response = self.client.post(
-                url,
-                headers=headers,
-                data=data,
-                params=params,
-            )
-        elif content_type == "application/json":
-            response = self.client.post(
-                url,
-                headers=headers,
-                json=data,
-                params=params,
-            )
-        else:  # Handles 'application/octet-stream', 'text/plain', 'image/jpeg', etc.
-            response = self.client.post(
-                url,
-                headers=headers,
-                content=data,  # Expect data to be bytes or str
-                params=params,
-            )
+        with self.get_sync_client() as client:
+            if content_type == "multipart/form-data":
+                response = client.post(
+                    url,
+                    headers=headers,
+                    data=data,  # For regular form fields
+                    files=files,  # For file parts
+                    params=params,
+                )
+            elif content_type == "application/x-www-form-urlencoded":
+                response = client.post(
+                    url,
+                    headers=headers,
+                    data=data,
+                    params=params,
+                )
+            elif content_type == "application/json":
+                response = client.post(
+                    url,
+                    headers=headers,
+                    json=data,
+                    params=params,
+                )
+            else:  # Handles 'application/octet-stream', 'text/plain', 'image/jpeg', etc.
+                response = client.post(
+                    url,
+                    headers=headers,
+                    content=data,  # Expect data to be bytes or str
+                    params=params,
+                )
         logger.debug(f"POST request successful with status code: {response.status_code}")
         return response
 
-    async def _async_post(
+    async def _apost(
         self,
         url: str,
         data: Any,
@@ -416,35 +358,36 @@ class APIApplication(BaseApplication):
         if content_type != "multipart/form-data":
             headers["Content-Type"] = content_type
 
-        if content_type == "multipart/form-data":
-            response = await self.async_client.post(
-                url,
-                headers=headers,
-                data=data,
-                files=files,
-                params=params,
-            )
-        elif content_type == "application/x-www-form-urlencoded":
-            response = await self.async_client.post(
-                url,
-                headers=headers,
-                data=data,
-                params=params,
-            )
-        elif content_type == "application/json":
-            response = await self.async_client.post(
-                url,
-                headers=headers,
-                json=data,
-                params=params,
-            )
-        else:
-            response = await self.async_client.post(
-                url,
-                headers=headers,
-                content=data,
-                params=params,
-            )
+        async with self.get_async_client() as client:
+            if content_type == "multipart/form-data":
+                response = await client.post(
+                    url,
+                    headers=headers,
+                    data=data,
+                    files=files,
+                    params=params,
+                )
+            elif content_type == "application/x-www-form-urlencoded":
+                response = await client.post(
+                    url,
+                    headers=headers,
+                    data=data,
+                    params=params,
+                )
+            elif content_type == "application/json":
+                response = await client.post(
+                    url,
+                    headers=headers,
+                    json=data,
+                    params=params,
+                )
+            else:
+                response = await client.post(
+                    url,
+                    headers=headers,
+                    content=data,
+                    params=params,
+                )
         logger.debug(f"Async POST request successful with status code: {response.status_code}")
         return response
 
@@ -494,39 +437,40 @@ class APIApplication(BaseApplication):
         if content_type != "multipart/form-data":
             headers["Content-Type"] = content_type
 
-        if content_type == "multipart/form-data":
-            response = self.client.put(
-                url,
-                headers=headers,
-                data=data,  # For regular form fields
-                files=files,  # For file parts
-                params=params,
-            )
-        elif content_type == "application/x-www-form-urlencoded":
-            response = self.client.put(
-                url,
-                headers=headers,
-                data=data,
-                params=params,
-            )
-        elif content_type == "application/json":
-            response = self.client.put(
-                url,
-                headers=headers,
-                json=data,
-                params=params,
-            )
-        else:  # Handles 'application/octet-stream', 'text/plain', 'image/jpeg', etc.
-            response = self.client.put(
-                url,
-                headers=headers,
-                content=data,  # Expect data to be bytes or str
-                params=params,
-            )
+        with self.get_sync_client() as client:
+            if content_type == "multipart/form-data":
+                response = client.put(
+                    url,
+                    headers=headers,
+                    data=data,  # For regular form fields
+                    files=files,  # For file parts
+                    params=params,
+                )
+            elif content_type == "application/x-www-form-urlencoded":
+                response = client.put(
+                    url,
+                    headers=headers,
+                    data=data,
+                    params=params,
+                )
+            elif content_type == "application/json":
+                response = client.put(
+                    url,
+                    headers=headers,
+                    json=data,
+                    params=params,
+                )
+            else:  # Handles 'application/octet-stream', 'text/plain', 'image/jpeg', etc.
+                response = client.put(
+                    url,
+                    headers=headers,
+                    content=data,  # Expect data to be bytes or str
+                    params=params,
+                )
         logger.debug(f"PUT request successful with status code: {response.status_code}")
         return response
 
-    async def _async_put(
+    async def _aput(
         self,
         url: str,
         data: Any,
@@ -556,35 +500,36 @@ class APIApplication(BaseApplication):
         if content_type != "multipart/form-data":
             headers["Content-Type"] = content_type
 
-        if content_type == "multipart/form-data":
-            response = await self.async_client.put(
-                url,
-                headers=headers,
-                data=data,
-                files=files,
-                params=params,
-            )
-        elif content_type == "application/x-www-form-urlencoded":
-            response = await self.async_client.put(
-                url,
-                headers=headers,
-                data=data,
-                params=params,
-            )
-        elif content_type == "application/json":
-            response = await self.async_client.put(
-                url,
-                headers=headers,
-                json=data,
-                params=params,
-            )
-        else:
-            response = await self.async_client.put(
-                url,
-                headers=headers,
-                content=data,
-                params=params,
-            )
+        async with self.get_async_client() as client:
+            if content_type == "multipart/form-data":
+                response = await client.put(
+                    url,
+                    headers=headers,
+                    data=data,
+                    files=files,
+                    params=params,
+                )
+            elif content_type == "application/x-www-form-urlencoded":
+                response = await client.put(
+                    url,
+                    headers=headers,
+                    data=data,
+                    params=params,
+                )
+            elif content_type == "application/json":
+                response = await client.put(
+                    url,
+                    headers=headers,
+                    json=data,
+                    params=params,
+                )
+            else:
+                response = await client.put(
+                    url,
+                    headers=headers,
+                    content=data,
+                    params=params,
+                )
         logger.debug(f"Async PUT request successful with status code: {response.status_code}")
         return response
 
@@ -604,11 +549,12 @@ class APIApplication(BaseApplication):
             httpx.HTTPStatusError: Propagated if the underlying client request fails.
         """
         logger.debug(f"Making DELETE request to {url} with params: {params}")
-        response = self.client.delete(url, params=params, timeout=self.default_timeout)
+        with self.get_sync_client() as client:
+            response = client.delete(url, params=params, timeout=self.default_timeout)
         logger.debug(f"DELETE request successful with status code: {response.status_code}")
         return response
 
-    async def _async_delete(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
+    async def _adelete(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
         """Makes an asynchronous DELETE request to the specified URL.
 
         Args:
@@ -622,7 +568,8 @@ class APIApplication(BaseApplication):
             httpx.HTTPStatusError: Propagated if the underlying client request fails.
         """
         logger.debug(f"Making async DELETE request to {url} with params: {params}")
-        response = await self.async_client.delete(url, params=params, timeout=self.default_timeout)
+        async with self.get_async_client() as client:
+            response = await client.delete(url, params=params, timeout=self.default_timeout)
         logger.debug(f"Async DELETE request successful with status code: {response.status_code}")
         return response
 
@@ -644,17 +591,16 @@ class APIApplication(BaseApplication):
             httpx.HTTPStatusError: Propagated if the underlying client request fails.
         """
         logger.debug(f"Making PATCH request to {url} with params: {params} and data: {data}")
-        response = self.client.patch(
-            url,
-            json=data,
-            params=params,
-        )
+        with self.get_sync_client() as client:
+            response = client.patch(
+                url,
+                json=data,
+                params=params,
+            )
         logger.debug(f"PATCH request successful with status code: {response.status_code}")
         return response
 
-    async def _async_patch(
-        self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None
-    ) -> httpx.Response:
+    async def _apatch(self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None) -> httpx.Response:
         """Makes an asynchronous PATCH request to the specified URL.
 
         Args:
@@ -669,11 +615,12 @@ class APIApplication(BaseApplication):
             httpx.HTTPStatusError: Propagated if the underlying client request fails.
         """
         logger.debug(f"Making async PATCH request to {url} with params: {params} and data: {data}")
-        response = await self.async_client.patch(
-            url,
-            json=data,
-            params=params,
-        )
+        async with self.get_async_client() as client:
+            response = await client.patch(
+                url,
+                json=data,
+                params=params,
+            )
         logger.debug(f"Async PATCH request successful with status code: {response.status_code}")
         return response
 
@@ -700,8 +647,6 @@ class GraphQLApplication(BaseApplication):
         name: str,
         base_url: str,
         integration: Integration | None = None,
-        client: GraphQLClient | None = None,
-        async_client: GraphQLClient | None = None,
         **kwargs: Any,
     ) -> None:
         """Initializes the GraphQLApplication.
@@ -725,8 +670,6 @@ class GraphQLApplication(BaseApplication):
         self.integration = integration
         self.default_timeout: float = DEFAULT_API_TIMEOUT
         logger.debug(f"Initializing Application '{name}' with kwargs: {kwargs}")
-        self._client: GraphQLClient | None = client
-        self._async_client: GraphQLClient | None = async_client
 
     def _get_headers(self) -> dict[str, str]:
         """Constructs HTTP headers for GraphQL requests based on the integration.
@@ -770,7 +713,7 @@ class GraphQLApplication(BaseApplication):
         logger.debug("No authentication found in credentials, returning empty headers")
         return {}
 
-    @property
+    @contextmanager
     def client(self) -> GraphQLClient:
         """Provides an initialized `gql.Client` instance.
 
@@ -783,14 +726,13 @@ class GraphQLApplication(BaseApplication):
         Returns:
             GraphQLClient: The active `gql.Client` instance.
         """
-        if not self._client:
-            headers = self._get_headers()
-            transport = RequestsHTTPTransport(url=self.base_url, headers=headers)
-            self._client = GraphQLClient(transport=transport, fetch_schema_from_transport=True)
-        return self._client
+        headers = self._get_headers()
+        transport = RequestsHTTPTransport(url=self.base_url, headers=headers)
+        with GraphQLClient(transport=transport, fetch_schema_from_transport=True) as client:
+            yield client
 
-    @property
-    def async_client(self) -> GraphQLClient:
+    @asynccontextmanager
+    async def async_client(self) -> GraphQLClient:
         """Provides an initialized async `gql.Client` instance.
 
         If a client was not provided during initialization or has not been
@@ -802,11 +744,10 @@ class GraphQLApplication(BaseApplication):
         Returns:
             GraphQLClient: The active async `gql.Client` instance.
         """
-        if not self._async_client:
-            headers = self._get_headers()
-            transport = AIOHTTPTransport(url=self.base_url, headers=headers)
-            self._async_client = GraphQLClient(transport=transport, fetch_schema_from_transport=True)
-        return self._async_client
+        headers = self._get_headers()
+        transport = AIOHTTPTransport(url=self.base_url, headers=headers)
+        async with GraphQLClient(transport=transport, fetch_schema_from_transport=True) as client:
+            yield client
 
     def mutate(
         self,
@@ -831,7 +772,8 @@ class GraphQLApplication(BaseApplication):
         """
         if isinstance(mutation, str):
             mutation = gql(mutation)
-        return self.client.execute(mutation, variable_values=variables)
+        with self.client() as client:
+            return client.execute(mutation, variable_values=variables)
 
     async def mutate_async(
         self,
@@ -856,7 +798,8 @@ class GraphQLApplication(BaseApplication):
         """
         if isinstance(mutation, str):
             mutation = gql(mutation)
-        return await self.async_client.execute(mutation, variable_values=variables)
+        async with self.async_client() as client:
+            return await client.execute(mutation, variable_values=variables)
 
     def query(
         self,
@@ -881,7 +824,8 @@ class GraphQLApplication(BaseApplication):
         """
         if isinstance(query, str):
             query = gql(query)
-        return self.client.execute(query, variable_values=variables)
+        with self.client() as client:
+            return client.execute(query, variable_values=variables)
 
     async def query_async(
         self,
@@ -906,4 +850,5 @@ class GraphQLApplication(BaseApplication):
         """
         if isinstance(query, str):
             query = gql(query)
-        return await self.async_client.execute(query, variable_values=variables)
+        async with self.async_client() as client:
+            return await client.execute(query, variable_values=variables)
