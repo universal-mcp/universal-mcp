@@ -5,6 +5,7 @@ from typing import Any
 import httpx
 from gql import Client as GraphQLClient
 from gql import gql
+from gql.transport.aiohttp import AIOHTTPTransport
 from gql.transport.requests import RequestsHTTPTransport
 from graphql import DocumentNode
 from loguru import logger
@@ -95,6 +96,7 @@ class APIApplication(BaseApplication):
         name: str,
         integration: Integration | None = None,
         client: httpx.Client | None = None,
+        async_client: httpx.AsyncClient | None = None,
         **kwargs: Any,
     ) -> None:
         """Initializes the APIApplication.
@@ -106,6 +108,9 @@ class APIApplication(BaseApplication):
             client (httpx.Client | None, optional): An existing httpx.Client
                 instance. If None, a new client will be created on demand.
                 Defaults to None.
+            async_client (httpx.AsyncClient | None, optional): An existing httpx.AsyncClient
+                instance. If None, a new client will be created on demand.
+                Defaults to None.
             **kwargs (Any): Additional keyword arguments passed to the
                              BaseApplication.
         """
@@ -114,6 +119,7 @@ class APIApplication(BaseApplication):
         self.integration = integration
         logger.debug(f"Initializing APIApplication '{name}' with integration: {integration}")
         self._client: httpx.Client | None = client
+        self._async_client: httpx.AsyncClient | None = async_client
         self.base_url: str = ""
 
     def _get_headers(self) -> dict[str, str]:
@@ -182,12 +188,61 @@ class APIApplication(BaseApplication):
             )
         return self._client
 
+    @property
+    def async_client(self) -> httpx.AsyncClient:
+        """Provides an initialized `httpx.AsyncClient` instance.
+
+        If an async client was not provided during initialization or has not been
+        created yet, this property will instantiate a new `httpx.AsyncClient`.
+        The client is configured with the `base_url` and headers derived
+        from the `_get_headers` method.
+
+        Returns:
+            httpx.AsyncClient: The active `httpx.AsyncClient` instance.
+        """
+        if not self._async_client:
+            headers = self._get_headers()
+            self._async_client = httpx.AsyncClient(
+                base_url=self.base_url,
+                headers=headers,
+                timeout=self.default_timeout,
+            )
+        return self._async_client
+
     def _handle_response(self, response: httpx.Response) -> dict[str, Any]:
         """Processes an HTTP response, checking for errors and parsing JSON.
 
         This method first calls `response.raise_for_status()` to raise an
         `httpx.HTTPStatusError` if the HTTP request failed. If successful,
         it attempts to parse the response body as JSON. If JSON parsing
+        fails, it returns a dictionary containing the success status,
+        status code, and raw text of the response.
+
+        Args:
+            response (httpx.Response): The HTTP response object from `httpx`.
+
+        Returns:
+            dict[str, Any]: The parsed JSON response as a dictionary, or
+                            a status dictionary if JSON parsing is not possible
+                            for a successful response.
+
+        Raises:
+            httpx.HTTPStatusError: If the HTTP response status code indicates
+                                 an error (4xx or 5xx).
+        """
+        response.raise_for_status()
+        try:
+            return response.json()
+        except Exception:
+            return {"status": "success", "status_code": response.status_code, "text": response.text}
+
+    async def _async_handle_response(self, response: httpx.Response) -> dict[str, Any]:
+        """Processes an HTTP response asynchronously, checking for errors and parsing JSON.
+
+        This method first calls `response.raise_for_status()` to raise an
+        `httpx.HTTPStatusError` if the HTTP request failed. If successful,
+        it attempts to parse the response body as JSON. If JSON parsing
+
         fails, it returns a dictionary containing the success status,
         status code, and raw text of the response.
 
@@ -227,6 +282,26 @@ class APIApplication(BaseApplication):
         logger.debug(f"Making GET request to {url} with params: {params}")
         response = self.client.get(url, params=params)
         logger.debug(f"GET request successful with status code: {response.status_code}")
+        return response
+
+    async def _async_get(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
+        """Makes an asynchronous GET request to the specified URL.
+
+        Args:
+            url (str): The URL endpoint for the request (relative to `base_url`).
+            params (dict[str, Any] | None, optional): Optional URL query parameters.
+                Defaults to None.
+
+        Returns:
+            httpx.Response: The raw HTTP response object. The `_async_handle_response`
+                            method should typically be used to process this.
+
+        Raises:
+            httpx.HTTPStatusError: Propagated if the underlying client request fails.
+        """
+        logger.debug(f"Making async GET request to {url} with params: {params}")
+        response = await self.async_client.get(url, params=params)
+        logger.debug(f"Async GET request successful with status code: {response.status_code}")
         return response
 
     def _post(
@@ -304,6 +379,73 @@ class APIApplication(BaseApplication):
                 params=params,
             )
         logger.debug(f"POST request successful with status code: {response.status_code}")
+        return response
+
+    async def _async_post(
+        self,
+        url: str,
+        data: Any,
+        params: dict[str, Any] | None = None,
+        content_type: str = "application/json",
+        files: dict[str, Any] | None = None,
+    ) -> httpx.Response:
+        """Makes an asynchronous POST request to the specified URL.
+
+        Handles different `content_type` values for sending data,
+        including 'application/json', 'application/x-www-form-urlencoded',
+        and 'multipart/form-data' (for file uploads).
+
+        Args:
+            url (str): The URL endpoint for the request (relative to `base_url`).
+            data (Any): The data to send in the request body.
+            params (dict[str, Any] | None, optional): Optional URL query parameters.
+            content_type (str, optional): The Content-Type of the request body.
+            files (dict[str, Any] | None, optional): A dictionary for file uploads.
+
+        Returns:
+            httpx.Response: The raw HTTP response object.
+
+        Raises:
+            httpx.HTTPStatusError: Propagated if the underlying client request fails.
+        """
+        logger.debug(
+            f"Making async POST request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
+        )
+        headers = self._get_headers().copy()
+
+        if content_type != "multipart/form-data":
+            headers["Content-Type"] = content_type
+
+        if content_type == "multipart/form-data":
+            response = await self.async_client.post(
+                url,
+                headers=headers,
+                data=data,
+                files=files,
+                params=params,
+            )
+        elif content_type == "application/x-www-form-urlencoded":
+            response = await self.async_client.post(
+                url,
+                headers=headers,
+                data=data,
+                params=params,
+            )
+        elif content_type == "application/json":
+            response = await self.async_client.post(
+                url,
+                headers=headers,
+                json=data,
+                params=params,
+            )
+        else:
+            response = await self.async_client.post(
+                url,
+                headers=headers,
+                content=data,
+                params=params,
+            )
+        logger.debug(f"Async POST request successful with status code: {response.status_code}")
         return response
 
     def _put(
@@ -384,6 +526,68 @@ class APIApplication(BaseApplication):
         logger.debug(f"PUT request successful with status code: {response.status_code}")
         return response
 
+    async def _async_put(
+        self,
+        url: str,
+        data: Any,
+        params: dict[str, Any] | None = None,
+        content_type: str = "application/json",
+        files: dict[str, Any] | None = None,
+    ) -> httpx.Response:
+        """Makes an asynchronous PUT request to the specified URL.
+
+        Args:
+            url (str): The URL endpoint for the request.
+            data (Any): The data to send in the request body.
+            params (dict[str, Any] | None, optional): URL query parameters.
+            content_type (str, optional): The Content-Type of the request body.
+            files (dict[str, Any] | None, optional): A dictionary for file uploads.
+
+        Returns:
+            httpx.Response: The raw HTTP response object.
+
+        Raises:
+            httpx.HTTPStatusError: Propagated if the underlying client request fails.
+        """
+        logger.debug(
+            f"Making async PUT request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
+        )
+        headers = self._get_headers().copy()
+        if content_type != "multipart/form-data":
+            headers["Content-Type"] = content_type
+
+        if content_type == "multipart/form-data":
+            response = await self.async_client.put(
+                url,
+                headers=headers,
+                data=data,
+                files=files,
+                params=params,
+            )
+        elif content_type == "application/x-www-form-urlencoded":
+            response = await self.async_client.put(
+                url,
+                headers=headers,
+                data=data,
+                params=params,
+            )
+        elif content_type == "application/json":
+            response = await self.async_client.put(
+                url,
+                headers=headers,
+                json=data,
+                params=params,
+            )
+        else:
+            response = await self.async_client.put(
+                url,
+                headers=headers,
+                content=data,
+                params=params,
+            )
+        logger.debug(f"Async PUT request successful with status code: {response.status_code}")
+        return response
+
     def _delete(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
         """Makes a DELETE request to the specified URL.
 
@@ -402,6 +606,24 @@ class APIApplication(BaseApplication):
         logger.debug(f"Making DELETE request to {url} with params: {params}")
         response = self.client.delete(url, params=params, timeout=self.default_timeout)
         logger.debug(f"DELETE request successful with status code: {response.status_code}")
+        return response
+
+    async def _async_delete(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
+        """Makes an asynchronous DELETE request to the specified URL.
+
+        Args:
+            url (str): The URL endpoint for the request.
+            params (dict[str, Any] | None, optional): URL query parameters.
+
+        Returns:
+            httpx.Response: The raw HTTP response object.
+
+        Raises:
+            httpx.HTTPStatusError: Propagated if the underlying client request fails.
+        """
+        logger.debug(f"Making async DELETE request to {url} with params: {params}")
+        response = await self.async_client.delete(url, params=params, timeout=self.default_timeout)
+        logger.debug(f"Async DELETE request successful with status code: {response.status_code}")
         return response
 
     def _patch(self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None) -> httpx.Response:
@@ -430,6 +652,29 @@ class APIApplication(BaseApplication):
         logger.debug(f"PATCH request successful with status code: {response.status_code}")
         return response
 
+    async def _async_patch(self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None) -> httpx.Response:
+        """Makes an asynchronous PATCH request to the specified URL.
+
+        Args:
+            url (str): The URL endpoint for the request.
+            data (dict[str, Any]): The JSON-serializable data to send.
+            params (dict[str, Any] | None, optional): URL query parameters.
+
+        Returns:
+            httpx.Response: The raw HTTP response object.
+
+        Raises:
+            httpx.HTTPStatusError: Propagated if the underlying client request fails.
+        """
+        logger.debug(f"Making async PATCH request to {url} with params: {params} and data: {data}")
+        response = await self.async_client.patch(
+            url,
+            json=data,
+            params=params,
+        )
+        logger.debug(f"Async PATCH request successful with status code: {response.status_code}")
+        return response
+
 
 class GraphQLApplication(BaseApplication):
     """Base class for applications interacting with GraphQL APIs.
@@ -454,6 +699,7 @@ class GraphQLApplication(BaseApplication):
         base_url: str,
         integration: Integration | None = None,
         client: GraphQLClient | None = None,
+        async_client: GraphQLClient | None = None,
         **kwargs: Any,
     ) -> None:
         """Initializes the GraphQLApplication.
@@ -466,6 +712,9 @@ class GraphQLApplication(BaseApplication):
             client (GraphQLClient | None, optional): An existing `gql.Client`
                 instance. If None, a new client will be created on demand.
                 Defaults to None.
+            async_client (GraphQLClient | None, optional): An existing async `gql.Client`
+                instance. If None, a new client will be created on demand.
+                Defaults to None.
             **kwargs (Any): Additional keyword arguments passed to the
                              BaseApplication.
         """
@@ -475,6 +724,7 @@ class GraphQLApplication(BaseApplication):
         self.default_timeout: float = DEFAULT_API_TIMEOUT
         logger.debug(f"Initializing Application '{name}' with kwargs: {kwargs}")
         self._client: GraphQLClient | None = client
+        self._async_client: GraphQLClient | None = async_client
 
     def _get_headers(self) -> dict[str, str]:
         """Constructs HTTP headers for GraphQL requests based on the integration.
@@ -537,6 +787,25 @@ class GraphQLApplication(BaseApplication):
             self._client = GraphQLClient(transport=transport, fetch_schema_from_transport=True)
         return self._client
 
+    @property
+    def async_client(self) -> GraphQLClient:
+        """Provides an initialized async `gql.Client` instance.
+
+        If a client was not provided during initialization or has not been
+        created yet, this property instantiates a new `gql.Client`.
+        The client is configured with an `AIOHTTPTransport` using the
+        `base_url` and headers from `_get_headers`. It's also set to
+        fetch the schema from the transport.
+
+        Returns:
+            GraphQLClient: The active async `gql.Client` instance.
+        """
+        if not self._async_client:
+            headers = self._get_headers()
+            transport = AIOHTTPTransport(url=self.base_url, headers=headers)
+            self._async_client = GraphQLClient(transport=transport, fetch_schema_from_transport=True)
+        return self._async_client
+
     def mutate(
         self,
         mutation: str | DocumentNode,
@@ -562,6 +831,31 @@ class GraphQLApplication(BaseApplication):
             mutation = gql(mutation)
         return self.client.execute(mutation, variable_values=variables)
 
+    async def mutate_async(
+        self,
+        mutation: str | DocumentNode,
+        variables: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Executes a GraphQL mutation asynchronously.
+
+        Args:
+            mutation (str | DocumentNode): The GraphQL mutation string or a
+                pre-parsed `gql.DocumentNode` object. If a string is provided,
+                it will be parsed using `gql()`.
+            variables (dict[str, Any] | None, optional): A dictionary of variables
+                to pass with the mutation. Defaults to None.
+
+        Returns:
+            dict[str, Any]: The JSON response from the GraphQL server as a dictionary.
+
+        Raises:
+            Exception: If the GraphQL client encounters an error during execution
+                       (e.g., network issue, GraphQL server error).
+        """
+        if isinstance(mutation, str):
+            mutation = gql(mutation)
+        return await self.async_client.execute(mutation, variable_values=variables)
+
     def query(
         self,
         query: str | DocumentNode,
@@ -586,3 +880,28 @@ class GraphQLApplication(BaseApplication):
         if isinstance(query, str):
             query = gql(query)
         return self.client.execute(query, variable_values=variables)
+
+    async def query_async(
+        self,
+        query: str | DocumentNode,
+        variables: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Executes a GraphQL query asynchronously.
+
+        Args:
+            query (str | DocumentNode): The GraphQL query string or a
+                pre-parsed `gql.DocumentNode` object. If a string is provided,
+                it will be parsed using `gql()`.
+            variables (dict[str, Any] | None, optional): A dictionary of variables
+                to pass with the query. Defaults to None.
+
+        Returns:
+            dict[str, Any]: The JSON response from the GraphQL server as a dictionary.
+
+        Raises:
+            Exception: If the GraphQL client encounters an error during execution
+                               (e.g., network issue, GraphQL server error).
+        """
+        if isinstance(query, str):
+            query = gql(query)
+        return await self.async_client.execute(query, variable_values=variables)
