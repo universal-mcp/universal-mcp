@@ -125,17 +125,14 @@ class APIApplication(BaseApplication):
         if api_key:
             logger.debug("Using API key from credentials")
             return {
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            }
-
+                "Authorization": f"Bearer {api_key}",                       
+            }                                                               
         # Check if access token is provided
         access_token = credentials.get("access_token")
         if access_token:
             logger.debug("Using access token from credentials")
             return {
                 "Authorization": f"Bearer {access_token}",
-                "Content-Type": "application/json",
             }
         logger.debug("No authentication found in credentials, returning empty headers")
         return {}
@@ -224,7 +221,7 @@ class APIApplication(BaseApplication):
         logger.debug(f"GET request successful with status code: {response.status_code}")
         return response
 
-    async def _async_get(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
+    async def _aget(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
         """Makes an asynchronous GET request to the specified URL.
 
         Args:
@@ -285,21 +282,16 @@ class APIApplication(BaseApplication):
         logger.debug(
             f"Making POST request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
         )
-        headers = self._get_headers().copy()
-
-        if content_type != "multipart/form-data":
-            headers["Content-Type"] = content_type
-
         with self.get_sync_client() as client:
             if content_type == "multipart/form-data":
                 response = client.post(
                     url,
-                    headers=headers,
                     data=data,  # For regular form fields
                     files=files,  # For file parts
                     params=params,
                 )
             elif content_type == "application/x-www-form-urlencoded":
+                headers = {"Content-Type": content_type}  # Explicitly set Content-Type for form data.
                 response = client.post(
                     url,
                     headers=headers,
@@ -309,11 +301,11 @@ class APIApplication(BaseApplication):
             elif content_type == "application/json":
                 response = client.post(
                     url,
-                    headers=headers,
-                    json=data,
+                    json=data,  # httpx automatically sets Content-Type for json=data.
                     params=params,
                 )
             else:  # Handles 'application/octet-stream', 'text/plain', 'image/jpeg', etc.
+                headers = {"Content-Type": content_type}  # Explicitly set Content-Type for other content types.
                 response = client.post(
                     url,
                     headers=headers,
@@ -353,21 +345,16 @@ class APIApplication(BaseApplication):
         logger.debug(
             f"Making async POST request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
         )
-        headers = self._get_headers().copy()
-
-        if content_type != "multipart/form-data":
-            headers["Content-Type"] = content_type
-
         async with self.get_async_client() as client:
             if content_type == "multipart/form-data":
                 response = await client.post(
                     url,
-                    headers=headers,
                     data=data,
                     files=files,
                     params=params,
                 )
             elif content_type == "application/x-www-form-urlencoded":
+                headers = {"Content-Type": content_type}  # Explicitly set Content-Type for form data.
                 response = await client.post(
                     url,
                     headers=headers,
@@ -377,11 +364,11 @@ class APIApplication(BaseApplication):
             elif content_type == "application/json":
                 response = await client.post(
                     url,
-                    headers=headers,
-                    json=data,
+                    json=data,  # httpx automatically sets Content-Type for json=data.
                     params=params,
                 )
             else:
+                headers = {"Content-Type": content_type}  # Explicitly set Content-Type for other content types.
                 response = await client.post(
                     url,
                     headers=headers,
@@ -431,22 +418,16 @@ class APIApplication(BaseApplication):
         logger.debug(
             f"Making PUT request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
         )
-        headers = self._get_headers().copy()
-        # For multipart/form-data, httpx handles the Content-Type header (with boundary)
-        # For other content types, we set it explicitly.
-        if content_type != "multipart/form-data":
-            headers["Content-Type"] = content_type
-
         with self.get_sync_client() as client:
             if content_type == "multipart/form-data":
                 response = client.put(
                     url,
-                    headers=headers,
                     data=data,  # For regular form fields
                     files=files,  # For file parts
                     params=params,
                 )
             elif content_type == "application/x-www-form-urlencoded":
+                headers = {"Content-Type": content_type}  # Explicitly set Content-Type for form data.
                 response = client.put(
                     url,
                     headers=headers,
@@ -456,11 +437,11 @@ class APIApplication(BaseApplication):
             elif content_type == "application/json":
                 response = client.put(
                     url,
-                    headers=headers,
-                    json=data,
+                    json=data,  # httpx automatically sets Content-Type for json=data.
                     params=params,
                 )
             else:  # Handles 'application/octet-stream', 'text/plain', 'image/jpeg', etc.
+                headers = {"Content-Type": content_type}
                 response = client.put(
                     url,
                     headers=headers,
@@ -496,20 +477,16 @@ class APIApplication(BaseApplication):
         logger.debug(
             f"Making async PUT request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
         )
-        headers = self._get_headers().copy()
-        if content_type != "multipart/form-data":
-            headers["Content-Type"] = content_type
-
         async with self.get_async_client() as client:
             if content_type == "multipart/form-data":
                 response = await client.put(
                     url,
-                    headers=headers,
                     data=data,
                     files=files,
                     params=params,
                 )
             elif content_type == "application/x-www-form-urlencoded":
+                headers = {"Content-Type": content_type}  # Explicitly set Content-Type for form data.
                 response = await client.put(
                     url,
                     headers=headers,
@@ -519,11 +496,11 @@ class APIApplication(BaseApplication):
             elif content_type == "application/json":
                 response = await client.put(
                     url,
-                    headers=headers,
-                    json=data,
+                    json=data,  # httpx automatically sets Content-Type for json=data.
                     params=params,
                 )
             else:
+                headers = {"Content-Type": content_type}  # Explicitly set Content-Type for other content types.
                 response = await client.put(
                     url,
                     headers=headers,
@@ -550,7 +527,7 @@ class APIApplication(BaseApplication):
         """
         logger.debug(f"Making DELETE request to {url} with params: {params}")
         with self.get_sync_client() as client:
-            response = client.delete(url, params=params, timeout=self.default_timeout)
+            response = client.delete(url, params=params)  # Removed redundant timeout; client is already configured with default_timeout.
         logger.debug(f"DELETE request successful with status code: {response.status_code}")
         return response
 
@@ -569,7 +546,7 @@ class APIApplication(BaseApplication):
         """
         logger.debug(f"Making async DELETE request to {url} with params: {params}")
         async with self.get_async_client() as client:
-            response = await client.delete(url, params=params, timeout=self.default_timeout)
+            response = await client.delete(url, params=params)
         logger.debug(f"Async DELETE request successful with status code: {response.status_code}")
         return response
 
