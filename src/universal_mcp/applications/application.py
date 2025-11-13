@@ -125,8 +125,8 @@ class APIApplication(BaseApplication):
         if api_key:
             logger.debug("Using API key from credentials")
             return {
-                "Authorization": f"Bearer {api_key}",                       
-            }                                                               
+                "Authorization": f"Bearer {api_key}",
+            }
         # Check if access token is provided
         access_token = credentials.get("access_token")
         if access_token:
@@ -527,7 +527,9 @@ class APIApplication(BaseApplication):
         """
         logger.debug(f"Making DELETE request to {url} with params: {params}")
         with self.get_sync_client() as client:
-            response = client.delete(url, params=params)  # Removed redundant timeout; client is already configured with default_timeout.
+            response = client.delete(
+                url, params=params
+            )  # Removed redundant timeout; client is already configured with default_timeout.
         logger.debug(f"DELETE request successful with status code: {response.status_code}")
         return response
 
