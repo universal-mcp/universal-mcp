@@ -29,10 +29,12 @@ def convert_to_native_tool(tool: Tool) -> Callable[..., Any]:
 
     def decorator(func):
         if inspect.iscoroutinefunction(func):
+
             @wraps(func)
             async def wrapper(*args, **kwargs):
                 return await func(*args, **kwargs)
         else:
+
             @wraps(func)
             def wrapper(*args, **kwargs):
                 return func(*args, **kwargs)
