@@ -1,9 +1,8 @@
-from pathlib import Path
+# from pathlib import Path
 
 import typer
 from rich.console import Console
 from rich.panel import Panel
-from universal_mcp.agents.cli import app as client_app
 
 from universal_mcp.utils.installation import (
     get_supported_apps,
@@ -16,30 +15,29 @@ console = Console()
 
 app = typer.Typer(name="mcp")
 app.add_typer(codegen_app, name="codegen", help="Code generation and manipulation commands")
-app.add_typer(client_app, name="client", help="Client commands")
 
 
-@app.command()
-def run(
-    config_path: Path | None = typer.Option(None, "--config", "-c", help="Path to the config file"),
-):
-    """Run the MCP server"""
-    from universal_mcp.agentr.server import AgentrServer
+# @app.command()
+# def run(
+#     config_path: Path | None = typer.Option(None, "--config", "-c", help="Path to the config file"),
+# ):
+#     """Run the MCP server"""
+#     from universal_mcp.agentr.server import AgentrServer
 
-    from universal_mcp.config import ServerConfig
-    from universal_mcp.logger import setup_logger
-    from universal_mcp.servers import LocalServer
+#     from universal_mcp.config import ServerConfig
+#     from universal_mcp.logger import setup_logger
+#     from universal_mcp.servers import LocalServer
 
-    config = ServerConfig.model_validate_json(config_path.read_text()) if config_path else ServerConfig()
-    setup_logger(level=config.log_level)
+#     config = ServerConfig.model_validate_json(config_path.read_text()) if config_path else ServerConfig()
+#     setup_logger(level=config.log_level)
 
-    if config.type == "agentr":
-        server = AgentrServer(config=config, api_key=config.api_key)
-    elif config.type == "local":
-        server = LocalServer(config=config)
-    else:
-        raise ValueError(f"Unsupported server type: {config.type}")
-    server.run(transport=config.transport)
+#     if config.type == "agentr":
+#         server = AgentrServer(config=config, api_key=config.api_key)
+#     elif config.type == "local":
+#         server = LocalServer(config=config)
+#     else:
+#         raise ValueError(f"Unsupported server type: {config.type}")
+#     server.run(transport=config.transport)
 
 
 @app.command()
