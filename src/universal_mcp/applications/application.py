@@ -137,6 +137,44 @@ class APIApplication(BaseApplication):
         logger.debug("No authentication found in credentials, returning empty headers")
         return {}
 
+    async def _aget_headers(self) -> dict[str, str]:
+        """Constructs HTTP headers for API requests based on the integration asynchronously.
+
+        Retrieves credentials from the configured `integration` asynchronously and
+        attempts to create appropriate authentication headers.
+
+        Returns:
+            dict[str, str]: A dictionary of HTTP headers.
+        """
+        if not self.integration:
+            logger.debug("No integration configured, returning empty headers")
+            return {}
+        credentials = await self.integration.get_credentials_async()
+        logger.debug("Got credentials for integration")
+
+        # Check if direct headers are provided
+        headers = credentials.get("headers")
+        if headers:
+            logger.debug("Using direct headers from credentials")
+            return headers
+
+        # Check if api key is provided
+        api_key = credentials.get("api_key") or credentials.get("API_KEY") or credentials.get("apiKey")
+        if api_key:
+            logger.debug("Using API key from credentials")
+            return {
+                "Authorization": f"Bearer {api_key}",
+            }
+        # Check if access token is provided
+        access_token = credentials.get("access_token")
+        if access_token:
+            logger.debug("Using access token from credentials")
+            return {
+                "Authorization": f"Bearer {access_token}",
+            }
+        logger.debug("No authentication found in credentials, returning empty headers")
+        return {}
+
     @contextmanager
     def get_sync_client(self) -> httpx.Client:
         """Provides an initialized `httpx.Client` instance for use as a context manager.
@@ -165,7 +203,7 @@ class APIApplication(BaseApplication):
         Returns:
             httpx.AsyncClient: A new `httpx.AsyncClient` instance.
         """
-        headers = self._get_headers()
+        headers = await self._aget_headers()
         async with httpx.AsyncClient(
             base_url=self.base_url,
             headers=headers,
@@ -692,6 +730,42 @@ class GraphQLApplication(BaseApplication):
         logger.debug("No authentication found in credentials, returning empty headers")
         return {}
 
+    async def _aget_headers(self) -> dict[str, str]:
+        """Constructs HTTP headers for GraphQL requests based on the integration asynchronously.
+
+        Returns:
+            dict[str, str]: A dictionary of HTTP headers.
+        """
+        if not self.integration:
+            logger.debug("No integration configured, returning empty headers")
+            return {}
+        credentials = await self.integration.get_credentials_async()
+        logger.debug(f"Got credentials for integration: {credentials.keys()}")
+
+        # Check if direct headers are provided
+        headers = credentials.get("headers")
+        if headers:
+            logger.debug("Using direct headers from credentials")
+            return headers
+
+        # Check if api key is provided
+        api_key = credentials.get("api_key") or credentials.get("API_KEY") or credentials.get("apiKey")
+        if api_key:
+            logger.debug("Using API key from credentials")
+            return {
+                "Authorization": f"Bearer {api_key}",
+            }
+
+        # Check if access token is provided
+        access_token = credentials.get("access_token")
+        if access_token:
+            logger.debug("Using access token from credentials")
+            return {
+                "Authorization": f"Bearer {access_token}",
+            }
+        logger.debug("No authentication found in credentials, returning empty headers")
+        return {}
+
     @contextmanager
     def client(self) -> GraphQLClient:
         """Provides an initialized `gql.Client` instance.
@@ -723,7 +797,7 @@ class GraphQLApplication(BaseApplication):
         Returns:
             GraphQLClient: The active async `gql.Client` instance.
         """
-        headers = self._get_headers()
+        headers = await self._aget_headers()
         transport = AIOHTTPTransport(url=self.base_url, headers=headers)
         async with GraphQLClient(transport=transport, fetch_schema_from_transport=True) as client:
             yield client
