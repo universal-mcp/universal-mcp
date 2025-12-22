@@ -590,54 +590,77 @@ class APIApplication(BaseApplication):
         logger.debug(f"Async DELETE request successful with status code: {response.status_code}")
         return response
 
-    def _patch(self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None) -> httpx.Response:
+    def _patch(
+        self,
+        url: str,
+        data: Any,
+        params: dict[str, Any] | None = None,
+        content_type: str = "application/json",
+        files: dict[str, Any] | None = None,
+    ) -> httpx.Response:
         """Makes a PATCH request to the specified URL.
 
         Args:
             url (str): The URL endpoint for the request (relative to `base_url`).
-            data (dict[str, Any]): The JSON-serializable data to send in the
-                request body.
+            data (Any): The data to send in the request body.
             params (dict[str, Any] | None, optional): Optional URL query parameters.
-                Defaults to None.
+            content_type (str, optional): The Content-Type of the request body.
+            files (dict[str, Any] | None, optional): A dictionary for file uploads.
 
         Returns:
-            httpx.Response: The raw HTTP response object. The `_handle_response`
-                            method should typically be used to process this.
-
-        Raises:
-            httpx.HTTPStatusError: Propagated if the underlying client request fails.
+            httpx.Response: The raw HTTP response object.
         """
-        logger.debug(f"Making PATCH request to {url} with params: {params} and data: {data}")
+        logger.debug(
+            f"Making PATCH request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
+        )
         with self.get_sync_client() as client:
-            response = client.patch(
-                url,
-                json=data,
-                params=params,
-            )
+            if content_type == "multipart/form-data":
+                response = client.patch(url, data=data, files=files, params=params)
+            elif content_type == "application/x-www-form-urlencoded":
+                headers = {"Content-Type": content_type}
+                response = client.patch(url, headers=headers, data=data, params=params)
+            elif content_type == "application/json":
+                response = client.patch(url, json=data, params=params)
+            else:
+                headers = {"Content-Type": content_type}
+                response = client.patch(url, headers=headers, content=data, params=params)
         logger.debug(f"PATCH request successful with status code: {response.status_code}")
         return response
 
-    async def _apatch(self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None) -> httpx.Response:
+    async def _apatch(
+        self,
+        url: str,
+        data: Any,
+        params: dict[str, Any] | None = None,
+        content_type: str = "application/json",
+        files: dict[str, Any] | None = None,
+    ) -> httpx.Response:
         """Makes an asynchronous PATCH request to the specified URL.
 
         Args:
             url (str): The URL endpoint for the request.
-            data (dict[str, Any]): The JSON-serializable data to send.
+            data (Any): The data to send in the request body.
             params (dict[str, Any] | None, optional): URL query parameters.
+            content_type (str, optional): The Content-Type of the request body.
+            files (dict[str, Any] | None, optional): A dictionary for file uploads.
 
         Returns:
             httpx.Response: The raw HTTP response object.
-
-        Raises:
-            httpx.HTTPStatusError: Propagated if the underlying client request fails.
         """
-        logger.debug(f"Making async PATCH request to {url} with params: {params} and data: {data}")
+        logger.debug(
+            f"Making async PATCH request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
+        )
         async with self.get_async_client() as client:
-            response = await client.patch(
-                url,
-                json=data,
-                params=params,
-            )
+            if content_type == "multipart/form-data":
+                response = await client.patch(url, data=data, files=files, params=params)
+            elif content_type == "application/x-www-form-urlencoded":
+                headers = {"Content-Type": content_type}
+                response = await client.patch(url, headers=headers, data=data, params=params)
+            elif content_type == "application/json":
+                response = await client.patch(url, json=data, params=params)
+            else:
+                headers = {"Content-Type": content_type}
+                response = await client.patch(url, headers=headers, content=data, params=params)
         logger.debug(f"Async PATCH request successful with status code: {response.status_code}")
         return response
 
