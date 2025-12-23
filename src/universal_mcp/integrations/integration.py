@@ -65,6 +65,28 @@ class Integration:
         """
         raise NotImplementedError("Subclasses must implement the authorize method.")
 
+    async def get_credentials_async(self) -> dict[str, Any]:
+        """Retrieves the stored credentials for this integration asynchronously.
+
+        Default implementation wraps the synchronous get_credentials method.
+        Subclasses should override this if they support true async retrieval.
+
+        Returns:
+            dict[str, Any]: A dictionary containing the credentials.
+        """
+        return self.get_credentials()
+
+    async def authorize_async(self) -> str | dict[str, Any]:
+        """Initiates or provides details for the authorization process asynchronously.
+
+        Default implementation wraps the synchronous authorize method.
+        Subclasses should override this if they support true async authorization.
+
+        Returns:
+            str | dict[str, Any]: Auth URL or parameters.
+        """
+        return self.authorize()
+
     def get_credentials(self) -> dict[str, Any]:
         """Retrieves the stored credentials for this integration.
 

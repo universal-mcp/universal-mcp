@@ -137,6 +137,44 @@ class APIApplication(BaseApplication):
         logger.debug("No authentication found in credentials, returning empty headers")
         return {}
 
+    async def _aget_headers(self) -> dict[str, str]:
+        """Constructs HTTP headers for API requests based on the integration asynchronously.
+
+        Retrieves credentials from the configured `integration` asynchronously and
+        attempts to create appropriate authentication headers.
+
+        Returns:
+            dict[str, str]: A dictionary of HTTP headers.
+        """
+        if not self.integration:
+            logger.debug("No integration configured, returning empty headers")
+            return {}
+        credentials = await self.integration.get_credentials_async()
+        logger.debug("Got credentials for integration")
+
+        # Check if direct headers are provided
+        headers = credentials.get("headers")
+        if headers:
+            logger.debug("Using direct headers from credentials")
+            return headers
+
+        # Check if api key is provided
+        api_key = credentials.get("api_key") or credentials.get("API_KEY") or credentials.get("apiKey")
+        if api_key:
+            logger.debug("Using API key from credentials")
+            return {
+                "Authorization": f"Bearer {api_key}",
+            }
+        # Check if access token is provided
+        access_token = credentials.get("access_token")
+        if access_token:
+            logger.debug("Using access token from credentials")
+            return {
+                "Authorization": f"Bearer {access_token}",
+            }
+        logger.debug("No authentication found in credentials, returning empty headers")
+        return {}
+
     @contextmanager
     def get_sync_client(self) -> httpx.Client:
         """Provides an initialized `httpx.Client` instance for use as a context manager.
@@ -165,7 +203,7 @@ class APIApplication(BaseApplication):
         Returns:
             httpx.AsyncClient: A new `httpx.AsyncClient` instance.
         """
-        headers = self._get_headers()
+        headers = await self._aget_headers()
         async with httpx.AsyncClient(
             base_url=self.base_url,
             headers=headers,
@@ -552,54 +590,77 @@ class APIApplication(BaseApplication):
         logger.debug(f"Async DELETE request successful with status code: {response.status_code}")
         return response
 
-    def _patch(self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None) -> httpx.Response:
+    def _patch(
+        self,
+        url: str,
+        data: Any,
+        params: dict[str, Any] | None = None,
+        content_type: str = "application/json",
+        files: dict[str, Any] | None = None,
+    ) -> httpx.Response:
         """Makes a PATCH request to the specified URL.
 
         Args:
             url (str): The URL endpoint for the request (relative to `base_url`).
-            data (dict[str, Any]): The JSON-serializable data to send in the
-                request body.
+            data (Any): The data to send in the request body.
             params (dict[str, Any] | None, optional): Optional URL query parameters.
-                Defaults to None.
+            content_type (str, optional): The Content-Type of the request body.
+            files (dict[str, Any] | None, optional): A dictionary for file uploads.
 
         Returns:
-            httpx.Response: The raw HTTP response object. The `_handle_response`
-                            method should typically be used to process this.
-
-        Raises:
-            httpx.HTTPStatusError: Propagated if the underlying client request fails.
+            httpx.Response: The raw HTTP response object.
         """
-        logger.debug(f"Making PATCH request to {url} with params: {params} and data: {data}")
+        logger.debug(
+            f"Making PATCH request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
+        )
         with self.get_sync_client() as client:
-            response = client.patch(
-                url,
-                json=data,
-                params=params,
-            )
+            if content_type == "multipart/form-data":
+                response = client.patch(url, data=data, files=files, params=params)
+            elif content_type == "application/x-www-form-urlencoded":
+                headers = {"Content-Type": content_type}
+                response = client.patch(url, headers=headers, data=data, params=params)
+            elif content_type == "application/json":
+                response = client.patch(url, json=data, params=params)
+            else:
+                headers = {"Content-Type": content_type}
+                response = client.patch(url, headers=headers, content=data, params=params)
         logger.debug(f"PATCH request successful with status code: {response.status_code}")
         return response
 
-    async def _apatch(self, url: str, data: dict[str, Any], params: dict[str, Any] | None = None) -> httpx.Response:
+    async def _apatch(
+        self,
+        url: str,
+        data: Any,
+        params: dict[str, Any] | None = None,
+        content_type: str = "application/json",
+        files: dict[str, Any] | None = None,
+    ) -> httpx.Response:
         """Makes an asynchronous PATCH request to the specified URL.
 
         Args:
             url (str): The URL endpoint for the request.
-            data (dict[str, Any]): The JSON-serializable data to send.
+            data (Any): The data to send in the request body.
             params (dict[str, Any] | None, optional): URL query parameters.
+            content_type (str, optional): The Content-Type of the request body.
+            files (dict[str, Any] | None, optional): A dictionary for file uploads.
 
         Returns:
             httpx.Response: The raw HTTP response object.
-
-        Raises:
-            httpx.HTTPStatusError: Propagated if the underlying client request fails.
         """
-        logger.debug(f"Making async PATCH request to {url} with params: {params} and data: {data}")
+        logger.debug(
+            f"Making async PATCH request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
+        )
         async with self.get_async_client() as client:
-            response = await client.patch(
-                url,
-                json=data,
-                params=params,
-            )
+            if content_type == "multipart/form-data":
+                response = await client.patch(url, data=data, files=files, params=params)
+            elif content_type == "application/x-www-form-urlencoded":
+                headers = {"Content-Type": content_type}
+                response = await client.patch(url, headers=headers, data=data, params=params)
+            elif content_type == "application/json":
+                response = await client.patch(url, json=data, params=params)
+            else:
+                headers = {"Content-Type": content_type}
+                response = await client.patch(url, headers=headers, content=data, params=params)
         logger.debug(f"Async PATCH request successful with status code: {response.status_code}")
         return response
 
@@ -692,6 +753,42 @@ class GraphQLApplication(BaseApplication):
         logger.debug("No authentication found in credentials, returning empty headers")
         return {}
 
+    async def _aget_headers(self) -> dict[str, str]:
+        """Constructs HTTP headers for GraphQL requests based on the integration asynchronously.
+
+        Returns:
+            dict[str, str]: A dictionary of HTTP headers.
+        """
+        if not self.integration:
+            logger.debug("No integration configured, returning empty headers")
+            return {}
+        credentials = await self.integration.get_credentials_async()
+        logger.debug(f"Got credentials for integration: {credentials.keys()}")
+
+        # Check if direct headers are provided
+        headers = credentials.get("headers")
+        if headers:
+            logger.debug("Using direct headers from credentials")
+            return headers
+
+        # Check if api key is provided
+        api_key = credentials.get("api_key") or credentials.get("API_KEY") or credentials.get("apiKey")
+        if api_key:
+            logger.debug("Using API key from credentials")
+            return {
+                "Authorization": f"Bearer {api_key}",
+            }
+
+        # Check if access token is provided
+        access_token = credentials.get("access_token")
+        if access_token:
+            logger.debug("Using access token from credentials")
+            return {
+                "Authorization": f"Bearer {access_token}",
+            }
+        logger.debug("No authentication found in credentials, returning empty headers")
+        return {}
+
     @contextmanager
     def client(self) -> GraphQLClient:
         """Provides an initialized `gql.Client` instance.
@@ -723,7 +820,7 @@ class GraphQLApplication(BaseApplication):
         Returns:
             GraphQLClient: The active async `gql.Client` instance.
         """
-        headers = self._get_headers()
+        headers = await self._aget_headers()
         transport = AIOHTTPTransport(url=self.base_url, headers=headers)
         async with GraphQLClient(transport=transport, fetch_schema_from_transport=True) as client:
             yield client
