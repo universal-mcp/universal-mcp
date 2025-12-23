@@ -17,29 +17,6 @@ app = typer.Typer(name="mcp")
 app.add_typer(codegen_app, name="codegen", help="Code generation and manipulation commands")
 
 
-# @app.command()
-# def run(
-#     config_path: Path | None = typer.Option(None, "--config", "-c", help="Path to the config file"),
-# ):
-#     """Run the MCP server"""
-#     from universal_mcp.agentr.server import AgentrServer
-
-#     from universal_mcp.config import ServerConfig
-#     from universal_mcp.logger import setup_logger
-#     from universal_mcp.servers import LocalServer
-
-#     config = ServerConfig.model_validate_json(config_path.read_text()) if config_path else ServerConfig()
-#     setup_logger(level=config.log_level)
-
-#     if config.type == "agentr":
-#         server = AgentrServer(config=config, api_key=config.api_key)
-#     elif config.type == "local":
-#         server = LocalServer(config=config)
-#     else:
-#         raise ValueError(f"Unsupported server type: {config.type}")
-#     server.run(transport=config.transport)
-
-
 @app.command()
 def install(app_name: str = typer.Argument(..., help="Name of app to install")):
     """Install an app"""
