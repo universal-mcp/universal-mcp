@@ -5,9 +5,9 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.prebuilt import create_react_agent
 from loguru import logger
 from pydantic import BaseModel, SecretStr
-from universal_mcp.agentr import AgentrIntegration
 from universal_mcp.agentr.client import AgentrClient
 
+from universal_mcp.agentr import AgentrIntegration
 from universal_mcp.applications.application import APIApplication, BaseApplication
 from universal_mcp.tools import Tool, ToolManager
 from universal_mcp.types import ToolFormat

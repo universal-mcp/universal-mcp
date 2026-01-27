@@ -1,9 +1,12 @@
+import inspect
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from contextlib import asynccontextmanager, contextmanager
+from inspect import Parameter
 from typing import Any
 
 import httpx
+from fastmcp import Client
 from gql import Client as GraphQLClient
 from gql import gql
 from gql.transport.aiohttp import AIOHTTPTransport
@@ -928,3 +931,124 @@ class GraphQLApplication(BaseApplication):
             query = gql(query)
         async with self.async_client() as client:
             return await client.execute(query, variable_values=variables)
+
+
+class MCPApplication(BaseApplication):
+    """Application that interacts with an external MCP server.
+
+    This application acts as a client to a remote MCP server, discovering
+    available tools and exposing them as callable functions. It uses
+    the `fastmcp` library to communicate with the server.
+
+    Attributes:
+        name (str): The name of the application.
+        server_url (str): The URL of the MCP server (e.g., SSE endpoint).
+        integration (Integration | None): Optional integration for authentication.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        server_url: str,
+        integration: Integration | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Initializes the MCPApplication.
+
+        Args:
+            name (str): The unique name for this application instance.
+            server_url (str): The URL of the remote MCP server.
+            integration (Integration | None, optional): An Integration object
+                for authentication. Defaults to None.
+            **kwargs (Any): Additional keyword arguments passed to BaseApplication.
+        """
+        super().__init__(name, **kwargs)
+        self.server_url = server_url
+        self.integration = integration
+
+    async def list_tools(self) -> list[Callable]:
+        """Lists all tools provided by the remote MCP server.
+
+        Connects to the MCP server to dynamically discover available tools.
+        Returns a list of async wrapper functions that invoke the corresponding
+        tool on the remote server.
+
+        Returns:
+            list[Callable]: A list of callable objects (async functions) representing
+                            the remote tools.
+        """
+        async with Client(self.server_url) as client:
+            tools_data = await client.list_tools()
+
+        def create_wrapper(tool_info):
+            async def tool_wrapper(**kwargs):
+                async with Client(self.server_url) as client:
+                    logger.debug(f"Calling MCP tool {tool_info.name} with args: {kwargs}")
+                    try:
+                        result = await client.call_tool(tool_info.name, kwargs)
+                        logger.debug(f"MCP tool {tool_info.name} returned: {result}")
+                        # Handle CallToolResult response
+                        if hasattr(result, "content") and result.content:
+                            # Extract text from content objects
+                            text_content = [c.text for c in result.content if c.type == "text"]
+                            if text_content:
+                                return "\n".join(text_content)
+
+                        # Fallback for other return types or older fastmcp versions
+                        if hasattr(result, "data") and result.data is not None:
+                            return result.data
+                        return result
+                    except Exception as e:
+                        logger.error(f"Error calling MCP tool {tool_info.name}: {e}")
+                        raise e
+
+            # Populate docstring
+            # Populate docstring with dynamic signature info
+            doc = f"{tool_info.description or ''}\n\nArgs:"
+
+            sig_params = []
+            if tool_info.inputSchema and "properties" in tool_info.inputSchema:
+                properties = tool_info.inputSchema.get("properties", {})
+                required = tool_info.inputSchema.get("required", [])
+
+                # We need to process params to sort them later: required (no default) first
+                temp_params = []
+
+                for prop_name, prop_info in properties.items():
+                    # Docstring
+                    prop_type = prop_info.get("type", "any")
+                    prop_desc = prop_info.get("description", "")
+                    default = prop_info.get("default", Parameter.empty)
+
+                    doc += f"\n    {prop_name} ({prop_type}): {prop_desc}"
+                    if default != Parameter.empty:
+                        doc += f" (default: {default})"
+
+                    # Signature
+                    # Map JSON types to Python types roughly if needed, for now use generic
+                    param_kind = Parameter.POSITIONAL_OR_KEYWORD
+
+                    # Determine default value for signature
+                    if prop_name in required and default == Parameter.empty:
+                        default_val = Parameter.empty
+                    elif default != Parameter.empty:
+                        default_val = default
+                    else:
+                        # Not required and no default => default is None
+                        default_val = None
+
+                    temp_params.append(Parameter(prop_name, kind=param_kind, default=default_val, annotation=Any))
+
+                # Sort: Parameters without default (mandatory) must come before those with default
+                sig_params = sorted(temp_params, key=lambda p: 1 if p.default != Parameter.empty else 0)
+
+            if tool_info.outputSchema:
+                doc += f"\n\nReturns:\n    dict: Result adhering to {tool_info.outputSchema}"
+
+            tool_wrapper.__name__ = tool_info.name
+            tool_wrapper.__doc__ = doc
+            tool_wrapper.__signature__ = inspect.Signature(sig_params)
+
+            return tool_wrapper
+
+        return [create_wrapper(t) for t in tools_data]
