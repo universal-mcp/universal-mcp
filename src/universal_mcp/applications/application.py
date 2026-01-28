@@ -18,6 +18,15 @@ from universal_mcp.integrations.integration import Integration
 
 DEFAULT_API_TIMEOUT = 30  # seconds
 
+JSON_TYPE_MAP = {
+    "string": str,
+    "integer": int,
+    "number": float,
+    "boolean": bool,
+    "array": list,
+    "object": dict,
+}
+
 
 class BaseApplication(ABC):
     """Defines the foundational structure for applications in Universal MCP.
@@ -1028,6 +1037,9 @@ class MCPApplication(BaseApplication):
                     # Map JSON types to Python types roughly if needed, for now use generic
                     param_kind = Parameter.POSITIONAL_OR_KEYWORD
 
+                    # Determine python type
+                    py_type = JSON_TYPE_MAP.get(prop_type, Any)
+
                     # Determine default value for signature
                     if prop_name in required and default == Parameter.empty:
                         default_val = Parameter.empty
@@ -1037,7 +1049,7 @@ class MCPApplication(BaseApplication):
                         # Not required and no default => default is None
                         default_val = None
 
-                    temp_params.append(Parameter(prop_name, kind=param_kind, default=default_val, annotation=Any))
+                    temp_params.append(Parameter(prop_name, kind=param_kind, default=default_val, annotation=py_type))
 
                 # Sort: Parameters without default (mandatory) must come before those with default
                 sig_params = sorted(temp_params, key=lambda p: 1 if p.default != Parameter.empty else 0)
