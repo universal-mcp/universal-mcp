@@ -949,7 +949,7 @@ class MCPApplication(BaseApplication):
     def __init__(
         self,
         name: str,
-        server_url: str,
+        server_object: Any | None = None,
         integration: Integration | None = None,
         **kwargs: Any,
     ) -> None:
@@ -957,13 +957,13 @@ class MCPApplication(BaseApplication):
 
         Args:
             name (str): The unique name for this application instance.
-            server_url (str): The URL of the remote MCP server.
+            server_object (Any): The server object of the remote MCP server. Can be a URL, an in-memory server, a config dict, or a file path to a Python file containing a server object.
             integration (Integration | None, optional): An Integration object
                 for authentication. Defaults to None.
             **kwargs (Any): Additional keyword arguments passed to BaseApplication.
         """
         super().__init__(name, **kwargs)
-        self.server_url = server_url
+        self.server_object = server_object
         self.integration = integration
 
     async def list_tools(self) -> list[Callable]:
@@ -977,12 +977,12 @@ class MCPApplication(BaseApplication):
             list[Callable]: A list of callable objects (async functions) representing
                             the remote tools.
         """
-        async with Client(self.server_url) as client:
+        async with Client(self.server_object) as client:
             tools_data = await client.list_tools()
 
         def create_wrapper(tool_info):
             async def tool_wrapper(**kwargs):
-                async with Client(self.server_url) as client:
+                async with Client(self.server_object) as client:
                     logger.debug(f"Calling MCP tool {tool_info.name} with args: {kwargs}")
                     try:
                         result = await client.call_tool(tool_info.name, kwargs)
