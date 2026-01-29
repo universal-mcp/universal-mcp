@@ -457,17 +457,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#cli-usage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        🤖 CLI Usage
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#requirements" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1509,17 +1498,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#cli-usage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        🤖 CLI Usage
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#requirements" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1705,35 +1683,6 @@ Applications are typically installed dynamically by Universal MCP from their res
 <p>When an action requiring authorization is called, the <code>AgentRIntegration</code> will prompt the user (via the MCP client) to visit a URL to complete the OAuth flow managed by AgentR. This is also the default integration type for apps if the main server config is <code>type: "agentr"</code>.</p>
 <h3 id="3-direct-oauth-integration-type-oauth">3. Direct OAuth Integration (<code>type: "oauth"</code>)</h3>
 <p>While <code>AgentRIntegration</code> is generally preferred for OAuth, a direct <code>OAuthIntegration</code> class exists. However, it requires manual configuration of client IDs, secrets, and callback handling, which is more complex to set up outside the AgentR platform.</p>
-<h2 id="cli-usage">🤖 CLI Usage</h2>
-<p>Universal MCP includes a powerful command-line interface:</p>
-<div class="language-bash highlight"><pre><span></span><code><span class="c1"># Run the MCP server using a configuration file</span>
-universal_mcp<span class="w"> </span>run<span class="w"> </span>-c<span class="w"> </span>config.json
-
-<span class="c1"># Initialize a new MCP application project structure</span>
-universal_mcp<span class="w"> </span>init<span class="w"> </span>--app-name<span class="w"> </span>my-cool-app<span class="w"> </span>--o<span class="w"> </span>./my-apps<span class="w"> </span>--integration-type<span class="w"> </span>api_key
-
-<span class="c1"># Generate API client code and application structure from an OpenAPI schema</span>
-universal_mcp<span class="w"> </span>generate<span class="w"> </span>-s<span class="w"> </span>&lt;path_to_schema.json_or_yaml&gt;<span class="w"> </span>-o<span class="w"> </span>&lt;path/to/app_output_directory&gt;<span class="w"> </span>--c<span class="w"> </span>CustomAppClassName
-<span class="c1"># Example: universal_mcp generate -s notion_api.yaml -o ./custom_apps/notion --c MyNotionApp</span>
-
-<span class="c1"># Preprocess an OpenAPI schema using an LLM to fill/enhance descriptions</span>
-universal_mcp<span class="w"> </span>preprocess<span class="w"> </span>-s<span class="w"> </span>&lt;path_to_input_schema.json_or_yaml&gt;<span class="w"> </span>-o<span class="w"> </span>&lt;path_to_processed_schema.json_or_yaml&gt;
-
-<span class="c1"># Generate Google-style docstrings for functions in a Python file using an LLM</span>
-universal_mcp<span class="w"> </span>docgen<span class="w"> </span>&lt;path/to/app_file.py&gt;
-
-<span class="c1"># Generate a README.md for a generated application file</span>
-universal_mcp<span class="w"> </span>readme<span class="w"> </span>&lt;path/to/app_file.py&gt;
-
-<span class="c1"># Install MCP configuration for supported desktop apps (e.g., Claude, Cursor)</span>
-<span class="c1"># Requires an AgentR API key for configuration.</span>
-universal_mcp<span class="w"> </span>install<span class="w"> </span>claude
-universal_mcp<span class="w"> </span>install<span class="w"> </span>cursor
-
-<span class="c1"># Check installed version (standard typer command)</span>
-universal_mcp<span class="w"> </span>--version
-</code></pre></div>
 <h2 id="requirements">📋 Requirements</h2>
 <ul>
 <li>Python 3.10+</li>
