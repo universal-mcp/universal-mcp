@@ -396,17 +396,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#using-the-playground" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        🛠️ Using the Playground
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#available-applications" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -527,8 +516,6 @@
   
     
     
-      
-        
       
         
       
@@ -712,34 +699,6 @@
     
   
     Integrations
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="playground/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Playground
   
 
     
@@ -1489,17 +1448,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#using-the-playground" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        🛠️ Using the Playground
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#available-applications" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1649,7 +1597,6 @@
 <li><strong>Credential Management</strong>: Flexible and secure storage options for API credentials (memory, environment variables, system keyring).</li>
 <li><strong>Comprehensive Tool Management</strong>: Robust tool registration, Pydantic-based validation, automatic docstring parsing, and execution capabilities. Supports conversion between MCP, LangChain, and OpenAI tool formats.</li>
 <li><strong>Multiple Server Types</strong>: Configurations for local development, AgentR-connected dynamic app loading, and single-application servers.</li>
-<li><strong>Playground Environment</strong>: Includes an interactive Streamlit-based playground for testing agents and tools.</li>
 </ul>
 <h2 id="installation">🔧 Installation</h2>
 <p>Install Universal MCP using pip:</p>
@@ -1720,26 +1667,6 @@
 <div class="language-bash highlight"><pre><span></span><code>universal_mcp<span class="w"> </span>run<span class="w"> </span>-c<span class="w"> </span>config.json
 </code></pre></div>
 <p>The server will start, load the configured applications (or connect to AgentR if <code>type: "agentr"</code>), and listen for connections based on the <code>transport</code> type.</p>
-<h2 id="using-the-playground">🛠️ Using the Playground</h2>
-<p>The <code>playground</code> directory provides a runnable Streamlit application for interacting with agents that can use tools from an MCP server.</p>
-<p><strong>Prerequisites:</strong></p>
-<ul>
-<li><strong><code>local_config.json</code></strong>: This file must exist in the <strong>project root directory</strong> (the same directory as this <code>README.md</code>). It configures the <em>local</em> MCP server that the playground's agent can connect to if you choose to run one. For an example, see the <code>local_config.json</code> structure in the <a href="playground/">Playground README</a>.</li>
-<li><strong>Dependencies</strong>: Install playground-specific dependencies. If you have the project cloned, you might install them via:
-  <div class="language-bash highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.<span class="o">[</span>playground<span class="o">]</span>
-<span class="c1"># or manually install fastapi, streamlit, uvicorn, langchain-openai, etc.</span>
-</code></pre></div></li>
-</ul>
-<p><strong>Running the Playground:</strong></p>
-<p>The easiest way is to use the automated startup script from the <strong>project root directory</strong>:</p>
-<div class="language-bash highlight"><pre><span></span><code>python<span class="w"> </span>playground
-</code></pre></div>
-<p>This script will:</p>
-<ol>
-<li>Optionally start a local MCP server (based on your <code>local_config.json</code>) if you confirm.</li>
-<li>Launch the Streamlit application.</li>
-</ol>
-<p>For more detailed setup, manual startup instructions, and an explanation of the <code>local_config.json</code> for the playground, please refer to the <a href="playground/">Playground README</a>.</p>
 <h2 id="available-applications">🧩 Available Applications</h2>
 <p>Universal MCP can integrate with a wide variety of applications. For a list of publicly available applications and their slugs (e.g., "github", "google-calendar"), please visit <a href="https://agentr.dev">AgentR Applications</a>.
 Applications are typically installed dynamically by Universal MCP from their respective repositories when first referenced by slug.</p>
@@ -1829,7 +1756,6 @@ universal_mcp<span class="w"> </span>--version
 <li><a href="servers/">Server Implementations</a></li>
 <li><a href="stores/">Credential Stores</a></li>
 <li><a href="integrations/">Integration &amp; Authentication</a></li>
-<li><a href="playground/">Playground Usage</a></li>
 </ul>
 <h2 id="license">📝 License</h2>
 <p>This project is licensed under the MIT License. See the <a href="https://github.com/universal-mcp/universal-mcp/blob/main/LICENSE">LICENSE</a> file for details.</p>
