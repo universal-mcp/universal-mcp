@@ -2,30 +2,106 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://universal-mcp.github.io/universal-mcp/</loc>
-         <lastmod>2025-07-13</lastmod>
+         <lastmod>2026-01-29</lastmod>
     </url>
     <url>
          <loc>https://universal-mcp.github.io/universal-mcp/applications/</loc>
-         <lastmod>2025-07-13</lastmod>
+         <lastmod>2026-01-29</lastmod>
     </url>
     <url>
          <loc>https://universal-mcp.github.io/universal-mcp/integrations/</loc>
-         <lastmod>2025-07-13</lastmod>
+         <lastmod>2026-01-29</lastmod>
     </url>
     <url>
          <loc>https://universal-mcp.github.io/universal-mcp/playground/</loc>
-         <lastmod>2025-07-13</lastmod>
+         <lastmod>2026-01-29</lastmod>
     </url>
     <url>
          <loc>https://universal-mcp.github.io/universal-mcp/servers/</loc>
-         <lastmod>2025-07-13</lastmod>
+         <lastmod>2026-01-29</lastmod>
     </url>
     <url>
          <loc>https://universal-mcp.github.io/universal-mcp/stores/</loc>
-         <lastmod>2025-07-13</lastmod>
+         <lastmod>2026-01-29</lastmod>
     </url>
     <url>
          <loc>https://universal-mcp.github.io/universal-mcp/tools_framework/</loc>
-         <lastmod>2025-07-13</lastmod>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://universal-mcp.github.io/universal-mcp/api/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://universal-mcp.github.io/universal-mcp/api/adapters/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://universal-mcp.github.io/universal-mcp/api/applications/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://universal-mcp.github.io/universal-mcp/api/client/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://universal-mcp.github.io/universal-mcp/api/config/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://universal-mcp.github.io/universal-mcp/api/exceptions/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://universal-mcp.github.io/universal-mcp/api/integrations/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://universal-mcp.github.io/universal-mcp/api/registry/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://universal-mcp.github.io/universal-mcp/api/servers/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://universal-mcp.github.io/universal-mcp/api/stores/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://universal-mcp.github.io/universal-mcp/api/tools/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://universal-mcp.github.io/universal-mcp/api/types/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://universal-mcp.github.io/universal-mcp/architecture/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://universal-mcp.github.io/universal-mcp/architecture/auth-flow/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://universal-mcp.github.io/universal-mcp/architecture/class-hierarchy/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://universal-mcp.github.io/universal-mcp/architecture/overview/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://universal-mcp.github.io/universal-mcp/architecture/request-flow/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://universal-mcp.github.io/universal-mcp/architecture/server-init/</loc>
+         <lastmod>2026-01-29</lastmod>
+    </url>
+    <url>
+         <loc>https://universal-mcp.github.io/universal-mcp/architecture/tool-registration/</loc>
+         <lastmod>2026-01-29</lastmod>
     </url>
 </urlset>
