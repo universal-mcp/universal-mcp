@@ -176,3 +176,75 @@ class ServerConfig(BaseSettings):
         with open(path) as f:
             data = json.load(f)
         return cls.model_validate(data)
+
+
+class ClientTransportConfig(BaseModel):
+    """Configuration for an MCP client transport.
+
+    Defines how to connect to an MCP server, including the transport mechanism
+    (stdio, sse, streamable_http) and authentication settings.
+    """
+
+    transport: Literal["stdio", "sse", "streamable_http"] = Field(
+        default="streamable_http",
+        description="The transport mechanism to use for connecting to the MCP server.",
+    )
+    url: str | None = Field(
+        default=None,
+        description="URL for HTTP-based transports (sse, streamable_http).",
+    )
+    command: str | None = Field(
+        default=None,
+        description="Command to execute for stdio transport.",
+    )
+    args: list[str] | None = Field(
+        default=None,
+        description="Arguments for the stdio command.",
+    )
+    env: dict[str, str] | None = Field(
+        default=None,
+        description="Environment variables for stdio transport.",
+    )
+    headers: dict[str, str] | None = Field(
+        default=None,
+        description="HTTP headers for HTTP-based transports.",
+    )
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Get a configuration value by key (dictionary-like interface)."""
+        return getattr(self, key, default)
+
+
+class ClientConfig(BaseModel):
+    """Configuration for MCP clients.
+
+    Manages multiple MCP server connections and their configurations.
+    """
+
+    mcpServers: dict[str, ClientTransportConfig] = Field(
+        default_factory=dict,
+        description="Dictionary of MCP server configurations, keyed by server name.",
+    )
+
+    @classmethod
+    def load_json_config(cls, path: str = "client_config.json") -> Self:
+        """Loads client configuration from a JSON file.
+
+        Args:
+            path: Path to the JSON configuration file.
+
+        Returns:
+            ClientConfig instance populated with data from the JSON file.
+        """
+        with open(path) as f:
+            data = json.load(f)
+        return cls.model_validate(data)
+
+    def save_json_config(self, path: str = "client_config.json") -> None:
+        """Saves client configuration to a JSON file.
+
+        Args:
+            path: Path where the JSON configuration file will be saved.
+        """
+        with open(path, "w") as f:
+            json.dump(self.model_dump(), f, indent=2)

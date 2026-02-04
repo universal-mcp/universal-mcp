@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -4941,6 +4941,7 @@ dependencies = [
     { name = "mcp" },
     { name = "openevals" },
     { name = "posthog" },
+    { name = "py-key-value-aio" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyyaml" },
@@ -4995,6 +4996,7 @@ requires-dist = [
     { name = "openevals", specifier = ">=0.1.0" },
     { name = "posthog", specifier = ">=3.24.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.2.0" },
+    { name = "py-key-value-aio", extras = ["all"], specifier = ">=0.3.0" },
     { name = "pydantic", specifier = ">=2.11.1" },
     { name = "pydantic-settings", specifier = ">=2.8.1" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.398" },

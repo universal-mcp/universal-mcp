@@ -8,6 +8,16 @@ Core rules
 - Keep runtime dependencies in `[project.dependencies]` and development-only tools in the `dev` group via `uv add --dev ...`.
 - Use `uv run` to execute Python, test, and tooling commands without manually activating a virtual environment.
 
+Testing and documentation requirements
+- **Always write tests**: When implementing new features, fixing bugs, or modifying existing code, write appropriate tests to cover the changes
+- **Run tests**: After making changes, always run `uv run pytest -q` to verify that all tests pass before considering the work complete
+- **Update documentation**: When changing functionality, adding features, or modifying APIs, update all relevant documentation including:
+  - README.md for user-facing changes
+  - Docstrings for modified functions/classes
+  - Any relevant .md files that describe the changed functionality
+  - Code comments where logic is non-obvious
+- **Test-first mindset**: Consider writing tests before implementation to clarify requirements and ensure proper coverage
+
 Project bootstrap
 - New project (scaffold files): `uv init`
 - First install or clean install: `uv sync`
@@ -45,3 +55,4 @@ Common commands (copy/paste)
 - Tests: `uv run pytest -q`
 - Lint/format: `uv run ruff check .` and/or `uv run ruff format .`
 - Export: `uv export --format requirements-txt --output-file requirements.txt`
+
