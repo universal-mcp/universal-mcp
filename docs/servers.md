@@ -4,23 +4,19 @@ This package provides server implementations for hosting and managing MCP (Model
 
 ## Overview
 
-The server implementations provide different ways to host and expose MCP applications and their tools. The base `BaseServer` class provides common functionality that all server implementations inherit.
+The server implementations provide different ways to host and expose MCP applications and their tools. The base `BaseServer` class (built on FastMCP) provides common functionality that all server implementations inherit.
+
+Universal MCP is designed as a single-user SDK with a local-first architecture.
 
 ## Supported Server Types
 
 ### Local Server
-The `LocalServer` class provides a local development server implementation that:
+The `LocalServer` class provides the primary server implementation that:
 - Loads applications from local configuration
-- Manages a local store for data persistence
-- Supports integration with external services
+- Manages a local store for data persistence (default: DiskStore)
+- Supports API key-based integration with external services
 - Exposes application tools through the MCP protocol
-
-### AgentR Server
-The `AgentRServer` class provides a server implementation that:
-- Connects to the AgentR API
-- Dynamically fetches and loads available applications
-- Manages AgentR-specific integrations
-- Requires an API key for authentication
+- Supports stdio, SSE, and streamable-http transports
 
 ### Single MCP Server
 The `SingleMCPServer` class provides a minimal server implementation that:

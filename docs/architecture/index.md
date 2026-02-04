@@ -18,7 +18,7 @@ Navigate to the following sections to understand different aspects of the system
 ### Runtime Flows
 
 - **[Request Flow](request-flow.md)** - Sequence diagram of how tool requests are processed
-- **[Authentication Flow](auth-flow.md)** - OAuth, API Key, and AgentR authentication patterns
+- **[Authentication Flow](auth-flow.md)** - API Key authentication patterns
 - **[Tool Registration](tool-registration.md)** - How tools are discovered and registered
 - **[Server Initialization](server-init.md)** - Server startup sequences for LocalServer and SingleMCPServer
 
@@ -35,14 +35,13 @@ Applications are adapters that wrap external APIs or services. They expose tools
 
 Integrations handle authentication and credential management:
 
-- **ApiKeyIntegration** - Simple API key auth
-- **OAuthIntegration** - OAuth 2.0 flows
-- **AgentRIntegration** - Platform-managed credentials
+- **ApiKeyIntegration** - API key and token authentication
 
 ### Stores
 
 Stores persist credentials and configuration:
 
+- **DiskStore** - File-based persistent storage (default)
 - **MemoryStore** - In-memory (non-persistent)
 - **EnvironmentStore** - OS environment variables
 - **KeyringStore** - System keyring (secure)

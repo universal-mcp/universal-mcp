@@ -1,6 +1,7 @@
 from universal_mcp.config import StoreConfig
 from universal_mcp.stores.store import (
     BaseStore,
+    DiskStore,
     EnvironmentStore,
     KeyringStore,
     MemoryStore,
@@ -8,7 +9,9 @@ from universal_mcp.stores.store import (
 
 
 def store_from_config(store_config: StoreConfig):
-    if store_config.type == "memory":
+    if store_config.type == "disk":
+        return DiskStore(path=store_config.path, app_name=store_config.name)
+    elif store_config.type == "memory":
         return MemoryStore()
     elif store_config.type == "environment":
         return EnvironmentStore()
@@ -18,4 +21,4 @@ def store_from_config(store_config: StoreConfig):
         raise ValueError(f"Invalid store type: {store_config.type}")
 
 
-__all__ = [BaseStore, MemoryStore, EnvironmentStore, KeyringStore]
+__all__ = [BaseStore, DiskStore, MemoryStore, EnvironmentStore, KeyringStore]

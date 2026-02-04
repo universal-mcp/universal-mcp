@@ -9,12 +9,12 @@ The primary documentation for Universal MCP is available in `/docs` folder in th
 Please refer to the following for more detailed information:
 
 *   **[Main Documentation](docs/index.md)**: For an overview of the project, features, quick start, and installation.
-*   **[Playground Usage](docs/playground.md)**: For instructions on using the interactive playground.
 *   **[Applications Framework](docs/applications.md)**: For details on the applications module.
 *   **[Integrations & Authentication](docs/integrations.md)**: For information on integration types.
 *   **[Server Implementations](docs/servers.md)**: For details on server types.
 *   **[Credential Stores](docs/stores.md)**: For information on credential stores.
 *   **[Tools Framework](docs/tools_framework.md)**: For details on the tool management system.
+*   **[Migration Guide](docs/migration.md)**: For upgrading from previous versions.
 *   **[Contributing Guidelines](CONTRIBUTING.md)**: For information on how to contribute to the project.
 
 ## License

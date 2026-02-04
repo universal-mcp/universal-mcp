@@ -77,18 +77,3 @@ async def test_file_output_handling(registry: LocalRegistry):
     assert os.path.exists(file_path)
 
 
-@pytest.mark.asyncio
-async def test_unimplemented_methods(registry: LocalRegistry):
-    """Test that abstract methods raise NotImplementedError."""
-    with pytest.raises(NotImplementedError):
-        await registry.list_all_apps()
-    with pytest.raises(NotImplementedError):
-        await registry.get_app_details("some_app")
-    with pytest.raises(NotImplementedError):
-        await registry.search_apps("query")
-    with pytest.raises(NotImplementedError):
-        await registry.list_tools("some_app")
-    with pytest.raises(NotImplementedError):
-        await registry.search_tools("query")
-    with pytest.raises(NotImplementedError):
-        await registry.list_connected_apps()

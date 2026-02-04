@@ -45,7 +45,7 @@ def _generate_mcp_config(api_key: str) -> dict[str, Any]:
         "command": str(uvx_path),
         "args": ["universal_mcp@latest", "run"],
         "env": {
-            "AGENTR_API_KEY": api_key,
+            "UNIVERSAL_MCP_API_KEY": api_key,
             "UV_PATH": str(uvx_path.parent),
         },
     }

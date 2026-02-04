@@ -15,7 +15,7 @@ nav:
     - Servers: servers.md
     - Stores: stores.md
     - Integrations: integrations.md
-    - Playground: playground.md
+  - Migration Guide: migration.md
   - Architecture:
     - Overview: architecture/index.md
     - System Architecture: architecture/overview.md
@@ -35,7 +35,6 @@ nav:
     - Configuration: api/config.md
     - Registry: api/registry.md
     - Exceptions: api/exceptions.md
-    - OAuth Client: api/client.md
     - Types: api/types.md
 
 theme:

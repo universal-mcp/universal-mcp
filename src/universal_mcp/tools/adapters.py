@@ -55,7 +55,6 @@ def convert_tool_to_mcp_tool(
     logger.debug(f"Converting tool '{tool.name}' to MCP format")
 
     annotations = None
-    annotations = None
     if tool.tags:
         # Only set annotation hints if present in tags
         annotation_hints = ["readOnlyHint", "destructiveHint", "openWorldHint"]

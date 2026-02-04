@@ -15,9 +15,8 @@ Type definitions, enums, and constants used throughout universal-mcp.
 ```python
 from universal_mcp.types import IntegrationType
 
-IntegrationType.API_KEY    # "api_key"
-IntegrationType.OAUTH      # "oauth"
-IntegrationType.AGENTR     # "agentr"
+IntegrationType.API_KEY     # "api_key"
+IntegrationType.BASIC_AUTH  # "basic_auth"
 ```
 
 ### StoreType
@@ -25,6 +24,7 @@ IntegrationType.AGENTR     # "agentr"
 ```python
 from universal_mcp.types import StoreType
 
+StoreType.DISK         # "disk" (default)
 StoreType.MEMORY       # "memory"
 StoreType.ENVIRONMENT  # "environment"
 StoreType.KEYRING      # "keyring"
@@ -38,8 +38,8 @@ StoreType.KEYRING      # "keyring"
 from universal_mcp.types import IntegrationType, StoreType
 
 # Type-safe configuration
-integration_type = IntegrationType.OAUTH
-store_type = StoreType.KEYRING
+integration_type = IntegrationType.API_KEY
+store_type = StoreType.DISK
 
 # String comparison
 if integration.type == IntegrationType.API_KEY:

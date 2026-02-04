@@ -19,9 +19,7 @@ This section provides detailed documentation for all public classes, methods, an
 **[Integrations API](integrations.md)** - Authentication and credential management
 
 - `Integration` - Base integration class
-- `ApiKeyIntegration` - Simple API key authentication
-- `OAuthIntegration` - OAuth 2.0 flow implementation
-- `AgentRIntegration` - Platform-managed credentials
+- `ApiKeyIntegration` - API key authentication
 
 ### Tools
 **[Tools API](tools.md)** - Tool definition and management
@@ -41,6 +39,7 @@ This section provides detailed documentation for all public classes, methods, an
 **[Stores API](stores.md)** - Credential storage backends
 
 - `BaseStore` - Abstract storage interface
+- `DiskStore` - Persistent file-based storage (default)
 - `MemoryStore` - In-memory storage
 - `EnvironmentStore` - Environment variable storage
 - `KeyringStore` - System keyring storage
@@ -67,12 +66,6 @@ This section provides detailed documentation for all public classes, methods, an
 - MCP adapter - Native format
 - LangChain adapter - LangChain tool format
 - OpenAI adapter - OpenAI function calling format
-
-### OAuth Client
-**[OAuth Client API](client.md)** - OAuth flow implementation
-
-- `CallbackServer` - OAuth callback handler
-- `TokenStore` - Token storage utilities
 
 ### Exceptions
 **[Exceptions API](exceptions.md)** - Exception hierarchy

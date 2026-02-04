@@ -1,15 +1,15 @@
 from collections.abc import Callable
 from typing import Any
 
+from fastmcp import FastMCP
 from loguru import logger
-from mcp.server.fastmcp import FastMCP
 from mcp.types import TextContent
 
 from universal_mcp.applications.application import BaseApplication
 from universal_mcp.applications.utils import app_from_slug
 from universal_mcp.config import ServerConfig
 from universal_mcp.exceptions import ConfigurationError, ToolError
-from universal_mcp.integrations.integration import ApiKeyIntegration, OAuthIntegration
+from universal_mcp.integrations.integration import ApiKeyIntegration
 from universal_mcp.stores import store_from_config
 from universal_mcp.tools import ToolManager
 from universal_mcp.tools.adapters import convert_tool_to_mcp_tool, format_to_mcp_result
@@ -42,8 +42,6 @@ def load_from_local_config(config: ServerConfig, tool_manager: ToolManager) -> N
             if app_config.integration:
                 if app_config.integration.type == "api_key":
                     integration = ApiKeyIntegration(config.name, store=store, **app_config.integration.credentials)
-                elif app_config.integration.type == "oauth":
-                    integration = OAuthIntegration(config.name, store=store, **app_config.integration.credentials)
                 else:
                     raise ValueError(f"Unsupported integration type: {app_config.integration.type}")
             app = app_from_slug(app_config.name)(integration=integration)

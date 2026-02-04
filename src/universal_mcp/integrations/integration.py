@@ -1,6 +1,5 @@
 from typing import Any
 
-import httpx
 from loguru import logger
 
 from universal_mcp.exceptions import KeyNotFoundError, NotAuthorizedError
@@ -21,14 +20,14 @@ class Integration:
     This class defines a common interface for various authentication and
     authorization strategies an application might use to connect with
     external services. Subclasses implement specific mechanisms like
-    API key handling, OAuth 2.0 flows, or delegation to platforms like AgentR.
+    API key handling.
 
     Each integration is associated with a name and can use a `BaseStore`
     instance for persisting credentials or other relevant data.
 
     Attributes:
         name (str): The unique name identifying this integration instance
-                    (e.g., "my_app_api_key", "github_oauth").
+                    (e.g., "my_app_api_key").
         store (BaseStore): The storage backend (e.g., `MemoryStore`,
                        `KeyringStore`) used for persisting credentials.
                        Defaults to `MemoryStore` if not provided.
@@ -46,46 +45,16 @@ class Integration:
         self.store = store or MemoryStore()
         self.type = ""
 
-    def authorize(self) -> str | dict[str, Any]:
-        """Initiates or provides details for the authorization process.
+    def authorize(self) -> str:
+        """Provides instructions for the authorization process.
 
-        The exact behavior and return type of this method depend on the
-        specific integration subclass. It might return an authorization URL
-        for the user to visit, parameters needed to construct such a URL,
-        or instructions on how to manually provide credentials.
+        Returns a human-readable instruction string for the user on how to
+        authorize this integration.
 
         Returns:
-            str | dict[str, Any]: Typically, an authorization URL (str) or a
-                                  dictionary containing parameters needed for
-                                  the authorization flow.
-
-        Raises:
-            ValueError: If essential configuration for authorization is missing.
-            NotImplementedError: If the subclass does not implement this method.
+            str: Instruction message for the user.
         """
-        raise NotImplementedError("Subclasses must implement the authorize method.")
-
-    async def get_credentials_async(self) -> dict[str, Any]:
-        """Retrieves the stored credentials for this integration asynchronously.
-
-        Default implementation wraps the synchronous get_credentials method.
-        Subclasses should override this if they support true async retrieval.
-
-        Returns:
-            dict[str, Any]: A dictionary containing the credentials.
-        """
-        return self.get_credentials()
-
-    async def authorize_async(self) -> str | dict[str, Any]:
-        """Initiates or provides details for the authorization process asynchronously.
-
-        Default implementation wraps the synchronous authorize method.
-        Subclasses should override this if they support true async authorization.
-
-        Returns:
-            str | dict[str, Any]: Auth URL or parameters.
-        """
-        return self.authorize()
+        return f"Please authorize {self.name} before using this integration."
 
     def get_credentials(self) -> dict[str, Any]:
         """Retrieves the stored credentials for this integration.
@@ -247,187 +216,6 @@ class ApiKeyIntegration(Integration):
         return f"Please ask the user for api key and set the API Key for {self.name} in the store"
 
 
-class OAuthIntegration(Integration):
-    """Manages OAuth 2.0 authentication and authorization flows.
-
-    This class implements the necessary steps for an OAuth 2.0 client,
-    including generating authorization request parameters, handling the
-    redirect callback from the authorization server, exchanging the
-    authorization code for access/refresh tokens, and refreshing tokens.
-
-    Attributes:
-        name (str): Name of the integration.
-        store (BaseStore): Store for OAuth tokens.
-        client_id (str | None): The OAuth 2.0 Client ID.
-        client_secret (str | None): The OAuth 2.0 Client Secret.
-        auth_url (str | None): The authorization server's endpoint URL.
-        token_url (str | None): The token server's endpoint URL.
-        scope (str | None): The requested OAuth scopes, space-separated.
-    """
-
-    def __init__(
-        self,
-        name: str,
-        store: BaseStore | None = None,
-        client_id: str | None = None,
-        client_secret: str | None = None,
-        auth_url: str | None = None,
-        token_url: str | None = None,
-        scope: str | None = None,
-        **kwargs,
-    ):
-        """Initializes the OAuthIntegration.
-
-        Args:
-            name (str): The unique name for this integration instance.
-            store (BaseStore | None, optional): Store for credentials.
-                                               Defaults to `MemoryStore()`.
-            client_id (str | None, optional): The OAuth 2.0 Client ID.
-            client_secret (str | None, optional): The OAuth 2.0 Client Secret.
-            auth_url (str | None, optional): The authorization server's endpoint URL.
-            token_url (str | None, optional): The token server's endpoint URL.
-            scope (str | None, optional): The requested OAuth scopes, space-separated.
-            **kwargs: Additional arguments passed to the parent `Integration`.
-        """
-        super().__init__(name, store, **kwargs)
-        self.type = "oauth"
-        self.client_id = client_id
-        self.client_secret = client_secret
-        self.auth_url = auth_url
-        self.token_url = token_url
-        self.scope = scope
-
-    def get_credentials(self) -> dict[str, Any] | None:
-        """Retrieves stored OAuth tokens for this integration.
-
-        Returns:
-            dict[str, Any] | None: A dictionary containing the OAuth tokens
-                                  (e.g., `access_token`, `refresh_token`) if found,
-                                  otherwise None.
-        """
-        credentials = self.store.get(self.name)
-        if not credentials:
-            return None
-        return credentials  # type: ignore
-
-    def set_credentials(self, credentials: dict[str, Any]) -> None:
-        """Stores OAuth tokens for this integration.
-
-        Validates that essential fields like 'access_token' are present.
-
-        Args:
-            credentials (dict[str, Any]): A dictionary containing OAuth tokens.
-                Must include at least 'access_token'.
-
-        Raises:
-            ValueError: If `credentials` is not a dictionary or if 'access_token'
-                        is missing.
-        """
-        if not credentials or not isinstance(credentials, dict):
-            raise ValueError("Invalid credentials format")
-        if "access_token" not in credentials:
-            raise ValueError("Credentials must contain access_token")
-        self.store.set(self.name, credentials)
-
-    def authorize(self) -> dict[str, Any]:
-        """Constructs parameters required for the OAuth authorization request.
-
-        These parameters are typically used to build the URL to which the
-        user must be redirected to grant authorization.
-
-        Returns:
-            dict[str, Any]: A dictionary containing the authorization endpoint URL
-                            (`url`), query parameters (`params`), client secret,
-                            and token URL.
-
-        Raises:
-            ValueError: If essential OAuth configuration like `client_id`,
-                        `client_secret`, `auth_url`, or `token_url` is missing.
-        """
-        if not all([self.client_id, self.client_secret, self.auth_url, self.token_url]):
-            raise ValueError("Missing required OAuth configuration")
-
-        auth_params = {
-            "client_id": self.client_id,
-            "response_type": "code",
-            "scope": self.scope,
-        }
-
-        return {
-            "url": self.auth_url,
-            "params": auth_params,
-            "client_secret": self.client_secret,
-            "token_url": self.token_url,
-        }
-
-    def handle_callback(self, code: str) -> dict[str, Any]:
-        """Handles the OAuth callback by exchanging the authorization code for tokens.
-
-        This method is called after the user authorizes the application and the
-        authorization server redirects back with an authorization code.
-
-        Args:
-            code (str): The authorization code received from the OAuth server.
-
-        Returns:
-            dict[str, Any]: A dictionary containing the access token, refresh token
-                            (if any), and other token response data. These are also
-                            stored via `set_credentials`.
-
-        Raises:
-            ValueError: If essential OAuth configuration is missing.
-            httpx.HTTPStatusError: If the token exchange request to `token_url` fails.
-        """
-        if not all([self.client_id, self.client_secret, self.token_url]):  # type: ignore
-            raise ValueError("Missing required OAuth configuration")
-
-        token_params = {
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
-            "code": code,
-            "grant_type": "authorization_code",
-        }
-
-        response = httpx.post(self.token_url, data=token_params)  # type: ignore
-        response.raise_for_status()
-        credentials = response.json()
-        self.store.set(self.name, credentials)
-        return credentials
-
-    def refresh_token(self) -> dict[str, Any]:
-        """Refreshes an expired access token using a stored refresh token.
-
-        Returns:
-            dict[str, Any]: A dictionary containing the new access token,
-                            refresh token, and other token response data.
-                            These are also stored.
-
-        Raises:
-            ValueError: If essential OAuth configuration is missing.
-            KeyError: If a refresh token is not found in the stored credentials.
-            httpx.HTTPStatusError: If the token refresh request fails.
-        """
-        if not all([self.client_id, self.client_secret, self.token_url]):  # type: ignore
-            raise ValueError("Missing required OAuth configuration")
-
-        credentials = self.get_credentials()
-        if not credentials or "refresh_token" not in credentials:
-            raise KeyError("Refresh token not found in current credentials")
-
-        token_params = {
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
-            "grant_type": "refresh_token",
-            "refresh_token": credentials["refresh_token"],
-        }
-
-        response = httpx.post(self.token_url, data=token_params)  # type: ignore
-        response.raise_for_status()
-        credentials = response.json()
-        self.store.set(self.name, credentials)
-        return credentials
-
-
 class IntegrationFactory:
     """A factory for creating integration instances."""
 
@@ -436,10 +224,5 @@ class IntegrationFactory:
         """Create an integration instance."""
         if integration_type == "api_key":
             return ApiKeyIntegration(app_name, **kwargs)
-        elif integration_type == "oauth":
-            return OAuthIntegration(app_name, **kwargs)
-        # Add other integration types here
         else:
-            # Return a default or generic integration if type is unknown
-            logger.warning(f"Unknown integration type '{integration_type}'. Using a default integration.")
-            return Integration(app_name, **kwargs)
+            raise ValueError(f"Unsupported integration type: {integration_type}")

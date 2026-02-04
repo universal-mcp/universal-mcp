@@ -98,11 +98,10 @@ Responsibilities:
 #### Integration Layer
 
 - **Integration**: Handles authentication strategies
-  - ApiKeyIntegration: Simple API key auth
-  - OAuthIntegration: OAuth 2.0 flow
-  - AgentRIntegration: Platform-managed credentials
+  - ApiKeyIntegration: API key and token authentication
 
 - **Store**: Persists credentials securely
+  - DiskStore: File-based persistent storage (default)
   - MemoryStore: Non-persistent (testing)
   - EnvironmentStore: OS environment variables
   - KeyringStore: System keyring (production)
@@ -148,7 +147,7 @@ For detailed sequence diagrams, see:
 
 Universal-mcp can be configured via:
 
-1. **YAML Config Files** (LocalServer)
+1. **JSON Config Files** (LocalServer)
    - Define multiple applications
    - Configure integrations and stores
    - Set server options

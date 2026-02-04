@@ -5,8 +5,6 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.prebuilt import create_react_agent
 from loguru import logger
 from pydantic import BaseModel, SecretStr
-from universal_mcp.agentr import AgentrIntegration
-from universal_mcp.agentr.client import AgentrClient
 
 from universal_mcp.applications.application import APIApplication, BaseApplication
 from universal_mcp.tools import Tool, ToolManager
@@ -75,67 +73,6 @@ class AutomationTestCase:
     tools: list[str] | None = None
     tasks: list[str] | None = None
     validate_query: str | None = None
-
-
-def create_agentr_client(app_name: str) -> AgentrClient:
-    """
-    Create an AgentrClient with appropriate API key and base URL.
-
-    Args:
-        app_name: Name of the application (used for app-specific environment variables)
-
-    Returns:
-        AgentrClient instance
-    """
-    api_key = os.environ.get(f"{app_name.upper()}_API_KEY") or os.environ.get("AGENTR_API_KEY")
-    base_url = os.environ.get(f"{app_name.upper()}_BASE_URL") or os.environ.get(
-        "AGENTR_BASE_URL", "https://api.agentr.dev"
-    )
-    return AgentrClient(api_key=api_key, base_url=base_url)
-
-
-def create_integration(app_name: str) -> AgentrIntegration:
-    """
-    Create an AgentRIntegration instance with appropriate client.
-
-    Args:
-        app_name: Name of the application
-
-    Returns:
-        AgentRIntegration instance
-    """
-    client = create_agentr_client(app_name)
-    return AgentrIntegration(name=app_name, client=client)
-
-
-def create_app_with_integration(app_name: str, app_class: type[APIApplication]) -> APIApplication:
-    """
-    Create an application instance with integration.
-
-    Args:
-        app_name: Name of the application
-        app_class: Class of the application to instantiate
-
-    Returns:
-        Application instance with integration
-    """
-    integration = create_integration(app_name)
-    return app_class(integration=integration)
-
-
-def load_app_with_integration(app_name: str, app_class: type[APIApplication]) -> APIApplication:
-    """
-    Load application instance with real integration.
-
-    Args:
-        app_name: Name of the application
-        app_class: Class of the application to instantiate
-
-    Returns:
-        Instantiated application with integration
-    """
-    integration = create_integration(app_name)
-    return app_class(integration=integration)
 
 
 async def execute_automation_test(test_case: AutomationTestCase, app_instance: APIApplication | None = None) -> None:

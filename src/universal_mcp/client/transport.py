@@ -1,15 +1,10 @@
 import os
-import webbrowser
 from contextlib import AsyncExitStack
 from typing import Any, Literal, Self
 
+from fastmcp import Client as FastMCPClient
+from fastmcp.client.transports import SSETransport, StdioTransport, StreamableHttpTransport
 from loguru import logger
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.auth import OAuthClientProvider
-from mcp.client.sse import sse_client
-from mcp.client.stdio import stdio_client
-from mcp.client.streamable_http import streamablehttp_client
-from mcp.shared.auth import OAuthClientMetadata
 from mcp.types import (
     CallToolResult as MCPCallToolResult,
 )
@@ -18,10 +13,7 @@ from mcp.types import (
 )
 from openai.types.chat import ChatCompletionToolParam
 
-from universal_mcp.client.oauth import CallbackServer
-from universal_mcp.client.token_store import TokenStore
 from universal_mcp.config import ClientConfig, ClientTransportConfig
-from universal_mcp.stores.store import KeyringStore
 from universal_mcp.tools.adapters import transform_mcp_tool_to_openai_tool
 
 
@@ -29,65 +21,15 @@ class ClientTransport:
     """
     Client for connecting to and interacting with a single MCP server.
 
-    Manages the lifecycle of a connection to an MCP server, handles various
-    transport mechanisms (stdio, sse, streamable_http), and facilitates
-    authentication, including OAuth 2.0 client flows. Allows listing tools
-    available on the server and calling them.
+    Manages the lifecycle of a connection to an MCP server using fastmcp.Client.
+    Supports stdio, sse, and streamable_http transports. Authentication is handled
+    via headers (e.g., {"Authorization": "Bearer <token>"}).
     """
 
     def __init__(self, name: str, config: ClientTransportConfig) -> None:
         self.name: str = name
         self.config: ClientTransportConfig = config
-        self.session: ClientSession | None = None
-        self.server_url: str = config.url
-
-        # Create OAuth authentication handler if needed
-        if self.server_url and not getattr(self.config, "headers", None):
-            # Set up callback server
-            self._callback_server = CallbackServer(port=3000)
-            self.store: KeyringStore | None = KeyringStore(self.name)
-            self.auth: OAuthClientProvider | None = OAuthClientProvider(
-                server_url="/".join(self.server_url.split("/")[:-1]),
-                client_metadata=OAuthClientMetadata.model_validate(self.client_metadata_dict),
-                storage=TokenStore(self.store),
-                redirect_handler=self._default_redirect_handler,
-                callback_handler=self._callback_handler,
-            )
-        else:
-            self._callback_server = None
-            self.store = None
-            self.auth = None
-
-    @property
-    def callback_server(self) -> CallbackServer:
-        if self._callback_server and not self._callback_server.is_running:
-            self._callback_server.start()
-        return self._callback_server
-
-    async def _callback_handler(self) -> tuple[str, str | None]:
-        """Handles the OAuth callback by waiting for and returning auth details."""
-        logger.info("⏳ Waiting for authorization callback...")
-        try:
-            auth_code = self.callback_server.wait_for_callback(timeout=300)
-            return auth_code, self.callback_server.get_state()
-        finally:
-            self.callback_server.stop()
-
-    @property
-    def client_metadata_dict(self) -> dict[str, Any]:
-        """Provides OAuth 2.0 client metadata for registration or authentication."""
-        return {
-            "client_name": self.name,
-            "redirect_uris": [self.callback_server.redirect_uri],  # type: ignore
-            "grant_types": ["authorization_code", "refresh_token"],
-            "response_types": ["code"],
-            "token_endpoint_auth_method": "client_secret_post",
-        }
-
-    async def _default_redirect_handler(self, authorization_url: str) -> None:
-        """Default handler for OAuth redirects; opens URL in a web browser."""
-        logger.info(f"Opening browser for authorization: {authorization_url}")
-        webbrowser.open(authorization_url)
+        self._client: FastMCPClient | None = None
 
     async def initialize(self, exit_stack: AsyncExitStack) -> None:
         """
@@ -97,69 +39,57 @@ class ClientTransport:
             ValueError: If the transport type is unknown or if required
                         configuration for a transport is missing.
         """
-        transport = getattr(self.config, "transport", None)
-        session = None
+        transport = self.config.transport
         try:
             if transport == "stdio":
-                command = self.config.get("command")
+                command = self.config.command
                 if not command:
                     raise ValueError("The command must be a valid string and cannot be None.")
 
-                server_params = StdioServerParameters(
+                stdio_transport = StdioTransport(
                     command=command,
-                    args=self.config.get("args", []),
-                    env={**os.environ, **self.config.get("env", {})} if self.config.get("env") else None,
+                    args=self.config.args,
+                    env={**os.environ, **self.config.env} if self.config.env else None,
                 )
-                stdio_transport = await exit_stack.enter_async_context(stdio_client(server_params))
-                read, write = stdio_transport
-                session = await exit_stack.enter_async_context(ClientSession(read, write))
-                await session.initialize()
+                self._client = FastMCPClient(transport=stdio_transport)
             elif transport == "streamable_http":
-                url = self.config.get("url")
-                headers = self.config.get("headers", {})
+                url = self.config.url
+                headers = self.config.headers
                 if not url:
                     raise ValueError("'url' must be provided for streamable_http transport.")
-                streamable_http_transport = await exit_stack.enter_async_context(
-                    streamablehttp_client(url=url, headers=headers, auth=self.auth)
-                )
-                read, write, _ = streamable_http_transport
-                session = await exit_stack.enter_async_context(ClientSession(read, write))
-                await session.initialize()
+                http_transport = StreamableHttpTransport(url=url, headers=headers or None)
+                self._client = FastMCPClient(transport=http_transport)
             elif transport == "sse":
-                url = self.config.get("url")
-                headers = self.config.get("headers", {})
+                url = self.config.url
+                headers = self.config.headers
                 if not url:
                     raise ValueError("'url' must be provided for sse transport.")
-                sse_transport = await exit_stack.enter_async_context(
-                    sse_client(url=url, headers=headers, auth=self.auth)
-                )
-                read, write = sse_transport
-                session = await exit_stack.enter_async_context(ClientSession(read, write))
-                await session.initialize()
+                sse_transport = SSETransport(url=url, headers=headers or None)
+                self._client = FastMCPClient(transport=sse_transport)
             else:
                 raise ValueError(f"Unknown transport: {transport}")
-            self.session = session
+
+            await exit_stack.enter_async_context(self._client)
         except Exception as e:
-            if session:
-                await session.aclose()
             logger.error(f"Error initializing server {self.name}: {e}")
             raise
 
     async def list_tools(self) -> list[MCPTool]:
         """Lists all tools available on the connected MCP server."""
-        if self.session:
+        if self._client:
             try:
-                tools = await self.session.list_tools()
-                return list(tools.tools)
+                tools = await self._client.list_tools()
+                return list(tools)
             except Exception as e:
                 logger.warning(f"Failed to list tools for client {self.name}: {e}")
         return []
 
     async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> MCPCallToolResult:
         """Calls a specified tool on the connected MCP server with given arguments."""
-        if self.session:
+        if self._client:
             try:
-                return await self.session.call_tool(tool_name, arguments)
+                result = await self._client.call_tool(tool_name, arguments, raise_on_error=False)
+                return result
             except Exception as e:
                 logger.error(f"Error calling tool '{tool_name}' on client {self.name}: {e}")
         return MCPCallToolResult(
@@ -190,7 +120,7 @@ class MultiClientTransport:
         return cls(mcp_config.mcpServers)
 
     def save_to_file(self, path: str) -> None:
-        mcp_config = ClientConfig(mcpServers={name: config.model_dump() for name, config in self.clients.items()})
+        mcp_config = ClientConfig(mcpServers={client.name: client.config for client in self.clients})
         mcp_config.save_json_config(path)
 
     async def add_client(self, name: str, config: ClientTransportConfig) -> None:

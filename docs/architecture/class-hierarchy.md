@@ -82,64 +82,34 @@ classDiagram
         +str name
         +BaseStore store
         +str type
-        +authorize() str|dict
+        +authorize() str
         +get_credentials() dict
-        +authorize_async() str|dict
-        +get_credentials_async() dict
+        +set_credentials(credentials) void
     }
 
     class ApiKeyIntegration {
         +str api_key_name
-        +dict headers
         +authorize() str
         +get_credentials() dict
-    }
-
-    class OAuthIntegration {
-        +str client_id
-        +str client_secret
-        +str auth_url
-        +str token_url
-        +list~str~ scopes
-        +authorize() str
-        +handle_callback(code) dict
-        +refresh_token() dict
-        +get_credentials() dict
-    }
-
-    class AgentRIntegration {
-        +authorize() dict
-        +get_credentials() dict
+        +api_key property
     }
 
     Integration <|-- ApiKeyIntegration : extends
-    Integration <|-- OAuthIntegration : extends
-    Integration <|-- AgentRIntegration : extends
 
     note for Integration "Base class for\nall auth strategies"
     note for ApiKeyIntegration "Simple API key\nin headers or params"
-    note for OAuthIntegration "Full OAuth 2.0 flow\nwith token refresh"
-    note for AgentRIntegration "Delegates to\nAgentR platform"
 ```
 
 ### Key Points
 
 - **Integration**: Base class for authentication strategies
   - Stores credentials in a configurable Store
-  - Provides both sync and async methods
+  - Provides authorize() for setup instructions
 
-- **ApiKeyIntegration**: Simplest auth method
+- **ApiKeyIntegration**: Primary auth method
   - Reads API key from store
-  - Returns headers dict for requests
-
-- **OAuthIntegration**: Full OAuth 2.0 implementation
-  - Manages authorization flow
-  - Handles token exchange and refresh
-  - Stores access/refresh tokens
-
-- **AgentRIntegration**: Platform integration
-  - Credentials managed by AgentR platform
-  - No local storage needed
+  - Returns credentials dict for requests
+  - Handles key name sanitization
 
 ## Store Hierarchy
 
@@ -150,41 +120,46 @@ classDiagram
         +get(key) Any*
         +set(key, value)*
         +delete(key)*
-        +list_keys() list~str~*
-        +clear()*
     }
 
-    class MemoryStore {
-        -dict _storage
+    class DiskStore {
+        +Path path
+        +str app_name
         +get(key) Any
         +set(key, value)
         +delete(key)
         +list_keys() list~str~
+        +has(key) bool
         +clear()
+    }
+
+    class MemoryStore {
+        -dict data
+        +get(key) Any
+        +set(key, value)
+        +delete(key)
     }
 
     class EnvironmentStore {
         +get(key) Any
         +set(key, value)
         +delete(key)
-        +list_keys() list~str~
-        +clear()
     }
 
     class KeyringStore {
-        +str service_name
+        +str app_name
         +get(key) Any
         +set(key, value)
         +delete(key)
-        +list_keys() list~str~
-        +clear()
     }
 
+    BaseStore <|-- DiskStore : extends
     BaseStore <|-- MemoryStore : extends
     BaseStore <|-- EnvironmentStore : extends
     BaseStore <|-- KeyringStore : extends
 
     note for BaseStore "Abstract storage\ninterface"
+    note for DiskStore "File-based JSON storage\n(default, persistent)"
     note for MemoryStore "In-memory dict\n(non-persistent)"
     note for EnvironmentStore "OS environment\nvariables"
     note for KeyringStore "System keyring\n(secure, persistent)"
@@ -196,6 +171,11 @@ classDiagram
   - Simple key-value interface
   - All stores provide same API
 
+- **DiskStore**: Default persistent storage
+  - Stores each key as a separate JSON file
+  - Location: `~/.universal-mcp/store/`
+  - Good for single-user deployments
+
 - **MemoryStore**: In-memory only
   - Good for testing
   - Lost on process exit
@@ -204,7 +184,7 @@ classDiagram
   - Read from environment variables
   - Can write but not persistent across sessions
 
-- **KeyringStore**: Production storage
+- **KeyringStore**: Secure storage
   - Uses system keyring (macOS Keychain, Windows Credential Manager, etc.)
   - Secure and persistent
 

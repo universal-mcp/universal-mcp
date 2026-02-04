@@ -1,5 +1,8 @@
+import hashlib
+import json
 import os
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any
 
 import keyring
@@ -271,3 +274,152 @@ class KeyringStore(BaseStore):
             raise
         except Exception as e:  # Catch other keyring errors
             raise StoreError(f"Error deleting key '{key}' from keyring for app '{self.app_name}': {str(e)}") from e
+
+
+class DiskStore(BaseStore):
+    """File-based persistent store using JSON serialization.
+
+    This store implementation persists data to disk as individual JSON files,
+    with each key stored in a separate file. The filename is derived from a
+    hash of the key to ensure filesystem safety. This provides persistent
+    storage that survives application restarts while remaining simple and
+    portable.
+
+    Attributes:
+        path (Path): The directory where store files are persisted.
+        app_name (str): The application name used for namespacing.
+    """
+
+    def __init__(self, path: Path | None = None, app_name: str = "universal_mcp"):
+        """Initializes the DiskStore.
+
+        Args:
+            path (Path | None, optional): The directory path where files will be stored.
+                If None, defaults to ~/.universal-mcp/store. Defaults to None.
+            app_name (str, optional): The application name for namespacing.
+                Defaults to "universal_mcp".
+        """
+        self.app_name = app_name
+        if path is None:
+            path = Path.home() / f".{app_name}" / "store"
+        self.path = path
+        self.path.mkdir(parents=True, exist_ok=True)
+
+    def _get_file_path(self, key: str) -> Path:
+        """Generates a safe filesystem path for the given key.
+
+        Args:
+            key (str): The key to generate a path for.
+
+        Returns:
+            Path: The file path where the key's value should be stored.
+        """
+        key_hash = hashlib.sha256(key.encode()).hexdigest()
+        return self.path / f"{key_hash}.json"
+
+    def get(self, key: str) -> Any:
+        """Retrieves the value associated with the given key from disk.
+
+        Args:
+            key (str): The key whose value is to be retrieved.
+
+        Returns:
+            Any: The value associated with the key.
+
+        Raises:
+            KeyNotFoundError: If the key is not found in the store.
+            StoreError: If reading or deserializing the file fails.
+        """
+        file_path = self._get_file_path(key)
+        if not file_path.exists():
+            raise KeyNotFoundError(f"Key '{key}' not found in disk store at {self.path}")
+
+        try:
+            with open(file_path) as f:
+                data = json.load(f)
+                return data["value"]
+        except Exception as e:
+            raise StoreError(f"Error reading key '{key}' from disk store: {str(e)}") from e
+
+    def set(self, key: str, value: Any) -> None:
+        """Sets or updates the value for a given key on disk.
+
+        Args:
+            key (str): The key to set or update.
+            value (Any): The value to associate with the key. Must be JSON-serializable.
+
+        Raises:
+            StoreError: If writing or serializing the file fails.
+        """
+        file_path = self._get_file_path(key)
+        try:
+            with open(file_path, "w") as f:
+                json.dump({"key": key, "value": value}, f, indent=2)
+        except Exception as e:
+            raise StoreError(f"Error writing key '{key}' to disk store: {str(e)}") from e
+
+    def delete(self, key: str) -> None:
+        """Deletes a key-value pair from disk.
+
+        Args:
+            key (str): The key to delete.
+
+        Raises:
+            KeyNotFoundError: If the key is not found in the store.
+            StoreError: If deleting the file fails.
+        """
+        file_path = self._get_file_path(key)
+        if not file_path.exists():
+            raise KeyNotFoundError(f"Key '{key}' not found in disk store at {self.path}")
+
+        try:
+            file_path.unlink()
+        except Exception as e:
+            raise StoreError(f"Error deleting key '{key}' from disk store: {str(e)}") from e
+
+    def list_keys(self) -> list[str]:
+        """Lists all keys in the store.
+
+        Returns:
+            list[str]: A list of all keys stored in the disk store.
+
+        Raises:
+            StoreError: If reading the store directory or files fails.
+        """
+        keys = []
+        try:
+            for file_path in self.path.glob("*.json"):
+                try:
+                    with open(file_path) as f:
+                        data = json.load(f)
+                        keys.append(data["key"])
+                except Exception:
+                    # Skip corrupted files
+                    continue
+            return keys
+        except Exception as e:
+            raise StoreError(f"Error listing keys from disk store: {str(e)}") from e
+
+    def has(self, key: str) -> bool:
+        """Checks if a key exists in the store.
+
+        Args:
+            key (str): The key to check.
+
+        Returns:
+            bool: True if the key exists, False otherwise.
+        """
+        file_path = self._get_file_path(key)
+        return file_path.exists()
+
+    def clear(self) -> None:
+        """Removes all key-value pairs from the store.
+
+        Raises:
+            StoreError: If clearing the store fails.
+        """
+        try:
+            for file_path in self.path.glob("*.json"):
+                file_path.unlink()
+        except Exception as e:
+            raise StoreError(f"Error clearing disk store: {str(e)}") from e

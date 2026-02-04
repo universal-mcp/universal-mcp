@@ -6,6 +6,7 @@ The stores module provides a flexible and secure way to manage credentials and s
 
 - Abstract base class defining a consistent interface for credential stores
 - Multiple storage backend implementations:
+  - Disk store (persistent file-based storage) - **recommended default**
   - In-memory store (temporary storage)
   - Environment variable store
   - System keyring store (secure credential storage)
@@ -13,6 +14,26 @@ The stores module provides a flexible and secure way to manage credentials and s
 - Type hints and comprehensive documentation
 
 ## Available Store Implementations
+
+### DiskStore (Recommended Default)
+A file-based persistent store using JSON serialization. Each key is stored in a separate file with a hashed filename for filesystem safety. This is the recommended default for single-user deployments.
+
+```python
+from universal_mcp.stores import DiskStore
+
+# Uses default path: ~/.universal-mcp/store
+store = DiskStore()
+store.set("api_key", "secret123")
+value = store.get("api_key")  # Returns "secret123"
+
+# Custom path
+store = DiskStore(path="/custom/path", app_name="my_app")
+
+# Additional methods
+store.has("api_key")  # Returns True
+store.list_keys()     # Returns ["api_key"]
+store.clear()         # Removes all keys
+```
 
 ### MemoryStore
 A simple in-memory store that persists data only for the duration of program execution. Useful for testing or temporary storage.
@@ -37,7 +58,7 @@ value = store.get("API_KEY")  # Returns "secret123"
 ```
 
 ### KeyringStore
-Leverages the system's secure credential storage facility. Provides the most secure option for storing sensitive data.
+Leverages the system's secure credential storage facility (macOS Keychain, Windows Credential Manager, Linux Secret Service). Provides the most secure option for storing sensitive data.
 
 ```python
 from universal_mcp.stores import KeyringStore
@@ -56,10 +77,11 @@ The module provides specific exception types for handling errors:
 
 ## Best Practices
 
-1. Use `KeyringStore` for production environments where security is a priority
-2. Use `EnvironmentStore` for containerized or cloud environments
-3. Use `MemoryStore` for testing or temporary storage only
-4. Always handle `StoreError` and `KeyNotFoundError` exceptions appropriately
+1. Use `DiskStore` as the default for single-user local deployments (persistent, simple)
+2. Use `KeyringStore` for production environments where security is a priority
+3. Use `EnvironmentStore` for containerized or cloud environments
+4. Use `MemoryStore` for testing or temporary storage only
+5. Always handle `StoreError` and `KeyNotFoundError` exceptions appropriately
 
 ## Dependencies
 

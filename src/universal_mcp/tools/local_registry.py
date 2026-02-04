@@ -9,20 +9,22 @@ from universal_mcp.applications.utils import app_from_slug
 from universal_mcp.exceptions import ToolError, ToolNotFoundError
 from universal_mcp.integrations.integration import IntegrationFactory
 from universal_mcp.tools.adapters import convert_tools
-from universal_mcp.tools.registry import ToolRegistry
+from universal_mcp.tools.manager import ToolManager
+from universal_mcp.tools.utils import list_to_tool_config
 from universal_mcp.types import ToolConfig, ToolFormat
 
 
-class LocalRegistry(ToolRegistry):
+class LocalRegistry:
     """A local implementation of the tool registry."""
 
     def __init__(self, output_dir: str = "output"):
         """Initialize the LocalRegistry."""
-        super().__init__()
+        self._app_instances = {}
+        self.tool_manager = ToolManager()
         self.output_dir = output_dir
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
-        logger.debug(f"Local output directory set to: {self.output_dir}")
+        logger.debug(f"LocalRegistry initialized. Output directory: {self.output_dir}")
 
     def _create_app_instance(self, app_name: str) -> BaseApplication:
         """Create a local app instance with a default integration."""
@@ -30,37 +32,39 @@ class LocalRegistry(ToolRegistry):
         integration = IntegrationFactory.create(app_name)
         return app(integration=integration)
 
-    async def list_all_apps(self) -> list[dict[str, Any]]:
-        """Not implemented for LocalRegistry."""
-        raise NotImplementedError("LocalRegistry does not support listing all apps.")
+    def _load_tools_from_app(self, app_name: str, tool_names: list[str] | None) -> None:
+        """Helper method to load and register tools for an app."""
+        logger.info(f"Loading tools for app '{app_name}' (tools: {tool_names or 'default'})")
+        try:
+            if app_name not in self._app_instances:
+                self._app_instances[app_name] = self._create_app_instance(app_name)
+            app_instance = self._app_instances[app_name]
+            self.tool_manager.register_tools_from_app(app_instance, tool_names=tool_names)
+            logger.info(f"Successfully registered tools for app: {app_name}")
+        except Exception as e:
+            logger.error(f"Failed to load tools for app {app_name}: {e}", exc_info=True)
 
-    async def get_app_details(self, app_id: str) -> dict[str, Any]:
-        """Not implemented for LocalRegistry."""
-        raise NotImplementedError("LocalRegistry does not support getting app details.")
+    def _load_tools_from_list(self, tools: list[str]) -> None:
+        """Load tools from a list of full tool names (e.g., 'app__tool')."""
+        tool_config = list_to_tool_config(tools)
+        for app_name, tool_names in tool_config.items():
+            self._load_tools_from_app(app_name, tool_names or None)
 
-    async def search_apps(
-        self,
-        query: str,
-        limit: int = 2,
-    ) -> list[dict[str, Any]]:
-        """Not implemented for LocalRegistry."""
-        raise NotImplementedError("LocalRegistry does not support searching apps.")
+    def _load_tools_from_tool_config(self, tool_config: ToolConfig) -> None:
+        """Load tools from a ToolConfig dictionary."""
+        logger.debug(f"Loading tools from tool_config: {tool_config}")
+        for app_name, tool_names in tool_config.items():
+            self._load_tools_from_app(app_name, tool_names or None)
 
-    async def list_tools(
-        self,
-        app_id: str,
-    ) -> list[dict[str, Any]]:
-        """Not implemented for LocalRegistry."""
-        raise NotImplementedError("LocalRegistry does not support listing tools.")
-
-    async def search_tools(
-        self,
-        query: str,
-        limit: int = 2,
-        app_id: str | None = None,
-    ) -> list[dict[str, Any]]:
-        """Not implemented for LocalRegistry."""
-        raise NotImplementedError("LocalRegistry does not support searching tools.")
+    async def load_tools(self, tools: list[str] | ToolConfig | None = None):
+        """Load the tools to be used"""
+        if isinstance(tools, list):
+            self._load_tools_from_list(tools)
+        elif isinstance(tools, dict):
+            self._load_tools_from_tool_config(tools)
+        else:
+            raise ValueError(f"Invalid tools type: {type(tools)}. Expected list or ToolConfig.")
+        return self.tool_manager.get_tools()
 
     async def export_tools(
         self,
@@ -103,7 +107,3 @@ class LocalRegistry(ToolRegistry):
 
         result = await tool.run(tool_args)
         return self._handle_file_output(result)
-
-    async def list_connected_apps(self) -> list[dict[str, Any]]:
-        """Not implemented for LocalRegistry."""
-        raise NotImplementedError("LocalRegistry does not support listing connected apps.")
