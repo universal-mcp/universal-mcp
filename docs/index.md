@@ -147,6 +147,19 @@ For services that authenticate via API keys or tokens.
 - `memory`: Transient in-memory storage
 
 
+## Future Roadmap
+
+Universal MCP has an ambitious roadmap for building a comprehensive, production-ready SDK for AI agent tooling. Our upcoming features include:
+
+### Key Features in Development
+
+- **Skills Registry**: A marketplace-like system for discovering, sharing, and executing reusable agent skills with versioning and composability
+- **Billing Registry**: Comprehensive usage tracking and cost management for monitoring tokens, API calls, and resource consumption
+- **Workflow System**: Powerful orchestration for chaining tools and skills into complex, multi-step processes with conditional logic and error handling
+- **Crontabs for Agents**: Scheduled task execution with cron-like syntax for automating recurring workflows and maintenance tasks
+
+These features will enable sophisticated agent behaviors, transparent cost management, and scalable automation. For detailed specifications and timelines, see our [complete roadmap](https://github.com/universal-mcp/universal-mcp/blob/main/ROADMAP.md).
+
 ## Requirements
 
 - Python 3.10+
@@ -171,6 +184,7 @@ For more detailed information about specific components:
 - [Credential Stores](stores.md)
 - [Integration & Authentication](integrations.md)
 - [Migration Guide](migration.md)
+- [Future Roadmap](https://github.com/universal-mcp/universal-mcp/blob/main/ROADMAP.md)
 
 ## License
 

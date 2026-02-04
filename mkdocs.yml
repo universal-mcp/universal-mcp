@@ -16,6 +16,7 @@ nav:
     - Stores: stores.md
     - Integrations: integrations.md
   - Migration Guide: migration.md
+  - Roadmap: https://github.com/universal-mcp/universal-mcp/blob/main/ROADMAP.md
   - Architecture:
     - Overview: architecture/index.md
     - System Architecture: architecture/overview.md

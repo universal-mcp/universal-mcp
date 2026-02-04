@@ -15,6 +15,7 @@ Please refer to the following for more detailed information:
 *   **[Credential Stores](docs/stores.md)**: For information on credential stores.
 *   **[Tools Framework](docs/tools_framework.md)**: For details on the tool management system.
 *   **[Migration Guide](docs/migration.md)**: For upgrading from previous versions.
+*   **[Roadmap](ROADMAP.md)**: For our strategic vision and upcoming features.
 *   **[Contributing Guidelines](CONTRIBUTING.md)**: For information on how to contribute to the project.
 
 ## License
