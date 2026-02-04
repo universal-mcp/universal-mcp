@@ -17,6 +17,7 @@ dependencies = [
     "agentevals>=0.0.9",
     "black>=25.1.0",
     "cookiecutter>=2.6.0",
+    "fastmcp>=2.14.5",
     "gql>=4.0.0",
     "httpx-aiohttp>=0.1.8",
     "jsonref>=1.1.0",

@@ -21,7 +21,7 @@ from openai.types.chat import ChatCompletionToolParam
 from universal_mcp.client.oauth import CallbackServer
 from universal_mcp.client.token_store import TokenStore
 from universal_mcp.config import ClientConfig, ClientTransportConfig
-from universal_mcp.stores.store import KeyringStore
+from universal_mcp.stores import KeyringStore
 from universal_mcp.tools.adapters import transform_mcp_tool_to_openai_tool
 
 

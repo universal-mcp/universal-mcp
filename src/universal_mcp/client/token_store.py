@@ -2,7 +2,7 @@ from mcp.client.auth import TokenStorage as MCPTokenStorage
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
 
 from universal_mcp.exceptions import KeyNotFoundError
-from universal_mcp.stores.store import KeyringStore
+from universal_mcp.stores import KeyringStore
 
 
 class TokenStore(MCPTokenStorage):
