@@ -1,5 +1,11 @@
 # Universal MCP
 
+## Quick Links
+
+- **[Architecture Documentation](architecture/index.md)** - System design and flow diagrams for contributors
+- **[API Reference](api/index.md)** - Complete API documentation
+- **[Getting Started](#getting-started)** - Installation and setup guides
+
 Universal MCP acts as a middleware layer for your API applications, enabling seamless integration with various services through the Model Control Protocol (MCP). It simplifies credential management, authorization, dynamic app enablement, and provides a robust framework for building and managing AI-powered tools.
 
 ## 🌟 Features

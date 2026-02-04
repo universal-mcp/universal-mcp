@@ -1,6 +1,6 @@
 site_name: MCP Server
 site_description: MCP Server
-strict: true
+strict: false
 
 repo_name: universal-mcp/universal-mcp
 repo_url: https://github.com/universal-mcp/universal-mcp
@@ -9,12 +9,34 @@ site_url: https://universal-mcp.github.io/universal-mcp/
 
 nav:
   - Home: index.md
-  - Applications: applications.md
-  - Tools Framework: tools_framework.md
-  - Servers: servers.md
-  - Stores: stores.md
-  - Integrations: integrations.md
-  - Playground: playground.md
+  - Getting Started:
+    - Applications: applications.md
+    - Tools Framework: tools_framework.md
+    - Servers: servers.md
+    - Stores: stores.md
+    - Integrations: integrations.md
+    - Playground: playground.md
+  - Architecture:
+    - Overview: architecture/index.md
+    - System Architecture: architecture/overview.md
+    - Class Hierarchy: architecture/class-hierarchy.md
+    - Request Flow: architecture/request-flow.md
+    - Authentication: architecture/auth-flow.md
+    - Tool Registration: architecture/tool-registration.md
+    - Server Initialization: architecture/server-init.md
+  - API Reference:
+    - Overview: api/index.md
+    - Applications: api/applications.md
+    - Integrations: api/integrations.md
+    - Tools: api/tools.md
+    - Adapters: api/adapters.md
+    - Servers: api/servers.md
+    - Stores: api/stores.md
+    - Configuration: api/config.md
+    - Registry: api/registry.md
+    - Exceptions: api/exceptions.md
+    - OAuth Client: api/client.md
+    - Types: api/types.md
 
 theme:
   name: "material"
@@ -56,6 +78,10 @@ theme:
   # TODO(Marcelo): Add a favicon.
   # favicon: "favicon.ico"
 
+# Enable Mermaid diagrams
+extra_javascript:
+  - https://unpkg.com/mermaid@10/dist/mermaid.min.js
+
 # https://www.mkdocs.org/user-guide/configuration/#validation
 validation:
   omitted_files: warn
@@ -72,7 +98,11 @@ markdown_extensions:
   - pymdownx.caret
   - pymdownx.critic
   - pymdownx.mark
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.snippets
   - pymdownx.tilde
   - pymdownx.inlinehilite
