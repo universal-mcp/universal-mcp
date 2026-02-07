@@ -1,156 +1,203 @@
-from collections.abc import Callable
+"""Server module - creates FastMCP servers backed by a LocalRegistry.
+
+Uses FastMCP's native tool management. LocalRegistry is the catalog of
+available apps/tools; FastMCP handles the MCP protocol.
+"""
+
 from typing import Any
 
 from fastmcp import FastMCP
 from loguru import logger
-from mcp.types import TextContent
 
 from universal_mcp.applications.application import BaseApplication
 from universal_mcp.applications.utils import app_from_slug
 from universal_mcp.config import ServerConfig
-from universal_mcp.exceptions import ConfigurationError, ToolError
+from universal_mcp.exceptions import ConfigurationError
 from universal_mcp.integrations.integration import ApiKeyIntegration
 from universal_mcp.stores import store_from_config
-from universal_mcp.tools import ToolManager
-from universal_mcp.tools.adapters import convert_tool_to_mcp_tool, format_to_mcp_result
 from universal_mcp.tools.local_registry import LocalRegistry
 
-# --- Loader Implementations ---
+
+def create_server(
+    name: str,
+    registry: LocalRegistry,
+    description: str = "",
+    **kwargs: Any,
+) -> FastMCP:
+    """Create a FastMCP server from a LocalRegistry.
+
+    Registers all tools from the registry into FastMCP's native system.
+    FastMCP then handles list_tools/call_tool via the MCP protocol.
+
+    Args:
+        name: Server name.
+        registry: LocalRegistry containing apps and tools.
+        description: Server description.
+        **kwargs: Extra args passed to FastMCP (e.g. port).
+
+    Returns:
+        A configured FastMCP server instance.
+    """
+    server = FastMCP(name, description, **kwargs)
+    _register_tools(server, registry)
+    return server
 
 
-def load_from_local_config(config: ServerConfig, tool_manager: ToolManager) -> None:
-    """Load apps and store from local config, register their tools."""
-    # Setup store if present
+def create_server_from_config(config: ServerConfig) -> tuple[FastMCP, LocalRegistry]:
+    """Create a FastMCP server from a ServerConfig.
+
+    Loads apps and store from config, populates a LocalRegistry,
+    and creates a FastMCP server with all tools registered.
+
+    Note: mcp_url apps are not loaded here (they require async).
+    Use create_server_from_config_async() for full support.
+
+    Args:
+        config: Server configuration.
+
+    Returns:
+        Tuple of (FastMCP server, LocalRegistry).
+    """
+    registry = LocalRegistry()
+    _load_config_into_registry(config, registry)
+
+    server = FastMCP(config.name, config.description, port=config.port)
+    _register_tools(server, registry)
+
+    return server, registry
+
+
+async def create_server_from_config_async(config: ServerConfig) -> tuple[FastMCP, LocalRegistry]:
+    """Create a FastMCP server from a ServerConfig, including mcp_url apps.
+
+    Like create_server_from_config but also connects to remote MCP servers.
+
+    Args:
+        config: Server configuration.
+
+    Returns:
+        Tuple of (FastMCP server, LocalRegistry).
+    """
+    registry = LocalRegistry()
+    _load_config_into_registry(config, registry)
+    await _load_mcp_url_apps(config, registry)
+
+    server = FastMCP(config.name, config.description, port=config.port)
+    _register_tools(server, registry)
+
+    return server, registry
+
+
+def create_server_from_app(
+    app: BaseApplication,
+    name: str | None = None,
+    description: str | None = None,
+    **kwargs: Any,
+) -> tuple[FastMCP, LocalRegistry]:
+    """Create a FastMCP server for a single application.
+
+    Args:
+        app: Application instance.
+        name: Server name (defaults to app name).
+        description: Server description.
+        **kwargs: Extra args passed to FastMCP.
+
+    Returns:
+        Tuple of (FastMCP server, LocalRegistry).
+    """
+    registry = LocalRegistry()
+    registry.register_app(app, tags=["all"])
+
+    server_name = name or f"{app.name.title()} MCP Server"
+    server_desc = description or f"MCP server for {app.name}"
+
+    server = FastMCP(server_name, server_desc, **kwargs)
+    _register_tools(server, registry)
+
+    return server, registry
+
+
+# ── Internal helpers ──────────────────────────────────────────
+
+
+def _register_tools(server: FastMCP, registry: LocalRegistry) -> None:
+    """Register all tools from a LocalRegistry into a FastMCP server."""
+    tools = registry.list_tools()
+    for tool in tools:
+        server.add_tool(tool)
+    logger.info(f"Registered {len(tools)} tools with FastMCP server")
+
+
+def _load_config_into_registry(config: ServerConfig, registry: LocalRegistry) -> None:
+    """Load apps and store tools from config into a registry."""
+    store = None
     if config.store:
         try:
             store = store_from_config(config.store)
-            tool_manager.add_tool(store.set)
-            tool_manager.add_tool(store.delete)
+            # Register store operations as tools
+            registry.register_tool(store.set, app_name="store")
+            registry.register_tool(store.delete, app_name="store")
             logger.info(f"Store loaded: {config.store.type}")
         except Exception as e:
             logger.error(f"Failed to setup store: {e}", exc_info=True)
             raise ConfigurationError(f"Store setup failed: {str(e)}") from e
 
-    # Load apps
     if not config.apps:
-        logger.warning("No applications configured in local config")
+        logger.warning("No applications configured")
         return
 
     for app_config in config.apps:
+        # Skip mcp_url apps - they need async loading via _load_mcp_url_apps
+        if app_config.source_type == "mcp_url":
+            continue
+
         try:
             integration = None
             if app_config.integration:
                 if app_config.integration.type == "api_key":
-                    integration = ApiKeyIntegration(config.name, store=store, **app_config.integration.credentials)
+                    integration = ApiKeyIntegration(
+                        config.name,
+                        store=store,
+                        **(app_config.integration.credentials or {}),
+                    )
                 else:
                     raise ValueError(f"Unsupported integration type: {app_config.integration.type}")
-            app = app_from_slug(app_config.name)(integration=integration)
-            tool_manager.register_tools_from_app(app, tool_names=app_config.actions)
+
+            app_class = app_from_slug(app_config.name)
+            app = app_class(integration=integration)
+            registry.register_app(app, tool_names=app_config.actions)
             logger.info(f"Loaded app: {app_config.name}")
         except Exception as e:
             logger.error(f"Failed to load app {app_config.name}: {e}", exc_info=True)
 
 
-def load_from_application(app_instance: BaseApplication, tool_manager: ToolManager) -> None:
-    """Register all tools from a single application instance."""
-    tool_manager.register_tools_from_app(app_instance, tags=["all"])
-    logger.info(f"Loaded tools from application: {app_instance.name}")
+async def _load_mcp_url_apps(config: ServerConfig, registry: LocalRegistry) -> None:
+    """Load mcp_url apps from config into the registry (async)."""
+    if not config.apps:
+        return
 
+    from universal_mcp.applications.mcp_app import MCPApplication
 
-# --- Server Implementations ---
+    for app_config in config.apps:
+        if app_config.source_type != "mcp_url":
+            continue
 
-
-class BaseServer(FastMCP):
-    """Base server for Universal MCP, manages ToolManager and tool invocation."""
-
-    def __init__(self, config: ServerConfig, tool_manager: ToolManager | None = None, **kwargs):
         try:
-            super().__init__(config.name, config.description, port=config.port, **kwargs)  # type: ignore
-            self.config = config
-            self._tool_manager = tool_manager
-            self.registry: Any = None
-            ServerConfig.model_validate(config)
+            url = app_config.source_path
+            if not url:
+                logger.error(f"mcp_url app '{app_config.name}' missing source_path")
+                continue
+
+            # Extract headers from integration credentials if available
+            headers = None
+            if app_config.integration and app_config.integration.credentials:
+                headers = app_config.integration.credentials.get("headers")
+
+            mcp_app = MCPApplication(app_config.name, url, headers=headers)
+            await mcp_app.connect()
+
+            proxy_tools = mcp_app.get_proxy_tools()
+            registry.register_remote_app(app_config.name, proxy_tools)
+            logger.info(f"Loaded MCP URL app: {app_config.name} from {url}")
         except Exception as e:
-            logger.error(f"Failed to initialize server: {e}", exc_info=True)
-            raise ConfigurationError(f"Server initialization failed: {str(e)}") from e
-
-    @property
-    def tool_manager(self) -> ToolManager:
-        if self._tool_manager is None:
-            self._tool_manager = ToolManager(warn_on_duplicate_tools=True)
-        return self._tool_manager
-
-    def add_tool(self, fn: Callable, name: str | None = None, description: str | None = None) -> None:
-        self.tool_manager.add_tool(fn, name)
-
-    async def list_tools(self) -> list:  # type: ignore
-        tools = self.tool_manager.get_tools()
-        return [convert_tool_to_mcp_tool(tool) for tool in tools]
-
-    async def call_tool(self, name: str, arguments: dict[str, Any]) -> list[TextContent]:
-        if not name:
-            raise ValueError("Tool name is required")
-        if not isinstance(arguments, dict):
-            raise ValueError("Arguments must be a dictionary")
-        try:
-            # Delegate the call to the registry
-            result = await self.registry.call_tool(name, arguments)
-            return format_to_mcp_result(result)
-        except Exception as e:
-            logger.error(f"Tool '{name}' failed: {e}", exc_info=True)
-            raise ToolError(f"Tool execution failed: {str(e)}") from e
-
-
-class LocalServer(BaseServer):
-    """Server that loads apps and store from local config."""
-
-    def __init__(self, config: ServerConfig, registry: LocalRegistry | None = None, **kwargs):
-        super().__init__(config, **kwargs)
-        self.registry = registry or LocalRegistry()
-        self._tools_loaded = False
-        self._load_tools_from_config()
-
-    def _load_tools_from_config(self):
-        """Load tools from the server configuration into the registry."""
-        if not self.config.apps:
-            logger.warning("No applications configured in server config; no tools to load.")
-            return
-
-        logger.info(f"Loading tools from {len(self.config.apps)} app(s) specified in server config...")
-        # Create a tool config dictionary from the server config
-        tool_config = {app.name: app.actions for app in self.config.apps}
-        self.registry._load_tools_from_tool_config(tool_config)
-        self._tools_loaded = True
-        logger.info("Finished loading tools from server config.")
-
-    @property
-    def tool_manager(self) -> ToolManager:
-        return self.registry.tool_manager
-
-
-class SingleMCPServer(BaseServer):
-    """Server for a single, pre-configured application."""
-
-    def __init__(
-        self,
-        app_instance: BaseApplication,
-        config: ServerConfig | None = None,
-        **kwargs,
-    ):
-        config = config or ServerConfig(
-            type="local",
-            name=f"{app_instance.name.title()} MCP Server for Local Development",
-            description=f"Minimal MCP server for the local {app_instance.name} application.",
-        )
-        super().__init__(config, **kwargs)
-        self.app_instance = app_instance
-        self._tools_loaded = False
-
-    @property
-    def tool_manager(self) -> ToolManager:
-        if self._tool_manager is None:
-            self._tool_manager = ToolManager(warn_on_duplicate_tools=True)
-        if not self._tools_loaded:
-            load_from_application(self.app_instance, self._tool_manager)
-            self._tools_loaded = True
-        return self._tool_manager
+            logger.error(f"Failed to load MCP URL app {app_config.name}: {e}", exc_info=True)

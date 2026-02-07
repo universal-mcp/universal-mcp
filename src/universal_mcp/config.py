@@ -27,24 +27,75 @@ class StoreConfig(BaseModel):
     )
 
 
-class IntegrationConfig(BaseModel):
-    """Defines the authentication and credential management for an application.
+class ConnectionConfig(BaseModel):
+    """Configuration for a user-specific connection.
 
-    Specifies how a particular application (`AppConfig`) should authenticate
-    with its target service, including the authentication type (e.g., API key,
-    OAuth) and where to find the necessary credentials.
+    Represents a single user's credentials for an integration.
+    Separate from IntegrationConfig which holds shared configuration.
+    """
+
+    integration_name: str = Field(
+        description="Name of the integration this connection uses"
+    )
+    user_id: str = Field(
+        default="default",
+        description="User identifier for multi-user scenarios"
+    )
+    credentials: dict[str, Any] | None = Field(
+        default=None,
+        description="User-specific credentials (tokens, keys)"
+    )
+    status: str = Field(
+        default="pending",
+        description="Connection status: pending, active, expired, revoked"
+    )
+
+
+class IntegrationConfig(BaseModel):
+    """Configuration for an integration template (shared config).
+
+    Defines HOW to connect (client configuration, endpoints) as opposed to
+    WHAT credentials to use (which are in ConnectionConfig).
+
+    For OAuth integrations, this holds the client_id/client_secret (shared
+    across all users). For API key integrations, this just defines the
+    integration type and store configuration.
     """
 
     name: str = Field(
         ..., description="A unique name for this integration instance (e.g., 'my_github_oauth', 'tavily_api_key')."
     )
-    type: Literal["api_key", "basic_auth"] = Field(
+    type: Literal["api_key", "oauth2", "basic_auth"] = Field(
         default="api_key",
-        description="Authentication mechanism: 'api_key' (Bearer token) or 'basic_auth' (user/pass).",
+        description="Authentication mechanism: 'api_key' (Bearer token), 'oauth2' (OAuth 2.0), or 'basic_auth' (user/pass).",
     )
+
+    # For OAuth integrations (shared config)
+    client_id: str | None = Field(
+        default=None,
+        description="OAuth client ID (shared across users)"
+    )
+    client_secret: str | None = Field(
+        default=None,
+        description="OAuth client secret (shared across users)"
+    )
+    auth_url: str | None = Field(
+        default=None,
+        description="OAuth authorization endpoint"
+    )
+    token_url: str | None = Field(
+        default=None,
+        description="OAuth token endpoint"
+    )
+    scopes: list[str] | None = Field(
+        default=None,
+        description="OAuth scopes"
+    )
+
+    # Backward compatibility - direct credentials
     credentials: dict[str, Any] | None = Field(
         default=None,
-        description="Directly provided credentials, if not using a store. Structure depends on the integration type (e.g., {'api_key': 'value'} or {'client_id': 'id', 'client_secret': 'secret'}). Use with caution for sensitive data; prefer using a 'store'.",
+        description="Directly provided credentials (legacy, prefer Connection model). Structure depends on the integration type (e.g., {'api_key': 'value'}). Use with caution for sensitive data; prefer using a 'store'.",
     )
     store: StoreConfig | None = Field(
         default=None,
@@ -73,9 +124,9 @@ class AppConfig(BaseModel):
         description="A list of specific actions or tools provided by this application that should be exposed. If None or empty, all tools from the application might be exposed by default, depending on the application's implementation.",
     )
 
-    source_type: Literal["package", "local_folder", "remote_zip", "remote_file", "local_file"] = Field(
+    source_type: Literal["package", "local_folder", "remote_zip", "remote_file", "local_file", "mcp_url"] = Field(
         default="package",
-        description="The source of the application. 'package' (default) installs from a repository, 'local_folder' loads from a local path, 'remote_zip' downloads and extracts a project zip, 'remote_file' downloads a single Python file from a URL, 'local_file' loads a single Python file from the local filesystem.",
+        description="The source of the application. 'package' (default) installs from a repository, 'local_folder' loads from a local path, 'remote_zip' downloads and extracts a project zip, 'remote_file' downloads a single Python file from a URL, 'local_file' loads a single Python file from the local filesystem, 'mcp_url' connects to a remote MCP server by URL.",
     )
     source_path: str | None = Field(
         default=None,
@@ -84,7 +135,7 @@ class AppConfig(BaseModel):
 
     @model_validator(mode="after")
     def check_path_for_non_package_sources(self) -> Self:
-        if self.source_type in ["local_folder", "remote_zip", "remote_file", "local_file"] and not self.source_path:
+        if self.source_type in ["local_folder", "remote_zip", "remote_file", "local_file", "mcp_url"] and not self.source_path:
             raise ValueError(f"'source_path' is required for source_type '{self.source_type}'")
         return self
 
