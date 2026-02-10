@@ -250,7 +250,7 @@ class LocalRegistry:
 
         try:
             app_class = app_from_slug(app_name)
-            app = app_class()
+            app = app_class(name=app_name)
             self.register_app(app, tool_names=tool_names)
         except Exception as e:
             logger.error(f"Failed to load app '{app_name}': {e}", exc_info=True)

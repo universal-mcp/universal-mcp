@@ -2,154 +2,57 @@
 
 This guide covers breaking changes and migration paths for upgrading Universal MCP.
 
-## Migrating to v0.2.x (Single-User SDK Architecture)
+## v2.0 Architecture
 
-Universal MCP v0.2.x introduces a significant architectural shift to a single-user SDK model. This version removes the AgentR platform integration and OAuth support in favor of simpler, local-first credential management.
+Universal MCP v2.0 is a single-user SDK focused on local-first credential management with clean separation between integrations (configuration templates) and connections (per-user credentials).
 
-### Key Changes
+### Key Features
 
-#### 1. AgentR Platform Removal
+- **Integration/Connection Separation**: Clear separation between integration configuration (how to connect) and user credentials (what to authenticate with)
+- **Multi-user Ready**: Support for multiple users with different credentials per integration
+- **OAuth Support**: Proper OAuth 2.0 implementation with client credentials separate from user tokens
+- **Local-First**: DiskStore as default for persistent credential storage
 
-The AgentR platform integration has been removed. This includes:
-
-- `AgentRServer` class removed
-- `AgentRIntegration` class removed
-- `type: "agentr"` server configuration no longer supported
-- `type: "agentr"` integration configuration no longer supported
-- `AGENTR_API_KEY` environment variable no longer used
-
-**Migration:**
-
-Before (v0.1.x):
-```json
-{
-  "type": "agentr",
-  "apps": []
-}
-```
-
-After (v0.2.x):
-```json
-{
-  "type": "local",
-  "apps": [
-    {
-      "name": "github",
-      "integration": {
-        "name": "GITHUB_TOKEN",
-        "type": "api_key",
-        "store": { "type": "disk" }
-      }
-    }
-  ]
-}
-```
-
-#### 2. OAuth Integration Removal
-
-OAuth-based authentication has been removed. Universal MCP now focuses on API key-based authentication, which is simpler and more appropriate for single-user SDK deployments.
-
-**Migration:**
-
-If you were using OAuth via AgentR:
-1. Obtain a personal access token or API key from the service provider
-2. Configure the integration as `type: "api_key"`
-3. Store the token in your preferred store (disk, environment, keyring)
-
-Example for GitHub:
-```json
-{
-  "name": "github",
-  "integration": {
-    "name": "GITHUB_TOKEN",
-    "type": "api_key",
-    "store": { "type": "disk" }
-  }
-}
-```
-
-#### 3. DiskStore as Default
-
-A new `DiskStore` has been added and is now the recommended default store type. It provides persistent file-based storage at `~/.universal-mcp/store`.
-
-**Migration:**
-
-Before (v0.1.x):
-```json
-{
-  "store": {
-    "type": "keyring"
-  }
-}
-```
-
-After (v0.2.x) - using new default:
-```json
-{
-  "store": {
-    "type": "disk"
-  }
-}
-```
-
-Note: `keyring`, `environment`, and `memory` stores are still supported.
-
-#### 4. FastMCP Migration
-
-The server implementation now uses FastMCP as its base. This provides better MCP protocol compliance and simplified server implementation.
-
-**Impact:**
-- Most users won't notice any change in behavior
-- If you were extending `BaseServer`, review the new implementation
-
-#### 5. CLI Changes
-
-The playground command has been removed. Use the standard `run` command:
-
-```bash
-# Run server with configuration
-universal_mcp run -c config.json
-```
-
-### Configuration Schema Changes
+### Configuration Schema
 
 #### ServerConfig
 
-| Field | v0.1.x | v0.2.x |
-|-------|--------|--------|
-| `type` | `"local"` \| `"agentr"` | `"local"` only |
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"local"` | Server type (local only) |
+| `transport` | `"stdio"` \| `"sse"` \| `"streamable-http"` | Communication protocol |
+| `store` | `StoreConfig` | Default credential store |
+| `apps` | `AppConfig[]` | Applications to load |
 
 #### IntegrationConfig
 
-| Field | v0.1.x | v0.2.x |
-|-------|--------|--------|
-| `type` | `"api_key"` \| `"agentr"` \| `"oauth"` | `"api_key"` \| `"basic_auth"` |
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | Integration name (e.g., "GITHUB_TOKEN") |
+| `type` | `"api_key"` \| `"oauth2"` \| `"basic_auth"` | Authentication type |
+| `store` | `StoreConfig` | Credential store (overrides server default) |
+
+For OAuth integrations, additional fields:
+- `client_id`: OAuth client ID
+- `client_secret`: OAuth client secret
+- `auth_url`: Authorization endpoint
+- `token_url`: Token endpoint
+- `scopes`: OAuth scopes
 
 #### StoreConfig
 
-| Field | v0.1.x | v0.2.x |
-|-------|--------|--------|
-| `type` | `"memory"` \| `"environment"` \| `"keyring"` | `"disk"` \| `"memory"` \| `"environment"` \| `"keyring"` |
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"disk"` \| `"memory"` \| `"environment"` \| `"keyring"` | Storage backend |
+| `path` | `string` | Path for disk store (defaults to `~/.universal-mcp/store`) |
 
-### Complete Migration Example
+### Example Configuration
 
-**Before (v0.1.x with AgentR):**
-```json
-{
-  "name": "My MCP Server",
-  "type": "agentr",
-  "transport": "sse",
-  "port": 8005
-}
-```
-
-**After (v0.2.x):**
 ```json
 {
   "name": "My MCP Server",
   "type": "local",
-  "transport": "sse",
-  "port": 8005,
+  "transport": "stdio",
   "store": {
     "type": "disk"
   },
@@ -162,43 +65,48 @@ universal_mcp run -c config.json
       }
     },
     {
-      "name": "tavily",
+      "name": "google",
       "integration": {
-        "name": "TAVILY_API_KEY",
-        "type": "api_key",
-        "store": { "type": "environment" }
+        "name": "GOOGLE_OAUTH",
+        "type": "oauth2",
+        "client_id": "your-client-id",
+        "client_secret": "your-client-secret",
+        "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+        "token_url": "https://oauth2.googleapis.com/token",
+        "scopes": ["https://www.googleapis.com/auth/calendar"]
       }
     }
   ]
 }
 ```
 
-### Credential Migration
+### Credential Storage
 
-If you had credentials stored via AgentR, you'll need to:
-
-1. Obtain API keys/tokens directly from each service provider
-2. Store them using your preferred store:
-
-**Using DiskStore (programmatic):**
+**Programmatic (DiskStore):**
 ```python
+from universal_mcp.integrations import ApiKeyIntegration
 from universal_mcp.stores import DiskStore
 
 store = DiskStore()
-store.set("GITHUB_TOKEN_API_KEY", "your_github_token")
-store.set("TAVILY_API_KEY", "your_tavily_key")
+integration = ApiKeyIntegration("GITHUB_TOKEN", store=store)
+integration.api_key = "ghp_your_github_token"
 ```
 
-**Using environment variables:**
+**Environment Variables:**
 ```bash
-export GITHUB_TOKEN_API_KEY="your_github_token"
-export TAVILY_API_KEY="your_tavily_key"
+export GITHUB_TOKEN_API_KEY="ghp_your_github_token"
+export TAVILY_API_KEY="tvly_your_tavily_key"
 ```
 
-### Deprecation Timeline
+**Multi-User (v2.0):**
+```python
+# Create connections for different users
+alice_conn = integration.create_connection(user_id="alice")
+alice_conn.set_credentials({"api_key": "alice_key"})
 
-- v0.2.x: AgentR and OAuth removed
-- Future versions will continue with the single-user SDK architecture
+bob_conn = integration.create_connection(user_id="bob")
+bob_conn.set_credentials({"api_key": "bob_key"})
+```
 
 ### Getting Help
 

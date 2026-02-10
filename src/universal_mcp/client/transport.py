@@ -89,7 +89,7 @@ class ClientTransport:
         if self._client:
             try:
                 result = await self._client.call_tool(tool_name, arguments, raise_on_error=False)
-                return result
+                return result  # type: ignore[return-value]
             except Exception as e:
                 logger.error(f"Error calling tool '{tool_name}' on client {self.name}: {e}")
         return MCPCallToolResult(
@@ -187,7 +187,7 @@ class MultiClientTransport:
             ValueError: If an unsupported format is requested.
         """
         if format == "mcp":
-            return self._mcp_tools
+            return self._mcp_tools  # type: ignore[return-value]
         elif format == "openai":
             return [transform_mcp_tool_to_openai_tool(tool) for tool in self._mcp_tools]
         else:

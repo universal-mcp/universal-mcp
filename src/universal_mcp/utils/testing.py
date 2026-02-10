@@ -2,12 +2,12 @@ import os
 from dataclasses import dataclass
 
 from langchain_core.messages import AIMessage, HumanMessage
-from langgraph.prebuilt import create_react_agent
+from langgraph.prebuilt import create_react_agent  # type: ignore[deprecated]
 from loguru import logger
 from pydantic import BaseModel, SecretStr
 
 from universal_mcp.applications.application import APIApplication, BaseApplication
-from universal_mcp.tools import Tool, ToolManager
+from fastmcp.tools import Tool
 from universal_mcp.types import ToolFormat
 
 
@@ -83,7 +83,10 @@ async def execute_automation_test(test_case: AutomationTestCase, app_instance: A
         test_case: Test case to execute
         app_instance: The application instance to test (optional if provided in test_case)
     """
-    tool_manager = ToolManager()
+    from universal_mcp.tools import LocalRegistry
+    from universal_mcp.tools.adapters import convert_tools
+
+    registry = LocalRegistry()
 
     if app_instance is None:
         app_instance = test_case.app_instance
@@ -93,17 +96,16 @@ async def execute_automation_test(test_case: AutomationTestCase, app_instance: A
     all_tools = app_instance.list_tools()
     logger.info(f"Available tools from app: {[getattr(t, '__name__', str(t)) for t in all_tools]}")
 
-    tool_manager.register_tools_from_app(app_instance)
+    registry.register_app(app_instance, tags=["all"])
 
-    all_registered = tool_manager.get_tools_by_app(app_name=app_instance.name)
+    all_registered = registry.list_tools()
     logger.info(f"All registered tools: {[t.name for t in all_registered]}")
 
     if test_case.tools:
-        tools = tool_manager.list_tools(
-            format=ToolFormat.LANGCHAIN, app_name=app_instance.name, tool_names=test_case.tools
-        )
+        filtered = registry.list_tools(tool_names=[f"{app_instance.name}__{t}" for t in test_case.tools])
+        tools = convert_tools(filtered, ToolFormat.LANGCHAIN)
     else:
-        tools = tool_manager.list_tools(format=ToolFormat.LANGCHAIN, app_name=app_instance.name)
+        tools = convert_tools(all_registered, ToolFormat.LANGCHAIN)
 
     logger.info(f"Tools for test: {[tool.name for tool in tools]}")
 
@@ -121,13 +123,13 @@ async def execute_automation_test(test_case: AutomationTestCase, app_instance: A
 
     llm = AzureChatOpenAI(
         azure_endpoint=azure_endpoint,
-        azure_deployment=azure_deployment,
-        api_key=SecretStr(azure_api_key) if azure_api_key else None,
-        api_version=api_version,
+        azure_deployment=azure_deployment,  # type: ignore[unknown-argument]
+        api_key=SecretStr(azure_api_key) if azure_api_key else None,  # type: ignore[unknown-argument]
+        api_version=api_version,  # type: ignore[unknown-argument]
     )
     logger.info(f"Using Azure OpenAI with deployment: {azure_deployment}")
 
-    agent = create_react_agent(
+    agent = create_react_agent(  # type: ignore[deprecated]
         model=llm,
         tools=tools,
     )
@@ -151,6 +153,6 @@ async def execute_automation_test(test_case: AutomationTestCase, app_instance: A
     if test_case.validate_query:
         messages.append(HumanMessage(content=test_case.validate_query))
         structured_llm = llm.with_structured_output(ValidateResult)
-        result = await structured_llm.ainvoke(messages)
+        result: ValidateResult = await structured_llm.ainvoke(messages)  # type: ignore[assignment]
         logger.info(f"Validation result: {result}")
         assert result.success, f"Validation failed: {result.reasoning}"

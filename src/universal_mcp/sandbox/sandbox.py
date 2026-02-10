@@ -1,4 +1,51 @@
-from typing import TypedDict
+import builtins
+import inspect
+import io
+import queue
+import re
+import socket
+import threading
+import types
+from typing import Any, TypedDict
+
+try:
+    import cloudpickle as pickle
+except ImportError:
+    import pickle  # Fallback to standard pickle
+
+from loguru import logger
+
+# Exclude types that cannot be pickled or are system types
+EXCLUDE_TYPES = (
+    types.ModuleType,
+    type(re.match("", "")),
+    type(re.compile("")),
+    type(threading.Lock()),
+    type(threading.RLock()),
+    threading.Event,
+    threading.Condition,
+    threading.Semaphore,
+    queue.Queue,
+    socket.socket,
+    io.IOBase,
+)
+
+# Built-in names that should not be preserved in context
+BUILTIN_NAMES = set(dir(builtins)) | {
+    "__builtins__",
+    "__cached__",
+    "__doc__",
+    "__file__",
+    "__loader__",
+    "__name__",
+    "__package__",
+    "__spec__",
+    "In",
+    "Out",
+    "exit",
+    "quit",
+    "get_ipython",
+}
 
 
 class SandboxResult(TypedDict):
@@ -80,6 +127,12 @@ ERROR_RECOVERY_HINTS = {
 - Use smart_print() to examine the object structure first
 - Verify the object is of the expected type
 - Check if the object is None when it shouldn't be""",
+    "TimeoutError": """Recovery suggestions:
+- Break the task into smaller, independent steps
+- Check for infinite loops (e.g., 'while True' without break condition)
+- Use async/await for I/O-bound operations to avoid blocking
+- For long computations, consider optimizing the algorithm
+- Review any loops to ensure they have proper termination conditions""",
 }
 
 DEFAULT_ERROR_HINT = """Recovery suggestions:
@@ -88,15 +141,130 @@ DEFAULT_ERROR_HINT = """Recovery suggestions:
 - Use smart_print() to examine intermediate values"""
 
 
+def filter_picklable(
+    namespace: dict[str, Any],
+    exclude_names: set[str] | None = None,
+    exclude_prefixes: tuple[str, ...] | None = None,
+    exclude_callables: bool = False,
+) -> dict[str, Any]:
+    """
+    Filter namespace to only include picklable user-defined variables and functions.
+
+    Excludes:
+    - Dunder variables (__xxx__)
+    - Built-in functions and types
+    - Running coroutines and async generator instances (not picklable)
+    - Unpicklable types (modules, locks, sockets, etc.)
+    - Optional: names in exclude_names set
+    - Optional: names starting with exclude_prefixes
+    - Optional: all callables (if exclude_callables=True)
+
+    Includes:
+    - Async function definitions (async def) - these ARE picklable with cloudpickle
+
+    Args:
+        namespace: Dictionary of variables from execution
+        exclude_names: Additional names to exclude (e.g., tool function names)
+        exclude_prefixes: Prefixes to exclude (e.g., ("llm__", "google_mail__"))
+        exclude_callables: If True, exclude ALL callable objects
+
+    Returns:
+        Dictionary containing only picklable user-defined variables and functions
+    """
+    exclude_names = exclude_names or set()
+    exclude_prefixes = exclude_prefixes or ()
+
+    filtered = {}
+    for key, value in namespace.items():
+        # Skip private/dunder variables
+        if key.startswith("__"):
+            continue
+
+        # Skip built-in names
+        if key in BUILTIN_NAMES:
+            continue
+
+        # Skip additional excluded names
+        if key in exclude_names:
+            continue
+
+        # Skip names with excluded prefixes
+        if any(key.startswith(prefix) for prefix in exclude_prefixes):
+            continue
+
+        # Skip running coroutines and async generator instances (not picklable)
+        # Note: async def functions (iscoroutinefunction) ARE picklable with cloudpickle
+        if inspect.iscoroutine(value):  # Running coroutine instance
+            continue
+        if inspect.isasyncgen(value):  # Running async generator instance
+            continue
+
+        # Skip excluded types
+        if isinstance(value, EXCLUDE_TYPES):
+            continue
+
+        # Optionally skip all callables (for msgpack compatibility)
+        if exclude_callables and callable(value):
+            continue
+
+        # Try to pickle everything else (cloudpickle can handle user-defined functions/classes)
+        try:
+            pickle.dumps(value)
+            filtered[key] = value
+        except Exception:
+            # Skip unpicklable objects
+            logger.warning(f"Unpicklable object: {key}")
+
+    return filtered
+
+
 class Sandbox:
     def __init__(self, timeout: int = 10):
         self.timeout = timeout
+        self.namespace = {}
 
-    def run(self, code) -> SandboxResult:
+    async def run(self, code: str) -> SandboxResult:
         raise NotImplementedError
 
-    def get_context(self):
-        raise NotImplementedError
+    async def get_context(self) -> str:
+        """
+        Extract the current namespace variables from the sandbox.
 
-    def update_context(self, context):
-        raise NotImplementedError
+        Returns:
+            Base64-encoded pickled dict of variables
+        """
+        import base64
+
+        filtered_vars = filter_picklable(self.namespace)
+        serialized = base64.b64encode(pickle.dumps(filtered_vars)).decode("utf-8")
+        logger.info(f"Getting context: {len(filtered_vars)} picklable vars")
+        return serialized
+
+    async def update_context(self, context: str | dict[str, Any]):
+        """
+        Update the namespace with variables.
+
+        Args:
+            context: Can be:
+                - str: serialized picklable context (base64-encoded pickle)
+                - dict: variables to add to namespace directly
+        """
+        import base64
+
+        if not context:
+            return
+
+        # If context is a string, it's serialized picklable context
+        if isinstance(context, str):
+            try:
+                pickled_vars = base64.b64decode(context)
+                vars_dict = pickle.loads(pickled_vars)
+                self.namespace.update(vars_dict)
+                logger.info(f"Updated context with {len(vars_dict)} variables")
+            except Exception as e:
+                logger.error(f"Error deserializing context: {e}")
+
+        # If context is a dict, use it directly
+        else:
+            self.namespace.update(context)
+            logger.info(f"Updated context with {len(context)} variables")

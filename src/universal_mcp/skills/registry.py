@@ -142,7 +142,7 @@ class SkillsRegistry:
         """
         return self._skills.get(name.lower())
 
-    def install_skill(self, source: str, scope: str = "global") -> SkillMetadata:
+    def install_skill(self, source: str, scope: Literal["global", "project"] = "global") -> SkillMetadata:
         """Install a skill from a local path or GitHub URL.
 
         Args:
@@ -257,7 +257,7 @@ class SkillsRegistry:
         self._skills = updated
         self._save_registry()
 
-    def _scan_directory(self, skills_dir: Path, scope: str, out: dict[str, SkillMetadata]) -> None:
+    def _scan_directory(self, skills_dir: Path, scope: Literal["global", "project"], out: dict[str, SkillMetadata]) -> None:
         """Scan a single skills directory for valid skill subdirectories.
 
         Args:
@@ -285,7 +285,7 @@ class SkillsRegistry:
             except (FileNotFoundError, ValueError) as e:
                 logger.debug(f"Skipping {child}: {e}")
 
-    def _get_skills_dir(self, scope: str) -> Path:
+    def _get_skills_dir(self, scope: Literal["global", "project"]) -> Path:
         """Get the target directory for the given scope.
 
         Args:

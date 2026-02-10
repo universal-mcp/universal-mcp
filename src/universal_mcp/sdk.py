@@ -41,6 +41,7 @@ class UniversalMCP:
         self._integrations: dict[str, Integration] = {}
         self._mcp_apps: dict[str, Any] = {}  # MCPApplication instances for lifecycle management
         self._code_sandbox = None
+        self._crontab_registry: Any = None  # Lazy-loaded CrontabRegistry
         self._manifest_path = manifest_path or _DEFAULT_MANIFEST_PATH
 
         # Load existing manifest and re-hydrate apps
@@ -75,7 +76,7 @@ class UniversalMCP:
 
         # Load and register app
         app_class = app_from_slug(slug)
-        app = app_class(integration=integration)
+        app = app_class(name=slug, integration=integration)
         self.registry.register_app(app, tags=tags or ["all"])
 
         # Persist to manifest
@@ -286,9 +287,17 @@ class UniversalMCP:
             port: Port for HTTP transports.
         """
         server = self.get_server(port=port)
-        await server.run(transport=transport)
+        await server.run(transport=transport)  # type: ignore[misc]
 
     # -- Crontabs --------------------------------------------------------------
+
+    @property
+    def crontab_registry(self) -> Any:
+        """Lazy-loaded CrontabRegistry instance."""
+        if self._crontab_registry is None:
+            from universal_mcp.crontabs.registry import CrontabRegistry
+            self._crontab_registry = CrontabRegistry()
+        return self._crontab_registry
 
     def schedule(
         self,
@@ -313,9 +322,8 @@ class UniversalMCP:
             Job info dict.
         """
         from universal_mcp.crontabs.models import CrontabJob
-        from universal_mcp.crontabs.registry import CrontabRegistry
 
-        registry = CrontabRegistry()
+        registry = self.crontab_registry
         job = CrontabJob(
             name=name,
             schedule=schedule,
@@ -336,9 +344,7 @@ class UniversalMCP:
         Returns:
             True if removed, False if not found.
         """
-        from universal_mcp.crontabs.registry import CrontabRegistry
-
-        registry = CrontabRegistry()
+        registry = self.crontab_registry
         return registry.remove_job(name)
 
     def list_schedules(self, enabled_only: bool = False) -> list[dict[str, Any]]:
@@ -350,9 +356,7 @@ class UniversalMCP:
         Returns:
             List of job info dicts.
         """
-        from universal_mcp.crontabs.registry import CrontabRegistry
-
-        registry = CrontabRegistry()
+        registry = self.crontab_registry
         jobs = registry.list_jobs(enabled_only=enabled_only)
         return [job.model_dump() for job in jobs]
 
@@ -376,7 +380,7 @@ class UniversalMCP:
 
         sandbox = CodeSandbox(timeout=timeout)
         self._code_sandbox = sandbox
-        self.registry.register_app(sandbox, tags=["all"])
+        self.registry.register_app(sandbox, tags=["all"])  # type: ignore[arg-type]
         logger.info(f"Code mode enabled (timeout={timeout}s)")
 
     def disable_code_mode(self) -> None:
@@ -419,7 +423,7 @@ class UniversalMCP:
                     self._integrations[slug] = integration
 
                     app_class = app_from_slug(slug)
-                    app = app_class(integration=integration)
+                    app = app_class(name=slug, integration=integration)
                     self.registry.register_app(app, tags=tags or ["all"])
                 except Exception as e:
                     logger.warning(f"Failed to load app '{slug}' from manifest: {e}")

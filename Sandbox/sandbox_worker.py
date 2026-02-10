@@ -26,8 +26,7 @@ except ImportError:
 
 from loguru import logger
 
-# Exclude types that cannot be pickled or are system types
-# Note: intentionally duplicated from sandbox.py for subprocess isolation
+# Exclude types that cannot be pickled or are system types (must match sandbox.py)
 EXCLUDE_TYPES = (
     types.ModuleType,
     type(re.match("", "")),

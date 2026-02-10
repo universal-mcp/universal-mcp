@@ -164,7 +164,7 @@ def _load_config_into_registry(config: ServerConfig, registry: LocalRegistry) ->
                     raise ValueError(f"Unsupported integration type: {app_config.integration.type}")
 
             app_class = app_from_slug(app_config.name)
-            app = app_class(integration=integration)
+            app = app_class(name=app_config.name, integration=integration)
             registry.register_app(app, tool_names=app_config.actions)
             logger.info(f"Loaded app: {app_config.name}")
         except Exception as e:

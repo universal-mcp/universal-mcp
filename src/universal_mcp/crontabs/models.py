@@ -1,16 +1,9 @@
 """Crontab models - Pydantic models for scheduled AI tasks."""
 
-import re
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
-
-
-# Validate cron expressions loosely (5 fields separated by spaces)
-CRON_PATTERN = re.compile(
-    r"^(\S+\s+){4}\S+$"
-)
 
 
 class CrontabJob(BaseModel):
@@ -79,14 +72,17 @@ class CrontabJob(BaseModel):
     @field_validator("schedule", mode="before")
     @classmethod
     def validate_schedule(cls, v: str) -> str:
-        """Validate cron expression format."""
+        """Validate cron expression using APScheduler's CronTrigger."""
+        from apscheduler.triggers.cron import CronTrigger
+
         v = v.strip()
-        parts = v.split()
-        if len(parts) != 5:
+        try:
+            CronTrigger.from_crontab(v)
+        except (ValueError, KeyError) as e:
             raise ValueError(
-                f"Invalid cron expression '{v}'. Must have exactly 5 fields: "
-                "minute hour day month weekday. Example: '*/5 * * * *'"
-            )
+                f"Invalid cron expression '{v}': {e}. "
+                "Must have 5 fields: minute hour day month weekday. Example: '*/5 * * * *'"
+            ) from e
         return v
 
     model_config = {"json_schema_extra": {"examples": [{"name": "daily-report", "schedule": "0 9 * * *", "prompt": "Generate a daily summary report of project status"}]}}

@@ -29,7 +29,7 @@ class TestCrontabJob:
         assert job.max_instances == 1
 
     def test_invalid_cron_expression(self):
-        with pytest.raises(ValueError, match="Must have exactly 5 fields"):
+        with pytest.raises(ValueError, match="Invalid cron expression"):
             CrontabJob(
                 name="bad-cron",
                 schedule="* * *",
@@ -37,7 +37,7 @@ class TestCrontabJob:
             )
 
     def test_invalid_cron_too_many_fields(self):
-        with pytest.raises(ValueError, match="Must have exactly 5 fields"):
+        with pytest.raises(ValueError, match="Invalid cron expression"):
             CrontabJob(
                 name="bad-cron",
                 schedule="* * * * * *",

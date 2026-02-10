@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
+import aiofiles
 import keyring
 from loguru import logger
 
@@ -12,24 +13,22 @@ from universal_mcp.exceptions import KeyNotFoundError, StoreError
 
 
 class BaseStore(ABC):
-    """Abstract base class defining a common interface for credential stores.
+    """Abstract base class defining a common async interface for credential stores.
 
-    This class outlines the essential methods (`get`, `set`, `delete`)
-    that all concrete store implementations must provide. It ensures a
-    consistent API for managing sensitive data across various storage
-    backends like in-memory dictionaries, environment variables, or
-    system keyrings.
+    All store operations are async to support non-blocking I/O operations.
+    This ensures consistent API for managing sensitive data across various storage
+    backends like in-memory dictionaries, environment variables, or system keyrings.
     """
 
     @abstractmethod
-    def get(self, key: str) -> Any:
-        """Retrieve data from the store.
+    async def get(self, key: str) -> Any:
+        """Retrieve data from the store asynchronously.
 
         Args:
-            key (str): The key for which to retrieve the value.
+            key: The key for which to retrieve the value.
 
         Returns:
-            Any: The value associated with the key.
+            The value associated with the key.
 
         Raises:
             KeyNotFoundError: If the specified key is not found in the store.
@@ -38,15 +37,15 @@ class BaseStore(ABC):
         pass
 
     @abstractmethod
-    def set(self, key: str, value: Any) -> None:
-        """Set or update a key-value pair in the store.
+    async def set(self, key: str, value: Any) -> None:
+        """Set or update a key-value pair in the store asynchronously.
 
         If the key already exists, its value should be updated. If the key
         does not exist, it should be created.
 
         Args:
-            key (str): The key to set or update.
-            value (Any): The value to associate with the key.
+            key: The key to set or update.
+            value: The value to associate with the key.
 
         Raises:
             StoreError: For store-related operational errors (e.g., write failures).
@@ -54,11 +53,11 @@ class BaseStore(ABC):
         pass
 
     @abstractmethod
-    def delete(self, key: str) -> None:
-        """Delete a key-value pair from the store.
+    async def delete(self, key: str) -> None:
+        """Delete a key-value pair from the store asynchronously.
 
         Args:
-            key (str): The key to delete.
+            key: The key to delete.
 
         Raises:
             KeyNotFoundError: If the specified key is not found in the store.
@@ -85,21 +84,21 @@ class MemoryStore(BaseStore):
     is not required.
 
     Attributes:
-        data (dict[str, Any]): The dictionary holding the stored key-value pairs.
+        data: The dictionary holding the stored key-value pairs.
     """
 
     def __init__(self):
         """Initializes the MemoryStore with an empty dictionary."""
         self.data: dict[str, Any] = {}
 
-    def get(self, key: str) -> Any:
+    async def get(self, key: str) -> Any:
         """Retrieves the value associated with the given key from the in-memory store.
 
         Args:
-            key (str): The key whose value is to be retrieved.
+            key: The key whose value is to be retrieved.
 
         Returns:
-            Any: The value associated with the key.
+            The value associated with the key.
 
         Raises:
             KeyNotFoundError: If the key is not found in the store.
@@ -108,20 +107,20 @@ class MemoryStore(BaseStore):
             raise KeyNotFoundError(f"Key '{key}' not found in memory store")
         return self.data[key]
 
-    def set(self, key: str, value: Any) -> None:
+    async def set(self, key: str, value: Any) -> None:
         """Sets or updates the value for a given key in the in-memory store.
 
         Args:
-            key (str): The key to set or update.
-            value (Any): The value to associate with the key.
+            key: The key to set or update.
+            value: The value to associate with the key.
         """
-        self.data[key] = value  # type: ignore
+        self.data[key] = value
 
-    def delete(self, key: str) -> None:
+    async def delete(self, key: str) -> None:
         """Deletes a key-value pair from the in-memory store.
 
         Args:
-            key (str): The key to delete.
+            key: The key to delete.
 
         Raises:
             KeyNotFoundError: If the key is not found in the store.
@@ -142,14 +141,14 @@ class EnvironmentStore(BaseStore):
     unless explicitly managed externally.
     """
 
-    def get(self, key: str) -> Any:
+    async def get(self, key: str) -> Any:
         """Retrieves the value of an environment variable.
 
         Args:
-            key (str): The name of the environment variable.
+            key: The name of the environment variable.
 
         Returns:
-            Any: The value of the environment variable as a string.
+            The value of the environment variable as a string.
 
         Raises:
             KeyNotFoundError: If the environment variable is not set.
@@ -159,21 +158,21 @@ class EnvironmentStore(BaseStore):
             raise KeyNotFoundError(f"Environment variable '{key}' not found")
         return value
 
-    def set(self, key: str, value: Any) -> None:
+    async def set(self, key: str, value: Any) -> None:
         """Sets an environment variable in the current process.
 
         Args:
-            key (str): The name of the environment variable.
-            value (Any): The value to set for the environment variable.
-                         It will be converted to a string.
+            key: The name of the environment variable.
+            value: The value to set for the environment variable.
+                   It will be converted to a string.
         """
         os.environ[key] = str(value)
 
-    def delete(self, key: str) -> None:
+    async def delete(self, key: str) -> None:
         """Deletes an environment variable from the current process.
 
         Args:
-            key (str): The name of the environment variable to delete.
+            key: The name of the environment variable to delete.
 
         Raises:
             KeyNotFoundError: If the environment variable is not set.
@@ -192,34 +191,36 @@ class KeyringStore(BaseStore):
     Service / KWallet on Linux). It is suitable for storing sensitive
     data like API keys and passwords persistently and securely.
 
+    Note: The keyring library is synchronous, so we wrap calls in async methods.
+
     Attributes:
-        app_name (str): The service name under which credentials are stored
-                        in the system keyring. This helps namespace credentials
-                        for different applications.
+        app_name: The service name under which credentials are stored
+                  in the system keyring. This helps namespace credentials
+                  for different applications.
     """
 
     def __init__(self, app_name: str = "universal_mcp"):
         """Initializes the KeyringStore.
 
         Args:
-            app_name (str, optional): The service name to use when interacting
-                with the system keyring. This helps to namespace credentials.
-                Defaults to "universal_mcp".
+            app_name: The service name to use when interacting
+                     with the system keyring. This helps to namespace credentials.
+                     Defaults to "universal_mcp".
         """
         self.app_name = app_name
 
-    def get(self, key: str) -> str:
+    async def get(self, key: str) -> str:
         """Retrieves a secret (password) from the system keyring.
 
         Args:
-            key (str): The username or key associated with the secret.
+            key: The username or key associated with the secret.
 
         Returns:
-            str: The stored secret string.
+            The stored secret string.
 
         Raises:
             KeyNotFoundError: If the key is not found in the keyring under
-                              `self.app_name`, or if `keyring` library errors occur.
+                             `self.app_name`, or if `keyring` library errors occur.
         """
         try:
             logger.info(f"Getting password for {key} from keyring for app {self.app_name}")
@@ -227,18 +228,19 @@ class KeyringStore(BaseStore):
             if value is None:
                 raise KeyNotFoundError(f"Key '{key}' not found in keyring for app '{self.app_name}'")
             return value
+        except KeyNotFoundError:
+            raise
         except Exception as e:  # Catches keyring specific errors too
-            # Log the original exception e if needed
             raise KeyNotFoundError(
                 f"Failed to retrieve key '{key}' from keyring for app '{self.app_name}'. Original error: {type(e).__name__}"
-            ) from e  # Keep original exception context
+            ) from e
 
-    def set(self, key: str, value: Any) -> None:
+    async def set(self, key: str, value: Any) -> None:
         """Stores a secret (password) in the system keyring.
 
         Args:
-            key (str): The username or key to associate with the secret.
-            value (Any): The secret to store. It will be converted to a string.
+            key: The username or key to associate with the secret.
+            value: The secret to store. It will be converted to a string.
 
         Raises:
             StoreError: If storing the secret in the keyring fails.
@@ -249,18 +251,18 @@ class KeyringStore(BaseStore):
         except Exception as e:
             raise StoreError(f"Error storing key '{key}' in keyring for app '{self.app_name}': {str(e)}") from e
 
-    def delete(self, key: str) -> None:
+    async def delete(self, key: str) -> None:
         """Deletes a secret (password) from the system keyring.
 
         Args:
-            key (str): The username or key of the secret to delete.
+            key: The username or key of the secret to delete.
 
         Raises:
             KeyNotFoundError: If the key is not found in the keyring (note: some
-                              keyring backends might not raise an error for
-                              non-existent keys, this tries to standardize).
+                             keyring backends might not raise an error for
+                             non-existent keys, this tries to standardize).
             StoreError: If deleting the secret from the keyring fails for other
-                        reasons.
+                       reasons.
         """
         try:
             logger.info(f"Deleting password for {key} from keyring for app {self.app_name}")
@@ -277,7 +279,7 @@ class KeyringStore(BaseStore):
 
 
 class DiskStore(BaseStore):
-    """File-based persistent store using JSON serialization.
+    """File-based persistent store using JSON serialization with async I/O.
 
     This store implementation persists data to disk as individual JSON files,
     with each key stored in a separate file. The filename is derived from a
@@ -285,19 +287,21 @@ class DiskStore(BaseStore):
     storage that survives application restarts while remaining simple and
     portable.
 
+    All file operations are async using aiofiles for non-blocking I/O.
+
     Attributes:
-        path (Path): The directory where store files are persisted.
-        app_name (str): The application name used for namespacing.
+        path: The directory where store files are persisted.
+        app_name: The application name used for namespacing.
     """
 
     def __init__(self, path: Path | None = None, app_name: str = "universal_mcp"):
         """Initializes the DiskStore.
 
         Args:
-            path (Path | None, optional): The directory path where files will be stored.
-                If None, defaults to ~/.universal-mcp/store. Defaults to None.
-            app_name (str, optional): The application name for namespacing.
-                Defaults to "universal_mcp".
+            path: The directory path where files will be stored.
+                 If None, defaults to ~/.universal-mcp/store. Defaults to None.
+            app_name: The application name for namespacing.
+                     Defaults to "universal_mcp".
         """
         self.app_name = app_name
         if path is None:
@@ -309,22 +313,22 @@ class DiskStore(BaseStore):
         """Generates a safe filesystem path for the given key.
 
         Args:
-            key (str): The key to generate a path for.
+            key: The key to generate a path for.
 
         Returns:
-            Path: The file path where the key's value should be stored.
+            The file path where the key's value should be stored.
         """
         key_hash = hashlib.sha256(key.encode()).hexdigest()
         return self.path / f"{key_hash}.json"
 
-    def get(self, key: str) -> Any:
+    async def get(self, key: str) -> Any:
         """Retrieves the value associated with the given key from disk.
 
         Args:
-            key (str): The key whose value is to be retrieved.
+            key: The key whose value is to be retrieved.
 
         Returns:
-            Any: The value associated with the key.
+            The value associated with the key.
 
         Raises:
             KeyNotFoundError: If the key is not found in the store.
@@ -335,34 +339,36 @@ class DiskStore(BaseStore):
             raise KeyNotFoundError(f"Key '{key}' not found in disk store at {self.path}")
 
         try:
-            with open(file_path) as f:
-                data = json.load(f)
+            async with aiofiles.open(file_path, mode="r") as f:
+                content = await f.read()
+                data = json.loads(content)
                 return data["value"]
         except Exception as e:
             raise StoreError(f"Error reading key '{key}' from disk store: {str(e)}") from e
 
-    def set(self, key: str, value: Any) -> None:
+    async def set(self, key: str, value: Any) -> None:
         """Sets or updates the value for a given key on disk.
 
         Args:
-            key (str): The key to set or update.
-            value (Any): The value to associate with the key. Must be JSON-serializable.
+            key: The key to set or update.
+            value: The value to associate with the key. Must be JSON-serializable.
 
         Raises:
             StoreError: If writing or serializing the file fails.
         """
         file_path = self._get_file_path(key)
         try:
-            with open(file_path, "w") as f:
-                json.dump({"key": key, "value": value}, f, indent=2)
+            content = json.dumps({"key": key, "value": value}, indent=2)
+            async with aiofiles.open(file_path, mode="w") as f:
+                await f.write(content)
         except Exception as e:
             raise StoreError(f"Error writing key '{key}' to disk store: {str(e)}") from e
 
-    def delete(self, key: str) -> None:
+    async def delete(self, key: str) -> None:
         """Deletes a key-value pair from disk.
 
         Args:
-            key (str): The key to delete.
+            key: The key to delete.
 
         Raises:
             KeyNotFoundError: If the key is not found in the store.
@@ -377,11 +383,11 @@ class DiskStore(BaseStore):
         except Exception as e:
             raise StoreError(f"Error deleting key '{key}' from disk store: {str(e)}") from e
 
-    def list_keys(self) -> list[str]:
+    async def list_keys(self) -> list[str]:
         """Lists all keys in the store.
 
         Returns:
-            list[str]: A list of all keys stored in the disk store.
+            A list of all keys stored in the disk store.
 
         Raises:
             StoreError: If reading the store directory or files fails.
@@ -390,8 +396,9 @@ class DiskStore(BaseStore):
         try:
             for file_path in self.path.glob("*.json"):
                 try:
-                    with open(file_path) as f:
-                        data = json.load(f)
+                    async with aiofiles.open(file_path, mode="r") as f:
+                        content = await f.read()
+                        data = json.loads(content)
                         keys.append(data["key"])
                 except Exception:
                     # Skip corrupted files
@@ -401,18 +408,18 @@ class DiskStore(BaseStore):
             raise StoreError(f"Error listing keys from disk store: {str(e)}") from e
 
     def has(self, key: str) -> bool:
-        """Checks if a key exists in the store.
+        """Checks if a key exists in the store (synchronous).
 
         Args:
-            key (str): The key to check.
+            key: The key to check.
 
         Returns:
-            bool: True if the key exists, False otherwise.
+            True if the key exists, False otherwise.
         """
         file_path = self._get_file_path(key)
         return file_path.exists()
 
-    def clear(self) -> None:
+    async def clear(self) -> None:
         """Removes all key-value pairs from the store.
 
         Raises:

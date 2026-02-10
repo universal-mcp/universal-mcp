@@ -49,7 +49,10 @@ def _derive_app_name(url: str) -> str:
     # Filter out common prefixes/suffixes
     skip = {"www", "api", "mcp", "com", "org", "net", "io", "so", "co", "dev", "app"}
     candidates = [p for p in parts if p and p not in skip]
-    return candidates[0] if candidates else parts[0] if parts else "remote"
+    if candidates:
+        return candidates[0]
+    # Fallback: use first non-empty part, or "remote"
+    return next((p for p in parts if p), "remote")
 
 
 class ProxyTool(Tool):
@@ -104,9 +107,14 @@ class MCPApplication(BaseApplication):
         self._client = Client(self.url, auth=auth)
         await self._client.__aenter__()
 
-        # Discover remote tools
-        self._remote_tools = await self._client.list_tools()
-        self._proxy_tools = self._build_proxy_tools()
+        try:
+            # Discover remote tools
+            self._remote_tools = await self._client.list_tools()
+            self._proxy_tools = self._build_proxy_tools()
+        except Exception:
+            await self._client.__aexit__(None, None, None)
+            self._client = None
+            raise
 
         logger.info(
             f"Connected to MCP server at {self.url}, "
@@ -123,7 +131,7 @@ class MCPApplication(BaseApplication):
             async def _proxy_call(
                 arguments: dict[str, Any],
                 _name: str = tool_name,
-                _client: Client = client,
+                _client: Client = client,  # type: ignore[assignment]
             ) -> str:
                 result = await _client.call_tool(_name, arguments)
                 # Extract text from content blocks

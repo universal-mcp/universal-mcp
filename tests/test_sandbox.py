@@ -5,7 +5,7 @@ import pytest
 from universal_mcp.sandbox.sandbox import Sandbox, SandboxResult
 from universal_mcp.sandbox.in_process_sandbox import InProcessSandbox
 from universal_mcp.sandbox.subprocess_sandbox import SubprocessSandbox
-from universal_mcp.sandbox.code_tool import CodeSandbox, create_code_sandbox
+from universal_mcp.sandbox.code_tool import CodeSandbox
 
 
 # -- Base types --------------------------------------------------------
@@ -48,10 +48,11 @@ class TestBaseSandbox:
         sb = Sandbox(timeout=60)
         assert sb.timeout == 60
 
-    def test_run_not_implemented(self):
+    @pytest.mark.asyncio
+    async def test_run_not_implemented(self):
         sb = Sandbox()
         with pytest.raises(NotImplementedError):
-            sb.run("x = 1")
+            await sb.run("x = 1")
 
 
 # -- InProcessSandbox -------------------------------------------------
@@ -366,13 +367,13 @@ class TestCodeSandbox:
         assert code_sandbox.name == "sandbox"
 
 
-class TestCreateCodeSandbox:
-    """Tests for factory function."""
+class TestCodeSandboxFactory:
+    """Tests for CodeSandbox instantiation."""
 
     def test_default_timeout(self):
-        sb = create_code_sandbox()
+        sb = CodeSandbox()
         assert sb._sandbox.timeout == 30
 
     def test_custom_timeout(self):
-        sb = create_code_sandbox(timeout=60)
+        sb = CodeSandbox(timeout=60)
         assert sb._sandbox.timeout == 60

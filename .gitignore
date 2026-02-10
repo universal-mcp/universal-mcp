@@ -57,7 +57,6 @@ site/
 # langgraph temporary files
 .langgraph_api/
 langgraph.json
-agentr-1-6c4ebd5cc914.json
 
 
 .DS_Store

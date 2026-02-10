@@ -88,23 +88,15 @@ def add_url(
     tag_list = tags.split(",") if tags else None
 
     try:
+        from universal_mcp.applications.mcp_app import _derive_app_name, normalize_mcp_url
         asyncio.run(sdk.add_from_url(url, name=name, headers=headers or None, tags=tag_list))
-        app_name = name or _derive_app_name_for_cli(url)
+        app_name = name or _derive_app_name(normalize_mcp_url(url))
         tools = sdk.list_tools(app=app_name)
         rprint(f"[green]Added remote MCP app from {url}[/green]")
         rprint(f"[dim]{len(tools)} tools registered[/dim]")
     except Exception as e:
         rprint(f"[red]Failed to add MCP URL '{url}': {e}[/red]")
         raise typer.Exit(1) from None
-
-
-def _derive_app_name_for_cli(url: str) -> str:
-    """Derive app name from URL for display purposes."""
-    try:
-        from universal_mcp.applications.mcp_app import _derive_app_name, normalize_mcp_url
-        return _derive_app_name(normalize_mcp_url(url))
-    except Exception:
-        return url
 
 
 @app.command()
@@ -506,6 +498,63 @@ def cron_info(
         for record in history:
             status_color = {"success": "green", "error": "red", "running": "yellow"}.get(record.status, "white")
             rprint(f"    [{status_color}]{record.status}[/{status_color}]  {record.started_at}")
+
+
+@app.command()
+def status():
+    """Show an overview of installed apps, tools, skills, and cron jobs."""
+    from rich.table import Table
+
+    sdk = _get_sdk()
+
+    # -- Apps & Tools --
+    apps = sdk.list_apps()
+    tools = sdk.list_tools()
+
+    rprint("[bold]Apps[/bold]")
+    if apps:
+        table = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))
+        table.add_column("Name")
+        table.add_column("Tools", justify="right")
+        for name in apps:
+            app_tools = sdk.list_tools(app=name)
+            table.add_row(name, str(len(app_tools)))
+        rprint(table)
+    else:
+        rprint("  [dim]No apps installed[/dim]")
+
+    rprint(f"\n  [dim]Total tools: {len(tools)}[/dim]")
+
+    # -- Skills --
+    rprint("\n[bold]Skills[/bold]")
+    try:
+        skills_registry = _get_skills_registry()
+        skills = skills_registry.list_skills()
+        if skills:
+            for skill in skills:
+                rprint(f"  {skill.name} [dim]({skill.scope})[/dim]")
+        else:
+            rprint("  [dim]No skills installed[/dim]")
+    except Exception:
+        rprint("  [dim]No skills installed[/dim]")
+
+    # -- Cron Jobs --
+    rprint("\n[bold]Cron Jobs[/bold]")
+    try:
+        cron_registry = _get_crontab_registry()
+        jobs = cron_registry.list_jobs()
+        if jobs:
+            for job in jobs:
+                status_tag = "[green]enabled[/green]" if job.enabled else "[red]disabled[/red]"
+                rprint(f"  {job.name}  {job.schedule}  {status_tag}")
+        else:
+            rprint("  [dim]No cron jobs configured[/dim]")
+    except Exception:
+        rprint("  [dim]No cron jobs configured[/dim]")
+
+    # -- Manifest --
+    rprint(f"\n[bold]Manifest[/bold]")
+    rprint(f"  [dim]{sdk._manifest_path}[/dim]")
 
 
 @app.command()

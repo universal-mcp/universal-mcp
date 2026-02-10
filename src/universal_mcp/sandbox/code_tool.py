@@ -95,15 +95,3 @@ class CodeSandbox:
     def list_tools(self) -> list:
         """Return the list of tool functions for registration."""
         return [self.execute_code, self.get_sandbox_context, self.reset_sandbox]
-
-
-def create_code_sandbox(timeout: int = 30) -> CodeSandbox:
-    """Create a CodeSandbox instance.
-
-    Args:
-        timeout: Maximum execution time per code block in seconds.
-
-    Returns:
-        Configured CodeSandbox instance.
-    """
-    return CodeSandbox(timeout=timeout)
