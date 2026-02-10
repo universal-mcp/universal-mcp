@@ -11,7 +11,6 @@ class ToolFormat(str, Enum):
 
     NATIVE = "native"
     MCP = "mcp"
-    LANGCHAIN = "langchain"
     OPENAI = "openai"
 
 

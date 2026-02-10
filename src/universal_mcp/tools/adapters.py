@@ -17,8 +17,6 @@ def convert_tools(tools: list[Tool], format: ToolFormat) -> list[Any]:
         return [convert_to_native_tool(tool) for tool in tools]
     if format == ToolFormat.MCP:
         return [tool.to_mcp_tool() for tool in tools]
-    if format == ToolFormat.LANGCHAIN:
-        return [convert_tool_to_langchain_tool(tool) for tool in tools]
     if format == ToolFormat.OPENAI:
         return [convert_tool_to_openai_tool(tool) for tool in tools]
     raise ValueError(f"Invalid format: {format}")
@@ -56,25 +54,6 @@ def convert_tool_to_openai_tool(tool: Tool) -> dict[str, Any]:
             "parameters": tool.parameters,
         },
     }
-
-
-def convert_tool_to_langchain_tool(tool: Tool):
-    """Convert a FastMCP Tool to a LangChain StructuredTool."""
-    from langchain_core.tools import StructuredTool
-
-    full_docstring = inspect.getdoc(getattr(tool, "fn", None))
-
-    async def call_tool(**arguments: dict[str, Any]):
-        result = await tool.run(arguments)
-        return result
-
-    return StructuredTool(
-        name=tool.name,
-        description=full_docstring or tool.description or "",
-        coroutine=call_tool,
-        response_format="content",
-        args_schema=tool.parameters,
-    )
 
 
 def transform_mcp_tool_to_openai_tool(mcp_tool):
