@@ -156,7 +156,7 @@ def _load_config_into_registry(config: ServerConfig, registry: LocalRegistry) ->
             if app_config.integration:
                 if app_config.integration.type == "api_key":
                     integration = ApiKeyIntegration(
-                        config.name,
+                        app_config.name,
                         store=store,
                         **(app_config.integration.credentials or {}),
                     )
@@ -197,7 +197,7 @@ async def _load_mcp_url_apps(config: ServerConfig, registry: LocalRegistry) -> N
             await mcp_app.connect()
 
             proxy_tools = mcp_app.get_proxy_tools()
-            registry.register_remote_app(app_config.name, proxy_tools)
+            registry.register_remote_app(mcp_app, proxy_tools)
             logger.info(f"Loaded MCP URL app: {app_config.name} from {url}")
         except Exception as e:
             logger.error(f"Failed to load MCP URL app {app_config.name}: {e}", exc_info=True)

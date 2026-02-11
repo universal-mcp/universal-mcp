@@ -1,19 +1,42 @@
 from abc import ABC, abstractmethod
-from collections.abc import AsyncGenerator, Callable, Generator
-from contextlib import asynccontextmanager, contextmanager
+from collections.abc import AsyncGenerator, Callable
+from contextlib import asynccontextmanager
 from typing import Any
 
 import httpx
 from gql import Client as GraphQLClient
 from gql import gql
 from gql.transport.aiohttp import AIOHTTPTransport
-from gql.transport.requests import RequestsHTTPTransport
 from graphql import DocumentNode
 from loguru import logger
 
 from universal_mcp.integrations.integration import Integration
 
 DEFAULT_API_TIMEOUT = 30  # seconds
+
+
+async def _build_auth_headers(integration: "Integration | None") -> dict[str, str]:
+    """Build authentication headers from an integration's credentials.
+
+    Supports direct headers, API keys, and access tokens.
+    """
+    if not integration:
+        return {}
+    credentials = await integration.get_credentials()
+
+    headers = credentials.get("headers")
+    if headers:
+        return headers
+
+    api_key = credentials.get("api_key") or credentials.get("API_KEY") or credentials.get("apiKey")
+    if api_key:
+        return {"Authorization": f"Bearer {api_key}"}
+
+    access_token = credentials.get("access_token")
+    if access_token:
+        return {"Authorization": f"Bearer {access_token}"}
+
+    return {}
 
 
 class BaseApplication(ABC):
@@ -98,42 +121,11 @@ class APIApplication(BaseApplication):
     async def _get_headers(self) -> dict[str, str]:
         """Constructs HTTP headers for API requests based on the integration asynchronously.
 
-        Retrieves credentials from the configured `integration` asynchronously and
-        attempts to create appropriate authentication headers. It supports direct header
-        injection, API keys (as Bearer tokens), and access tokens (as Bearer tokens).
-
         Returns:
             Dictionary of HTTP headers. Returns empty dict if no integration configured
             or no suitable credentials found.
         """
-        if not self.integration:
-            logger.debug("No integration configured, returning empty headers")
-            return {}
-        credentials = await self.integration.get_credentials()
-        logger.debug("Got credentials for integration")
-
-        # Check if direct headers are provided
-        headers = credentials.get("headers")
-        if headers:
-            logger.debug("Using direct headers from credentials")
-            return headers
-
-        # Check if api key is provided
-        api_key = credentials.get("api_key") or credentials.get("API_KEY") or credentials.get("apiKey")
-        if api_key:
-            logger.debug("Using API key from credentials")
-            return {
-                "Authorization": f"Bearer {api_key}",
-            }
-        # Check if access token is provided
-        access_token = credentials.get("access_token")
-        if access_token:
-            logger.debug("Using access token from credentials")
-            return {
-                "Authorization": f"Bearer {access_token}",
-            }
-        logger.debug("No authentication found in credentials, returning empty headers")
-        return {}
+        return await _build_auth_headers(self.integration)
 
     @asynccontextmanager
     async def get_async_client(self) -> AsyncGenerator[httpx.AsyncClient, None]:
@@ -180,25 +172,46 @@ class APIApplication(BaseApplication):
         except Exception:
             return {"status": "success", "status_code": response.status_code, "text": response.text}
 
+    async def _request(
+        self,
+        method: str,
+        url: str,
+        data: Any = None,
+        params: dict[str, Any] | None = None,
+        content_type: str = "application/json",
+        files: dict[str, Any] | None = None,
+    ) -> httpx.Response:
+        """Make an async HTTP request with content-type dispatching."""
+        async with self.get_async_client() as client:
+            kwargs: dict[str, Any] = {"params": params}
+
+            if content_type == "multipart/form-data":
+                kwargs["data"] = data
+                kwargs["files"] = files
+            elif content_type == "application/x-www-form-urlencoded":
+                kwargs["headers"] = {"Content-Type": content_type}
+                kwargs["data"] = data
+            elif content_type == "application/json":
+                kwargs["json"] = data
+            else:
+                kwargs["headers"] = {"Content-Type": content_type}
+                kwargs["content"] = data
+
+            response = await getattr(client, method)(url, **kwargs)
+        return response
+
     async def _get(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
         """Makes an asynchronous GET request to the specified URL.
 
         Args:
             url (str): The URL endpoint for the request (relative to `base_url`).
             params (dict[str, Any] | None, optional): Optional URL query parameters.
-                Defaults to None.
 
         Returns:
-            httpx.Response: The raw HTTP response object. The `_handle_response`
-                            method should typically be used to process this.
-
-        Raises:
-            httpx.HTTPStatusError: Propagated if the underlying client request fails.
+            httpx.Response: The raw HTTP response object.
         """
-        logger.debug(f"Making async GET request to {url} with params: {params}")
         async with self.get_async_client() as client:
             response = await client.get(url, params=params)
-        logger.debug(f"Async GET request successful with status code: {response.status_code}")
         return response
 
     async def _post(
@@ -211,10 +224,6 @@ class APIApplication(BaseApplication):
     ) -> httpx.Response:
         """Makes an asynchronous POST request to the specified URL.
 
-        Handles different `content_type` values for sending data,
-        including 'application/json', 'application/x-www-form-urlencoded',
-        and 'multipart/form-data' (for file uploads).
-
         Args:
             url (str): The URL endpoint for the request (relative to `base_url`).
             data (Any): The data to send in the request body.
@@ -224,45 +233,8 @@ class APIApplication(BaseApplication):
 
         Returns:
             httpx.Response: The raw HTTP response object.
-
-        Raises:
-            httpx.HTTPStatusError: Propagated if the underlying client request fails.
         """
-        logger.debug(
-            f"Making async POST request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
-        )
-        async with self.get_async_client() as client:
-            if content_type == "multipart/form-data":
-                response = await client.post(
-                    url,
-                    data=data,
-                    files=files,
-                    params=params,
-                )
-            elif content_type == "application/x-www-form-urlencoded":
-                headers = {"Content-Type": content_type}  # Explicitly set Content-Type for form data.
-                response = await client.post(
-                    url,
-                    headers=headers,
-                    data=data,
-                    params=params,
-                )
-            elif content_type == "application/json":
-                response = await client.post(
-                    url,
-                    json=data,  # httpx automatically sets Content-Type for json=data.
-                    params=params,
-                )
-            else:
-                headers = {"Content-Type": content_type}  # Explicitly set Content-Type for other content types.
-                response = await client.post(
-                    url,
-                    headers=headers,
-                    content=data,
-                    params=params,
-                )
-        logger.debug(f"Async POST request successful with status code: {response.status_code}")
-        return response
+        return await self._request("post", url, data, params, content_type, files)
 
     async def _put(
         self,
@@ -283,45 +255,8 @@ class APIApplication(BaseApplication):
 
         Returns:
             httpx.Response: The raw HTTP response object.
-
-        Raises:
-            httpx.HTTPStatusError: Propagated if the underlying client request fails.
         """
-        logger.debug(
-            f"Making async PUT request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
-        )
-        async with self.get_async_client() as client:
-            if content_type == "multipart/form-data":
-                response = await client.put(
-                    url,
-                    data=data,
-                    files=files,
-                    params=params,
-                )
-            elif content_type == "application/x-www-form-urlencoded":
-                headers = {"Content-Type": content_type}  # Explicitly set Content-Type for form data.
-                response = await client.put(
-                    url,
-                    headers=headers,
-                    data=data,
-                    params=params,
-                )
-            elif content_type == "application/json":
-                response = await client.put(
-                    url,
-                    json=data,  # httpx automatically sets Content-Type for json=data.
-                    params=params,
-                )
-            else:
-                headers = {"Content-Type": content_type}  # Explicitly set Content-Type for other content types.
-                response = await client.put(
-                    url,
-                    headers=headers,
-                    content=data,
-                    params=params,
-                )
-        logger.debug(f"Async PUT request successful with status code: {response.status_code}")
-        return response
+        return await self._request("put", url, data, params, content_type, files)
 
     async def _delete(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
         """Makes an asynchronous DELETE request to the specified URL.
@@ -332,14 +267,9 @@ class APIApplication(BaseApplication):
 
         Returns:
             httpx.Response: The raw HTTP response object.
-
-        Raises:
-            httpx.HTTPStatusError: Propagated if the underlying client request fails.
         """
-        logger.debug(f"Making async DELETE request to {url} with params: {params}")
         async with self.get_async_client() as client:
             response = await client.delete(url, params=params)
-        logger.debug(f"Async DELETE request successful with status code: {response.status_code}")
         return response
 
     async def _patch(
@@ -362,22 +292,7 @@ class APIApplication(BaseApplication):
         Returns:
             httpx.Response: The raw HTTP response object.
         """
-        logger.debug(
-            f"Making async PATCH request to {url} with params: {params}, data type: {type(data)}, content_type={content_type}, files: {'yes' if files else 'no'}"
-        )
-        async with self.get_async_client() as client:
-            if content_type == "multipart/form-data":
-                response = await client.patch(url, data=data, files=files, params=params)
-            elif content_type == "application/x-www-form-urlencoded":
-                headers = {"Content-Type": content_type}
-                response = await client.patch(url, headers=headers, data=data, params=params)
-            elif content_type == "application/json":
-                response = await client.patch(url, json=data, params=params)
-            else:
-                headers = {"Content-Type": content_type}
-                response = await client.patch(url, headers=headers, content=data, params=params)
-        logger.debug(f"Async PATCH request successful with status code: {response.status_code}")
-        return response
+        return await self._request("patch", url, data, params, content_type, files)
 
 
 class GraphQLApplication(BaseApplication):
@@ -432,56 +347,7 @@ class GraphQLApplication(BaseApplication):
         Returns:
             dict[str, str]: A dictionary of HTTP headers.
         """
-        if not self.integration:
-            logger.debug("No integration configured, returning empty headers")
-            return {}
-        credentials = await self.integration.get_credentials()
-        logger.debug(f"Got credentials for integration: {credentials.keys()}")
-
-        # Check if direct headers are provided
-        headers = credentials.get("headers")
-        if headers:
-            logger.debug("Using direct headers from credentials")
-            return headers
-
-        # Check if api key is provided
-        api_key = credentials.get("api_key") or credentials.get("API_KEY") or credentials.get("apiKey")
-        if api_key:
-            logger.debug("Using API key from credentials")
-            return {
-                "Authorization": f"Bearer {api_key}",
-            }
-
-        # Check if access token is provided
-        access_token = credentials.get("access_token")
-        if access_token:
-            logger.debug("Using access token from credentials")
-            return {
-                "Authorization": f"Bearer {access_token}",
-            }
-        logger.debug("No authentication found in credentials, returning empty headers")
-        return {}
-
-    @contextmanager
-    def get_sync_client(self) -> Generator[GraphQLClient, None, None]:
-        """Provides an initialized synchronous `gql.Client` instance.
-
-        If a client was not provided during initialization or has not been
-        created yet, this property instantiates a new `gql.Client`.
-        The client is configured with a `RequestsHTTPTransport` using the
-        `base_url` and headers. It's also set to fetch the schema from the transport.
-
-        Returns:
-            GraphQLClient: The active `gql.Client` instance.
-        """
-        # For sync context manager, we can't call async _get_headers()
-        # Return empty headers if no integration configured
-        headers = {}
-        if self.integration:
-            logger.warning("Sync GraphQL client cannot use async integration credentials. Use get_async_client() instead.")
-        transport = RequestsHTTPTransport(url=self.base_url, headers=headers)
-        with GraphQLClient(transport=transport, fetch_schema_from_transport=True) as client:
-            yield client
+        return await _build_auth_headers(self.integration)
 
     @asynccontextmanager
     async def get_async_client(self) -> AsyncGenerator[GraphQLClient, None]:

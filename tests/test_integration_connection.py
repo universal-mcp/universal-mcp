@@ -169,9 +169,8 @@ class TestOAuthIntegration:
         assert "https://github.com/login/oauth/authorize" in msg
         assert "repo" in msg
 
-    @pytest.mark.asyncio
-    async def test_oauth_methods_not_implemented(self):
-        """Test that OAuth flow methods raise NotImplementedError."""
+    def test_oauth_methods_implemented(self):
+        """Test that OAuth flow methods are implemented and work."""
         integration = OAuthIntegration(
             name="GITHUB",
             client_id="client_123",
@@ -181,11 +180,11 @@ class TestOAuthIntegration:
             store=MemoryStore(),
         )
 
-        with pytest.raises(NotImplementedError):
-            integration.get_authorization_url("http://localhost/callback")
-
-        with pytest.raises(NotImplementedError):
-            await integration.exchange_code_for_token("auth_code", "http://localhost/callback")
+        # get_authorization_url should return a valid URL with PKCE
+        url = integration.get_authorization_url("http://localhost/callback", state="test")
+        assert "https://github.com/login/oauth/authorize?" in url
+        assert "code_challenge=" in url
+        assert "client_id=client_123" in url
 
     @pytest.mark.asyncio
     async def test_oauth_multi_user(self):

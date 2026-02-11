@@ -304,7 +304,7 @@ async def test_parametrized_function_persistence(any_sandbox):
 
 
 class TestCodeSandbox:
-    """Tests for CodeSandbox (code mode tool wrapper)."""
+    """Tests for CodeSandbox (sandbox tool wrapper)."""
 
     @pytest.fixture
     def code_sandbox(self):

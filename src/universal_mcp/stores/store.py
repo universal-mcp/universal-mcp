@@ -156,7 +156,11 @@ class EnvironmentStore(BaseStore):
         value = os.getenv(key)
         if value is None:
             raise KeyNotFoundError(f"Environment variable '{key}' not found")
-        return value
+        # Try to deserialize JSON values
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, ValueError):
+            return value
 
     async def set(self, key: str, value: Any) -> None:
         """Sets an environment variable in the current process.
@@ -166,7 +170,10 @@ class EnvironmentStore(BaseStore):
             value: The value to set for the environment variable.
                    It will be converted to a string.
         """
-        os.environ[key] = str(value)
+        if isinstance(value, (dict, list)):
+            os.environ[key] = json.dumps(value)
+        else:
+            os.environ[key] = str(value)
 
     async def delete(self, key: str) -> None:
         """Deletes an environment variable from the current process.
@@ -227,7 +234,10 @@ class KeyringStore(BaseStore):
             value = keyring.get_password(self.app_name, key)
             if value is None:
                 raise KeyNotFoundError(f"Key '{key}' not found in keyring for app '{self.app_name}'")
-            return value
+            try:
+                return json.loads(value)
+            except (json.JSONDecodeError, ValueError):
+                return value
         except KeyNotFoundError:
             raise
         except Exception as e:  # Catches keyring specific errors too
@@ -247,7 +257,8 @@ class KeyringStore(BaseStore):
         """
         try:
             logger.info(f"Setting password for {key} in keyring for app {self.app_name}")
-            keyring.set_password(self.app_name, key, str(value))
+            store_value = json.dumps(value) if isinstance(value, (dict, list)) else str(value)
+            keyring.set_password(self.app_name, key, store_value)
         except Exception as e:
             raise StoreError(f"Error storing key '{key}' in keyring for app '{self.app_name}': {str(e)}") from e
 

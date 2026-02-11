@@ -262,6 +262,11 @@ class OAuthIntegration(Integration):
         self.token_url = token_url
         self.scopes = scopes or []
 
+        # OAuth flow state (per-instance)
+        self._pkce = None  # Will hold PKCEParameters during auth flow
+        self._server_url = None  # Original server URL (set by from_server_url)
+        self._registered_redirect_uri = None  # Redirect URI registered with auth server
+
     def create_connection(
         self, user_id: str | None = None, store: BaseStore | None = None
     ) -> Connection:
@@ -295,20 +300,38 @@ class OAuthIntegration(Integration):
         )
 
     def get_authorization_url(self, redirect_uri: str, state: str | None = None) -> str:
-        """Generate OAuth authorization URL.
+        """Generate OAuth authorization URL with PKCE.
 
         Args:
             redirect_uri: Redirect URI for OAuth callback
             state: Optional state parameter for CSRF protection
 
         Returns:
-            Authorization URL
-
-        Raises:
-            NotImplementedError: OAuth flow not yet implemented
+            Authorization URL string
         """
-        # TODO: Implement OAuth flow
-        raise NotImplementedError("OAuth flow not yet implemented")
+        import secrets
+        from urllib.parse import urlencode
+        from mcp.client.auth.oauth2 import PKCEParameters
+
+        # Generate PKCE
+        self._pkce = PKCEParameters.generate()
+
+        # Generate state if not provided
+        if state is None:
+            state = secrets.token_urlsafe(32)
+
+        params = {
+            "response_type": "code",
+            "client_id": self.client_id,
+            "redirect_uri": redirect_uri,
+            "state": state,
+            "code_challenge": self._pkce.code_challenge,
+            "code_challenge_method": "S256",
+        }
+        if self.scopes:
+            params["scope"] = " ".join(self.scopes)
+
+        return f"{self.auth_url}?{urlencode(params)}"
 
     async def exchange_code_for_token(self, code: str, redirect_uri: str) -> dict[str, Any]:
         """Exchange authorization code for access token.
@@ -318,13 +341,202 @@ class OAuthIntegration(Integration):
             redirect_uri: Redirect URI used in authorization
 
         Returns:
-            Token response dictionary
-
-        Raises:
-            NotImplementedError: OAuth token exchange not yet implemented
+            Token credentials dictionary with access_token, refresh_token, etc.
         """
-        # TODO: Implement token exchange
-        raise NotImplementedError("OAuth token exchange not yet implemented")
+        import httpx
+
+        data = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": redirect_uri,
+            "client_id": self.client_id,
+        }
+        if self._pkce:
+            data["code_verifier"] = self._pkce.code_verifier
+        if self.client_secret:
+            data["client_secret"] = self.client_secret
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                self.token_url,
+                data=data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+            response.raise_for_status()
+            token_data = response.json()
+
+        # Store tokens via connection
+        import time
+
+        expires_in = token_data.get("expires_in")
+        credentials = {
+            "access_token": token_data["access_token"],
+            "refresh_token": token_data.get("refresh_token"),
+            "expires_at": (time.time() + expires_in) if expires_in else None,
+            "token_type": token_data.get("token_type", "Bearer"),
+            "scope": token_data.get("scope"),
+        }
+        await self.set_credentials(credentials)
+
+        # Also store in token storage if we have server_url
+        if self._server_url and self.store:
+            from mcp.shared.auth import OAuthToken
+            from universal_mcp.integrations.oauth_helpers import StoreTokenStorage
+
+            oauth_token = OAuthToken(
+                access_token=token_data["access_token"],
+                token_type=token_data.get("token_type", "bearer"),
+                expires_in=token_data.get("expires_in"),
+                refresh_token=token_data.get("refresh_token"),
+                scope=token_data.get("scope"),
+            )
+            token_storage = StoreTokenStorage(self.store, self._server_url)
+            await token_storage.set_tokens(oauth_token)
+
+        self._pkce = None  # Clear PKCE after use
+        return credentials
+
+    async def run_oauth_flow(self, callback_port: int = 0) -> str:
+        """Run the full interactive OAuth authorization flow.
+
+        Opens the browser for authorization, starts a local callback server,
+        waits for the callback, and exchanges the code for tokens.
+
+        If a redirect_uri was registered during from_server_url(), the callback
+        server binds to the same port for consistency.
+
+        Args:
+            callback_port: Port for callback server (0 = find free port)
+
+        Returns:
+            Access token string
+        """
+        import webbrowser
+        from urllib.parse import urlparse
+
+        from universal_mcp.integrations.oauth_helpers import run_oauth_callback_server
+
+        # Use the registered redirect URI port if available, for consistency
+        if self._registered_redirect_uri and callback_port == 0:
+            parsed = urlparse(self._registered_redirect_uri)
+            if parsed.port:
+                callback_port = parsed.port
+
+        # Start callback server
+        callback_url, actual_port, result_future, runner = await run_oauth_callback_server(callback_port)
+
+        try:
+            logger.info(f"OAuth callback server started on port {actual_port}")
+
+            # Generate authorization URL
+            import secrets
+
+            state = secrets.token_urlsafe(32)
+            auth_url = self.get_authorization_url(redirect_uri=callback_url, state=state)
+
+            # Open browser
+            logger.info(f"Opening browser for OAuth authorization: {auth_url}")
+            webbrowser.open(auth_url)
+
+            # Wait for callback
+            code, returned_state = await result_future
+
+            # Verify state
+            if returned_state != state:
+                raise ValueError("OAuth state mismatch - possible CSRF attack")
+
+            # Exchange code for token
+            credentials = await self.exchange_code_for_token(code, callback_url)
+
+            logger.info("OAuth authorization completed successfully")
+            return credentials["access_token"]
+        finally:
+            await runner.cleanup()
+
+    @classmethod
+    async def from_server_url(
+        cls,
+        server_url: str,
+        store: BaseStore | None = None,
+        client_name: str = "Universal MCP",
+        callback_port: int = 0,
+        _pre_discovered: tuple | None = None,
+    ) -> "OAuthIntegration":
+        """Create an OAuthIntegration by discovering OAuth metadata from a server URL.
+
+        Performs OAuth discovery and dynamic client registration (RFC 7591).
+
+        Args:
+            server_url: The MCP server URL to discover OAuth for
+            store: Storage backend for tokens
+            client_name: Client name for registration
+            callback_port: Port for OAuth callback (0 = find free port)
+            _pre_discovered: Optional pre-discovered (auth_metadata, prm, www_auth_scope)
+                to avoid redundant network requests.
+
+        Returns:
+            Configured OAuthIntegration instance
+        """
+        from universal_mcp.integrations.oauth_helpers import (
+            StoreTokenStorage,
+            discover_oauth_metadata,
+            register_oauth_client,
+            run_oauth_callback_server,
+        )
+        from mcp.client.auth.utils import get_client_metadata_scopes
+
+        # Use pre-discovered metadata or discover fresh
+        if _pre_discovered:
+            auth_metadata, prm, www_auth_scope = _pre_discovered
+        else:
+            auth_metadata, prm, www_auth_scope = await discover_oauth_metadata(server_url)
+
+        if not auth_metadata:
+            raise ValueError(f"No OAuth metadata found for {server_url}")
+
+        # Determine scopes (WWW-Authenticate scope has highest priority per MCP spec)
+        scopes = get_client_metadata_scopes(www_auth_scope, prm, auth_metadata)
+
+        # Start callback server to determine actual port BEFORE registration
+        # This ensures the registered redirect_uri matches the actual callback port
+        callback_url, actual_port, _, runner = await run_oauth_callback_server(callback_port)
+        await runner.cleanup()  # Stop the server; we just needed the port
+
+        redirect_uri = f"http://localhost:{actual_port}/callback"
+        client_info = await register_oauth_client(
+            auth_metadata=auth_metadata,
+            server_url=server_url,
+            client_name=client_name,
+            redirect_uris=[redirect_uri],
+            scopes=scopes,
+        )
+
+        # Derive name from server URL
+        from urllib.parse import urlparse
+
+        parsed = urlparse(server_url)
+        hostname = parsed.hostname or "remote"
+        name = hostname.split(".")[0] if hostname else "remote"
+
+        # Create integration
+        integration = cls(
+            name=name,
+            client_id=client_info.client_id or "",
+            client_secret=client_info.client_secret or "",
+            auth_url=str(auth_metadata.authorization_endpoint),
+            token_url=str(auth_metadata.token_endpoint),
+            scopes=scopes.split() if isinstance(scopes, str) else (scopes or []),
+            store=store,
+        )
+        integration._server_url = server_url
+        integration._registered_redirect_uri = redirect_uri
+
+        # Store client info for future use
+        if store:
+            token_storage = StoreTokenStorage(store, server_url)
+            await token_storage.set_client_info(client_info)
+
+        return integration
 
 
 class IntegrationFactory:

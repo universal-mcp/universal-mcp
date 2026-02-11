@@ -86,11 +86,13 @@ class MCPApplication(BaseApplication):
         name: str,
         url: str,
         headers: dict[str, str] | None = None,
+        integration: Any | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(name, **kwargs)
         self.url = normalize_mcp_url(url)
         self.headers = headers or {}
+        self.integration = integration
         self._client: Client | None = None
         self._remote_tools: list = []
         self._proxy_tools: list[ProxyTool] = []
@@ -98,7 +100,24 @@ class MCPApplication(BaseApplication):
     async def connect(self) -> None:
         """Connect to the remote MCP server and discover tools."""
         auth = None
-        if self.headers:
+
+        if self.integration:
+            # Try to get existing tokens from OAuth integration
+            from universal_mcp.exceptions import NotAuthorizedError
+            from universal_mcp.integrations.oauth_helpers import OAuthCallbackError
+
+            try:
+                credentials = await self.integration.get_credentials()
+                access_token = credentials.get("access_token")
+                if access_token:
+                    auth = access_token
+            except (NotAuthorizedError, KeyError):
+                # No existing tokens - run OAuth flow
+                try:
+                    auth = await self.integration.run_oauth_flow()
+                except (ValueError, OAuthCallbackError, OSError) as e:
+                    logger.warning(f"OAuth flow failed for {self.url}: {e}")
+        elif self.headers:
             # If we have an Authorization header with Bearer token, pass as auth string
             auth_header = self.headers.get("Authorization", "")
             if auth_header.startswith("Bearer "):
@@ -160,8 +179,8 @@ class MCPApplication(BaseApplication):
         return self._proxy_tools
 
     def list_tools(self) -> list:
-        """Return empty list - tools are registered via get_proxy_tools() instead."""
-        return []
+        """Return proxy tools (available after connect())."""
+        return self._proxy_tools
 
     async def disconnect(self) -> None:
         """Disconnect from the remote MCP server."""

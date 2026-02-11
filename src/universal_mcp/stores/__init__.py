@@ -21,4 +21,4 @@ def store_from_config(store_config: StoreConfig):
         raise ValueError(f"Invalid store type: {store_config.type}")
 
 
-__all__ = ["BaseStore", "DiskStore", "MemoryStore", "EnvironmentStore", "KeyringStore"]
+__all__ = ["BaseStore", "DiskStore", "MemoryStore", "EnvironmentStore", "KeyringStore", "store_from_config"]

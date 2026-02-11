@@ -2,7 +2,7 @@
 Sandbox implementations for isolated code execution.
 
 Available sandbox types:
-- InProcessSandbox: Fast in-process execution (default for code mode)
+- InProcessSandbox: Fast in-process execution
 - SubprocessSandbox: Isolated subprocess execution for safer code running
 """
 

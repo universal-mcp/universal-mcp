@@ -40,7 +40,6 @@ class UniversalMCP:
         self.registry = LocalRegistry()
         self._integrations: dict[str, Integration] = {}
         self._mcp_apps: dict[str, Any] = {}  # MCPApplication instances for lifecycle management
-        self._code_sandbox = None
         self._crontab_registry: Any = None  # Lazy-loaded CrontabRegistry
         self._manifest_path = manifest_path or _DEFAULT_MANIFEST_PATH
 
@@ -95,6 +94,9 @@ class UniversalMCP:
         Connects to the remote MCP server, discovers its tools, and registers
         them as proxy tools that forward calls to the remote server.
 
+        If no headers are provided, attempts OAuth discovery and dynamic client
+        registration for servers that require authentication.
+
         Args:
             url: MCP server URL (e.g., "mcp.notion.so", "https://mcp.example.com/sse").
             name: Override app name (default: derived from URL domain).
@@ -110,19 +112,39 @@ class UniversalMCP:
             logger.info(f"App '{app_name}' already added, skipping")
             return
 
-        mcp_app = MCPApplication(app_name, normalized_url, headers=headers)
+        integration = None
+        if not headers:
+            # Probe for OAuth authentication
+            try:
+                from universal_mcp.integrations.oauth_helpers import discover_oauth_metadata
+                from universal_mcp.integrations.integration import OAuthIntegration
+
+                auth_metadata, prm, www_auth_scope = await discover_oauth_metadata(normalized_url)
+                if auth_metadata:
+                    logger.info(f"OAuth authentication detected for {normalized_url}, registering client...")
+                    integration = await OAuthIntegration.from_server_url(
+                        normalized_url,
+                        store=self.store,
+                        _pre_discovered=(auth_metadata, prm, www_auth_scope),
+                    )
+            except Exception as e:
+                logger.debug(f"OAuth discovery skipped for {normalized_url}: {e}")
+
+        mcp_app = MCPApplication(app_name, normalized_url, headers=headers, integration=integration)
         await mcp_app.connect()
 
         proxy_tools = mcp_app.get_proxy_tools()
-        self.registry.register_remote_app(app_name, proxy_tools)
+        self.registry.register_remote_app(mcp_app, proxy_tools)
 
         # Track for lifecycle management
         self._mcp_apps[app_name] = mcp_app
+        if integration:
+            self._integrations[app_name] = integration
 
         # Persist to manifest
         self._save_manifest_entry(
             app_name,
-            integration_type="none",
+            integration_type="oauth2" if integration else "none",
             tags=tags,
             integration_kwargs=None,
             source_type="mcp_url",
@@ -131,7 +153,7 @@ class UniversalMCP:
         )
         logger.info(f"Added remote MCP app '{app_name}' from {normalized_url} with {len(proxy_tools)} tools")
 
-    def remove(self, slug: str) -> bool:
+    async def remove(self, slug: str) -> bool:
         """Remove an application and its tools.
 
         Args:
@@ -150,6 +172,7 @@ class UniversalMCP:
         if is_integration:
             del self._integrations[slug]
         if is_mcp_app:
+            await self._mcp_apps[slug].disconnect()
             del self._mcp_apps[slug]
         self._remove_manifest_entry(slug)
         logger.info(f"Removed app '{slug}'")
@@ -219,7 +242,7 @@ class UniversalMCP:
         Returns:
             List of tool info dicts with name, description, parameters.
         """
-        tools = self.registry.list_tools(tags=[app]) if app else self.registry.list_tools()
+        tools = self.registry.list_tools(app_name=app) if app else self.registry.list_tools()
 
         return [
             {
@@ -288,6 +311,24 @@ class UniversalMCP:
         """
         server = self.get_server(port=port)
         await server.run(transport=transport)  # type: ignore[misc]
+
+    # -- Lifecycle -------------------------------------------------------------
+
+    async def close(self) -> None:
+        """Close all connections and clean up resources."""
+        for name, mcp_app in list(self._mcp_apps.items()):
+            try:
+                await mcp_app.disconnect()
+            except Exception as e:
+                logger.warning(f"Error disconnecting MCP app '{name}': {e}")
+        self._mcp_apps.clear()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
+        return False
 
     # -- Crontabs --------------------------------------------------------------
 
@@ -359,38 +400,6 @@ class UniversalMCP:
         registry = self.crontab_registry
         jobs = registry.list_jobs(enabled_only=enabled_only)
         return [job.model_dump() for job in jobs]
-
-    # -- Code Sandbox ----------------------------------------------------------
-
-    def enable_code_mode(self, timeout: int = 30) -> None:
-        """Enable code mode by registering the Python REPL sandbox as tools.
-
-        This adds execute_code, get_sandbox_context, and reset_sandbox tools
-        that allow AI agents to run arbitrary Python code in a persistent
-        sandbox environment.
-
-        Args:
-            timeout: Maximum execution time per code block in seconds.
-        """
-        from universal_mcp.sandbox.code_tool import CodeSandbox
-
-        if self._code_sandbox is not None:
-            logger.info("Code mode already enabled, skipping")
-            return
-
-        sandbox = CodeSandbox(timeout=timeout)
-        self._code_sandbox = sandbox
-        self.registry.register_app(sandbox, tags=["all"])  # type: ignore[arg-type]
-        logger.info(f"Code mode enabled (timeout={timeout}s)")
-
-    def disable_code_mode(self) -> None:
-        """Disable code mode by removing sandbox tools."""
-        if self._code_sandbox is None:
-            return
-
-        self.registry.remove_app("sandbox")
-        self._code_sandbox = None
-        logger.info("Code mode disabled")
 
     # -- Manifest persistence --------------------------------------------------
 

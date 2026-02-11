@@ -1,4 +1,10 @@
-class NotAuthorizedError(Exception):
+class UniversalMCPError(Exception):
+    """Base exception for all Universal MCP errors."""
+
+    pass
+
+
+class NotAuthorizedError(UniversalMCPError):
     """Raised when an action is attempted without necessary permissions.
 
     This typically occurs if a user or process tries to access a protected
@@ -6,17 +12,10 @@ class NotAuthorizedError(Exception):
     authorization credentials or roles.
     """
 
-    def __init__(self, message: str):
-        """Initializes the NotAuthorizedError.
-
-        Args:
-            message (str): A descriptive message explaining the authorization failure.
-        """
-        self.message = message
-        super().__init__(message)  # Ensure message is passed to base Exception
+    pass
 
 
-class ToolError(Exception):
+class ToolError(UniversalMCPError):
     """Indicates an issue related to tool discovery, validation, or execution.
 
     This could be due to a tool not being found, failing during its
@@ -26,11 +25,11 @@ class ToolError(Exception):
     pass
 
 
-class ToolNotFoundError(Exception):
+class ToolNotFoundError(ToolError):
     """Raised when a tool is not found"""
 
 
-class InvalidSignature(Exception):
+class InvalidSignature(UniversalMCPError):
     """Raised when a cryptographic signature verification fails.
 
     This can occur during webhook validation or any other process that
@@ -41,7 +40,7 @@ class InvalidSignature(Exception):
     pass
 
 
-class StoreError(Exception):
+class StoreError(UniversalMCPError):
     """Base exception for errors related to data or credential stores.
 
     This serves as a generic error for issues arising from operations
@@ -63,7 +62,7 @@ class KeyNotFoundError(StoreError):
     pass
 
 
-class ConfigurationError(Exception):
+class ConfigurationError(UniversalMCPError):
     """Indicates an error was detected in application or server configuration.
 
     This can be due to missing required settings, invalid values for

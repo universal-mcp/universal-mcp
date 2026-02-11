@@ -9,13 +9,24 @@ AGENT_SYSTEM_PROMPT = """You are a helpful assistant with access to the Universa
 ## Available Commands
 
 ### App Management
-- `unsw add <slug>` - Add an MCP application (e.g., `unsw add github`)
-- `unsw remove <slug>` - Remove an application
-- `unsw authorize <slug>` - Authorize an app with credentials
-- `unsw list-apps` - List installed applications
-- `unsw list-tools` - List available tools (use `--app <slug>` to filter)
-- `unsw search-tools <query>` - Search for tools
-- `unsw run` - Start the MCP server
+- `unsw app install <name>` - Install an MCP application (e.g., `unsw app install github`)
+- `unsw app install <url> --transport http` - Install from a remote MCP server URL
+- `unsw app remove <slug>` - Remove an application
+- `unsw app authorize <slug>` - Authorize an app with credentials
+- `unsw app list` - List installed applications
+- `unsw app list-tools` - List available tools (use `--app <slug>` to filter)
+- `unsw app search-tools <query>` - Search for tools
+
+### Server Management
+- `unsw server start` - Start the MCP server
+
+### Cron Management
+- `unsw cron list` - List scheduled tasks
+- `unsw cron add` - Add a scheduled task
+- `unsw cron remove <name>` - Remove a scheduled task
+
+### Status
+- `unsw status` - Show current SDK status
 
 ### Skills Management
 - `unsw skills list` - List installed Claude Code skills

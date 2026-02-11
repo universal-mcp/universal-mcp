@@ -168,7 +168,8 @@ class TestLocalRegistryRemoteApp:
             ),
         ]
 
-        registry.register_remote_app("remote", tools)
+        app = MCPApplication("remote", "https://remote.example.com")
+        registry.register_remote_app(app, tools)
 
         assert "remote" in registry.list_apps()
         all_tools = registry.list_tools()
@@ -193,7 +194,8 @@ class TestLocalRegistryRemoteApp:
             ),
         ]
 
-        registry.register_remote_app("remote", tools)
+        app = MCPApplication("remote", "https://remote.example.com")
+        registry.register_remote_app(app, tools)
         assert registry.remove_app("remote") is True
         assert "remote" not in registry.list_apps()
         assert len(registry.list_tools()) == 0

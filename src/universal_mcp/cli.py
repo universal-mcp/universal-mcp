@@ -11,18 +11,17 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-skills_app = typer.Typer(
-    help="Manage Claude Code skills",
-    no_args_is_help=True,
-)
+# -- Subcommand groups --
+app_cmd = typer.Typer(help="Manage MCP applications", no_args_is_help=True)
+app.add_typer(app_cmd, name="app")
 
+server_cmd = typer.Typer(help="MCP server management", no_args_is_help=True)
+app.add_typer(server_cmd, name="server")
+
+skills_app = typer.Typer(help="Manage Claude Code skills", no_args_is_help=True)
 app.add_typer(skills_app, name="skills")
 
-cron_app = typer.Typer(
-    help="Manage scheduled AI tasks (crontabs)",
-    no_args_is_help=True,
-)
-
+cron_app = typer.Typer(help="Manage scheduled AI tasks (crontabs)", no_args_is_help=True)
 app.add_typer(cron_app, name="cron")
 
 
@@ -43,76 +42,78 @@ def _get_crontab_registry():
     return CrontabRegistry()
 
 
-@app.command()
-def add(
-    slug: str = typer.Argument(help="Application slug (e.g., 'github', 'slack')"),
-    type: str = typer.Option("api_key", "--type", "-t", help="Integration type: api_key or oauth2"),
+# =============================================================================
+# APP COMMANDS
+# =============================================================================
+
+@app_cmd.command("install")
+def app_install(
+    name_or_url: str = typer.Argument(help="App slug (e.g., 'github') or MCP server URL"),
+    transport: str | None = typer.Option(None, "--transport", "-t", help="Transport type: http, sse, streamable-http (enables URL mode)"),
+    type: str = typer.Option("api_key", "--type", help="Integration type: api_key or oauth2"),
+    name: str | None = typer.Option(None, "--name", "-n", help="Override app name (for URL installs)"),
+    api_key: str | None = typer.Option(None, "--api-key", "-k", help="API key for auth"),
+    header: list[str] | None = typer.Option(None, "--header", "-H", help="Headers as KEY=VALUE (repeatable)"),
     tags: str | None = typer.Option(None, "--tags", help="Comma-separated tags to filter tools"),
 ):
-    """Add an MCP application."""
+    """Install an MCP application (local package or remote URL)."""
     sdk = _get_sdk()
     tag_list = tags.split(",") if tags else None
-    try:
-        sdk.add(slug, integration_type=type, tags=tag_list)
-        rprint(f"[green]Added '{slug}' with {type} authentication[/green]")
-        tools = sdk.list_tools(app=slug)
-        rprint(f"[dim]{len(tools)} tools registered[/dim]")
-    except Exception as e:
-        rprint(f"[red]Failed to add '{slug}': {e}[/red]")
-        raise typer.Exit(1) from None
+
+    # Determine if this is a URL install (has transport flag or looks like a URL)
+    is_url = transport is not None or name_or_url.startswith(("http://", "https://", "mcp."))
+
+    if is_url:
+        # URL-based install
+        headers: dict[str, str] = {}
+        if not api_key and not header:
+            rprint("[dim]Checking if authentication is required...[/dim]")
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        if header:
+            for h in header:
+                if "=" not in h:
+                    rprint(f"[red]Invalid header format '{h}', expected KEY=VALUE[/red]")
+                    raise typer.Exit(1) from None
+                key, value = h.split("=", 1)
+                headers[key.strip()] = value.strip()
+
+        try:
+            from universal_mcp.applications.mcp_app import _derive_app_name, normalize_mcp_url
+            asyncio.run(sdk.add_from_url(name_or_url, name=name, headers=headers or None, tags=tag_list))
+            app_name = name or _derive_app_name(normalize_mcp_url(name_or_url))
+            tools = sdk.list_tools(app=app_name)
+            rprint(f"[green]Installed remote MCP app from {name_or_url}[/green]")
+            rprint(f"[dim]{len(tools)} tools registered[/dim]")
+        except Exception as e:
+            rprint(f"[red]Failed to install MCP app from '{name_or_url}': {e}[/red]")
+            raise typer.Exit(1) from None
+    else:
+        # Package-based install
+        try:
+            sdk.add(name_or_url, integration_type=type, tags=tag_list)
+            rprint(f"[green]Installed '{name_or_url}' with {type} authentication[/green]")
+            tools = sdk.list_tools(app=name_or_url)
+            rprint(f"[dim]{len(tools)} tools registered[/dim]")
+        except Exception as e:
+            rprint(f"[red]Failed to install '{name_or_url}': {e}[/red]")
+            raise typer.Exit(1) from None
 
 
-@app.command("add-url")
-def add_url(
-    url: str = typer.Argument(help="MCP server URL (e.g., 'mcp.notion.so', 'https://mcp.example.com/sse')"),
-    name: str | None = typer.Option(None, "--name", "-n", help="Override app name (default: derived from URL)"),
-    api_key: str | None = typer.Option(None, "--api-key", "-k", help="API key (sets Authorization: Bearer header)"),
-    header: list[str] | None = typer.Option(None, "--header", "-H", help="Additional headers as KEY=VALUE (repeatable)"),
-    tags: str | None = typer.Option(None, "--tags", help="Comma-separated tags to filter tools"),
-):
-    """Add a remote MCP application by URL."""
-    sdk = _get_sdk()
-
-    # Build headers dict
-    headers: dict[str, str] = {}
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-    if header:
-        for h in header:
-            if "=" not in h:
-                rprint(f"[red]Invalid header format '{h}', expected KEY=VALUE[/red]")
-                raise typer.Exit(1) from None
-            key, value = h.split("=", 1)
-            headers[key.strip()] = value.strip()
-
-    tag_list = tags.split(",") if tags else None
-
-    try:
-        from universal_mcp.applications.mcp_app import _derive_app_name, normalize_mcp_url
-        asyncio.run(sdk.add_from_url(url, name=name, headers=headers or None, tags=tag_list))
-        app_name = name or _derive_app_name(normalize_mcp_url(url))
-        tools = sdk.list_tools(app=app_name)
-        rprint(f"[green]Added remote MCP app from {url}[/green]")
-        rprint(f"[dim]{len(tools)} tools registered[/dim]")
-    except Exception as e:
-        rprint(f"[red]Failed to add MCP URL '{url}': {e}[/red]")
-        raise typer.Exit(1) from None
-
-
-@app.command()
-def remove(
+@app_cmd.command("remove")
+def app_remove(
     slug: str = typer.Argument(help="Application slug to remove"),
 ):
     """Remove an MCP application."""
     sdk = _get_sdk()
-    if sdk.remove(slug):
+    if asyncio.run(sdk.remove(slug)):
         rprint(f"[green]Removed '{slug}'[/green]")
     else:
         rprint(f"[yellow]App '{slug}' not found[/yellow]")
 
 
-@app.command()
-def authorize(
+@app_cmd.command("authorize")
+def app_authorize(
     slug: str = typer.Argument(help="Application slug to authorize"),
     api_key: str | None = typer.Option(None, "--api-key", "-k", help="API key"),
 ):
@@ -127,20 +128,20 @@ def authorize(
     rprint(f"[green]{result}[/green]")
 
 
-@app.command("list-apps")
-def list_apps():
+@app_cmd.command("list")
+def app_list():
     """List installed MCP applications."""
     sdk = _get_sdk()
     apps = sdk.list_apps()
     if not apps:
-        rprint("[dim]No applications installed. Use 'unsw add <slug>' to get started.[/dim]")
+        rprint("[dim]No applications installed. Use 'unsw app install <slug>' to get started.[/dim]")
         return
     for name in apps:
         rprint(f"  {name}")
 
 
-@app.command("list-tools")
-def list_tools(
+@app_cmd.command("list-tools")
+def app_list_tools(
     app_name: str | None = typer.Option(None, "--app", "-a", help="Filter by app slug"),
 ):
     """List available tools."""
@@ -158,8 +159,8 @@ def list_tools(
         rprint(f"  [bold]{name}[/bold]  {desc}")
 
 
-@app.command("search-tools")
-def search_tools(
+@app_cmd.command("search-tools")
+def app_search_tools(
     query: str = typer.Argument(help="Search query"),
 ):
     """Search for tools by name, description, or tags."""
@@ -176,8 +177,12 @@ def search_tools(
         rprint(f"  [bold]{name}[/bold]  {desc}")
 
 
-@app.command()
-def run(
+# =============================================================================
+# SERVER COMMANDS
+# =============================================================================
+
+@server_cmd.command("start")
+def server_start(
     transport: str = typer.Option("stdio", "--transport", "-t", help="Transport: stdio, sse, streamable-http"),
     port: int = typer.Option(8005, "--port", "-p", help="Port for HTTP transports"),
 ):
@@ -185,30 +190,16 @@ def run(
     sdk = _get_sdk()
     apps = sdk.list_apps()
     if not apps:
-        rprint("[yellow]No apps installed. Use 'unsw add <slug>' first.[/yellow]")
+        rprint("[yellow]No apps installed. Use 'unsw app install <slug>' first.[/yellow]")
         raise typer.Exit(1)
 
     rprint(f"[green]Starting MCP server with {len(apps)} app(s): {', '.join(apps)}[/green]")
     asyncio.run(sdk.run(transport=transport, port=port))
 
 
-@app.command("code-mode")
-def code_mode(
-    transport: str = typer.Option("stdio", "--transport", "-t", help="Transport: stdio, sse, streamable-http"),
-    port: int = typer.Option(8005, "--port", "-p", help="Port for HTTP transports"),
-    timeout: int = typer.Option(30, "--timeout", help="Code execution timeout in seconds"),
-):
-    """Start the MCP server with code mode (Python REPL sandbox) enabled."""
-    sdk = _get_sdk()
-    sdk.enable_code_mode(timeout=timeout)
-
-    tools = sdk.list_tools(app="sandbox")
-    rprint(f"[green]Code mode enabled with {len(tools)} sandbox tool(s)[/green]")
-
-    apps = sdk.list_apps()
-    rprint(f"[green]Starting MCP server with {len(apps)} app(s): {', '.join(apps)}[/green]")
-    asyncio.run(sdk.run(transport=transport, port=port))
-
+# =============================================================================
+# SKILLS COMMANDS
+# =============================================================================
 
 @skills_app.command("list")
 def skills_list(
@@ -335,6 +326,10 @@ def skills_info(
     else:
         rprint("[yellow]SKILL.md not found[/yellow]")
 
+
+# =============================================================================
+# CRON COMMANDS
+# =============================================================================
 
 @cron_app.command("list")
 def cron_list(
@@ -499,6 +494,10 @@ def cron_info(
             status_color = {"success": "green", "error": "red", "running": "yellow"}.get(record.status, "white")
             rprint(f"    [{status_color}]{record.status}[/{status_color}]  {record.started_at}")
 
+
+# =============================================================================
+# TOP LEVEL COMMANDS
+# =============================================================================
 
 @app.command()
 def status():

@@ -31,14 +31,16 @@ class TestSDKAppLifecycle:
         sdk.add("sample")  # Should not raise
         assert sdk.list_apps().count("sample") == 1
 
-    def test_remove_app(self, sdk):
+    @pytest.mark.asyncio
+    async def test_remove_app(self, sdk):
         sdk.add("sample")
-        assert sdk.remove("sample") is True
+        assert await sdk.remove("sample") is True
         assert "sample" not in sdk.list_apps()
         assert sdk.list_tools() == []
 
-    def test_remove_nonexistent(self, sdk):
-        assert sdk.remove("nope") is False
+    @pytest.mark.asyncio
+    async def test_remove_nonexistent(self, sdk):
+        assert await sdk.remove("nope") is False
 
     def test_add_nonexistent_app(self, sdk):
         with pytest.raises(Exception):
@@ -144,12 +146,13 @@ class TestSDKManifest:
         assert "sample" in sdk2.list_apps()
         assert len(sdk2.list_tools()) == tool_count
 
-    def test_manifest_remove_persists(self, tmp_path):
+    @pytest.mark.asyncio
+    async def test_manifest_remove_persists(self, tmp_path):
         manifest = tmp_path / "manifest.json"
 
         sdk1 = UniversalMCP(store_type="memory", manifest_path=manifest)
         sdk1.add("sample")
-        sdk1.remove("sample")
+        await sdk1.remove("sample")
 
         sdk2 = UniversalMCP(store_type="memory", manifest_path=manifest)
         assert sdk2.list_apps() == []

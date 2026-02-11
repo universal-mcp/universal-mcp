@@ -147,7 +147,7 @@ class LocalRegistry:
 
     def register_remote_app(
         self,
-        app_name: str,
+        app: "BaseApplication",
         proxy_tools: list,
     ) -> None:
         """Register pre-built proxy tools from a remote MCP application.
@@ -156,17 +156,33 @@ class LocalRegistry:
         fully-formed Tool instances directly to the tool manager.
 
         Args:
-            app_name: Name of the remote application.
+            app: The remote MCP application instance.
             proxy_tools: List of ProxyTool instances (already have correct names/schemas).
         """
-        # Store a sentinel so list_apps() includes this app
-        # We don't have a BaseApplication instance, so store None
-        self._apps[app_name] = None  # type: ignore[assignment]
+        self._apps[app.name] = app
 
         for tool in proxy_tools:
             self.tool_manager.add_tool(tool)
 
-        logger.info(f"Registered remote app '{app_name}' with {len(proxy_tools)} proxy tools")
+        logger.info(f"Registered remote app '{app.name}' with {len(proxy_tools)} proxy tools")
+
+    # ── Internal ToolManager access ───────────────────────────
+
+    def _get_tool(self, name: str) -> Tool | None:
+        """Get a tool by name from the internal ToolManager."""
+        return self.tool_manager._tools.get(name)
+
+    def _iter_tools(self) -> list[Tool]:
+        """Get all tools from the internal ToolManager."""
+        return list(self.tool_manager._tools.values())
+
+    def _has_tool(self, name: str) -> bool:
+        """Check if a tool exists in the ToolManager."""
+        return name in self.tool_manager._tools
+
+    def _tool_names(self) -> list[str]:
+        """Get all tool names from the ToolManager."""
+        return list(self.tool_manager._tools.keys())
 
     # ── Query ─────────────────────────────────────────────────
 
@@ -180,11 +196,16 @@ class LocalRegistry:
 
     def list_tools(
         self,
+        app_name: str | None = None,
         tool_names: list[str] | None = None,
         tags: list[str] | None = None,
     ) -> list[Tool]:
-        """List registered tools, optionally filtered by name or tags."""
-        tools = list(self.tool_manager._tools.values())
+        """List registered tools, optionally filtered by app, name, or tags."""
+        tools = self._iter_tools()
+
+        if app_name:
+            prefix = f"{app_name}{TOOL_NAME_SEPARATOR}"
+            tools = [t for t in tools if t.name.startswith(prefix)]
 
         if tags:
             tag_set = {t.lower() for t in tags}
@@ -208,7 +229,7 @@ class LocalRegistry:
         """Search tools by name, description, or tags (case-insensitive)."""
         q = query.lower()
         results = []
-        for tool in self.tool_manager._tools.values():
+        for tool in self._iter_tools():
             if q in tool.name.lower():
                 results.append(tool)
             elif tool.description and q in tool.description.lower():
@@ -242,7 +263,7 @@ class LocalRegistry:
             else:
                 self.register_app(self._apps[app_name], tool_names=tool_names)
 
-        return list(self.tool_manager._tools.values())
+        return self._iter_tools()
 
     def _create_and_register_app(self, app_name: str, tool_names: list[str] | None) -> None:
         """Create an app from slug and register it."""
@@ -259,10 +280,10 @@ class LocalRegistry:
 
     async def call_tool(self, tool_name: str, tool_args: dict[str, Any]) -> Any:
         """Call a registered tool by name."""
-        if tool_name not in self.tool_manager._tools:
+        if not self._has_tool(tool_name):
             raise ToolNotFoundError(f"Tool '{tool_name}' not found.")
 
-        tool = self.tool_manager._tools[tool_name]
+        tool = self._get_tool(tool_name)
         result = await tool.run(tool_args)
 
         # FastMCP returns a ToolResult; extract the actual content
@@ -292,7 +313,7 @@ class LocalRegistry:
             return False
 
         prefix = f"{app_name}{TOOL_NAME_SEPARATOR}"
-        to_remove = [name for name in self.tool_manager._tools if name.startswith(prefix)]
+        to_remove = [name for name in self._tool_names() if name.startswith(prefix)]
         for name in to_remove:
             self.tool_manager.remove_tool(name)
 
@@ -302,7 +323,7 @@ class LocalRegistry:
 
     def remove_tool(self, tool_name: str) -> bool:
         """Remove a single tool by its full name."""
-        if tool_name in self.tool_manager._tools:
+        if self._has_tool(tool_name):
             self.tool_manager.remove_tool(tool_name)
             return True
         return False
@@ -310,7 +331,7 @@ class LocalRegistry:
     def clear(self) -> None:
         """Clear all apps and tools."""
         self._apps.clear()
-        for name in list(self.tool_manager._tools.keys()):
+        for name in self._tool_names():
             self.tool_manager.remove_tool(name)
         logger.info("Registry cleared")
 
@@ -332,7 +353,7 @@ class LocalRegistry:
         return data
 
     def __len__(self) -> int:
-        return len(self.tool_manager._tools)
+        return len(self._iter_tools())
 
     def __repr__(self) -> str:
         return f"LocalRegistry(apps={len(self._apps)}, tools={len(self)})"
