@@ -116,8 +116,8 @@ class UniversalMCP:
         if not headers:
             # Probe for OAuth authentication
             try:
-                from universal_mcp.integrations.oauth_helpers import discover_oauth_metadata
                 from universal_mcp.integrations.integration import OAuthIntegration
+                from universal_mcp.integrations.oauth_helpers import discover_oauth_metadata
 
                 auth_metadata, prm, www_auth_scope = await discover_oauth_metadata(normalized_url)
                 if auth_metadata:

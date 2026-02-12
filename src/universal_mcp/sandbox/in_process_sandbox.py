@@ -8,9 +8,7 @@ import ast
 import asyncio
 import contextlib
 import io
-from typing import Any
 
-import cloudpickle as pickle
 from loguru import logger
 
 from universal_mcp.sandbox.sandbox import (
@@ -18,7 +16,6 @@ from universal_mcp.sandbox.sandbox import (
     ERROR_RECOVERY_HINTS,
     Sandbox,
     SandboxResult,
-    filter_picklable,
 )
 
 

@@ -552,7 +552,7 @@ def status():
         rprint("  [dim]No cron jobs configured[/dim]")
 
     # -- Manifest --
-    rprint(f"\n[bold]Manifest[/bold]")
+    rprint("\n[bold]Manifest[/bold]")
     rprint(f"  [dim]{sdk._manifest_path}[/dim]")
 
 

@@ -1,7 +1,7 @@
+from fastmcp.tools import Tool
 from loguru import logger
 
 from universal_mcp.applications.application import BaseApplication
-from fastmcp.tools import Tool
 
 
 def check_application_instance(app_instance: BaseApplication, app_name: str):

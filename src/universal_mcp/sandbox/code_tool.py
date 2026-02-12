@@ -68,10 +68,7 @@ class CodeSandbox:
             preview = ""
             try:
                 repr_val = repr(value)
-                if len(repr_val) <= 80:
-                    preview = f" = {repr_val}"
-                else:
-                    preview = f" = {repr_val[:77]}..."
+                preview = f" = {repr_val}" if len(repr_val) <= 80 else f" = {repr_val[:77]}..."
             except Exception:
                 pass
             lines.append(f"  {key}: {type_name}{preview}")

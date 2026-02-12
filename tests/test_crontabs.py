@@ -1,12 +1,11 @@
 """Tests for the crontabs module - models, registry, and scheduler."""
 
-import pytest
-from pathlib import Path
 
-from universal_mcp.crontabs.models import CrontabJob, CrontabExecution
+import pytest
+
+from universal_mcp.crontabs.models import CrontabExecution, CrontabJob
 from universal_mcp.crontabs.registry import CrontabRegistry
 from universal_mcp.crontabs.scheduler import CrontabScheduler
-
 
 # -- Model Tests -------------------------------------------------------
 
@@ -232,7 +231,7 @@ class TestCrontabRegistry:
         assert history[0].status == "success"
 
     def test_history_limit(self, registry):
-        for i in range(15):
+        for _i in range(15):
             registry.record_execution(
                 CrontabExecution(job_name="test-job", status="success")
             )

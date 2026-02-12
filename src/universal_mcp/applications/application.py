@@ -19,6 +19,7 @@ async def _build_auth_headers(integration: "Integration | None") -> dict[str, st
     """Build authentication headers from an integration's credentials.
 
     Supports direct headers, API keys, and access tokens.
+    For corner cases, you need to override them
     """
     if not integration:
         return {}

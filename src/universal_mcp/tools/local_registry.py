@@ -230,11 +230,7 @@ class LocalRegistry:
         q = query.lower()
         results = []
         for tool in self._iter_tools():
-            if q in tool.name.lower():
-                results.append(tool)
-            elif tool.description and q in tool.description.lower():
-                results.append(tool)
-            elif any(q in tag.lower() for tag in tool.tags):
+            if q in tool.name.lower() or tool.description and q in tool.description.lower() or any(q in tag.lower() for tag in tool.tags):
                 results.append(tool)
         return results
 

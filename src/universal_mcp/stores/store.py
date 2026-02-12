@@ -350,7 +350,7 @@ class DiskStore(BaseStore):
             raise KeyNotFoundError(f"Key '{key}' not found in disk store at {self.path}")
 
         try:
-            async with aiofiles.open(file_path, mode="r") as f:
+            async with aiofiles.open(file_path) as f:
                 content = await f.read()
                 data = json.loads(content)
                 return data["value"]
@@ -407,7 +407,7 @@ class DiskStore(BaseStore):
         try:
             for file_path in self.path.glob("*.json"):
                 try:
-                    async with aiofiles.open(file_path, mode="r") as f:
+                    async with aiofiles.open(file_path) as f:
                         content = await f.read()
                         data = json.loads(content)
                         keys.append(data["key"])

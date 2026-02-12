@@ -5,22 +5,21 @@ import asyncio
 import httpx
 from aiohttp import web
 from loguru import logger
-
 from mcp.client.auth.utils import (
-    build_protected_resource_metadata_discovery_urls,
     build_oauth_authorization_server_metadata_discovery_urls,
+    build_protected_resource_metadata_discovery_urls,
+    create_client_registration_request,
     extract_resource_metadata_from_www_auth,
     extract_scope_from_www_auth,
-    handle_protected_resource_response,
     handle_auth_metadata_response,
-    create_client_registration_request,
+    handle_protected_resource_response,
     handle_registration_response,
 )
 from mcp.shared.auth import (
-    OAuthToken,
-    OAuthClientMetadata,
     OAuthClientInformationFull,
+    OAuthClientMetadata,
     OAuthMetadata,
+    OAuthToken,
     ProtectedResourceMetadata,
 )
 
@@ -176,10 +175,7 @@ async def discover_oauth_metadata(
                     continue
 
             # Step 4: Get authorization server URL
-            if prm and prm.authorization_servers:
-                auth_server_url = str(prm.authorization_servers[0])
-            else:
-                auth_server_url = server_url
+            auth_server_url = str(prm.authorization_servers[0]) if prm and prm.authorization_servers else server_url
 
             # Step 5: Discover authorization server metadata
             auth_urls = build_oauth_authorization_server_metadata_discovery_urls(

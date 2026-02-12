@@ -2,11 +2,10 @@
 
 import pytest
 
-from universal_mcp.sandbox.sandbox import Sandbox, SandboxResult
-from universal_mcp.sandbox.in_process_sandbox import InProcessSandbox
-from universal_mcp.sandbox.subprocess_sandbox import SubprocessSandbox
 from universal_mcp.sandbox.code_tool import CodeSandbox
-
+from universal_mcp.sandbox.in_process_sandbox import InProcessSandbox
+from universal_mcp.sandbox.sandbox import Sandbox, SandboxResult
+from universal_mcp.sandbox.subprocess_sandbox import SubprocessSandbox
 
 # -- Base types --------------------------------------------------------
 

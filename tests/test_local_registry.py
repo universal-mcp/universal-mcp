@@ -1,10 +1,10 @@
 """Tests for LocalRegistry - a catalog of available apps and tools."""
 
 import pytest
+from fastmcp.tools import Tool
 
 from universal_mcp.exceptions import ToolNotFoundError
 from universal_mcp.tools.local_registry import LocalRegistry
-from fastmcp.tools import Tool
 
 
 class MockApp:

@@ -8,7 +8,6 @@ from universal_mcp.connections.connection import (
     Connection,
     OAuthConnection,
 )
-from universal_mcp.exceptions import KeyNotFoundError, NotAuthorizedError
 from universal_mcp.stores import BaseStore, MemoryStore
 
 
@@ -51,9 +50,7 @@ class Integration(ABC):
         self._default_connection: Connection | None = None
 
     @abstractmethod
-    def create_connection(
-        self, user_id: str | None = None, store: BaseStore | None = None
-    ) -> Connection:
+    def create_connection(self, user_id: str | None = None, store: BaseStore | None = None) -> Connection:
         """Create a new Connection instance for a user.
 
         Args:
@@ -155,9 +152,7 @@ class ApiKeyIntegration(Integration):
         self.type = "api_key"
         logger.info(f"Initializing API Key Integration: {name} with store: {store}")
 
-    def create_connection(
-        self, user_id: str | None = None, store: BaseStore | None = None
-    ) -> Connection:
+    def create_connection(self, user_id: str | None = None, store: BaseStore | None = None) -> Connection:
         """Create API key connection.
 
         Args:
@@ -267,9 +262,7 @@ class OAuthIntegration(Integration):
         self._server_url = None  # Original server URL (set by from_server_url)
         self._registered_redirect_uri = None  # Redirect URI registered with auth server
 
-    def create_connection(
-        self, user_id: str | None = None, store: BaseStore | None = None
-    ) -> Connection:
+    def create_connection(self, user_id: str | None = None, store: BaseStore | None = None) -> Connection:
         """Create OAuth connection.
 
         Args:
@@ -311,6 +304,7 @@ class OAuthIntegration(Integration):
         """
         import secrets
         from urllib.parse import urlencode
+
         from mcp.client.auth.oauth2 import PKCEParameters
 
         # Generate PKCE
@@ -381,6 +375,7 @@ class OAuthIntegration(Integration):
         # Also store in token storage if we have server_url
         if self._server_url and self.store:
             from mcp.shared.auth import OAuthToken
+
             from universal_mcp.integrations.oauth_helpers import StoreTokenStorage
 
             oauth_token = OAuthToken(
@@ -477,13 +472,14 @@ class OAuthIntegration(Integration):
         Returns:
             Configured OAuthIntegration instance
         """
+        from mcp.client.auth.utils import get_client_metadata_scopes
+
         from universal_mcp.integrations.oauth_helpers import (
             StoreTokenStorage,
             discover_oauth_metadata,
             register_oauth_client,
             run_oauth_callback_server,
         )
-        from mcp.client.auth.utils import get_client_metadata_scopes
 
         # Use pre-discovered metadata or discover fresh
         if _pre_discovered:

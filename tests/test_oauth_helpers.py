@@ -1,27 +1,20 @@
 """Tests for OAuth helpers and OAuthIntegration."""
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+from mcp.shared.auth import (
+    OAuthClientInformationFull,
+    OAuthToken,
+)
 
+from universal_mcp.integrations.integration import OAuthIntegration
 from universal_mcp.integrations.oauth_helpers import (
-    OAuthCallbackError,
     StoreTokenStorage,
     discover_oauth_metadata,
-    register_oauth_client,
 )
-from universal_mcp.integrations.integration import OAuthIntegration
 from universal_mcp.stores.store import MemoryStore
-from mcp.shared.auth import (
-    OAuthToken,
-    OAuthClientInformationFull,
-    OAuthClientMetadata,
-    OAuthMetadata,
-    ProtectedResourceMetadata,
-)
-
 
 # -- StoreTokenStorage tests --
 

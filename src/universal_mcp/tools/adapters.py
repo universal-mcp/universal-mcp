@@ -6,7 +6,6 @@ from functools import wraps
 from typing import Any
 
 from fastmcp.tools import Tool
-from loguru import logger
 
 from universal_mcp.types import ToolFormat
 

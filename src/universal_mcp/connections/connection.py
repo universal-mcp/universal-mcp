@@ -237,8 +237,8 @@ class OAuthConnection(Connection):
 
         try:
             value = await self.store.get(self.store_key)
-        except KeyNotFoundError:
-            raise NotAuthorizedError(f"No OAuth token found for {self.integration_name}")
+        except KeyNotFoundError as e:
+            raise NotAuthorizedError(f"No OAuth token found for {self.integration_name}") from e
 
         # TODO: Check token expiration, refresh if needed
         self.mark_active()

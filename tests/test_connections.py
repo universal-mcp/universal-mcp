@@ -2,7 +2,7 @@
 
 import pytest
 
-from universal_mcp.connections import ApiKeyConnection, Connection, OAuthConnection
+from universal_mcp.connections import ApiKeyConnection, OAuthConnection
 from universal_mcp.exceptions import NotAuthorizedError
 from universal_mcp.stores import MemoryStore
 

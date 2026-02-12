@@ -1,7 +1,8 @@
 """Tests for UniversalMCP SDK."""
 
+
 import pytest
-from pathlib import Path
+
 from universal_mcp.sdk import UniversalMCP
 
 

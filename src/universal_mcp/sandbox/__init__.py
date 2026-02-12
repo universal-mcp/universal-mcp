@@ -6,6 +6,7 @@ Available sandbox types:
 - SubprocessSandbox: Isolated subprocess execution for safer code running
 """
 
+from universal_mcp.sandbox.in_process_sandbox import InProcessSandbox
 from universal_mcp.sandbox.sandbox import (
     BUILTIN_NAMES,
     DEFAULT_ERROR_HINT,
@@ -15,7 +16,6 @@ from universal_mcp.sandbox.sandbox import (
     SandboxResult,
     filter_picklable,
 )
-from universal_mcp.sandbox.in_process_sandbox import InProcessSandbox
 from universal_mcp.sandbox.subprocess_sandbox import SubprocessSandbox
 
 __all__ = [
