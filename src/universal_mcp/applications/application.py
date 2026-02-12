@@ -214,29 +214,36 @@ class APIApplication(BaseApplication):
     def _handle_response(self, response: httpx.Response) -> dict[str, Any]:
         """Processes an HTTP response, checking for errors and parsing JSON.
 
-        This method first calls `response.raise_for_status()` to raise an
-        `httpx.HTTPStatusError` if the HTTP request failed. If successful,
-        it attempts to parse the response body as JSON. If JSON parsing
-        fails, it returns a dictionary containing the success status,
-        status code, and raw text of the response.
-
         Args:
             response (httpx.Response): The HTTP response object from `httpx`.
 
         Returns:
             dict[str, Any]: The parsed JSON response as a dictionary, or
                             a status dictionary if JSON parsing is not possible
-                            for a successful response.
-
-        Raises:
-            httpx.HTTPStatusError: If the HTTP response status code indicates
-                                 an error (4xx or 5xx).
+                            or if an error occurred.
         """
-        response.raise_for_status()
+        if response.is_error:
+            logger.error(f"Error {response.status_code}: {response.text}")
+            try:
+                error_details = response.json()
+            except Exception:
+                error_details = None
+
+            return {
+                "status": "error",
+                "status_code": response.status_code,
+                "text": response.text,
+                "details": error_details,
+            }
+
         try:
             return response.json()
         except Exception:
-            return {"status": "success", "status_code": response.status_code, "text": response.text}
+            return {
+                "status": "success",
+                "status_code": response.status_code,
+                "text": response.text,
+            }
 
     def _get(self, url: str, params: dict[str, Any] | None = None) -> httpx.Response:
         """Makes a GET request to the specified URL.
