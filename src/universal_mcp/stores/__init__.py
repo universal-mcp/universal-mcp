@@ -10,7 +10,7 @@ from key_value.aio.stores.filetree import FileTreeStore
 
 
 def create_store(
-    store_type: str = "disk",
+    store_type: str = "file",
     directory: Path | str | None = None,
     service_name: str = "universal_mcp",
 ):

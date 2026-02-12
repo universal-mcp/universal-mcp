@@ -1,6 +1,7 @@
 """OAuth helper utilities for MCP URL applications."""
 
 import asyncio
+from urllib.parse import parse_qs, urlparse
 
 import httpx
 from aiohttp import web
@@ -28,6 +29,7 @@ from mcp.shared.auth import (
 
 class OAuthCallbackError(Exception):
     """Error during OAuth callback handling."""
+
     pass
 
 
@@ -73,7 +75,7 @@ class StoreTokenStorage:
     async def set_tokens(self, tokens: OAuthToken) -> None:
         """Store OAuth tokens."""
         # OAuthToken is a Pydantic model, use model_dump(mode='json') for proper serialization
-        await self.store.put(self._tokens_key(), tokens.model_dump(mode='json', exclude_none=True))
+        await self.store.put(self._tokens_key(), tokens.model_dump(mode="json", exclude_none=True))
 
     async def get_client_info(self) -> OAuthClientInformationFull | None:
         """Get stored OAuth client information."""
@@ -86,7 +88,17 @@ class StoreTokenStorage:
     async def set_client_info(self, client_info: OAuthClientInformationFull) -> None:
         """Store OAuth client information."""
         # Use mode='json' to properly serialize URLs and other Pydantic types
-        await self.store.put(self._client_info_key(), client_info.model_dump(mode='json', exclude_none=True))
+        await self.store.put(self._client_info_key(), client_info.model_dump(mode="json", exclude_none=True))
+
+
+def parse_callback_url(url: str):
+    parsed_url = urlparse(url)
+    query_params = parse_qs(parsed_url.query)
+    code = query_params.get("code")
+    error = query_params.get("error")
+    state = query_params.get("state")
+
+    return code, error, state
 
 
 async def run_oauth_callback_server(
@@ -105,7 +117,7 @@ async def run_oauth_callback_server(
     loop = asyncio.get_running_loop()
     result: asyncio.Future[tuple[str, str | None]] = loop.create_future()
 
-    async def handle_callback(request: web.Request) -> web.Response:
+    async def handle_callback_wrapped(request: web.Request) -> web.Response:
         """Handle OAuth callback request."""
         code = request.query.get("code")
         error = request.query.get("error")
@@ -135,7 +147,7 @@ async def run_oauth_callback_server(
         )
 
     app = web.Application()
-    app.router.add_get("/callback", handle_callback)
+    app.router.add_get("/callback", handle_callback_wrapped)
 
     runner = web.AppRunner(app)
     await runner.setup()
@@ -213,13 +225,12 @@ async def discover_oauth_metadata(
 
             # Step 5: Discover authorization server metadata
             logger.debug("Step 5: Discovering authorization server metadata")
-            auth_urls = build_oauth_authorization_server_metadata_discovery_urls(
-                auth_server_url, server_url
-            )
+            auth_urls = build_oauth_authorization_server_metadata_discovery_urls(auth_server_url, server_url)
 
             # Add fallback: try base domain without path segments
             # E.g., https://mcp.linear.app/.well-known/oauth-authorization-server
             from urllib.parse import urlparse
+
             parsed = urlparse(server_url)
             base_url = f"{parsed.scheme}://{parsed.netloc}"
             fallback_url = f"{base_url}/.well-known/oauth-authorization-server"
@@ -298,9 +309,7 @@ async def register_oauth_client(
     )
 
     # Create registration request
-    request = create_client_registration_request(
-        auth_metadata, client_metadata, server_url
-    )
+    request = create_client_registration_request(auth_metadata, client_metadata, server_url)
 
     # Send registration request
     async with httpx.AsyncClient() as client:

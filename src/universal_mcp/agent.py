@@ -1,54 +1,15 @@
 """Claude Code agent with Universal MCP CLI access using the Claude Agent SDK."""
 
 import anyio
-from claude_agent_sdk import AssistantMessage, ClaudeAgentOptions, TextBlock, ToolUseBlock, query
+from claude_agent_sdk import (
+    AssistantMessage,
+    ClaudeAgentOptions,
+    ClaudeSDKClient,
+    ResultMessage,
+    TextBlock,
+    ToolUseBlock,
+)
 from loguru import logger
-
-AGENT_SYSTEM_PROMPT = """You are a helpful assistant with access to the Universal MCP CLI tool called `unsw`.
-
-## Available Commands
-
-### App Management
-- `unsw app install <name>` - Install an MCP application (e.g., `unsw app install github`)
-- `unsw app install <url> --transport http` - Install from a remote MCP server URL
-- `unsw app remove <slug>` - Remove an application
-- `unsw app authorize <slug>` - Authorize an app with credentials
-- `unsw app list` - List installed applications
-- `unsw app list-tools` - List available tools (use `--app <slug>` to filter)
-- `unsw app search-tools <query>` - Search for tools
-
-### Server Management
-- `unsw server start` - Start the MCP server
-
-### Cron Management
-- `unsw cron list` - List scheduled tasks
-- `unsw cron add` - Add a scheduled task
-- `unsw cron remove <name>` - Remove a scheduled task
-
-### Status
-- `unsw status` - Show current SDK status
-
-### Skills Management
-- `unsw skills list` - List installed Claude Code skills
-- `unsw skills search <query>` - Search installed skills
-- `unsw skills install <source>` - Install a skill from local path or GitHub URL
-- `unsw skills remove <name>` - Remove an installed skill
-- `unsw skills scan` - Scan and update skill registry
-- `unsw skills info <name>` - Show skill details
-
-## How to Use
-
-1. You can run any of these commands using your Bash tool
-2. To help users set up MCP apps: add the app, authorize it, then list its tools
-3. To help users manage skills: search, install from GitHub URLs or local paths, list installed skills
-4. Always use the `unsw` command - it's the CLI for Universal MCP
-
-## Guidelines
-- Be helpful and proactive in suggesting MCP apps and skills
-- When a user wants to use an API, suggest adding the relevant MCP app
-- When installing skills, prefer global scope unless the user specifies project scope
-- Show users what tools are available after adding an app
-"""
 
 
 async def run_agent_query(prompt: str, model: str | None = None) -> None:
@@ -59,7 +20,6 @@ async def run_agent_query(prompt: str, model: str | None = None) -> None:
         model: Optional model to use (e.g., 'sonnet', 'opus').
     """
     options = ClaudeAgentOptions(
-        system_prompt=AGENT_SYSTEM_PROMPT,
         allowed_tools=["Bash", "Read", "Write", "Glob", "Grep"],
         permission_mode="acceptEdits",
         max_turns=25,
@@ -67,31 +27,99 @@ async def run_agent_query(prompt: str, model: str | None = None) -> None:
     if model:
         options.model = model
 
-    async for message in query(prompt=prompt, options=options):
-        if isinstance(message, AssistantMessage):
-            for block in message.content:
-                if isinstance(block, TextBlock):
-                    print(block.text)
-                elif isinstance(block, ToolUseBlock) and block.name == "Bash":
-                    cmd = block.input.get("command", "")
-                    logger.info(f"Running: {cmd}")
+    client = ClaudeSDKClient(options=options)
+    await client.connect()
+
+    try:
+        await client.query(prompt=prompt)
+
+        async for message in client.receive_messages():
+            if isinstance(message, AssistantMessage):
+                for block in message.content:
+                    if isinstance(block, TextBlock):
+                        print(block.text)
+                    elif isinstance(block, ToolUseBlock) and block.name == "Bash":
+                        cmd = block.input.get("command", "")
+                        logger.info(f"Running: {cmd}")
+            elif isinstance(message, ResultMessage):
+                # End of turn
+                break
+    finally:
+        await client.disconnect()
+
+
+async def run_interactive_agent(model: str | None = None) -> None:
+    """Run an interactive turn-by-turn conversation with the agent.
+
+    Args:
+        model: Optional model to use (e.g., 'sonnet', 'opus').
+    """
+    options = ClaudeAgentOptions(
+        allowed_tools=["Bash", "Read", "Write", "Glob", "Grep"],
+        permission_mode="acceptEdits",
+        max_turns=25,
+    )
+    if model:
+        options.model = model
+
+    client = ClaudeSDKClient(options=options)
+    await client.connect()
+
+    print("\n💬 Interactive Universal MCP Agent")
+    print("Type your message and press Enter. Type 'exit' or 'quit' to end the session.\n")
+
+    try:
+        while True:
+            try:
+                # Get user input
+                user_input = input("You: ").strip()
+
+                if not user_input:
+                    continue
+
+                if user_input.lower() in ("exit", "quit", "bye"):
+                    print("\nGoodbye! 👋")
+                    break
+
+                # Send prompt and receive responses
+                await client.query(prompt=user_input)
+
+                async for message in client.receive_messages():
+                    if isinstance(message, AssistantMessage):
+                        for block in message.content:
+                            if isinstance(block, TextBlock):
+                                print(f"\nAgent: {block.text}\n")
+                            elif isinstance(block, ToolUseBlock) and block.name == "Bash":
+                                cmd = block.input.get("command", "")
+                                logger.info(f"Running: {cmd}")
+                    elif isinstance(message, ResultMessage):
+                        # End of turn - go back to waiting for user input
+                        break
+
+            except EOFError:
+                print("\nGoodbye! 👋")
+                break
+    finally:
+        await client.disconnect()
 
 
 def start_agent(prompt: str | None = None, model: str | None = None) -> int:
     """Start a Claude Code agent with Universal MCP CLI access.
 
     Args:
-        prompt: Optional initial prompt to send to the agent.
+        prompt: Optional prompt for single-turn mode. If None, starts interactive mode.
         model: Optional model to use (e.g., 'sonnet', 'opus').
 
     Returns:
         Process return code.
     """
-    if not prompt:
-        prompt = "Help me manage my Universal MCP applications and skills. What would you like to do?"
-
     try:
-        anyio.run(run_agent_query, prompt, model)
+        if prompt:
+            # Single-turn mode: run one query and exit
+            anyio.run(run_agent_query, prompt, model)
+        else:
+            # Interactive mode: turn-by-turn conversation
+            anyio.run(run_interactive_agent, model)
         return 0
     except KeyboardInterrupt:
         logger.info("Agent session ended by user")

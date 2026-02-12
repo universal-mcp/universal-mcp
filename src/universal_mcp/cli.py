@@ -584,14 +584,21 @@ def status():
 
 @app.command()
 def agent(
-    prompt: str | None = typer.Option(None, "--prompt", "-p", help="Initial prompt for the agent"),
+    prompt: str | None = typer.Option(None, "--prompt", "-p", help="Run a single prompt (otherwise starts interactive mode)"),
     model: str | None = typer.Option(None, "--model", "-m", help="Model to use (e.g., sonnet, opus)"),
 ):
-    """Start a Claude Code agent with access to the Universal MCP CLI."""
+    """Start a Claude Code agent with access to the Universal MCP CLI.
+
+    By default, starts an interactive turn-by-turn conversation.
+    Use --prompt/-p to run a single query and exit.
+    """
     from universal_mcp.agent import start_agent
 
-    rprint("[green]Starting Claude Code agent with Universal MCP CLI access...[/green]")
-    rprint("[dim]The agent can manage MCP apps, tools, and skills using the 'unsw' command.[/dim]")
+    if prompt:
+        rprint("[green]Running single-turn agent query...[/green]")
+    else:
+        rprint("[green]Starting interactive Claude Code agent...[/green]")
+        rprint("[dim]The agent can manage MCP apps, tools, and skills using the 'unsw' command.[/dim]")
 
     exit_code = start_agent(prompt=prompt, model=model)
     raise typer.Exit(exit_code)

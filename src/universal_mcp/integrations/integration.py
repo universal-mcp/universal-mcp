@@ -72,9 +72,9 @@ class Integration(ABC):
             self._default_connection = self.create_connection(user_id="default", store=self.store)
         return self._default_connection
 
-    # FACADE METHODS - Async-only, delegate to default connection
+    # FACADE METHODS - For backward compatibility
 
-    async def get_credentials(self) -> dict[str, Any]:
+    async def get_credentials_async(self) -> dict[str, Any]:
         """Get credentials from default connection asynchronously.
 
         Returns:
@@ -250,7 +250,6 @@ class OAuthIntegration(Integration):
         # Don't sanitize name for OAuth - use raw name
         # Override parent's __init__ to skip _sanitize_key_name
         self.name = name.upper().replace("-", "_").replace(" ", "_")
-        self.store = store or MemoryStore()
         self.type = "oauth2"
         self._default_connection: Connection | None = None
 
@@ -265,6 +264,7 @@ class OAuthIntegration(Integration):
         self._pkce = None  # Will hold PKCEParameters during auth flow
         self._server_url = None  # Original server URL (set by from_server_url)
         self._registered_redirect_uri = None  # Redirect URI registered with auth server
+        self.store = store or MemoryStore()
 
     def create_connection(self, user_id: str | None = None, store: BaseStore | None = None) -> Connection:
         """Create OAuth connection.
@@ -422,7 +422,12 @@ class OAuthIntegration(Integration):
                 callback_port = parsed.port
 
         # Start callback server
-        callback_url, actual_port, result_future, runner = await run_oauth_callback_server(callback_port)
+        (
+            callback_url,
+            actual_port,
+            result_future,
+            runner,
+        ) = await run_oauth_callback_server(callback_port)
 
         try:
             logger.info(f"OAuth callback server started on port {actual_port}")
@@ -458,6 +463,7 @@ class OAuthIntegration(Integration):
         server_url: str,
         store: BaseStore | None = None,
         client_name: str = "Universal MCP",
+        redirect_url: str | None = None,
         callback_port: int = 0,
         _pre_discovered: tuple | None = None,
     ) -> "OAuthIntegration":
@@ -499,10 +505,10 @@ class OAuthIntegration(Integration):
 
         # Start callback server to determine actual port BEFORE registration
         # This ensures the registered redirect_uri matches the actual callback port
-        callback_url, actual_port, _, runner = await run_oauth_callback_server(callback_port)
-        await runner.cleanup()  # Stop the server; we just needed the port
-
-        redirect_uri = f"http://localhost:{actual_port}/callback"
+        if not redirect_url:
+            callback_url, actual_port, _, runner = await run_oauth_callback_server(callback_port)
+            await runner.cleanup()  # Stop the server; we just needed the port
+            redirect_uri = f"http://localhost:{actual_port}/callback"
         client_info = await register_oauth_client(
             auth_metadata=auth_metadata,
             server_url=server_url,
@@ -516,7 +522,8 @@ class OAuthIntegration(Integration):
 
         parsed = urlparse(server_url)
         hostname = parsed.hostname or "remote"
-        name = hostname.split(".")[0] if hostname else "remote"
+        # Usually its mcp.linear.com/mcp or mcp.notion.com/mcp anyways.com will most probably be true hence -2
+        name = hostname.split(".")[-2].lower() if hostname else "remote"
 
         # Create integration
         integration = cls(
