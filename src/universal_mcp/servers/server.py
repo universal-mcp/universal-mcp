@@ -14,7 +14,7 @@ from universal_mcp.applications.utils import app_from_slug
 from universal_mcp.config import ServerConfig
 from universal_mcp.exceptions import ConfigurationError
 from universal_mcp.integrations.integration import ApiKeyIntegration
-from universal_mcp.stores import store_from_config
+from universal_mcp.stores import create_store
 from universal_mcp.tools.local_registry import LocalRegistry
 
 
@@ -133,9 +133,13 @@ def _load_config_into_registry(config: ServerConfig, registry: LocalRegistry) ->
     store = None
     if config.store:
         try:
-            store = store_from_config(config.store)
-            # Register store operations as tools
-            registry.register_tool(store.set, app_name="store")
+            store = create_store(
+                store_type=config.store.type,
+                directory=config.store.path,
+                service_name=config.store.name
+            )
+            # Register store operations as tools (using py-key-value API)
+            registry.register_tool(store.put, app_name="store")
             registry.register_tool(store.delete, app_name="store")
             logger.info(f"Store loaded: {config.store.type}")
         except Exception as e:

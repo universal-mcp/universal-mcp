@@ -111,7 +111,7 @@ class MCPApplication(BaseApplication):
                 access_token = credentials.get("access_token")
                 if access_token:
                     auth = access_token
-            except (NotAuthorizedError, KeyError):
+            except (NotAuthorizedError, KeyError, Exception):
                 # No existing tokens - run OAuth flow
                 try:
                     auth = await self.integration.run_oauth_flow()

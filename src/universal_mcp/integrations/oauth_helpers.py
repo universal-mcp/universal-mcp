@@ -23,8 +23,7 @@ from mcp.shared.auth import (
     ProtectedResourceMetadata,
 )
 
-from universal_mcp.exceptions import KeyNotFoundError
-from universal_mcp.stores.store import BaseStore
+# py-key-value stores are used directly - they raise KeyError for missing keys
 
 
 class OAuthCallbackError(Exception):
@@ -33,42 +32,61 @@ class OAuthCallbackError(Exception):
 
 
 class StoreTokenStorage:
-    """Adapts BaseStore to MCP SDK's TokenStorage protocol."""
+    """Adapts py-key-value store to MCP SDK's TokenStorage protocol."""
 
-    def __init__(self, store: BaseStore, server_url: str):
+    def __init__(self, store, server_url: str):
+        """Initialize token storage.
+
+        Args:
+            store: py-key-value store instance (DiskStore, MemoryStore, KeyringStore)
+            server_url: MCP server URL for key namespacing
+        """
         self.store = store
         self.server_url = server_url
 
+    @staticmethod
+    def _sanitize_key(key: str) -> str:
+        """Sanitize key for filesystem safety.
+
+        Replaces characters that are problematic in file paths.
+        """
+        return key.replace("://", "_").replace("/", "_").replace(":", "_")
+
     def _tokens_key(self) -> str:
-        return f"oauth::{self.server_url}::tokens"
+        """Generate key for OAuth tokens."""
+        sanitized_url = self._sanitize_key(self.server_url)
+        return f"oauth::{sanitized_url}::tokens"
 
     def _client_info_key(self) -> str:
-        return f"oauth::{self.server_url}::client_info"
+        """Generate key for OAuth client info."""
+        sanitized_url = self._sanitize_key(self.server_url)
+        return f"oauth::{sanitized_url}::client_info"
 
     async def get_tokens(self) -> OAuthToken | None:
         """Get stored OAuth tokens."""
         try:
             data = await self.store.get(self._tokens_key())
             return OAuthToken(**data) if isinstance(data, dict) else None
-        except KeyNotFoundError:
+        except KeyError:
             return None
 
     async def set_tokens(self, tokens: OAuthToken) -> None:
         """Store OAuth tokens."""
-        # OAuthToken is a Pydantic model, use model_dump()
-        await self.store.set(self._tokens_key(), tokens.model_dump(exclude_none=True))
+        # OAuthToken is a Pydantic model, use model_dump(mode='json') for proper serialization
+        await self.store.put(self._tokens_key(), tokens.model_dump(mode='json', exclude_none=True))
 
     async def get_client_info(self) -> OAuthClientInformationFull | None:
         """Get stored OAuth client information."""
         try:
             data = await self.store.get(self._client_info_key())
             return OAuthClientInformationFull(**data) if isinstance(data, dict) else None
-        except KeyNotFoundError:
+        except KeyError:
             return None
 
     async def set_client_info(self, client_info: OAuthClientInformationFull) -> None:
         """Store OAuth client information."""
-        await self.store.set(self._client_info_key(), client_info.model_dump(exclude_none=True))
+        # Use mode='json' to properly serialize URLs and other Pydantic types
+        await self.store.put(self._client_info_key(), client_info.model_dump(mode='json', exclude_none=True))
 
 
 async def run_oauth_callback_server(
@@ -145,13 +163,17 @@ async def discover_oauth_metadata(
         Tuple of (OAuthMetadata, ProtectedResourceMetadata, www_authenticate_scope).
         All elements may be None if discovery fails.
     """
+    logger.debug(f"Discovering OAuth metadata for {server_url}")
     try:
         async with httpx.AsyncClient() as client:
             # Step 1: GET server_url, look for 401 + WWW-Authenticate header
             try:
+                logger.debug(f"Step 1: GET {server_url}")
                 response = await client.get(server_url)
-            except httpx.ConnectError:
-                logger.warning(f"Could not connect to {server_url}")
+                logger.debug(f"Response status: {response.status_code}")
+                logger.debug(f"WWW-Authenticate header: {response.headers.get('www-authenticate')}")
+            except httpx.ConnectError as e:
+                logger.warning(f"Could not connect to {server_url}: {e}")
                 return None, None, None
 
             prm: ProtectedResourceMetadata | None = None
@@ -160,44 +182,82 @@ async def discover_oauth_metadata(
 
             # Step 2: If 401, extract resource_metadata and scope from WWW-Authenticate
             if response.status_code == 401:
+                logger.debug("Step 2: Extracting metadata from WWW-Authenticate header")
                 www_auth_url = extract_resource_metadata_from_www_auth(response)
                 www_auth_scope = extract_scope_from_www_auth(response)
+                logger.debug(f"Extracted: www_auth_url={www_auth_url}, scope={www_auth_scope}")
 
             # Step 3: Try to discover protected resource metadata
+            logger.debug("Step 3: Discovering protected resource metadata")
             prm_urls = build_protected_resource_metadata_discovery_urls(www_auth_url, server_url)
+            logger.debug(f"Trying PRM URLs: {prm_urls}")
             for prm_url in prm_urls:
                 try:
+                    logger.debug(f"Trying PRM URL: {prm_url}")
                     prm_response = await client.get(prm_url)
+                    logger.debug(f"PRM response status: {prm_response.status_code}")
                     prm = await handle_protected_resource_response(prm_response)
                     if prm:
+                        logger.debug(f"Found PRM: {prm}")
                         break
-                except httpx.ConnectError:
+                except httpx.ConnectError as e:
+                    logger.debug(f"PRM URL {prm_url} failed: {e}")
+                    continue
+                except Exception as e:
+                    logger.debug(f"PRM URL {prm_url} error: {e}")
                     continue
 
             # Step 4: Get authorization server URL
             auth_server_url = str(prm.authorization_servers[0]) if prm and prm.authorization_servers else server_url
+            logger.debug(f"Step 4: Auth server URL: {auth_server_url}")
 
             # Step 5: Discover authorization server metadata
+            logger.debug("Step 5: Discovering authorization server metadata")
             auth_urls = build_oauth_authorization_server_metadata_discovery_urls(
                 auth_server_url, server_url
             )
 
+            # Add fallback: try base domain without path segments
+            # E.g., https://mcp.linear.app/.well-known/oauth-authorization-server
+            from urllib.parse import urlparse
+            parsed = urlparse(server_url)
+            base_url = f"{parsed.scheme}://{parsed.netloc}"
+            fallback_url = f"{base_url}/.well-known/oauth-authorization-server"
+            if fallback_url not in auth_urls:
+                auth_urls.append(fallback_url)
+                logger.debug(f"Added fallback URL: {fallback_url}")
+
+            logger.debug(f"Trying auth URLs: {auth_urls}")
+
             asm: OAuthMetadata | None = None
             for auth_url in auth_urls:
                 try:
+                    logger.debug(f"Trying auth URL: {auth_url}")
                     auth_response = await client.get(auth_url)
+                    logger.debug(f"Auth response status: {auth_response.status_code}")
                     should_continue, asm = await handle_auth_metadata_response(auth_response)
                     if asm:
+                        logger.info(f"Found OAuth metadata at {auth_url}")
                         break
                     if not should_continue:
+                        logger.debug(f"Stopping auth discovery at {auth_url}")
                         break
-                except httpx.ConnectError:
+                except httpx.ConnectError as e:
+                    logger.debug(f"Auth URL {auth_url} failed: {e}")
                     continue
+                except Exception as e:
+                    logger.debug(f"Auth URL {auth_url} error: {e}")
+                    continue
+
+            if asm:
+                logger.info(f"OAuth discovery successful for {server_url}")
+            else:
+                logger.warning(f"OAuth metadata not found for {server_url}")
 
             return asm, prm, www_auth_scope
 
     except Exception as e:
-        logger.error(f"Error discovering OAuth metadata: {e}")
+        logger.error(f"Error discovering OAuth metadata for {server_url}: {e}", exc_info=True)
         return None, None, None
 
 

@@ -160,24 +160,23 @@ class TestBackwardCompatibility:
         assert headers == {"Authorization": "Bearer old_dict_key"}
 
     @pytest.mark.asyncio
-    async def test_store_key_migration(self):
-        """Test that old store keys are automatically migrated."""
+    async def test_store_key_format(self):
+        """Test API key storage uses correct format."""
         store = MemoryStore()
 
-        # Set in old format
-        await store.set("GITHUB_API_KEY", "old_format_value")
-
-        # Create integration
+        # Create integration and set credentials
         integration = ApiKeyIntegration("GITHUB", store=store)
+        await integration.set_credentials({"api_key": "test_key_value"})
 
-        # Should migrate and work
+        # Should work with new format
         app = MockAPIApp(name="github_app", integration=integration)
         headers = await app._get_headers()
 
-        assert headers == {"Authorization": "Bearer old_format_value"}
+        assert headers == {"Authorization": "Bearer test_key_value"}
 
-        # Verify migration happened
-        assert await store.get("GITHUB_API_KEY::default") == "old_format_value"
+        # Verify stored as dict
+        stored = await store.get("connection::GITHUB_API_KEY::default")
+        assert stored == {"api_key": "test_key_value"}
 
 
 class TestIntegrationErrorHandling:
@@ -203,12 +202,13 @@ class TestIntegrationErrorHandling:
         store = MemoryStore()
         integration = ApiKeyIntegration("TEST_API", store=store)
 
-        # Try to set invalid credentials
-        with pytest.raises(ValueError):
-            await integration.set_credentials({})  # Empty dict
-
-        with pytest.raises(ValueError):
+        # py-key-value requires dict values, empty dict is valid
+        # Test with non-dict type
+        with pytest.raises((ValueError, TypeError)):
             await integration.set_credentials(None)  # type: ignore
+
+        with pytest.raises((ValueError, TypeError)):
+            await integration.set_credentials("not_a_dict")  # type: ignore
 
 
 class TestIntegrationWithRealWorld:

@@ -10,7 +10,6 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from universal_mcp.exceptions import NotAuthorizedError
-from universal_mcp.stores.store import BaseStore
 
 
 class Connection(ABC):
@@ -32,14 +31,14 @@ class Connection(ABC):
         self,
         integration_name: str,
         user_id: str | None = None,
-        store: BaseStore | None = None,
+        store: Any | None = None,
     ):
         """Initialize a Connection.
 
         Args:
             integration_name: Name of the integration this connection uses
             user_id: User identifier (defaults to "default" for single-user scenarios)
-            store: Storage backend for persisting credentials
+            store: Storage backend (py-key-value store instance)
         """
         self.integration_name = integration_name
         self.user_id = user_id or "default"
@@ -71,13 +70,13 @@ class Connection(ABC):
     def store_key(self) -> str:
         """Generate unique key for this connection's credentials.
 
-        Format: {integration_name}::{user_id}
-        Example: "GITHUB_API_KEY::user_123"
+        Format: connection::{integration_name}::{user_id}
+        Example: "connection::GITHUB_API_KEY::user_123"
 
         Returns:
             Unique store key for this connection
         """
-        return f"{self.integration_name}::{self.user_id}"
+        return f"connection::{self.integration_name}::{self.user_id}"
 
     @property
     def status(self) -> str:
@@ -121,23 +120,10 @@ class ApiKeyConnection(Connection):
         if not self.store:
             raise NotAuthorizedError("No store configured")
 
-        from universal_mcp.exceptions import KeyNotFoundError
-
-        value = None
-
-        # Try new format first: {name}::default
         try:
             value = await self.store.get(self.store_key)
-        except KeyNotFoundError:
-            # Fallback to old format for backward compatibility: {name}
-            if self.user_id == "default":
-                try:
-                    value = await self.store.get(self.integration_name)
-                    # Migrate to new format if found in old location
-                    if value:
-                        await self.store.set(self.store_key, value)
-                except KeyNotFoundError:
-                    pass
+        except KeyError:
+            raise NotAuthorizedError(f"No API key found for {self.integration_name}")
 
         if not value:
             raise NotAuthorizedError(f"No API key found for {self.integration_name}")
@@ -163,22 +149,16 @@ class ApiKeyConnection(Connection):
         if not isinstance(credentials, dict):
             raise ValueError("Credentials must be a dictionary")
 
-        # Support full credentials dict (with headers, etc.) for backward compatibility
-        # If it's a full dict with non-api_key fields, store it as-is
-        if "api_key" not in credentials and len(credentials) > 0:
-            # Store the full credentials dict
-            if self.store:
-                await self.store.set(self.store_key, credentials)
-            self.mark_active()
-            return
+        # Always store as a dict (py-key-value requires Mapping type)
+        if not self.store:
+            raise ValueError("No store configured")
 
-        api_key = credentials.get("api_key")
-        if not api_key:
-            raise ValueError("API key required in credentials")
+        await self.store.put(self.store_key, credentials)
 
-        if self.store:
-            await self.store.set(self.store_key, api_key)
-        self._api_key_cache = api_key
+        # Cache API key if present
+        if "api_key" in credentials:
+            self._api_key_cache = credentials["api_key"]
+
         self.mark_active()
 
     async def get_api_key(self) -> str:
@@ -233,12 +213,14 @@ class OAuthConnection(Connection):
         if not self.store:
             raise NotAuthorizedError("No store configured")
 
-        from universal_mcp.exceptions import KeyNotFoundError
-
+        # py-key-value may return None or raise KeyError for missing keys
         try:
             value = await self.store.get(self.store_key)
-        except KeyNotFoundError as e:
+        except KeyError as e:
             raise NotAuthorizedError(f"No OAuth token found for {self.integration_name}") from e
+
+        if not value or not isinstance(value, dict):
+            raise NotAuthorizedError(f"No OAuth token found for {self.integration_name}")
 
         # TODO: Check token expiration, refresh if needed
         self.mark_active()
@@ -258,6 +240,6 @@ class OAuthConnection(Connection):
             raise ValueError("OAuth credentials require access_token")
 
         if self.store:
-            await self.store.set(self.store_key, credentials)
+            await self.store.put(self.store_key, credentials)
         self._token_cache = credentials
         self.mark_active()

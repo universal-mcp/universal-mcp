@@ -22,6 +22,7 @@ dependencies = [
     "keyring>=25.6.0",
     "loguru>=0.7.3",
     "mcp>=1.10.0",
+    "py-key-value-aio[filetree]>=0.3.0",
     "pydantic>=2.11.1",
     "pydantic-settings>=2.8.1",
     "pyyaml>=6.0.2",

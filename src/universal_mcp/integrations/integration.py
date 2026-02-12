@@ -247,8 +247,12 @@ class OAuthIntegration(Integration):
             scopes: OAuth scopes (defaults to empty list)
             store: Storage backend for user tokens
         """
-        super().__init__(name, store)
+        # Don't sanitize name for OAuth - use raw name
+        # Override parent's __init__ to skip _sanitize_key_name
+        self.name = name.upper().replace("-", "_").replace(" ", "_")
+        self.store = store or MemoryStore()
         self.type = "oauth2"
+        self._default_connection: Connection | None = None
 
         # Integration config (shared across users)
         self.client_id = client_id

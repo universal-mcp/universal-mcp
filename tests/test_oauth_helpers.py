@@ -14,7 +14,7 @@ from universal_mcp.integrations.oauth_helpers import (
     StoreTokenStorage,
     discover_oauth_metadata,
 )
-from universal_mcp.stores.store import MemoryStore
+from universal_mcp.stores import MemoryStore
 
 # -- StoreTokenStorage tests --
 

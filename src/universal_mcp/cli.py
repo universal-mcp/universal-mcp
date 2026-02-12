@@ -31,6 +31,15 @@ def _get_sdk():
     return UniversalMCP()
 
 
+async def _get_sdk_async():
+    """Get SDK instance with async apps loaded."""
+    from universal_mcp.sdk import UniversalMCP
+
+    sdk = UniversalMCP()
+    await sdk.load_manifest_async()
+    return sdk
+
+
 def _get_skills_registry():
     from universal_mcp.skills.registry import SkillsRegistry
 
@@ -105,11 +114,14 @@ def app_remove(
     slug: str = typer.Argument(help="Application slug to remove"),
 ):
     """Remove an MCP application."""
-    sdk = _get_sdk()
-    if asyncio.run(sdk.remove(slug)):
-        rprint(f"[green]Removed '{slug}'[/green]")
-    else:
-        rprint(f"[yellow]App '{slug}' not found[/yellow]")
+    async def _remove_app():
+        sdk = await _get_sdk_async()
+        if await sdk.remove(slug):
+            rprint(f"[green]Removed '{slug}'[/green]")
+        else:
+            rprint(f"[yellow]App '{slug}' not found[/yellow]")
+
+    asyncio.run(_remove_app())
 
 
 @app_cmd.command("authorize")
@@ -145,18 +157,21 @@ def app_list_tools(
     app_name: str | None = typer.Option(None, "--app", "-a", help="Filter by app slug"),
 ):
     """List available tools."""
-    sdk = _get_sdk()
-    tools = sdk.list_tools(app=app_name)
-    if not tools:
-        rprint("[dim]No tools available.[/dim]")
-        return
-    for tool in tools:
-        name = tool["name"]
-        desc = tool["description"]
-        # Truncate long descriptions
-        if len(desc) > 80:
-            desc = desc[:77] + "..."
-        rprint(f"  [bold]{name}[/bold]  {desc}")
+    async def _list_tools():
+        sdk = await _get_sdk_async()
+        tools = sdk.list_tools(app=app_name)
+        if not tools:
+            rprint("[dim]No tools available.[/dim]")
+            return
+        for tool in tools:
+            name = tool["name"]
+            desc = tool["description"]
+            # Truncate long descriptions
+            if len(desc) > 80:
+                desc = desc[:77] + "..."
+            rprint(f"  [bold]{name}[/bold]  {desc}")
+
+    asyncio.run(_list_tools())
 
 
 @app_cmd.command("search-tools")
@@ -164,17 +179,20 @@ def app_search_tools(
     query: str = typer.Argument(help="Search query"),
 ):
     """Search for tools by name, description, or tags."""
-    sdk = _get_sdk()
-    tools = sdk.search_tools(query)
-    if not tools:
-        rprint(f"[dim]No tools matching '{query}'[/dim]")
-        return
-    for tool in tools:
-        name = tool["name"]
-        desc = tool["description"]
-        if len(desc) > 80:
-            desc = desc[:77] + "..."
-        rprint(f"  [bold]{name}[/bold]  {desc}")
+    async def _search_tools():
+        sdk = await _get_sdk_async()
+        tools = sdk.search_tools(query)
+        if not tools:
+            rprint(f"[dim]No tools matching '{query}'[/dim]")
+            return
+        for tool in tools:
+            name = tool["name"]
+            desc = tool["description"]
+            if len(desc) > 80:
+                desc = desc[:77] + "..."
+            rprint(f"  [bold]{name}[/bold]  {desc}")
+
+    asyncio.run(_search_tools())
 
 
 # =============================================================================
@@ -187,14 +205,17 @@ def server_start(
     port: int = typer.Option(8005, "--port", "-p", help="Port for HTTP transports"),
 ):
     """Start the MCP server."""
-    sdk = _get_sdk()
-    apps = sdk.list_apps()
-    if not apps:
-        rprint("[yellow]No apps installed. Use 'unsw app install <slug>' first.[/yellow]")
-        raise typer.Exit(1)
+    async def _start_server():
+        sdk = await _get_sdk_async()
+        apps = sdk.list_apps()
+        if not apps:
+            rprint("[yellow]No apps installed. Use 'unsw app install <slug>' first.[/yellow]")
+            raise typer.Exit(1)
 
-    rprint(f"[green]Starting MCP server with {len(apps)} app(s): {', '.join(apps)}[/green]")
-    asyncio.run(sdk.run(transport=transport, port=port))
+        rprint(f"[green]Starting MCP server with {len(apps)} app(s): {', '.join(apps)}[/green]")
+        await sdk.run(transport=transport, port=port)
+
+    asyncio.run(_start_server())
 
 
 # =============================================================================
@@ -502,27 +523,32 @@ def cron_info(
 @app.command()
 def status():
     """Show an overview of installed apps, tools, skills, and cron jobs."""
-    from rich.table import Table
+    async def _show_status():
+        from rich.table import Table
 
-    sdk = _get_sdk()
+        sdk = await _get_sdk_async()
 
-    # -- Apps & Tools --
-    apps = sdk.list_apps()
-    tools = sdk.list_tools()
+        # -- Apps & Tools --
+        apps = sdk.list_apps()
+        tools = sdk.list_tools()
 
-    rprint("[bold]Apps[/bold]")
-    if apps:
-        table = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))
-        table.add_column("Name")
-        table.add_column("Tools", justify="right")
-        for name in apps:
-            app_tools = sdk.list_tools(app=name)
-            table.add_row(name, str(len(app_tools)))
-        rprint(table)
-    else:
-        rprint("  [dim]No apps installed[/dim]")
+        rprint("[bold]Apps[/bold]")
+        if apps:
+            table = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))
+            table.add_column("Name")
+            table.add_column("Tools", justify="right")
+            for name in apps:
+                app_tools = sdk.list_tools(app=name)
+                table.add_row(name, str(len(app_tools)))
+            rprint(table)
+        else:
+            rprint("  [dim]No apps installed[/dim]")
 
-    rprint(f"\n  [dim]Total tools: {len(tools)}[/dim]")
+        rprint(f"\n  [dim]Total tools: {len(tools)}[/dim]")
+
+        return sdk
+
+    sdk = asyncio.run(_show_status())
 
     # -- Skills --
     rprint("\n[bold]Skills[/bold]")

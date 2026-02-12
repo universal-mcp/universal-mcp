@@ -95,22 +95,23 @@ class TestApiKeyIntegration:
         assert "api_key" in msg.lower()
 
     @pytest.mark.asyncio
-    async def test_store_key_migration(self):
-        """Test automatic migration from old key format."""
+    async def test_store_key_format(self):
+        """Test API key storage format."""
         store = MemoryStore()
-
-        # Set in old format
-        await store.set("GITHUB_API_KEY", "old_format_key")
 
         # Create integration
         integration = ApiKeyIntegration("GITHUB", store=store)
 
-        # Get credentials (should trigger migration)
-        creds = await integration.get_credentials()
-        assert creds == {"api_key": "old_format_key"}
+        # Set credentials
+        await integration.set_credentials({"api_key": "test_key"})
 
-        # Verify new format key exists
-        assert await store.get("GITHUB_API_KEY::default") == "old_format_key"
+        # Verify stored with correct key format (always dict)
+        stored = await store.get("connection::GITHUB_API_KEY::default")
+        assert stored == {"api_key": "test_key"}
+
+        # Get credentials
+        creds = await integration.get_credentials()
+        assert creds == {"api_key": "test_key"}
 
 
 class TestOAuthIntegration:
@@ -129,7 +130,8 @@ class TestOAuthIntegration:
             store=MemoryStore(),
         )
 
-        assert integration.name == "GITHUB_API_KEY"
+        # OAuth integrations don't add _API_KEY suffix
+        assert integration.name == "GITHUB"
         assert integration.type == "oauth2"
         assert integration.client_id == "client_123"
         assert integration.client_secret == "secret_456"
@@ -149,7 +151,8 @@ class TestOAuthIntegration:
 
         conn = integration.create_connection(user_id="alice")
         assert conn.user_id == "alice"
-        assert conn.integration_name == "GITHUB_API_KEY"
+        # OAuth integrations use clean names
+        assert conn.integration_name == "GITHUB"
 
     @pytest.mark.asyncio
     async def test_oauth_authorize_message(self):

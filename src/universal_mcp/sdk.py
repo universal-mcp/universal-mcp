@@ -8,10 +8,9 @@ from fastmcp import FastMCP
 from loguru import logger
 
 from universal_mcp.applications.utils import app_from_slug
-from universal_mcp.config import StoreConfig
 from universal_mcp.integrations.integration import Integration, IntegrationFactory
 from universal_mcp.servers.server import create_server
-from universal_mcp.stores import store_from_config
+from universal_mcp.stores import create_store
 from universal_mcp.tools.local_registry import LocalRegistry
 
 _DEFAULT_MANIFEST_PATH = Path.home() / ".universal-mcp" / "manifest.json"
@@ -30,13 +29,12 @@ class UniversalMCP:
 
     def __init__(
         self,
-        store_type: Literal["disk", "memory", "environment", "keyring"] = "disk",
+        store_type: Literal["disk", "memory", "environment", "keyring", "file"] = "file",
         store_path: Path | None = None,
         store_name: str = "universal_mcp",
         manifest_path: Path | None = None,
     ) -> None:
-        store_config = StoreConfig(type=store_type, name=store_name, path=store_path)
-        self.store = store_from_config(store_config)
+        self.store = create_store(store_type=store_type, directory=store_path, service_name=store_name)
         self.registry = LocalRegistry()
         self._integrations: dict[str, Integration] = {}
         self._mcp_apps: dict[str, Any] = {}  # MCPApplication instances for lifecycle management
@@ -68,9 +66,7 @@ class UniversalMCP:
             return
 
         # Create integration
-        integration = IntegrationFactory.create(
-            slug, integration_type, store=self.store, **integration_kwargs
-        )
+        integration = IntegrationFactory.create(slug, integration_type, store=self.store, **integration_kwargs)
         self._integrations[slug] = integration
 
         # Load and register app
@@ -337,6 +333,7 @@ class UniversalMCP:
         """Lazy-loaded CrontabRegistry instance."""
         if self._crontab_registry is None:
             from universal_mcp.crontabs.registry import CrontabRegistry
+
             self._crontab_registry = CrontabRegistry()
         return self._crontab_registry
 
@@ -426,9 +423,7 @@ class UniversalMCP:
                     tags = info.get("tags")
                     kwargs = info.get("integration_kwargs", {})
 
-                    integration = IntegrationFactory.create(
-                        slug, integration_type, store=self.store, **kwargs
-                    )
+                    integration = IntegrationFactory.create(slug, integration_type, store=self.store, **kwargs)
                     self._integrations[slug] = integration
 
                     app_class = app_from_slug(slug)
