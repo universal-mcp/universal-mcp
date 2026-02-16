@@ -122,8 +122,8 @@ class ApiKeyConnection(Connection):
 
         try:
             value = await self.store.get(self.store_key)
-        except KeyError:
-            raise NotAuthorizedError(f"No API key found for {self.integration_name}")
+        except KeyError as e:
+            raise NotAuthorizedError(f"No API key found for {self.integration_name}") from e
 
         if not value:
             raise NotAuthorizedError(f"No API key found for {self.integration_name}")

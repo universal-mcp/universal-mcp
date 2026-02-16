@@ -257,7 +257,9 @@ class SkillsRegistry:
         self._skills = updated
         self._save_registry()
 
-    def _scan_directory(self, skills_dir: Path, scope: Literal["global", "project"], out: dict[str, SkillMetadata]) -> None:
+    def _scan_directory(
+        self, skills_dir: Path, scope: Literal["global", "project"], out: dict[str, SkillMetadata]
+    ) -> None:
         """Scan a single skills directory for valid skill subdirectories.
 
         Args:

@@ -66,7 +66,7 @@ class TestDiskStore:
         """Test that store creates directory if it doesn't exist."""
         with tempfile.TemporaryDirectory() as tmpdir:
             nested_path = Path(tmpdir) / "nested" / "path"
-            store = DiskStore(directory=nested_path)
+            DiskStore(directory=nested_path)
 
             assert nested_path.exists()
 

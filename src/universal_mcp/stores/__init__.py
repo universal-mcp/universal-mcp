@@ -2,11 +2,11 @@
 
 from pathlib import Path
 
+from key_value.aio.stores.base import BaseStore
 from key_value.aio.stores.disk import DiskStore
+from key_value.aio.stores.filetree import FileTreeStore
 from key_value.aio.stores.keyring import KeyringStore
 from key_value.aio.stores.memory import MemoryStore
-from key_value.aio.stores.base import BaseStore
-from key_value.aio.stores.filetree import FileTreeStore
 
 
 def create_store(
