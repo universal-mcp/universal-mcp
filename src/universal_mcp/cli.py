@@ -2,6 +2,7 @@
 
 import asyncio
 
+import click
 import typer
 from rich import print as rprint
 
@@ -64,9 +65,14 @@ def _get_crontab_registry():
 def app_install(
     name_or_url: str = typer.Argument(help="App slug (e.g., 'github') or MCP server URL"),
     transport: str | None = typer.Option(None, "--transport", "-t", help="Transport type: http, sse, streamable-http (enables URL mode)"),
-    type: str = typer.Option("api_key", "--type", help="Integration type: api_key or oauth2"),
+    type: str | None = typer.Option(None, "--type", help="Integration type: api_key, oauth2, dynamic_oauth, or smithery"),
     name: str | None = typer.Option(None, "--name", "-n", help="Override app name (for URL installs)"),
     api_key: str | None = typer.Option(None, "--api-key", "-k", help="API key for auth"),
+    client_id: str | None = typer.Option(None, "--client-id", help="OAuth client ID"),
+    client_secret: str | None = typer.Option(None, "--client-secret", help="OAuth client secret"),
+    auth_url: str | None = typer.Option(None, "--auth-url", help="OAuth authorization URL"),
+    token_url: str | None = typer.Option(None, "--token-url", help="OAuth token URL"),
+    scopes: str | None = typer.Option(None, "--scopes", help="OAuth scopes (comma-separated)"),
     header: list[str] | None = typer.Option(None, "--header", "-H", help="Headers as KEY=VALUE (repeatable)"),
     tags: str | None = typer.Option(None, "--tags", help="Comma-separated tags to filter tools"),
     ngrok: bool = typer.Option(False, "--ngrok", help="Use ngrok for OAuth callbacks (for remote machines)"),
@@ -75,16 +81,26 @@ def app_install(
     sdk = _get_sdk()
     tag_list = tags.split(",") if tags else None
 
-    # Determine if this is a URL install (has transport flag or looks like a URL)
+    # Determine if this is a URL install FIRST (before prompting for type)
     is_url = transport is not None or name_or_url.startswith(("http://", "https://", "mcp."))
+
+    # Interactive prompt for integration type with context-appropriate choices
+    if type is None:
+        if is_url:
+            type = typer.prompt(
+                "Integration type",
+                type=click.Choice(["dynamic_oauth", "api_key", "smithery"]),
+                default="dynamic_oauth",
+            )
+        else:
+            type = typer.prompt(
+                "Integration type",
+                type=click.Choice(["api_key", "oauth2"]),
+            )
 
     if is_url:
         # URL-based install
         headers: dict[str, str] = {}
-        if not api_key and not header:
-            rprint("[dim]Checking if authentication is required...[/dim]")
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
         if header:
             for h in header:
                 if "=" not in h:
@@ -92,6 +108,18 @@ def app_install(
                     raise typer.Exit(1) from None
                 key, value = h.split("=", 1)
                 headers[key.strip()] = value.strip()
+
+        if type in ("api_key", "smithery") and not api_key and not headers.get("Authorization"):
+            api_key = typer.prompt(
+                "Smithery API key" if type == "smithery" else "API key",
+                hide_input=True,
+            )
+
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        if type == "dynamic_oauth" and not headers:
+            rprint("[dim]Checking if authentication is required...[/dim]")
 
         try:
             from universal_mcp.applications.mcp_app import _derive_app_name, normalize_mcp_url
@@ -107,9 +135,47 @@ def app_install(
             rprint(f"[dim]Full debug log: {_log_file}[/dim]")
             raise typer.Exit(1) from None
     else:
-        # Package-based install
+        # Package-based install — collect integration-specific credentials
+        if type in ("api_key", "smithery") and not api_key:
+            api_key = typer.prompt(
+                "Smithery API key" if type == "smithery" else "API key",
+                hide_input=True,
+            )
+
+        if type == "oauth2":
+            # Collect OAuth params interactively if not provided via flags
+            if not client_id:
+                client_id = typer.prompt("Client ID")
+            if not client_secret:
+                client_secret = typer.prompt("Client Secret", hide_input=True)
+            if not auth_url:
+                auth_url = typer.prompt("Authorization URL")
+            if not token_url:
+                token_url = typer.prompt("Token URL")
+            if scopes is None:
+                scopes_input = typer.prompt("Scopes (comma-separated, or leave blank)", default="")
+                scopes = scopes_input if scopes_input else None
+
         try:
-            sdk.add(name_or_url, integration_type=type, tags=tag_list)
+            oauth_kwargs: dict = {}
+            if type == "oauth2":
+                scope_list = [s.strip() for s in scopes.split(",")] if scopes else None
+                oauth_kwargs = {
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "auth_url": auth_url,
+                    "token_url": token_url,
+                    "scopes": scope_list,
+                }
+
+            sdk.add(name_or_url, integration_type=type, tags=tag_list, **oauth_kwargs)
+
+            if type in ("api_key", "smithery") and api_key:
+                asyncio.run(sdk.authorize(name_or_url, api_key=api_key))
+            elif type == "oauth2":
+                rprint("[dim]Starting OAuth authorization flow...[/dim]")
+                asyncio.run(sdk.authorize_oauth(name_or_url, use_ngrok=ngrok))
+
             rprint(f"[green]Installed '{name_or_url}' with {type} authentication[/green]")
             tools = sdk.list_tools(app=name_or_url)
             rprint(f"[dim]{len(tools)} tools registered[/dim]")

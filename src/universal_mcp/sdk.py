@@ -131,6 +131,8 @@ class UniversalMCP:
         headers: dict[str, str] | None = None,
         tags: list[str] | None = None,
         use_ngrok: bool = False,
+        integration: Integration | None = None,
+        integration_type: str | None = None,
     ) -> None:
         """Add an MCP application from a remote URL.
 
@@ -143,12 +145,19 @@ class UniversalMCP:
         3. If no stored integration -> create new one
         4. If stored connection (tokens) exists -> reuse it (handled by mcp_app.connect)
 
+        Flow for Smithery apps:
+        1. Pass a pre-created SmitheryIntegration instance with API key
+        2. API key is used as Bearer token in Authorization header
+        3. OAuth discovery is skipped
+
         Args:
             url: MCP server URL (e.g., "mcp.notion.so", "https://mcp.example.com/sse").
             name: Override app name (default: derived from URL domain).
             headers: HTTP headers for authentication (e.g., {"Authorization": "Bearer xxx"}).
             tags: Tool tags to filter (not used for remote tools currently).
             use_ngrok: If True, use ngrok for OAuth callbacks (for remote machines).
+            integration: Pre-created integration instance (e.g., SmitheryIntegration).
+            integration_type: Type of integration (used for manifest persistence).
         """
         from universal_mcp.applications.mcp_app import MCPApplication, _derive_app_name, normalize_mcp_url
 
@@ -160,9 +169,23 @@ class UniversalMCP:
             logger.info(f"App '{app_name}' already added, skipping")
             return
 
+        # Handle pre-created integration (e.g., SmitheryIntegration from CLI)
+        if integration and getattr(integration, 'type', None) == "smithery":
+            # Smithery: skip OAuth discovery, use api_key as Bearer header
+            try:
+                creds = await integration.get_credentials()
+                headers = headers or {}
+                headers["Authorization"] = f"Bearer {creds['api_key']}"
+            except Exception:
+                raise RuntimeError(
+                    f"Smithery API key not set for '{app_name}'. "
+                    f"Set it via: integration.set_credentials({{'api_key': '...'}})"
+                )
+
         # Discover OAuth metadata (shared across attempts)
         auth_metadata, prm, www_auth_scope = None, None, None
-        integration = None
+        if not integration:
+            integration = None
 
         if not headers:
             logger.debug("No headers provided, attempting OAuth discovery...")
@@ -257,7 +280,7 @@ class UniversalMCP:
         # Persist to manifest
         self._save_manifest_entry(
             app_name,
-            integration_type="oauth2" if integration else "none",
+            integration_type=integration.type if integration else "none",
             tags=tags,
             integration_kwargs=None,
             source_type="mcp_url",
@@ -449,6 +472,46 @@ class UniversalMCP:
             return f"Authorized '{slug}' with provided credentials"
         else:
             return integration.authorize()
+
+    async def authorize_oauth(self, slug: str, use_ngrok: bool = False) -> str:
+        """Run the interactive OAuth authorization flow for a package-based app.
+
+        Opens the browser for user authorization, exchanges the code for tokens,
+        and persists the credentials to the store.
+
+        Args:
+            slug: Application slug.
+            use_ngrok: Use ngrok for OAuth callbacks (for remote machines).
+
+        Returns:
+            Access token string.
+        """
+        from universal_mcp.integrations.integration import OAuthIntegration
+
+        integration = self._integrations.get(slug)
+        if not integration:
+            raise KeyError(f"App '{slug}' not found. Call add('{slug}') first.")
+
+        if not isinstance(integration, OAuthIntegration):
+            raise ValueError(f"App '{slug}' does not use OAuth (type={integration.type}).")
+
+        if use_ngrok:
+            from universal_mcp.integrations.oauth_helpers import run_oauth_callback_server
+
+            callback_url, actual_port, _, runner, tunnel = await run_oauth_callback_server(0, use_ngrok=True)
+            await runner.cleanup()
+            integration._registered_redirect_uri = callback_url
+            integration._ngrok_tunnel = tunnel
+            integration._callback_port = actual_port
+
+        access_token = await integration.run_oauth_flow()
+
+        # Persist tokens to store
+        conn = integration.get_default_connection()
+        creds = await integration.get_credentials()
+        await self.store.put(conn.store_key, creds)
+
+        return access_token
 
     async def is_authorized(self, slug: str) -> bool:
         """Check if an app has valid credentials.

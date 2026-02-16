@@ -10,11 +10,13 @@ from universal_mcp.integrations.integration import (
     Integration,
     IntegrationFactory,
     OAuthIntegration,
+    SmitheryIntegration,
 )
 
 __all__ = [
     "Integration",
     "ApiKeyIntegration",
+    "SmitheryIntegration",
     "OAuthIntegration",
     "IntegrationFactory",
     "Connection",

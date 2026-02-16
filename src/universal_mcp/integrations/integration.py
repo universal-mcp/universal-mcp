@@ -215,6 +215,37 @@ class ApiKeyIntegration(Integration):
         await conn.set_api_key(value)
 
 
+class SmitheryIntegration(Integration):
+    """Smithery API key integration for *.run.tools servers.
+
+    Smithery acts as an MCP proxy — user provides a Smithery API key,
+    which is passed as Bearer token. Smithery handles upstream OAuth.
+    """
+
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name)
+        self.type = "smithery"
+        logger.info(f"Initializing Smithery Integration: {name}")
+
+    @staticmethod
+    def _sanitize_key_name(name: str) -> str:
+        """Sanitize name without appending _API_KEY suffix."""
+        return name.upper().replace("-", "_").replace(" ", "_")
+
+    def create_connection(self, user_id: str | None = None) -> Connection:
+        return ApiKeyConnection(
+            integration_name=self.name,
+            user_id=user_id or "default",
+        )
+
+    def authorize(self) -> str:
+        return (
+            f"To authorize {self.name}, set your Smithery API key:\n\n"
+            f"  integration.set_credentials({{'api_key': 'your-smithery-key'}})\n\n"
+            f"Or use environment variable: {self.name}_API_KEY"
+        )
+
+
 class OAuthIntegration(Integration):
     """OAuth 2.0 authentication integration.
 
@@ -656,7 +687,7 @@ class IntegrationFactory:
 
         Args:
             app_name: Name of the application
-            integration_type: Type of integration ("api_key" or "oauth2")
+            integration_type: Type of integration ("api_key", "smithery", or "oauth2")
             **kwargs: Additional arguments for specific integration types
 
         Returns:
@@ -670,6 +701,8 @@ class IntegrationFactory:
 
         if integration_type == "api_key":
             return ApiKeyIntegration(app_name, **kwargs)
+        elif integration_type == "smithery":
+            return SmitheryIntegration(app_name, **kwargs)
         elif integration_type == "oauth2":
             # OAuth requires additional parameters
             return OAuthIntegration(app_name, **kwargs)
