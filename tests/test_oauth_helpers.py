@@ -16,7 +16,7 @@ from universal_mcp.integrations.oauth_helpers import (
 )
 from universal_mcp.stores import MemoryStore
 
-# -- StoreTokenStorage tests --
+# -- StoreTokenStorage tests (still uses store directly — SDK-only usage) --
 
 @pytest.mark.asyncio
 async def test_store_token_storage_get_tokens_empty():
@@ -138,7 +138,7 @@ async def test_discover_oauth_metadata_no_oauth():
         assert www_scope is None
 
 
-# -- OAuthIntegration tests --
+# -- OAuthIntegration tests (store-free) --
 
 def test_oauth_integration_init():
     """OAuthIntegration stores all config properly."""
@@ -210,8 +210,7 @@ def test_oauth_integration_get_authorization_url_generates_state():
 
 @pytest.mark.asyncio
 async def test_oauth_integration_exchange_code_for_token():
-    """exchange_code_for_token() POSTs to token endpoint and stores result."""
-    store = MemoryStore()
+    """exchange_code_for_token() POSTs to token endpoint and stores result in memory."""
     integration = OAuthIntegration(
         name="test",
         client_id="my-client",
@@ -219,7 +218,6 @@ async def test_oauth_integration_exchange_code_for_token():
         auth_url="https://auth.example.com/authorize",
         token_url="https://auth.example.com/token",
         scopes=["read"],
-        store=store,
     )
 
     # Generate PKCE first (simulating auth URL generation)
@@ -257,7 +255,7 @@ async def test_oauth_integration_exchange_code_for_token():
     # PKCE should be cleared after use
     assert integration._pkce is None
 
-    # Credentials should be stored in connection
+    # Credentials should be stored in-memory on connection
     stored_creds = await integration.get_credentials()
     assert stored_creds["access_token"] == "new-access-token"
 
@@ -283,15 +281,13 @@ async def test_oauth_integration_create_connection():
     """create_connection() returns OAuthConnection."""
     from universal_mcp.connections.connection import OAuthConnection
 
-    store = MemoryStore()
     integration = OAuthIntegration(
         name="test",
         client_id="cid",
         client_secret="csec",
         auth_url="https://auth.example.com/authorize",
         token_url="https://auth.example.com/token",
-        store=store,
     )
 
-    conn = integration.create_connection(user_id="user1", store=store)
+    conn = integration.create_connection(user_id="user1")
     assert isinstance(conn, OAuthConnection)

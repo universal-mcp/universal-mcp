@@ -4,7 +4,6 @@ import pytest
 
 from universal_mcp.applications.application import APIApplication
 from universal_mcp.integrations import ApiKeyIntegration, OAuthIntegration
-from universal_mcp.stores import MemoryStore
 
 
 class MockAPIApp(APIApplication):
@@ -25,8 +24,7 @@ class TestApplicationWithIntegration:
     @pytest.mark.asyncio
     async def test_api_application_with_api_key_integration(self):
         """Test APIApplication can get credentials from ApiKeyIntegration."""
-        store = MemoryStore()
-        integration = ApiKeyIntegration("TEST_API", store=store)
+        integration = ApiKeyIntegration("TEST_API")
         await integration.set_api_key("test_key_123")
 
         # Create application with integration
@@ -39,8 +37,7 @@ class TestApplicationWithIntegration:
     @pytest.mark.asyncio
     async def test_api_application_async_credentials(self):
         """Test APIApplication can get credentials asynchronously."""
-        store = MemoryStore()
-        integration = ApiKeyIntegration("TEST_API", store=store)
+        integration = ApiKeyIntegration("TEST_API")
         await integration.set_api_key("async_key_456")
 
         app = MockAPIApp(name="test_app", integration=integration)
@@ -52,14 +49,12 @@ class TestApplicationWithIntegration:
     @pytest.mark.asyncio
     async def test_api_application_with_oauth_integration(self):
         """Test APIApplication works with OAuth tokens."""
-        store = MemoryStore()
         integration = OAuthIntegration(
             name="GITHUB",
             client_id="client_123",
             client_secret="secret_456",
             auth_url="https://github.com/login/oauth/authorize",
             token_url="https://github.com/login/oauth/access_token",
-            store=store,
         )
 
         # Set user tokens
@@ -78,8 +73,7 @@ class TestApplicationWithIntegration:
     @pytest.mark.asyncio
     async def test_api_application_multi_user_connections(self):
         """Test application with multiple user connections."""
-        store = MemoryStore()
-        integration = ApiKeyIntegration("GITHUB", store=store)
+        integration = ApiKeyIntegration("GITHUB")
 
         # Create connections for different users
         alice_conn = integration.create_connection(user_id="alice")
@@ -107,8 +101,7 @@ class TestApplicationWithIntegration:
     @pytest.mark.asyncio
     async def test_api_application_with_direct_headers(self):
         """Test application with direct headers in credentials."""
-        store = MemoryStore()
-        integration = ApiKeyIntegration("TEST_API", store=store)
+        integration = ApiKeyIntegration("TEST_API")
 
         # Set credentials with direct headers
         await integration.set_credentials({
@@ -133,10 +126,8 @@ class TestBackwardCompatibility:
     @pytest.mark.asyncio
     async def test_old_api_key_pattern(self):
         """Test old-style API key usage still works."""
-        store = MemoryStore()
-
         # Old pattern: directly set API key
-        integration = ApiKeyIntegration("GITHUB", store=store)
+        integration = ApiKeyIntegration("GITHUB")
         await integration.set_api_key("ghp_old_pattern")
 
         app = MockAPIApp(name="github_app", integration=integration)
@@ -148,8 +139,7 @@ class TestBackwardCompatibility:
     @pytest.mark.asyncio
     async def test_old_credentials_dict_pattern(self):
         """Test old-style credentials dict still works."""
-        store = MemoryStore()
-        integration = ApiKeyIntegration("TEST_API", store=store)
+        integration = ApiKeyIntegration("TEST_API")
 
         # Old pattern: set_credentials with dict
         await integration.set_credentials({"api_key": "old_dict_key"})
@@ -161,11 +151,9 @@ class TestBackwardCompatibility:
 
     @pytest.mark.asyncio
     async def test_store_key_format(self):
-        """Test API key storage uses correct format."""
-        store = MemoryStore()
-
+        """Test API key storage uses correct format (in-memory round-trip)."""
         # Create integration and set credentials
-        integration = ApiKeyIntegration("GITHUB", store=store)
+        integration = ApiKeyIntegration("GITHUB")
         await integration.set_credentials({"api_key": "test_key_value"})
 
         # Should work with new format
@@ -174,9 +162,13 @@ class TestBackwardCompatibility:
 
         assert headers == {"Authorization": "Bearer test_key_value"}
 
-        # Verify stored as dict
-        stored = await store.get("connection::GITHUB_API_KEY::default")
-        assert stored == {"api_key": "test_key_value"}
+        # Verify in-memory round-trip (store is managed by SDK, not integration)
+        creds = await integration.get_credentials()
+        assert creds == {"api_key": "test_key_value"}
+
+        # Verify store_key format via connection
+        conn = integration.get_default_connection()
+        assert conn.store_key == "connection::GITHUB_API_KEY::default"
 
 
 class TestIntegrationErrorHandling:
@@ -187,8 +179,7 @@ class TestIntegrationErrorHandling:
         """Test that missing credentials are handled gracefully."""
         from universal_mcp.exceptions import NotAuthorizedError
 
-        store = MemoryStore()
-        integration = ApiKeyIntegration("MISSING_API", store=store)
+        integration = ApiKeyIntegration("MISSING_API")
 
         app = MockAPIApp(name="test_app", integration=integration)
 
@@ -199,8 +190,7 @@ class TestIntegrationErrorHandling:
     @pytest.mark.asyncio
     async def test_invalid_credentials_format(self):
         """Test that invalid credential format is caught."""
-        store = MemoryStore()
-        integration = ApiKeyIntegration("TEST_API", store=store)
+        integration = ApiKeyIntegration("TEST_API")
 
         # py-key-value requires dict values, empty dict is valid
         # Test with non-dict type
@@ -217,10 +207,8 @@ class TestIntegrationWithRealWorld:
     @pytest.mark.asyncio
     async def test_github_integration_pattern(self):
         """Test typical GitHub integration pattern."""
-        store = MemoryStore()
-
         # Setup GitHub integration
-        github = ApiKeyIntegration("GITHUB_TOKEN", store=store)
+        github = ApiKeyIntegration("GITHUB_TOKEN")
         await github.set_api_key("ghp_real_token_example")
 
         # Create GitHub application
@@ -234,8 +222,6 @@ class TestIntegrationWithRealWorld:
     @pytest.mark.asyncio
     async def test_oauth_app_pattern(self):
         """Test typical OAuth application pattern."""
-        store = MemoryStore()
-
         # Setup OAuth integration (e.g., Google Calendar)
         oauth = OAuthIntegration(
             name="GOOGLE_CALENDAR",
@@ -244,7 +230,6 @@ class TestIntegrationWithRealWorld:
             auth_url="https://accounts.google.com/o/oauth2/v2/auth",
             token_url="https://oauth2.googleapis.com/token",
             scopes=["https://www.googleapis.com/auth/calendar"],
-            store=store,
         )
 
         # User completes OAuth flow, tokens stored
@@ -266,8 +251,7 @@ class TestIntegrationWithRealWorld:
     @pytest.mark.asyncio
     async def test_async_api_calls(self):
         """Test async API call pattern with integration."""
-        store = MemoryStore()
-        integration = ApiKeyIntegration("API_KEY", store=store)
+        integration = ApiKeyIntegration("API_KEY")
         await integration.set_api_key("async_test_key")
 
         app = MockAPIApp(name="async_app", integration=integration)

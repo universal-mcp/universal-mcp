@@ -5,6 +5,11 @@ import asyncio
 import typer
 from rich import print as rprint
 
+from universal_mcp.logger import setup_logger
+
+# Initialise file logging early so every module picks up the sinks.
+_log_file = setup_logger()
+
 app = typer.Typer(
     name="unsw",
     help="Universal MCP - Find, install, authorize, and use MCP applications.",
@@ -64,6 +69,7 @@ def app_install(
     api_key: str | None = typer.Option(None, "--api-key", "-k", help="API key for auth"),
     header: list[str] | None = typer.Option(None, "--header", "-H", help="Headers as KEY=VALUE (repeatable)"),
     tags: str | None = typer.Option(None, "--tags", help="Comma-separated tags to filter tools"),
+    ngrok: bool = typer.Option(False, "--ngrok", help="Use ngrok for OAuth callbacks (for remote machines)"),
 ):
     """Install an MCP application (local package or remote URL)."""
     sdk = _get_sdk()
@@ -89,13 +95,16 @@ def app_install(
 
         try:
             from universal_mcp.applications.mcp_app import _derive_app_name, normalize_mcp_url
-            asyncio.run(sdk.add_from_url(name_or_url, name=name, headers=headers or None, tags=tag_list))
+            asyncio.run(sdk.add_from_url(name_or_url, name=name, headers=headers or None, tags=tag_list, use_ngrok=ngrok))
             app_name = name or _derive_app_name(normalize_mcp_url(name_or_url))
             tools = sdk.list_tools(app=app_name)
             rprint(f"[green]Installed remote MCP app from {name_or_url}[/green]")
             rprint(f"[dim]{len(tools)} tools registered[/dim]")
         except Exception as e:
+            from loguru import logger as _logger
+            _logger.exception(f"Failed to install MCP app from '{name_or_url}'")
             rprint(f"[red]Failed to install MCP app from '{name_or_url}': {e}[/red]")
+            rprint(f"[dim]Full debug log: {_log_file}[/dim]")
             raise typer.Exit(1) from None
     else:
         # Package-based install
@@ -105,7 +114,10 @@ def app_install(
             tools = sdk.list_tools(app=name_or_url)
             rprint(f"[dim]{len(tools)} tools registered[/dim]")
         except Exception as e:
+            from loguru import logger as _logger
+            _logger.exception(f"Failed to install '{name_or_url}'")
             rprint(f"[red]Failed to install '{name_or_url}': {e}[/red]")
+            rprint(f"[dim]Full debug log: {_log_file}[/dim]")
             raise typer.Exit(1) from None
 
 

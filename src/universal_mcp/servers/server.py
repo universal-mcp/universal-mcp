@@ -70,7 +70,8 @@ def create_server_from_config(config: ServerConfig) -> tuple[FastMCP, LocalRegis
 async def create_server_from_config_async(config: ServerConfig) -> tuple[FastMCP, LocalRegistry]:
     """Create a FastMCP server from a ServerConfig, including mcp_url apps.
 
-    Like create_server_from_config but also connects to remote MCP servers.
+    Like create_server_from_config but also connects to remote MCP servers
+    and hydrates credentials from the store.
 
     Args:
         config: Server configuration.
@@ -80,6 +81,7 @@ async def create_server_from_config_async(config: ServerConfig) -> tuple[FastMCP
     """
     registry = LocalRegistry()
     _load_config_into_registry(config, registry)
+    await _hydrate_registry_credentials(registry)
     await _load_mcp_url_apps(config, registry)
 
     server = FastMCP(config.name, config.description, port=config.port)
@@ -129,7 +131,11 @@ def _register_tools(server: FastMCP, registry: LocalRegistry) -> None:
 
 
 def _load_config_into_registry(config: ServerConfig, registry: LocalRegistry) -> None:
-    """Load apps and store tools from config into a registry."""
+    """Load apps and store tools from config into a registry.
+
+    The store is attached to the registry as ``_store`` so that async
+    hydration helpers can access it later.
+    """
     store = None
     if config.store:
         try:
@@ -146,6 +152,9 @@ def _load_config_into_registry(config: ServerConfig, registry: LocalRegistry) ->
             logger.error(f"Failed to setup store: {e}", exc_info=True)
             raise ConfigurationError(f"Store setup failed: {str(e)}") from e
 
+    # Stash store on registry so async hydration can find it
+    registry._store = store  # type: ignore[attr-defined]
+
     if not config.apps:
         logger.warning("No applications configured")
         return
@@ -159,11 +168,7 @@ def _load_config_into_registry(config: ServerConfig, registry: LocalRegistry) ->
             integration = None
             if app_config.integration:
                 if app_config.integration.type == "api_key":
-                    integration = ApiKeyIntegration(
-                        app_config.name,
-                        store=store,
-                        **(app_config.integration.credentials or {}),
-                    )
+                    integration = ApiKeyIntegration(app_config.name)
                 else:
                     raise ValueError(f"Unsupported integration type: {app_config.integration.type}")
 
@@ -173,6 +178,31 @@ def _load_config_into_registry(config: ServerConfig, registry: LocalRegistry) ->
             logger.info(f"Loaded app: {app_config.name}")
         except Exception as e:
             logger.error(f"Failed to load app {app_config.name}: {e}", exc_info=True)
+
+
+async def _hydrate_registry_credentials(registry: LocalRegistry) -> None:
+    """Load credentials from the store into all integrations in the registry.
+
+    Uses the ``_store`` attribute stashed on the registry by
+    ``_load_config_into_registry``.
+    """
+    store = getattr(registry, "_store", None)
+    if not store:
+        return
+
+    for app in registry._apps.values():
+        integration = getattr(app, "integration", None)
+        if not integration:
+            continue
+        conn = integration.get_default_connection()
+        try:
+            value = await store.get(conn.store_key)
+            if value:
+                if isinstance(value, str):
+                    value = {"api_key": value}
+                await conn.set_credentials(value)
+        except (KeyError, ValueError, TypeError):
+            continue
 
 
 async def _load_mcp_url_apps(config: ServerConfig, registry: LocalRegistry) -> None:

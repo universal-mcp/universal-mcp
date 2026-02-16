@@ -37,6 +37,9 @@ docs = [
     "mkdocs-material[imaging]>=9.5.45",
     "mkdocstrings-python>=1.12.2",
 ]
+ngrok = [
+    "pyngrok>=7.0.0",
+]
 
 [project.scripts]
 unsw = "universal_mcp.cli:app"

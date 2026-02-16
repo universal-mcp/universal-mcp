@@ -1,10 +1,9 @@
-"""Tests for Integration with Connection separation."""
+"""Tests for Integration with Connection separation (store-free)."""
 
 import pytest
 
 from universal_mcp.connections import ApiKeyConnection
 from universal_mcp.integrations import ApiKeyIntegration, OAuthIntegration
-from universal_mcp.stores import MemoryStore
 
 
 class TestApiKeyIntegration:
@@ -13,8 +12,7 @@ class TestApiKeyIntegration:
     @pytest.mark.asyncio
     async def test_backward_compatibility_api_key_property(self):
         """Test that old api_key property still works."""
-        store = MemoryStore()
-        integration = ApiKeyIntegration("TEST", store=store)
+        integration = ApiKeyIntegration("TEST")
 
         # Old way: set via property
         await integration.set_api_key("test_key_123")
@@ -25,8 +23,7 @@ class TestApiKeyIntegration:
     @pytest.mark.asyncio
     async def test_backward_compatibility_get_credentials(self):
         """Test that get_credentials() still works."""
-        store = MemoryStore()
-        integration = ApiKeyIntegration("TEST", store=store)
+        integration = ApiKeyIntegration("TEST")
 
         await integration.set_credentials({"api_key": "test_key"})
         creds = await integration.get_credentials()
@@ -36,8 +33,7 @@ class TestApiKeyIntegration:
     @pytest.mark.asyncio
     async def test_async_get_credentials(self):
         """Test async get_credentials method."""
-        store = MemoryStore()
-        integration = ApiKeyIntegration("TEST", store=store)
+        integration = ApiKeyIntegration("TEST")
         await integration.set_api_key("async_key")
 
         creds = await integration.get_credentials()
@@ -46,8 +42,7 @@ class TestApiKeyIntegration:
     @pytest.mark.asyncio
     async def test_create_connection_multi_user(self):
         """Test creating multiple connections for different users."""
-        store = MemoryStore()
-        integration = ApiKeyIntegration("GITHUB", store=store)
+        integration = ApiKeyIntegration("GITHUB")
 
         # Create connections for different users
         conn1 = integration.create_connection(user_id="alice")
@@ -63,8 +58,7 @@ class TestApiKeyIntegration:
     @pytest.mark.asyncio
     async def test_default_connection_isolation(self):
         """Test that default connection is separate from user connections."""
-        store = MemoryStore()
-        integration = ApiKeyIntegration("TEST", store=store)
+        integration = ApiKeyIntegration("TEST")
 
         # Set via default (old way)
         await integration.set_api_key("default_key")
@@ -80,7 +74,7 @@ class TestApiKeyIntegration:
     @pytest.mark.asyncio
     async def test_connection_type(self):
         """Test that ApiKeyIntegration creates ApiKeyConnection."""
-        integration = ApiKeyIntegration("TEST", store=MemoryStore())
+        integration = ApiKeyIntegration("TEST")
         conn = integration.create_connection()
 
         assert isinstance(conn, ApiKeyConnection)
@@ -88,7 +82,7 @@ class TestApiKeyIntegration:
     @pytest.mark.asyncio
     async def test_authorize_message(self):
         """Test authorization instruction message."""
-        integration = ApiKeyIntegration("TEST", store=MemoryStore())
+        integration = ApiKeyIntegration("TEST")
         msg = integration.authorize()
 
         assert "TEST_API_KEY" in msg
@@ -96,22 +90,34 @@ class TestApiKeyIntegration:
 
     @pytest.mark.asyncio
     async def test_store_key_format(self):
-        """Test API key storage format."""
-        store = MemoryStore()
-
-        # Create integration
-        integration = ApiKeyIntegration("GITHUB", store=store)
+        """Test API key storage key format via connection."""
+        integration = ApiKeyIntegration("GITHUB")
 
         # Set credentials
         await integration.set_credentials({"api_key": "test_key"})
 
-        # Verify stored with correct key format (always dict)
-        stored = await store.get("connection::GITHUB_API_KEY::default")
-        assert stored == {"api_key": "test_key"}
+        # Verify store key format
+        conn = integration.get_default_connection()
+        assert conn.store_key == "connection::GITHUB_API_KEY::default"
 
-        # Get credentials
+        # Get credentials (in-memory round-trip)
         creds = await integration.get_credentials()
         assert creds == {"api_key": "test_key"}
+
+    @pytest.mark.asyncio
+    async def test_get_connection(self):
+        """Test get_connection() returns correct connections."""
+        integration = ApiKeyIntegration("TEST")
+
+        # Default connection
+        conn1 = integration.get_connection()
+        conn2 = integration.get_connection("default")
+        assert conn1 is conn2  # Same cached instance
+
+        # User connection
+        conn3 = integration.get_connection("alice")
+        assert conn3 is not conn1
+        assert conn3.user_id == "alice"
 
 
 class TestOAuthIntegration:
@@ -127,7 +133,6 @@ class TestOAuthIntegration:
             auth_url="https://github.com/login/oauth/authorize",
             token_url="https://github.com/login/oauth/access_token",
             scopes=["repo", "user"],
-            store=MemoryStore(),
         )
 
         # OAuth integrations don't add _API_KEY suffix
@@ -146,7 +151,6 @@ class TestOAuthIntegration:
             client_secret="secret_456",
             auth_url="https://github.com/login/oauth/authorize",
             token_url="https://github.com/login/oauth/access_token",
-            store=MemoryStore(),
         )
 
         conn = integration.create_connection(user_id="alice")
@@ -164,7 +168,6 @@ class TestOAuthIntegration:
             auth_url="https://github.com/login/oauth/authorize",
             token_url="https://github.com/login/oauth/access_token",
             scopes=["repo"],
-            store=MemoryStore(),
         )
 
         msg = integration.authorize()
@@ -180,7 +183,6 @@ class TestOAuthIntegration:
             client_secret="secret_456",
             auth_url="https://github.com/login/oauth/authorize",
             token_url="https://github.com/login/oauth/access_token",
-            store=MemoryStore(),
         )
 
         # get_authorization_url should return a valid URL with PKCE
@@ -192,14 +194,12 @@ class TestOAuthIntegration:
     @pytest.mark.asyncio
     async def test_oauth_multi_user(self):
         """Test OAuth with multiple user tokens."""
-        store = MemoryStore()
         integration = OAuthIntegration(
             name="GITHUB",
             client_id="client_123",
             client_secret="secret_456",
             auth_url="https://github.com/login/oauth/authorize",
             token_url="https://github.com/login/oauth/access_token",
-            store=store,
         )
 
         # Alice's tokens
@@ -252,3 +252,13 @@ class TestIntegrationFactory:
 
         with pytest.raises(ValueError, match="Unsupported integration type"):
             IntegrationFactory.create("TEST", integration_type="unsupported")
+
+    @pytest.mark.asyncio
+    async def test_factory_ignores_store_kwarg(self):
+        """Test that factory silently ignores store kwarg for backward compat."""
+        from universal_mcp.integrations import IntegrationFactory
+        from universal_mcp.stores import MemoryStore
+
+        # Should not raise even though store is passed
+        integration = IntegrationFactory.create("TEST", integration_type="api_key", store=MemoryStore())
+        assert isinstance(integration, ApiKeyIntegration)

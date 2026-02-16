@@ -4,6 +4,7 @@ Separates user-specific credentials (tokens, keys) from shared integration
 configuration (OAuth client settings, endpoints).
 
 All operations are async for non-blocking I/O.
+Connections are pure in-memory objects — the SDK owns persistence.
 """
 
 from abc import ABC, abstractmethod
@@ -19,6 +20,9 @@ class Connection(ABC):
     defines HOW to connect (client configuration, endpoints), a Connection holds
     WHAT credentials to use (access tokens, API keys).
 
+    Connections are pure in-memory objects. The SDK (UniversalMCP) is responsible
+    for loading credentials from a store and setting them on the connection.
+
     This separation enables:
     - Multi-user support: Multiple connections per integration
     - OAuth support: Client config separate from user tokens
@@ -31,18 +35,15 @@ class Connection(ABC):
         self,
         integration_name: str,
         user_id: str | None = None,
-        store: Any | None = None,
     ):
         """Initialize a Connection.
 
         Args:
             integration_name: Name of the integration this connection uses
             user_id: User identifier (defaults to "default" for single-user scenarios)
-            store: Storage backend (py-key-value store instance)
         """
         self.integration_name = integration_name
         self.user_id = user_id or "default"
-        self.store = store
         self._status = "pending"  # pending, active, expired, revoked
 
     @abstractmethod
@@ -59,7 +60,7 @@ class Connection(ABC):
 
     @abstractmethod
     async def set_credentials(self, credentials: dict[str, Any]) -> None:
-        """Store user-specific credentials asynchronously.
+        """Store user-specific credentials in memory.
 
         Args:
             credentials: Dictionary containing credentials to store
@@ -69,6 +70,8 @@ class Connection(ABC):
     @property
     def store_key(self) -> str:
         """Generate unique key for this connection's credentials.
+
+        Used by the SDK to load/save credentials from/to a store.
 
         Format: connection::{integration_name}::{user_id}
         Example: "connection::GITHUB_API_KEY::user_123"
@@ -100,60 +103,45 @@ class ApiKeyConnection(Connection):
     """Connection for API key authentication (async-only).
 
     Manages a single user's API key for an integration.
+    Credentials are held in memory; persistence is managed by the SDK.
     All operations are async for non-blocking I/O.
     """
 
     def __init__(self, *args, **kwargs):
         """Initialize API key connection."""
         super().__init__(*args, **kwargs)
+        self._credentials: dict[str, Any] | None = None
         self._api_key_cache: str | None = None
 
     async def get_credentials(self) -> dict[str, Any]:
-        """Get API key from store asynchronously.
+        """Get API key from in-memory credentials.
 
         Returns:
             Dictionary containing api_key or full credentials dict
 
         Raises:
-            NotAuthorizedError: If no store configured or key not found
+            NotAuthorizedError: If no credentials have been set
         """
-        if not self.store:
-            raise NotAuthorizedError("No store configured")
-
-        try:
-            value = await self.store.get(self.store_key)
-        except KeyError as e:
-            raise NotAuthorizedError(f"No API key found for {self.integration_name}") from e
-
-        if not value:
+        if self._credentials is None:
             raise NotAuthorizedError(f"No API key found for {self.integration_name}")
 
         self.mark_active()
 
-        # If value is already a dict (full credentials), return as-is
-        if isinstance(value, dict):
-            return value
-
-        # Otherwise, wrap string API key in standard format
-        return {"api_key": value}
+        return self._credentials
 
     async def set_credentials(self, credentials: dict[str, Any]) -> None:
-        """Store API key asynchronously.
+        """Store API key in memory.
 
         Args:
             credentials: Dictionary containing api_key or full credentials dict
 
         Raises:
-            ValueError: If credentials is invalid or api_key not found
+            ValueError: If credentials is invalid
         """
         if not isinstance(credentials, dict):
             raise ValueError("Credentials must be a dictionary")
 
-        # Always store as a dict (py-key-value requires Mapping type)
-        if not self.store:
-            raise ValueError("No store configured")
-
-        await self.store.put(self.store_key, credentials)
+        self._credentials = credentials
 
         # Cache API key if present
         if "api_key" in credentials:
@@ -193,6 +181,7 @@ class OAuthConnection(Connection):
     The OAuth client configuration (client_id, client_secret, endpoints)
     lives in the Integration, not here.
 
+    Credentials are held in memory; persistence is managed by the SDK.
     All operations are async for non-blocking I/O.
     """
 
@@ -202,32 +191,23 @@ class OAuthConnection(Connection):
         self._token_cache: dict[str, Any] | None = None
 
     async def get_credentials(self) -> dict[str, Any]:
-        """Get OAuth tokens from store asynchronously.
+        """Get OAuth tokens from in-memory cache.
 
         Returns:
             Dictionary containing access_token, refresh_token, expires_at, etc.
 
         Raises:
-            NotAuthorizedError: If no store configured or tokens not found
+            NotAuthorizedError: If no tokens have been set
         """
-        if not self.store:
-            raise NotAuthorizedError("No store configured")
-
-        # py-key-value may return None or raise KeyError for missing keys
-        try:
-            value = await self.store.get(self.store_key)
-        except KeyError as e:
-            raise NotAuthorizedError(f"No OAuth token found for {self.integration_name}") from e
-
-        if not value or not isinstance(value, dict):
+        if self._token_cache is None:
             raise NotAuthorizedError(f"No OAuth token found for {self.integration_name}")
 
         # TODO: Check token expiration, refresh if needed
         self.mark_active()
-        return value  # {"access_token": "...", "refresh_token": "...", "expires_at": ...}
+        return self._token_cache
 
     async def set_credentials(self, credentials: dict[str, Any]) -> None:
-        """Store OAuth tokens asynchronously.
+        """Store OAuth tokens in memory.
 
         Args:
             credentials: Dictionary containing at minimum access_token
@@ -239,7 +219,5 @@ class OAuthConnection(Connection):
         if not all(k in credentials for k in required_fields):
             raise ValueError("OAuth credentials require access_token")
 
-        if self.store:
-            await self.store.put(self.store_key, credentials)
         self._token_cache = credentials
         self.mark_active()

@@ -1,6 +1,7 @@
 """OAuth helper utilities for MCP URL applications."""
 
 import asyncio
+from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -90,6 +91,13 @@ class StoreTokenStorage:
         # Use mode='json' to properly serialize URLs and other Pydantic types
         await self.store.put(self._client_info_key(), client_info.model_dump(mode="json", exclude_none=True))
 
+    async def delete_client_info(self) -> None:
+        """Delete stored OAuth client information."""
+        import contextlib
+
+        with contextlib.suppress(KeyError):
+            await self.store.delete(self._client_info_key())
+
 
 def parse_callback_url(url: str):
     parsed_url = urlparse(url)
@@ -101,17 +109,67 @@ def parse_callback_url(url: str):
     return code, error, state
 
 
+def start_ngrok_tunnel(port: int) -> tuple[str, Any]:
+    """Start an ngrok tunnel to the given local port.
+
+    Requires pyngrok: ``pip install universal-mcp[ngrok]``
+
+    Args:
+        port: Local port to tunnel to.
+
+    Returns:
+        Tuple of (public_url, tunnel) where public_url is the HTTPS ngrok URL
+        and tunnel is the pyngrok tunnel object (needed for cleanup).
+
+    Raises:
+        ImportError: If pyngrok is not installed.
+    """
+    try:
+        from pyngrok import ngrok
+    except ImportError:
+        raise ImportError(
+            "pyngrok is required for ngrok support. Install it with: pip install universal-mcp[ngrok]"
+        ) from None
+
+    tunnel = ngrok.connect(port, "http")
+    public_url = tunnel.public_url
+    # Ensure HTTPS
+    if public_url.startswith("http://"):
+        public_url = public_url.replace("http://", "https://", 1)
+    logger.info(f"ngrok tunnel started: {public_url} -> localhost:{port}")
+    return public_url, tunnel
+
+
+def stop_ngrok_tunnel(tunnel: Any) -> None:
+    """Stop an ngrok tunnel.
+
+    Args:
+        tunnel: The pyngrok tunnel object returned by start_ngrok_tunnel().
+    """
+    try:
+        from pyngrok import ngrok
+
+        ngrok.disconnect(tunnel.public_url)
+        logger.info("ngrok tunnel stopped")
+    except Exception as e:
+        logger.debug(f"Error stopping ngrok tunnel: {e}")
+
+
 async def run_oauth_callback_server(
     port: int = 0,
-) -> tuple[str, int, asyncio.Future[tuple[str, str | None]], web.AppRunner]:
+    use_ngrok: bool = False,
+) -> tuple[str, int, asyncio.Future[tuple[str, str | None]], web.AppRunner, Any]:
     """Start a minimal aiohttp web server to receive OAuth callback.
 
     Args:
         port: Port to bind to (0 = find free port)
+        use_ngrok: If True, start an ngrok tunnel and return the public URL
+            as the callback URL. Requires pyngrok to be installed.
 
     Returns:
-        Tuple of (callback_url, actual_port, result_future, runner) where
+        Tuple of (callback_url, actual_port, result_future, runner, ngrok_tunnel) where
         result_future resolves to (code, state) when the callback is received.
+        ngrok_tunnel is the pyngrok tunnel object (None when use_ngrok=False).
         The caller MUST call `await runner.cleanup()` when done.
     """
     loop = asyncio.get_running_loop()
@@ -146,19 +204,43 @@ async def run_oauth_callback_server(
             content_type="text/html",
         )
 
+    async def handle_root(request: web.Request) -> web.Response:
+        """Catch-all handler for debugging - logs unexpected requests."""
+        path = request.path
+        query = dict(request.query)
+        logger.debug(f"OAuth callback server received request: {request.method} {path} query={query}")
+
+        # Some OAuth providers redirect to the root or a different path
+        code = request.query.get("code")
+        if code:
+            logger.warning(f"Received OAuth code on unexpected path '{path}', processing anyway...")
+            return await handle_callback_wrapped(request)
+
+        return web.Response(
+            text=f"<html><body><h1>OAuth Callback Server</h1><p>Waiting for callback on /callback</p><p>Got: {path}</p></body></html>",
+            content_type="text/html",
+        )
+
     app = web.Application()
     app.router.add_get("/callback", handle_callback_wrapped)
+    app.router.add_get("/{path:.*}", handle_root)  # Catch-all for debugging
 
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, "localhost", port)
+    site = web.TCPSite(runner, "0.0.0.0", port)  # Bind to all interfaces (needed for ngrok)
     await site.start()
 
     # Get actual port
     actual_port = site._server.sockets[0].getsockname()[1]
-    callback_url = f"http://localhost:{actual_port}/callback"
 
-    return callback_url, actual_port, result, runner
+    ngrok_tunnel = None
+    if use_ngrok:
+        public_url, ngrok_tunnel = start_ngrok_tunnel(actual_port)
+        callback_url = f"{public_url}/callback"
+    else:
+        callback_url = f"http://localhost:{actual_port}/callback"
+
+    return callback_url, actual_port, result, runner, ngrok_tunnel
 
 
 async def discover_oauth_metadata(
@@ -296,6 +378,11 @@ async def register_oauth_client(
     """
     from pydantic import AnyUrl
 
+    logger.debug(
+        f"register_oauth_client: server_url={server_url}, client_name={client_name}, "
+        f"redirect_uris={redirect_uris}, scopes={scopes}"
+    )
+
     # Convert redirect_uris to AnyUrl
     redirect_uri_objects = [AnyUrl(uri) for uri in (redirect_uris or [])]
 
@@ -310,11 +397,17 @@ async def register_oauth_client(
 
     # Create registration request
     request = create_client_registration_request(auth_metadata, client_metadata, server_url)
+    logger.debug(f"Registration endpoint: {request.url}, method={request.method}")
 
     # Send registration request
     async with httpx.AsyncClient() as client:
         response = await client.send(request)
 
+    logger.debug(f"Registration response: status={response.status_code}")
+    if response.status_code != 200 and response.status_code != 201:
+        logger.error(f"Client registration failed: status={response.status_code}, body={response.text[:500]}")
+
     # Parse and return response
     client_info = await handle_registration_response(response)
+    logger.info(f"OAuth client registered: client_id={client_info.client_id}")
     return client_info
